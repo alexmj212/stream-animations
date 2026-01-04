@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Animation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+        }
+
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+        import { getColorFromURL, hexToHSL } from '../shared/colors.js';
+        import { setupCanvas, clearCanvas } from '../shared/canvas.js';
+        import { BackgroundBar } from './BackgroundBar.js';
+
+        // Get parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const speedMultiplier = parseFloat(urlParams.get('speed')) || 1.0;
+        const barDensity = parseInt(urlParams.get('density')) || 5;
+        const baseColor = getColorFromURL();
+        const baseHSL = hexToHSL(baseColor);
+
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = setupCanvas(canvas);
+
+        // Create bars with random types
+        const bars = [];
+        for (let i = 0; i < barDensity; i++) {
+            const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
+            bars.push(new BackgroundBar(ctx, canvas, type, baseHSL, speedMultiplier));
+        }
+
+        // Assign random z-index for weave effect
+        bars.forEach(bar => {
+            bar.zIndex = Math.random();
+        });
+
+        // Animation loop
+        function animate() {
+            clearCanvas(ctx, canvas);
+
+            // Sort bars by zIndex and draw for weave effect
+            bars.sort((a, b) => a.zIndex - b.zIndex)
+                .forEach(bar => {
+                    bar.update();
+                    bar.draw();
+                });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

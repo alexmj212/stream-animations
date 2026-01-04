@@ -1,0 +1,23 @@
+{
+  "name": "stream-animations",
+  "version": "1.0.0",
+  "description": "Visually consistent HTML5 Canvas animations for OBS stream overlays",
+  "type": "module",
+  "scripts": {
+    "dev:stinger": "npx serve src/stinger",
+    "dev:background": "npx serve src/background",
+    "dev": "npx serve src"
+  },
+  "keywords": [
+    "obs",
+    "stream",
+    "animation",
+    "overlay",
+    "canvas"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

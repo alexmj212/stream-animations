@@ -1,0 +1,42 @@
+# Stream Animations
+
+A collection of visually consistent HTML5 Canvas animations for OBS stream overlays.
+
+## Animations
+
+### Stinger Transition
+A dynamic curtain-style transition with slanted and horizontal bars.
+
+**URL**: `stinger/index.html?color=#hexvalue&duration=3000`
+
+### Background Animation
+Subtle continuously looping background with drifting bars.
+
+**URL**: `background/index.html?color=#hexvalue&speed=1.0&density=5`
+
+## Parameters
+
+All animations support:
+- `color` - Base color in hex format (e.g., `#ff6600`)
+
+## Project Structure
+
+```
+src/
+  shared/       - Shared animation utilities and base classes
+  stinger/      - Stinger transition animation
+  background/   - Background loop animation
+public/         - Built/compiled animations for OBS
+```
+
+## Development
+
+The animations are built with vanilla HTML5 Canvas and JavaScript for maximum compatibility with OBS Browser Sources.
+
+## Usage in OBS
+
+1. Add a Browser Source
+2. Set URL to the local file path or web server hosting the HTML
+3. Set Width: 1920, Height: 1080 (or your stream resolution)
+4. Add custom CSS: `body { background-color: rgba(0, 0, 0, 0); }`
+5. Check "Shutdown source when not visible" for performance
