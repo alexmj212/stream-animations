@@ -29,7 +29,7 @@ export class BackgroundBar extends AnimatedBar {
         if (this.isWhite) {
             this.hue = 0;
             this.saturation = 0;
-            this.lightness = 100;
+            this.lightness = 80; // Reduced from 100 to 80 (20% darker)
         } else {
             // Vary the hue slightly from base color
             const hueVariation = (this.random() - 0.5) * 40;
@@ -37,7 +37,9 @@ export class BackgroundBar extends AnimatedBar {
 
             this.hue = (this.baseHSL.h + hueVariation + 360) % 360;
             this.saturation = this.baseHSL.s;
-            this.lightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
+            // Reduce lightness by 20% from the base calculation
+            const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
+            this.lightness = Math.max(10, baseLightness * 0.8);
         }
 
         // Opacity range (0.4-0.7 = 40%-70%)
