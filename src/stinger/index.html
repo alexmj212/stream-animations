@@ -30,12 +30,22 @@
         import { getColorFromURL, hexToHSL } from '../shared/colors.js';
         import { setupCanvas, clearCanvas } from '../shared/canvas.js';
         import { StingerBar } from './StingerBar.js';
+        import { PerformanceMonitor } from '../shared/performance.js';
 
         // Get parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
         const ANIMATION_DURATION = parseInt(urlParams.get('duration')) || 3000;
+        const showPerf = urlParams.get('perf') === 'true';
         const baseColor = getColorFromURL();
         const baseHSL = hexToHSL(baseColor);
+
+        // Setup performance monitoring
+        const perfMonitor = new PerformanceMonitor(60);
+        if (showPerf) {
+            perfMonitor.enable();
+            // Log performance stats every 2 seconds
+            setInterval(() => perfMonitor.logStats(), 2000);
+        }
 
         // Canvas setup
         const canvas = document.getElementById('canvas');
@@ -112,21 +122,24 @@
 
         // Animation loop
         function animate() {
+            perfMonitor.recordFrame();
+
             clearCanvas(ctx, canvas);
 
             // Draw background curtain bars first
-            bars.filter(bar => bar.isBackground).forEach(bar => {
-                bar.update();
-                bar.draw();
-            });
+            const backgroundBars = bars.filter(bar => bar.isBackground);
+            for (let i = 0; i < backgroundBars.length; i++) {
+                backgroundBars[i].update();
+                backgroundBars[i].draw();
+            }
 
             // Sort accent bars by zIndex and draw
-            bars.filter(bar => !bar.isBackground)
-                .sort((a, b) => a.zIndex - b.zIndex)
-                .forEach(bar => {
-                    bar.update();
-                    bar.draw();
-                });
+            const accentBars = bars.filter(bar => !bar.isBackground)
+                .sort((a, b) => a.zIndex - b.zIndex);
+            for (let i = 0; i < accentBars.length; i++) {
+                accentBars[i].update();
+                accentBars[i].draw();
+            }
 
             requestAnimationFrame(animate);
         }

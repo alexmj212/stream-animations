@@ -2,10 +2,11 @@
  * Stinger-specific animated bar with phase-based transitions
  */
 import { AnimatedBar } from '../shared/AnimatedBar.js';
+import { isBarInViewport } from '../shared/animations/calculations.js';
 
 export class StingerBar extends AnimatedBar {
-    constructor(ctx, canvas, type, index, total, baseHSL, duration) {
-        super(ctx, canvas, type);
+    constructor(ctx, canvas, type, index, total, baseHSL, duration, options = {}) {
+        super(ctx, canvas, type, options);
         this.index = index;
         this.total = total;
         this.baseHSL = baseHSL;
@@ -15,7 +16,7 @@ export class StingerBar extends AnimatedBar {
         if (this.type === 'slanted') {
             this.direction = index % 2 === 0 ? 1 : -1;
         } else {
-            this.direction = Math.random() > 0.5 ? 1 : -1;
+            this.direction = this.random() > 0.5 ? 1 : -1;
         }
 
         this.init();
@@ -23,7 +24,7 @@ export class StingerBar extends AnimatedBar {
 
     init() {
         // Some bars are white, others use hue variations
-        this.isWhite = Math.random() > 0.7;
+        this.isWhite = this.random() > 0.7;
 
         if (this.isWhite) {
             this.hue = 0;
@@ -31,31 +32,31 @@ export class StingerBar extends AnimatedBar {
             this.lightness = 100;
         } else {
             // Vary the hue slightly from base color
-            const hueVariation = (Math.random() - 0.5) * 40;
-            const lightnessVariation = (Math.random() - 0.5) * 30;
+            const hueVariation = (this.random() - 0.5) * 40;
+            const lightnessVariation = (this.random() - 0.5) * 30;
 
             this.hue = (this.baseHSL.h + hueVariation + 360) % 360;
             this.saturation = this.baseHSL.s;
             this.lightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
         }
 
-        this.opacity = Math.random() * 0.4 + 0.6;
+        this.opacity = this.random() * 0.4 + 0.6;
 
         // Some slanted bars reverse direction during exit (not background bars)
-        this.reverseOnExit = this.type === 'slanted' && Math.random() > 0.5;
+        this.reverseOnExit = this.type === 'slanted' && this.random() > 0.5;
 
         if (this.type === 'slanted') {
             // White bars are smaller, colored bars have more variation
             if (this.isWhite) {
-                this.width = Math.random() * 80 + 40;
+                this.width = this.random() * 80 + 40;
             } else {
-                this.width = Math.random() * 300 + 150;
+                this.width = this.random() * 300 + 150;
             }
             this.angle = 15; // Slight clockwise angle
             this.y = 0; // Start at top, extend full height
 
             // Random target position across the width (20% to 80% of screen width)
-            const randomTarget = this.canvas.width * (0.2 + Math.random() * 0.6);
+            const randomTarget = this.canvas.width * (0.2 + this.random() * 0.6);
 
             // Start from left or right based on direction
             if (this.direction === 1) {
@@ -71,9 +72,9 @@ export class StingerBar extends AnimatedBar {
             this.width = this.canvas.width + 400;
             // White bars are smaller
             if (this.isWhite) {
-                this.height = Math.random() * 30 + 20;
+                this.height = this.random() * 30 + 20;
             } else {
-                this.height = Math.random() * 60 + 40;
+                this.height = this.random() * 60 + 40;
             }
             this.skew = -15; // Negative skew angle for opposite direction
             this.y = (this.index / this.total) * this.canvas.height;
@@ -178,6 +179,11 @@ export class StingerBar extends AnimatedBar {
         const angle = this.type === 'slanted' ? this.angle : this.skew;
         const height = this.type === 'horizontal' ? this.height : this.canvas.height * 1.5;
         const withShadow = !this.isBackground;
+
+        // Viewport culling - skip drawing if bar is completely off-screen
+        if (!isBarInViewport(this.x, this.y, this.width, height, this.canvas.width, this.canvas.height, 300)) {
+            return;
+        }
 
         this.drawBar(
             this.x,

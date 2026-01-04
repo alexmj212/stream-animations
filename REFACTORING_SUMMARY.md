@@ -40,6 +40,13 @@ Successfully refactored the stream animations codebase to be more testable, main
 - Separated animation logic from rendering logic
 - Maintained backward compatibility with existing HTML entry points
 
+#### Refactored StingerBar Logic
+- Updated to use `this.random()` instead of `Math.random()` throughout
+- Added viewport culling for performance optimization
+- Integrated performance monitoring
+- Replaced `.forEach()` with traditional for loops
+- Maintained backward compatibility
+
 ### 3. Comprehensive Test Suite ✅
 
 #### Test Files Created
@@ -72,8 +79,8 @@ Successfully refactored the stream animations codebase to be more testable, main
 ### 4. Performance Optimizations ✅
 
 #### Implemented Optimizations
-1. **Conditional Sorting** ([index.html:86-100](src/background/index.html#L86-L100))
-   - Only sorts bars when added/removed
+1. **Conditional Sorting** ([background/index.html:86-100](src/background/index.html#L86-L100))
+   - Only sorts bars when added/removed (background scene)
    - Reduced from ~60 sorts/second to ~1-2 sorts/second
 
 2. **Reduced Shadow Quality** ([AnimatedBar.js:46-50](src/shared/AnimatedBar.js#L46-L50))
@@ -81,19 +88,23 @@ Successfully refactored the stream animations codebase to be more testable, main
    - Reduced shadow opacity: 0.5 → 0.3
    - Halved shadow offsets: 10px → 5px
 
-3. **Standard for Loop** ([index.html:104-107](src/background/index.html#L104-L107))
-   - Replaced `.forEach()` with traditional for loop
+3. **Standard for Loops** (Both scenes)
+   - Replaced `.forEach()` with traditional for loops
+   - Applied to background scene ([index.html:104-107](src/background/index.html#L104-L107))
+   - Applied to stinger scene ([index.html:131-142](src/stinger/index.html#L131-L142))
 
-4. **Viewport Culling** ([BackgroundBar.js:275-277](src/background/BackgroundBar.js#L275-L277))
+4. **Viewport Culling** (Both scenes)
    - Skip drawing bars completely off-screen
-   - 200px margin for smooth transitions
-   - Reduces unnecessary draw calls
+   - BackgroundBar: 200px margin ([BackgroundBar.js:275](src/background/BackgroundBar.js#L275))
+   - StingerBar: 300px margin ([StingerBar.js:184](src/stinger/StingerBar.js#L184))
+   - Reduces unnecessary draw calls and canvas operations
 
 5. **Performance Monitoring** ([performance.js](src/shared/performance.js))
    - Created `PerformanceMonitor` class
    - Tracks FPS, avg/min/max frame times
    - Enable with URL parameter: `?perf=true`
    - Logs stats every 2 seconds when enabled
+   - Available in both background and stinger scenes
 
 #### Expected Performance Gains
 - **20-40% reduction in CPU usage** from viewport culling
@@ -119,9 +130,10 @@ npm run build            # Build both
 ```
 
 ### View Performance Stats
-Open the background animation with the `perf` parameter:
+Open either animation with the `perf` parameter:
 ```
 src/background/index.html?perf=true&color=00AAFF
+src/stinger/index.html?perf=true&color=FF5733&duration=3000
 ```
 Check browser console for FPS and frame time statistics.
 
@@ -176,11 +188,11 @@ tests/
 ## Future Improvements
 
 ### Recommended Next Steps
-1. **Refactor StingerBar** similarly to BackgroundBar
-2. **Add integration tests** for complete animation lifecycle
-3. **Visual regression testing** with canvas snapshots
-4. **Add CI/CD pipeline** with automated testing
-5. **Performance benchmarking** to track improvements over time
+1. **Add integration tests** for complete animation lifecycle
+2. **Visual regression testing** with canvas snapshots
+3. **Add CI/CD pipeline** with automated testing
+4. **Performance benchmarking** to track improvements over time
+5. **Extract more pure functions** from StingerBar's phase-based animation logic
 
 ### Potential Optimizations
 1. **OffscreenCanvas** for background rendering (experimental)
