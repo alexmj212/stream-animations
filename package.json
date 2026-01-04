@@ -6,7 +6,17 @@
   "scripts": {
     "dev:stinger": "npx serve src/stinger",
     "dev:background": "npx serve src/background",
-    "dev": "npx serve src"
+    "dev": "vite",
+    "build": "npm run build:stinger && npm run build:background",
+    "build:stinger": "vite build --mode stinger",
+    "build:background": "vite build --mode background",
+    "watch": "vite build --watch --mode stinger & vite build --watch --mode background",
+    "watch:stinger": "vite build --watch --mode stinger",
+    "watch:background": "vite build --watch --mode background",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "keywords": [
     "obs",
@@ -18,6 +28,12 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "serve": "^14.2.4"
+    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/ui": "^4.0.16",
+    "jsdom": "^27.4.0",
+    "serve": "^14.2.4",
+    "vite": "^7.3.0",
+    "vite-plugin-singlefile": "^2.3.0",
+    "vitest": "^4.0.16"
   }
 }

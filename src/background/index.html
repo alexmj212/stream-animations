@@ -30,13 +30,23 @@
         import { getColorFromURL, hexToHSL } from '../shared/colors.js';
         import { setupCanvas, clearCanvas } from '../shared/canvas.js';
         import { BackgroundBar } from './BackgroundBar.js';
+        import { PerformanceMonitor } from '../shared/performance.js';
 
         // Get parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
         const speedMultiplier = parseFloat(urlParams.get('speed')) || 1.0;
-        const barDensity = parseInt(urlParams.get('density')) || 5;
+        const barDensity = parseInt(urlParams.get('density')) || 15;
+        const showPerf = urlParams.get('perf') === 'true';
         const baseColor = getColorFromURL();
         const baseHSL = hexToHSL(baseColor);
+
+        // Setup performance monitoring
+        const perfMonitor = new PerformanceMonitor(60);
+        if (showPerf) {
+            perfMonitor.enable();
+            // Log performance stats every 2 seconds
+            setInterval(() => perfMonitor.logStats(), 2000);
+        }
 
         // Canvas setup
         const canvas = document.getElementById('canvas');
@@ -46,24 +56,55 @@
         const bars = [];
         for (let i = 0; i < barDensity; i++) {
             const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-            bars.push(new BackgroundBar(ctx, canvas, type, baseHSL, speedMultiplier));
+            const bar = new BackgroundBar(ctx, canvas, type, baseHSL, speedMultiplier);
+            bar.zIndex = Math.random();
+            bars.push(bar);
         }
 
-        // Assign random z-index for weave effect
-        bars.forEach(bar => {
+        // Function to add a new bar when one is removed
+        function addNewBar() {
+            const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
+            const bar = new BackgroundBar(ctx, canvas, type, baseHSL, speedMultiplier, false); // false = fresh start
             bar.zIndex = Math.random();
-        });
+            bars.push(bar);
+        }
+
+        // Track if bars need re-sorting (only when bars are added/removed)
+        let needsSort = true;
 
         // Animation loop
         function animate() {
+            perfMonitor.recordFrame();
+
             clearCanvas(ctx, canvas);
 
-            // Sort bars by zIndex and draw for weave effect
-            bars.sort((a, b) => a.zIndex - b.zIndex)
-                .forEach(bar => {
-                    bar.update();
-                    bar.draw();
-                });
+            // Remove inactive bars and add new ones to maintain density
+            const initialCount = bars.length;
+            for (let i = bars.length - 1; i >= 0; i--) {
+                if (!bars[i].active) {
+                    bars.splice(i, 1);
+                    needsSort = true;
+                }
+            }
+
+            // Add new bars to maintain the target density
+            const removedCount = initialCount - bars.length;
+            for (let i = 0; i < removedCount; i++) {
+                addNewBar();
+                needsSort = true;
+            }
+
+            // Only sort when bars are added/removed
+            if (needsSort) {
+                bars.sort((a, b) => a.zIndex - b.zIndex);
+                needsSort = false;
+            }
+
+            // Update and draw bars
+            for (let i = 0; i < bars.length; i++) {
+                bars[i].update();
+                bars[i].draw();
+            }
 
             requestAnimationFrame(animate);
         }

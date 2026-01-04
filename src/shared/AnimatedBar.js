@@ -6,12 +6,15 @@ export class AnimatedBar {
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      * @param {HTMLCanvasElement} canvas - Canvas element
      * @param {string} type - Bar type ('slanted' or 'horizontal')
+     * @param {Object} options - Optional configuration
+     * @param {Function} options.random - Random number generator (default: Math.random)
      */
-    constructor(ctx, canvas, type) {
+    constructor(ctx, canvas, type, options = {}) {
         this.ctx = ctx;
         this.canvas = canvas;
         this.type = type;
         this.active = true;
+        this.random = options.random || Math.random.bind(Math);
     }
 
     /**
@@ -42,12 +45,12 @@ export class AnimatedBar {
         this.ctx.save();
         this.ctx.globalAlpha = opacity;
 
-        // Add drop shadow if requested
+        // Reduced shadow settings for better performance
         if (withShadow) {
-            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-            this.ctx.shadowBlur = 20;
-            this.ctx.shadowOffsetX = 10;
-            this.ctx.shadowOffsetY = 10;
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            this.ctx.shadowBlur = 10;
+            this.ctx.shadowOffsetX = 5;
+            this.ctx.shadowOffsetY = 5;
         }
 
         this.ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;

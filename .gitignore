@@ -5,6 +5,9 @@ node_modules/
 public/
 dist/
 
+# Test coverage
+coverage/
+
 # Editor
 .vscode/
 .idea/
