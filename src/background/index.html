@@ -43,11 +43,14 @@
         import { setupCanvas, clearCanvas } from '../shared/canvas.js';
         import { BackgroundBar } from './BackgroundBar.js';
         import { PerformanceMonitor } from '../shared/performance.js';
+        import { DeltaTimer } from '../shared/timing.js';
+        import { AnimationLifecycle } from '../shared/lifecycle.js';
+        import { config } from '../config/config.js';
 
-        // Get parameters from URL
+        // Get parameters from URL with config defaults
         const urlParams = new URLSearchParams(window.location.search);
-        const speedMultiplier = parseFloat(urlParams.get('speed')) || 1.0;
-        const barDensity = parseInt(urlParams.get('density')) || 15;
+        const speedMultiplier = parseFloat(urlParams.get('speed')) || config.background.speed.defaultMultiplier;
+        const barDensity = parseInt(urlParams.get('density')) || config.background.density.default;
         const showPerf = urlParams.get('perf') === 'true';
         const baseColor = getColorFromURL();
         const baseHSL = hexToHSL(baseColor);
@@ -65,6 +68,21 @@
         const foregroundCanvas = document.getElementById('foregroundCanvas');
         const bgCtx = setupCanvas(backgroundCanvas);
         const fgCtx = setupCanvas(foregroundCanvas);
+
+        // Initialize delta-time system
+        const deltaTimer = new DeltaTimer();
+
+        // Initialize lifecycle management
+        const lifecycle = new AnimationLifecycle();
+
+        // Setup cleanup for cache and animation
+        lifecycle.onCleanup(() => {
+            if (BackgroundBar.cacheCleanupInterval) {
+                clearInterval(BackgroundBar.cacheCleanupInterval);
+                BackgroundBar.cacheCleanupInterval = null;
+            }
+            console.log('[Background] Cleanup complete');
+        });
 
         // Create bars with random types - split into slow and fast layers
         const backgroundBars = []; // Slower moving bars
@@ -106,44 +124,42 @@
         let bgNeedsSort = true;
         let fgNeedsSort = true;
 
-        let frameCount = 0;
-
-        // Animation loop with layered rendering
-        function animate() {
+        // Animation loop with delta-time
+        function animate(timestamp) {
             perfMonitor.recordFrame();
-            frameCount++;
 
-            // Update background layer every 2 frames (30fps) for performance
-            if (frameCount % 2 === 0) {
-                clearCanvas(bgCtx, backgroundCanvas);
+            // Calculate delta-time in seconds
+            const deltaTime = deltaTimer.update(timestamp);
 
-                // Remove inactive bars and add new ones
-                const bgInitialCount = backgroundBars.length;
-                for (let i = backgroundBars.length - 1; i >= 0; i--) {
-                    if (!backgroundBars[i].active) {
-                        backgroundBars.splice(i, 1);
-                        bgNeedsSort = true;
-                    }
-                }
+            // Update and render background layer (now at full 60fps, not 30fps)
+            clearCanvas(bgCtx, backgroundCanvas);
 
-                const bgRemovedCount = bgInitialCount - backgroundBars.length;
-                for (let i = 0; i < bgRemovedCount; i++) {
-                    addNewBar('background');
+            // Remove inactive bars and add new ones
+            const bgInitialCount = backgroundBars.length;
+            for (let i = backgroundBars.length - 1; i >= 0; i--) {
+                if (!backgroundBars[i].active) {
+                    backgroundBars.splice(i, 1);
                     bgNeedsSort = true;
-                }
-
-                if (bgNeedsSort) {
-                    backgroundBars.sort((a, b) => a.zIndex - b.zIndex);
-                    bgNeedsSort = false;
-                }
-
-                for (let i = 0; i < backgroundBars.length; i++) {
-                    backgroundBars[i].update();
-                    backgroundBars[i].draw();
                 }
             }
 
-            // Update foreground layer every frame (60fps)
+            const bgRemovedCount = bgInitialCount - backgroundBars.length;
+            for (let i = 0; i < bgRemovedCount; i++) {
+                addNewBar('background');
+                bgNeedsSort = true;
+            }
+
+            if (bgNeedsSort) {
+                backgroundBars.sort((a, b) => a.zIndex - b.zIndex);
+                bgNeedsSort = false;
+            }
+
+            for (let i = 0; i < backgroundBars.length; i++) {
+                backgroundBars[i].update(deltaTime);
+                backgroundBars[i].draw();
+            }
+
+            // Update and render foreground layer
             clearCanvas(fgCtx, foregroundCanvas);
 
             // Remove inactive bars and add new ones
@@ -167,7 +183,7 @@
             }
 
             for (let i = 0; i < foregroundBars.length; i++) {
-                foregroundBars[i].update();
+                foregroundBars[i].update(deltaTime);
                 foregroundBars[i].draw();
             }
 
