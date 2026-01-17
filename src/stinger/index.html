@@ -30,10 +30,13 @@
         import { setupCanvas, clearCanvas } from '../shared/canvas.js';
         import { StingerBar } from './StingerBar.js';
         import { PerformanceMonitor } from '../shared/performance.js';
+        import { DeltaTimer } from '../shared/timing.js';
+        import { AnimationLifecycle } from '../shared/lifecycle.js';
+        import { config } from '../config/config.js';
 
         // Get parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
-        const ANIMATION_DURATION = parseInt(urlParams.get('duration')) || 3000;
+        const durationMs = parseInt(urlParams.get('duration')) || config.stinger.timing.defaultDurationMs;
         const showPerf = urlParams.get('perf') === 'true';
         const baseColor = getColorFromURL();
         const baseHSL = hexToHSL(baseColor);
@@ -50,11 +53,23 @@
         const canvas = document.getElementById('canvas');
         const ctx = setupCanvas(canvas, { alpha: true });
 
+        // Initialize delta-time and lifecycle
+        const deltaTimer = new DeltaTimer();
+        const lifecycle = new AnimationLifecycle();
+
+        lifecycle.onCleanup(() => {
+            if (StingerBar.cacheCleanupInterval) {
+                clearInterval(StingerBar.cacheCleanupInterval);
+                StingerBar.cacheCleanupInterval = null;
+            }
+            console.log('[Stinger] Cleanup complete');
+        });
+
         // Create bars
         const bars = [];
 
         // First, create two large background curtain bars
-        const leftCurtain = new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, ANIMATION_DURATION);
+        const leftCurtain = new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, durationMs);
         leftCurtain.width = canvas.width * 0.75;
         leftCurtain.opacity = 1.0;
         leftCurtain.direction = 1;
@@ -69,7 +84,7 @@
         leftCurtain.isWhite = false;
         bars.push(leftCurtain);
 
-        const rightCurtain = new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, ANIMATION_DURATION);
+        const rightCurtain = new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, durationMs);
         rightCurtain.width = canvas.width * 0.75;
         rightCurtain.opacity = 1.0;
         rightCurtain.direction = -1;
@@ -89,7 +104,7 @@
         const tempBars = [];
         for (let i = 0; i < barCount; i++) {
             const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-            tempBars.push(new StingerBar(ctx, canvas, type, i + 2, barCount + 2, baseHSL, ANIMATION_DURATION));
+            tempBars.push(new StingerBar(ctx, canvas, type, i + 2, barCount + 2, baseHSL, durationMs));
         }
 
         // Ensure at least 2 white bars exist
@@ -120,29 +135,39 @@
         bars.push(...tempBars);
 
         // Animation loop control
-        let isAnimating = false;
+        let animationStarted = false;
 
-        function animate() {
+        function animate(timestamp) {
             perfMonitor.recordFrame();
 
+            const deltaTime = deltaTimer.update(timestamp);
+
             clearCanvas(ctx, canvas);
+
+            let allComplete = true;
 
             // Draw background curtain bars first
             const backgroundBars = bars.filter(bar => bar.isBackground);
             for (let i = 0; i < backgroundBars.length; i++) {
-                backgroundBars[i].update();
+                backgroundBars[i].update(deltaTime);
                 backgroundBars[i].draw();
+                if (backgroundBars[i].active) {
+                    allComplete = false;
+                }
             }
 
             // Sort accent bars by zIndex and draw
             const accentBars = bars.filter(bar => !bar.isBackground)
                 .sort((a, b) => a.zIndex - b.zIndex);
             for (let i = 0; i < accentBars.length; i++) {
-                accentBars[i].update();
+                accentBars[i].update(deltaTime);
                 accentBars[i].draw();
+                if (accentBars[i].active) {
+                    allComplete = false;
+                }
             }
 
-            if (isAnimating) {
+            if (!allComplete) {
                 requestAnimationFrame(animate);
             }
         }
@@ -152,7 +177,7 @@
             bars.length = 0; // Clear existing bars
 
             // First, create two large background curtain bars
-            const leftCurtain = new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, ANIMATION_DURATION);
+            const leftCurtain = new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, durationMs);
             leftCurtain.width = canvas.width * 0.75;
             leftCurtain.opacity = 1.0;
             leftCurtain.direction = 1;
@@ -167,7 +192,7 @@
             leftCurtain.isWhite = false;
             bars.push(leftCurtain);
 
-            const rightCurtain = new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, ANIMATION_DURATION);
+            const rightCurtain = new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, durationMs);
             rightCurtain.width = canvas.width * 0.75;
             rightCurtain.opacity = 1.0;
             rightCurtain.direction = -1;
@@ -187,7 +212,7 @@
             const tempBars = [];
             for (let i = 0; i < barCount; i++) {
                 const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-                tempBars.push(new StingerBar(ctx, canvas, type, i + 2, barCount + 2, baseHSL, ANIMATION_DURATION));
+                tempBars.push(new StingerBar(ctx, canvas, type, i + 2, barCount + 2, baseHSL, durationMs));
             }
 
             // Ensure at least 2 white bars exist
@@ -218,14 +243,14 @@
             bars.push(...tempBars);
         }
 
-        window.addEventListener('transitionStart', function(event) {
-            // Generate new bars
+        lifecycle.addEventListener(window, 'transitionStart', () => {
+            // Regenerate bars
+            bars.length = 0;
             generateBars();
 
-            // Start animation loop if not already running
-            if (!isAnimating) {
-                isAnimating = true;
-                animate();
+            if (!animationStarted) {
+                animationStarted = true;
+                requestAnimationFrame(animate);
             }
         });
     </script>

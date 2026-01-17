@@ -3,6 +3,7 @@
  */
 import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { isBarInViewport } from '../shared/animations/calculations.js';
+import { config } from '../config/config.js';
 
 export class StingerBar extends AnimatedBar {
     constructor(ctx, canvas, type, index, total, baseHSL, duration, options = {}) {
@@ -29,7 +30,10 @@ export class StingerBar extends AnimatedBar {
         if (this.isWhite) {
             this.hue = 0;
             this.saturation = 0;
-            this.lightness = 100;
+            // For white bars (lightness 100), reduce by config amount
+            const lightnessReduction = config.stinger.curtain.lightnessReductionMin +
+                this.random() * (config.stinger.curtain.lightnessReductionMax - config.stinger.curtain.lightnessReductionMin);
+            this.lightness = 100 - lightnessReduction;
         } else {
             // Vary the hue slightly from base color
             const hueVariation = (this.random() - 0.5) * 40;
@@ -41,6 +45,15 @@ export class StingerBar extends AnimatedBar {
         }
 
         this.opacity = this.random() * 0.4 + 0.6;
+
+        // Time tracking
+        this.elapsedTime = 0;
+        this.phaseStartTime = 0;
+
+        // Convert duration from milliseconds to seconds
+        this.inDuration = (this.duration * 0.4) / 1000;  // 40% for 'in' phase
+        this.pauseDuration = config.stinger.timing.pauseDurationMs / 1000;
+        this.outDuration = (this.duration * 0.4) / 1000; // 40% for 'out' phase
 
         // Some slanted bars reverse direction during exit (not background bars)
         this.reverseOnExit = this.type === 'slanted' && this.random() > 0.5;
@@ -93,9 +106,7 @@ export class StingerBar extends AnimatedBar {
             this.startDelay = (this.index / this.total) * (totalFrames * 0.2);
         }
 
-        this.frame = 0;
         this.phase = 'in'; // 'in', 'pause', 'out'
-        this.pauseFrames = 0;
 
         // Enable offscreen cache only for white horizontal bars (slanted bars extend beyond viewport)
         if (this.isWhite && this.type === 'horizontal') {
@@ -103,75 +114,70 @@ export class StingerBar extends AnimatedBar {
         }
     }
 
-    update() {
+    update(deltaTime) {
         if (!this.active) return;
 
-        this.frame++;
+        this.elapsedTime += deltaTime;
 
-        // Only start moving after delay
-        if (this.frame <= this.startDelay) return;
+        // Handle delay before animation starts (convert frame delay to time)
+        const delayTime = (this.startDelay / 60); // Convert frames to seconds at 60fps
+        if (this.elapsedTime < delayTime) {
+            return;
+        }
+
+        const animTime = this.elapsedTime - delayTime;
+        const phaseTime = animTime - this.phaseStartTime;
 
         if (this.type === 'horizontal') {
             // Horizontal bars: continuous movement in one direction
-            const fps = 60;
-            const totalFrames = (this.duration / 1000) * fps;
+            const totalDuration = this.duration / 1000; // Convert ms to seconds
             const totalDistance = this.canvas.width + this.width + 400;
-            const speedPerFrame = totalDistance / totalFrames;
+            const speed = totalDistance / totalDuration;
 
-            this.x += speedPerFrame * this.direction;
+            this.x += speed * deltaTime * this.direction;
 
             // Deactivate when completely off screen or duration exceeded
-            const elapsed = this.frame - this.startDelay;
-            if (elapsed >= totalFrames ||
+            if (animTime >= totalDuration ||
                 (this.direction === 1 && this.x > this.canvas.width + 400) ||
                 (this.direction === -1 && this.x < -this.width - 400)) {
                 this.active = false;
             }
         } else {
             // Slanted bars: curtain effect with ease in/out
-            const fps = 60;
-            const totalFrames = (this.duration / 1000) * fps;
-            const easeInFrames = totalFrames * 0.35;
-            const pauseFrames = totalFrames * 0.30;
-            const easeOutFrames = totalFrames * 0.35;
-
-            const progress = (this.frame - this.startDelay) / easeInFrames;
-
             if (this.phase === 'in') {
-                const t = Math.min(progress, 1);
-                const eased = this.easeInOutCubic(t);
-                this.x = this.startX + (this.targetX - this.startX) * eased;
+                const progress = Math.min(phaseTime / this.inDuration, 1);
+                const easedProgress = this.easeInOutCubic(progress);
+                this.x = this.startX + (this.targetX - this.startX) * easedProgress;
 
-                if (t >= 1) {
+                if (progress >= 1) {
                     this.phase = 'pause';
-                    this.pauseFrames = 0;
+                    this.phaseStartTime = animTime;
                 }
             } else if (this.phase === 'pause') {
                 if (!this.isBackground) {
-                    this.x += this.direction * 2;
+                    this.x += this.direction * 2 * (deltaTime / (1/60)); // Scale pause drift by deltaTime
                 }
-                this.pauseFrames++;
-                if (this.pauseFrames > pauseFrames) {
+
+                if (phaseTime >= this.pauseDuration) {
                     this.phase = 'out';
                     this.pauseStartX = this.x;
-                    this.frame = this.startDelay;
+                    this.phaseStartTime = animTime;
                 }
             } else if (this.phase === 'out') {
-                const outProgress = (this.frame - this.startDelay) / easeOutFrames;
-                const t = Math.min(outProgress, 1);
-                const eased = this.easeInOutCubic(t);
+                const progress = Math.min(phaseTime / this.outDuration, 1);
+                const easedProgress = this.easeInOutCubic(progress);
 
                 if (this.isBackground || this.reverseOnExit) {
-                    this.x = this.pauseStartX + (this.startX - this.pauseStartX) * eased;
+                    this.x = this.pauseStartX + (this.startX - this.pauseStartX) * easedProgress;
                 } else {
                     if (this.direction === 1) {
-                        this.x = this.pauseStartX + (this.canvas.width + 300 - this.pauseStartX) * eased;
+                        this.x = this.pauseStartX + (this.canvas.width + 300 - this.pauseStartX) * easedProgress;
                     } else {
-                        this.x = this.pauseStartX - (this.pauseStartX - (-this.width - 300)) * eased;
+                        this.x = this.pauseStartX - (this.pauseStartX - (-this.width - 300)) * easedProgress;
                     }
                 }
 
-                if (t >= 1) {
+                if (progress >= 1) {
                     this.active = false;
                 }
             }

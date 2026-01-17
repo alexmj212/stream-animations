@@ -106,9 +106,16 @@ export const config = {
       easeInProportion: 0.35,     // 35% of duration for ease-in
       pauseProportion: 0.30,      // 30% of duration for pause
       easeOutProportion: 0.35,    // 35% of duration for ease-out
+      pauseDurationMs: 300,       // Pause duration in milliseconds
       // Stagger delays
       slantedStaggerFrames: 20,   // Max stagger for slanted bars
       horizontalStaggerProportion: 0.2 // Stagger as proportion of duration (20%)
+    },
+
+    // Curtain bar configuration
+    curtain: {
+      lightnessReductionMin: 15,  // Minimum lightness reduction for white curtain bars
+      lightnessReductionMax: 30   // Maximum lightness reduction for white curtain bars
     },
 
     // Slanted bar configuration
