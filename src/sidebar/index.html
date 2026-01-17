@@ -180,7 +180,7 @@
       // Sort bars by zIndex
       bars.sort((a, b) => a.zIndex - b.zIndex);
 
-      // Animation loop - continuous with auto-restart for OBS usage
+      // Animation loop - continuous loop whenever page is loaded
       function animate(timestamp) {
         perfMonitor.recordFrame();
 
@@ -197,9 +197,9 @@
           }
         }
 
-        // If all bars have completed their animation, restart them
+        // If all bars have completed their animation, restart the loop
         if (allComplete) {
-          console.log('[Sidebar] Animation cycle complete - restarting');
+          console.log('[Sidebar] Animation cycle complete - restarting loop');
 
           // Reset all bars to initial state
           bars.forEach(bar => {
@@ -212,14 +212,14 @@
 
           // Reset text animation
           textElement.style.animation = 'none';
-          void textElement.offsetHeight;
+          void textElement.offsetHeight; // Trigger reflow to restart animation
           textElement.style.animation = `slideText ${durationMs}ms cubic-bezier(0.65, 0, 0.35, 1) forwards`;
         }
 
         requestAnimationFrame(animate);
       }
 
-      // Start continuous animation loop
+      // Start continuous animation loop on page load
       requestAnimationFrame(animate);
     </script>
   </body>
