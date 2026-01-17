@@ -28,10 +28,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Animation timing remains consistent across different hardware refresh rates (30Hz/60Hz/120Hz)
   3. All magic numbers (colors, timings, positions) are centralized in config file with documented coordinate system
   4. Event listeners clean up properly when scenes are reloaded in OBS
-**Plans**: TBD
+**Plans**: 5 plans in 3 waves
 
 Plans:
-- [ ] TBD during phase planning
+- [ ] 01-01-PLAN.md — Timing & Cache Infrastructure (Wave 1: timing utilities, LRU cache, lifecycle management)
+- [ ] 01-02-PLAN.md — Configuration System (Wave 1: centralized config, validation functions)
+- [ ] 01-03-PLAN.md — AnimatedBar Integration (Wave 2: delta-time & LRU cache into base class)
+- [ ] 01-04-PLAN.md — Background Scene Migration (Wave 2: lifecycle cleanup, config migration, unified frame rate)
+- [ ] 01-05-PLAN.md — Stinger & Sidebar Migration (Wave 3: complete scene migrations with verification)
 
 ### Phase 2: Testing Infrastructure
 **Goal**: Lock down positioning and animation math to prevent AI coding regressions
@@ -84,10 +88,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Critical Fixes & Foundation | 0/TBD | Not started | - |
+| 1. Critical Fixes & Foundation | 0/5 | Ready to execute | - |
 | 2. Testing Infrastructure | 0/TBD | Not started | - |
 | 3. Performance Optimization | 0/TBD | Not started | - |
 | 4. Visual Consistency & Polish | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-17 after roadmap creation*
+*Last updated: 2026-01-17 after Phase 1 planning*
