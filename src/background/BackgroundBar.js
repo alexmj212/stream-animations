@@ -2,6 +2,7 @@
  * Background-specific animated bar with continuous drift and fade lifecycle
  */
 import { AnimatedBar } from '../shared/AnimatedBar.js';
+import { config } from '../config/config.js';
 import {
     calculateOpacity,
     calculateSizeMultiplier,
@@ -70,28 +71,36 @@ export class BackgroundBar extends AnimatedBar {
             this.y = this.random() * this.canvas.height; // Random vertical position
         }
 
-        // Lifecycle timing (in frames at 60fps)
-        this.fadeInDuration = 120; // 2 seconds
-        this.visibleDuration = 1800 + this.random() * 5400; // 30-120 seconds (2 minutes max)
-        this.fadeOutDuration = 120; // 2 seconds
+        // Time-based animation tracking (replaces frame counting)
+        this.elapsedTime = 0;        // Total elapsed time in seconds
+        this.phaseStartTime = 0;     // Time when current phase started
+        this.sizeTransitionTime = 0; // Time since size transition started
 
-        // Drift speed (pixels per frame) - more variable, from very slow to same max
-        this.baseSpeed = (0.1 + this.random() * 0.9) * this.speedMultiplier;
+        // Convert frame-based durations to time-based (frames / 60fps)
+        this.fadeInDuration = AnimatedBar.framesToSeconds(config.background.timing.fadeInFrames);
+        this.fadeOutDuration = AnimatedBar.framesToSeconds(config.background.timing.fadeOutFrames);
+        this.visibleDuration = AnimatedBar.framesToSeconds(
+            config.background.timing.visibleFramesMin +
+            this.random() * (config.background.timing.visibleFramesMax - config.background.timing.visibleFramesMin)
+        );
+        this.directionTransitionDuration = AnimatedBar.framesToSeconds(config.background.timing.directionTransitionFrames);
 
-        // Random direction changes (0-2 times during lifetime)
-        this.directionChanges = Math.floor(this.random() * 3); // 0, 1, or 2 changes
+        // Drift speed (pixels per second, NOT per frame) - more variable, from very slow to same max
+        this.baseSpeed = ((0.1 + this.random() * 0.9) * this.speedMultiplier) * 60; // Convert from per-frame to per-second
+
+        // Random direction changes (0-2 times during lifetime) - time-based
+        this.directionChanges = Math.floor(this.random() * (config.background.direction.maxChanges + 1)); // 0, 1, or 2 changes
         this.directionChangeTimings = [];
         for (let i = 0; i < this.directionChanges; i++) {
-            // Schedule direction changes at random points during visible phase
+            // Schedule direction changes at random points during visible phase (in seconds)
             this.directionChangeTimings.push(this.random() * this.visibleDuration);
         }
         this.directionChangeTimings.sort((a, b) => a - b); // Sort for easier checking
         this.nextDirectionChangeIndex = 0;
 
-        // Direction transition state
+        // Direction transition state (time-based)
         this.isTransitioningDirection = false;
-        this.transitionStartFrame = 0;
-        this.transitionDuration = 180; // 3 seconds for smooth transition
+        this.transitionStartTime = 0;
         this.oldDirection = this.direction;
         this.newDirection = this.direction;
 
@@ -102,14 +111,22 @@ export class BackgroundBar extends AnimatedBar {
             this.originalWidth = this.width;
             this.originalHeight = this.height;
 
-            // Random starting and ending sizes (50%-150% of original)
-            this.startSizeMultiplier = 0.5 + this.random() * 1.0; // 50%-150%
-            this.endSizeMultiplier = 0.5 + this.random() * 1.0;   // 50%-150%
+            // Random starting and ending sizes using config values
+            this.startSizeMultiplier = config.background.size.multiplierMin +
+                this.random() * (config.background.size.multiplierMax - config.background.size.multiplierMin);
+            this.endSizeMultiplier = config.background.size.multiplierMin +
+                this.random() * (config.background.size.multiplierMax - config.background.size.multiplierMin);
 
             // Ensure they're different enough to be noticeable
-            while (Math.abs(this.startSizeMultiplier - this.endSizeMultiplier) < 0.3) {
-                this.endSizeMultiplier = 0.5 + this.random() * 1.0;
+            while (Math.abs(this.startSizeMultiplier - this.endSizeMultiplier) < config.background.size.minVariation) {
+                this.endSizeMultiplier = config.background.size.multiplierMin +
+                    this.random() * (config.background.size.multiplierMax - config.background.size.multiplierMin);
             }
+
+            // Size transitions happen periodically (every 5 seconds)
+            this.sizeTransitionDuration = 5.0; // 5 seconds per size transition
+            this.currentSizeMultiplier = this.startSizeMultiplier;
+            this.targetSizeMultiplier = this.endSizeMultiplier;
         }
 
         // Initialize position
@@ -134,39 +151,43 @@ export class BackgroundBar extends AnimatedBar {
         if (randomPhase < 0.33) {
             // Start in fade-in phase
             this.phase = 'fadeIn';
-            this.frame = Math.floor(Math.random() * this.fadeInDuration);
+            this.elapsedTime = Math.random() * this.fadeInDuration;
+            this.phaseStartTime = 0;
             if (this.direction === 1) {
-                this.x = -this.width - 300 + (this.frame * this.baseSpeed);
+                this.x = -this.width - 300 + (this.elapsedTime * this.baseSpeed);
             } else {
-                this.x = this.canvas.width + 300 - (this.frame * this.baseSpeed);
+                this.x = this.canvas.width + 300 - (this.elapsedTime * this.baseSpeed);
             }
         } else if (randomPhase < 0.66) {
             // Start in visible phase
             this.phase = 'visible';
-            this.frame = Math.floor(Math.random() * this.visibleDuration);
+            const phaseTime = Math.random() * this.visibleDuration;
+            this.elapsedTime = this.fadeInDuration + phaseTime;
+            this.phaseStartTime = this.fadeInDuration;
             this.currentOpacity = this.maxOpacity;
-            const totalDrift = this.fadeInDuration + this.frame;
             if (this.direction === 1) {
-                this.x = -this.width - 300 + (totalDrift * this.baseSpeed);
+                this.x = -this.width - 300 + (this.elapsedTime * this.baseSpeed);
             } else {
-                this.x = this.canvas.width + 300 - (totalDrift * this.baseSpeed);
+                this.x = this.canvas.width + 300 - (this.elapsedTime * this.baseSpeed);
             }
         } else {
             // Start in fade-out phase
             this.phase = 'fadeOut';
-            this.frame = Math.floor(Math.random() * this.fadeOutDuration);
-            const totalDrift = this.fadeInDuration + this.visibleDuration + this.frame;
+            const phaseTime = Math.random() * this.fadeOutDuration;
+            this.elapsedTime = this.fadeInDuration + this.visibleDuration + phaseTime;
+            this.phaseStartTime = this.fadeInDuration + this.visibleDuration;
             if (this.direction === 1) {
-                this.x = -this.width - 300 + (totalDrift * this.baseSpeed);
+                this.x = -this.width - 300 + (this.elapsedTime * this.baseSpeed);
             } else {
-                this.x = this.canvas.width + 300 - (totalDrift * this.baseSpeed);
+                this.x = this.canvas.width + 300 - (this.elapsedTime * this.baseSpeed);
             }
         }
     }
 
     initializeFreshStart() {
         // Always start fresh from off-screen, fading in
-        this.frame = 0;
+        this.elapsedTime = 0;
+        this.phaseStartTime = 0;
         this.phase = 'fadeIn';
         this.currentOpacity = 0;
 
@@ -178,44 +199,51 @@ export class BackgroundBar extends AnimatedBar {
         }
     }
 
-    update() {
+    update(deltaTime) {
         if (!this.active) return;
 
-        this.frame++;
+        // Accumulate elapsed time
+        this.elapsedTime += deltaTime;
+        const phaseTime = this.elapsedTime - this.phaseStartTime;
+        this.sizeTransitionTime += deltaTime;
 
-        // Continuous drift using pure calculation function
-        this.x = calculatePosition(this.x, this.baseSpeed, this.direction);
+        // Update position based on direction and speed (per second, not per frame)
+        const movement = this.baseSpeed * deltaTime;
+        if (this.direction === 1) {
+            this.x += movement;
+        } else {
+            this.x -= movement;
+        }
 
-        // Update opacity based on phase using pure calculation function
-        this.currentOpacity = calculateOpacity(
-            this.phase,
-            this.frame,
-            this.fadeInDuration,
-            this.fadeOutDuration,
-            this.maxOpacity,
-            this.easeInOutCubic.bind(this)
-        );
+        // Phase transitions (time-based, not frame-based)
+        if (this.phase === 'fadeIn') {
+            // Calculate opacity during fade in
+            const progress = Math.min(phaseTime / this.fadeInDuration, 1);
+            this.currentOpacity = this.maxOpacity * this.easeInOutCubic(progress);
 
-        // Handle phase-specific logic
-        if (this.phase === 'visible') {
-            // Check for direction changes using pure function
+            if (phaseTime >= this.fadeInDuration) {
+                this.phase = 'visible';
+                this.phaseStartTime = this.elapsedTime;
+            }
+        } else if (this.phase === 'visible') {
+            this.currentOpacity = this.maxOpacity;
+
+            // Check for direction changes (time-based)
             if (!this.isTransitioningDirection &&
-                shouldChangeDirection(this.frame, this.directionChangeTimings, this.nextDirectionChangeIndex)) {
+                this.nextDirectionChangeIndex < this.directionChangeTimings.length &&
+                phaseTime >= this.directionChangeTimings[this.nextDirectionChangeIndex]) {
                 // Start direction transition
                 this.isTransitioningDirection = true;
-                this.transitionStartFrame = this.frame;
+                this.transitionStartTime = this.elapsedTime;
                 this.oldDirection = this.direction;
-                this.newDirection = -this.direction;
+                this.newDirection = -this.oldDirection;
                 this.nextDirectionChangeIndex++;
             }
 
             // Handle direction transition with easing
             if (this.isTransitioningDirection) {
-                const transitionProgress = calculateTransitionProgress(
-                    this.frame,
-                    this.transitionStartFrame,
-                    this.transitionDuration
-                );
+                const transitionTime = this.elapsedTime - this.transitionStartTime;
+                const transitionProgress = Math.min(transitionTime / this.directionTransitionDuration, 1);
 
                 if (transitionProgress >= 1) {
                     // Transition complete
@@ -223,33 +251,40 @@ export class BackgroundBar extends AnimatedBar {
                     this.isTransitioningDirection = false;
                 } else {
                     // Ease in-out cubic interpolation between old and new direction
-                    this.direction = calculateDirectionTransition(
-                        transitionProgress,
-                        this.oldDirection,
-                        this.newDirection,
-                        this.easeInOutCubic.bind(this)
-                    );
+                    const easedProgress = this.easeInOutCubic(transitionProgress);
+                    this.direction = this.oldDirection + (this.newDirection - this.oldDirection) * easedProgress;
                 }
+            }
+
+            // Check if should start fade out
+            if (phaseTime >= this.visibleDuration) {
+                this.phase = 'fadeOut';
+                this.phaseStartTime = this.elapsedTime;
+            }
+        } else if (this.phase === 'fadeOut') {
+            // Calculate opacity during fade out
+            const progress = Math.min(phaseTime / this.fadeOutDuration, 1);
+            this.currentOpacity = this.maxOpacity * (1 - this.easeInOutCubic(progress));
+
+            if (phaseTime >= this.fadeOutDuration) {
+                this.phase = 'complete';
+                this.active = false;
             }
         }
 
-        // Determine next phase using pure function
-        const nextPhaseResult = determineNextPhase(
-            this.phase,
-            this.frame,
-            this.fadeInDuration,
-            this.visibleDuration,
-            this.fadeOutDuration
-        );
-
-        if (nextPhaseResult.phase !== this.phase) {
-            this.phase = nextPhaseResult.phase;
-            this.frame = nextPhaseResult.frame;
+        // Size transitions (if using size multiplier animation)
+        if (this.animateSize && this.sizeTransitionTime >= this.sizeTransitionDuration) {
+            // Start new size transition
+            this.targetSizeMultiplier = config.background.size.multiplierMin +
+                this.random() * (config.background.size.multiplierMax - config.background.size.multiplierMin);
+            this.sizeTransitionTime = 0;
         }
 
-        // Deactivate when animation is complete
-        if (this.phase === 'complete') {
-            this.active = false;
+        // Smooth size interpolation
+        if (this.animateSize) {
+            const sizeProgress = Math.min(this.sizeTransitionTime / this.sizeTransitionDuration, 1);
+            this.currentSizeMultiplier = this.currentSizeMultiplier +
+                (this.targetSizeMultiplier - this.currentSizeMultiplier) * this.easeInOutCubic(sizeProgress);
         }
     }
 
@@ -258,23 +293,14 @@ export class BackgroundBar extends AnimatedBar {
 
         const angle = this.type === 'slanted' ? this.angle : this.skew;
 
-        // Calculate current size (with animation if enabled) using pure function
+        // Calculate current size (with animation if enabled)
         let currentWidth = this.width;
         let currentHeight = this.type === 'horizontal' ? this.height : this.canvas.height * 1.5;
 
         if (this.animateSize) {
-            const sizeMultiplier = calculateSizeMultiplier(
-                this.phase,
-                this.frame,
-                this.visibleDuration,
-                this.startSizeMultiplier,
-                this.endSizeMultiplier,
-                this.easeInOutCubic.bind(this)
-            );
-
-            currentWidth = this.originalWidth * sizeMultiplier;
+            currentWidth = this.originalWidth * this.currentSizeMultiplier;
             if (this.type === 'horizontal') {
-                currentHeight = this.originalHeight * sizeMultiplier;
+                currentHeight = this.originalHeight * this.currentSizeMultiplier;
             }
         }
 
