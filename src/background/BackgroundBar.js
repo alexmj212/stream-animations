@@ -274,17 +274,19 @@ export class BackgroundBar extends AnimatedBar {
 
         // Size transitions (if using size multiplier animation)
         if (this.animateSize && this.sizeTransitionTime >= this.sizeTransitionDuration) {
-            // Start new size transition
+            // Transition complete - set new target and reset
+            this.startSizeMultiplier = this.currentSizeMultiplier;
             this.targetSizeMultiplier = config.background.size.multiplierMin +
                 this.random() * (config.background.size.multiplierMax - config.background.size.multiplierMin);
             this.sizeTransitionTime = 0;
         }
 
-        // Smooth size interpolation
+        // Smooth size interpolation (from start to target)
         if (this.animateSize) {
             const sizeProgress = Math.min(this.sizeTransitionTime / this.sizeTransitionDuration, 1);
-            this.currentSizeMultiplier = this.currentSizeMultiplier +
-                (this.targetSizeMultiplier - this.currentSizeMultiplier) * this.easeInOutCubic(sizeProgress);
+            const easedProgress = this.easeInOutCubic(sizeProgress);
+            this.currentSizeMultiplier = this.startSizeMultiplier +
+                (this.targetSizeMultiplier - this.startSizeMultiplier) * easedProgress;
         }
     }
 
@@ -298,10 +300,9 @@ export class BackgroundBar extends AnimatedBar {
         let currentHeight = this.type === 'horizontal' ? this.height : this.canvas.height * 1.5;
 
         if (this.animateSize) {
+            // Only animate width (depth illusion) - never change height/tips
             currentWidth = this.originalWidth * this.currentSizeMultiplier;
-            if (this.type === 'horizontal') {
-                currentHeight = this.originalHeight * this.currentSizeMultiplier;
-            }
+            // Height remains constant - tips should never change size
         }
 
         // Viewport culling - skip drawing if bar is completely off-screen
