@@ -1,9 +1,13 @@
+import { LRUCache } from './cache.js';
+import { config } from '../config/config.js';
+
 /**
  * Base class for animated bars used across all animations
  */
 export class AnimatedBar {
     // Static cache for offscreen canvases (shared across all instances)
-    static offscreenCache = new Map();
+    static offscreenCache = new LRUCache(config.shared.cache.maxSize);
+    static cacheCleanupInterval = null;
 
     /**
      * @param {CanvasRenderingContext2D} ctx - Canvas context
@@ -19,6 +23,27 @@ export class AnimatedBar {
         this.active = true;
         this.random = options.random || Math.random.bind(Math);
         this.useOffscreenCache = false; // Will be set to true for white bars
+
+        // Initialize cache cleanup on first instance
+        AnimatedBar.initializeCache();
+    }
+
+    /**
+     * Initialize cache cleanup interval (called once on first instance)
+     */
+    static initializeCache() {
+        // Setup periodic cache cleanup if not already running
+        if (!AnimatedBar.cacheCleanupInterval) {
+            AnimatedBar.cacheCleanupInterval = setInterval(() => {
+                AnimatedBar.offscreenCache.evictStale(config.shared.cache.maxAgeMs);
+
+                // Log cache stats in dev mode only
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('perf') === 'true') {
+                    console.log(`[Cache] Size: ${AnimatedBar.offscreenCache.size}/${config.shared.cache.maxSize}`);
+                }
+            }, config.shared.cache.evictionIntervalMs);
+        }
     }
 
     /**
@@ -205,9 +230,30 @@ export class AnimatedBar {
 
     /**
      * Update bar state (override in subclasses)
+     * @param {number} deltaTime - Time elapsed since last frame in seconds
+     *
+     * Note: Existing subclasses may still use frame counting internally.
+     * Those need to be migrated to time-based logic:
+     *   OLD: if (frameCount >= 60) { ... } // 60 frames = 1 second at 60fps
+     *   NEW: if (elapsedTime >= 1.0) { ... } // 1 second regardless of fps
+     *
+     * Speed values should be "per second" not "per frame":
+     *   OLD: x += 5 // moves 5 pixels per frame (300px/sec at 60fps, 600px/sec at 120fps)
+     *   NEW: x += 300 * deltaTime // moves 300 pixels per second (consistent across all fps)
      */
-    update() {
+    update(deltaTime) {
         // Override in subclass
+        // Subclasses should multiply movement/animation values by deltaTime
+        // Example: x += speedPerSecond * deltaTime
+    }
+
+    /**
+     * Convert frame-based duration to time-based duration
+     * @param {number} frames - Number of frames at 60fps
+     * @returns {number} Duration in seconds
+     */
+    static framesToSeconds(frames) {
+        return frames / 60; // Assumes original timing was calibrated for 60fps
     }
 
     /**
