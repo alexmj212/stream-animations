@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 ## Current Position
 
 Phase: 1 of 4 (Critical Fixes & Foundation)
-Plan: 2 of TBD in current phase
+Plan: 3 of TBD in current phase
 Status: In progress
-Last activity: 2026-01-17 — Completed 01-01-PLAN.md (Core Infrastructure Utilities)
+Last activity: 2026-01-17 — Completed 01-03-PLAN.md (AnimatedBar Cache & Delta-Time Integration)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 2.8 min
-- Total execution time: 0.10 hours
+- Total plans completed: 3
+- Average duration: 2.2 min
+- Total execution time: 0.11 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 2 | 5.7min | 2.8min |
+| 01 | 3 | 6.8min | 2.3min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (2.7min), 01-01 (3.0min)
-- Trend: Consistent velocity
+- Last 5 plans: 01-03 (1.1min), 01-02 (2.7min), 01-01 (3.0min)
+- Trend: Accelerating (last plan 60% faster than average)
 
 *Updated after each plan completion*
 
@@ -45,6 +45,11 @@ Recent decisions affecting current work:
 - Phase ordering prioritizes memory leaks and timing bugs before feature work (production-critical)
 - Testing phase positioned after config centralization to use constants in tests
 - Performance optimization deferred until tests lock down behavior
+- LRUCache replaces plain Map for bounded memory usage [01-03]
+- Cache cleanup runs every 30 seconds via setInterval [01-03]
+- Cache stats logged only in dev mode via ?perf=true URL parameter [01-03]
+- update(deltaTime) signature provides time-based animation foundation [01-03]
+- framesToSeconds() helper enables gradual subclass migration from frame-based to time-based logic [01-03]
 - Use JavaScript object format instead of JSON for configuration (enables comments and computed values) [01-02]
 - Scene-based organization (background/stinger/sidebar/shared) mirrors code structure for maintainability [01-02]
 - Graceful degradation: validation failures log warnings and return defaults rather than throwing errors [01-02]
@@ -64,9 +69,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-17T22:53:15Z
-Stopped at: Completed 01-01-PLAN.md (Core Infrastructure Utilities)
+Last session: 2026-01-17T23:56:12Z
+Stopped at: Completed 01-03-PLAN.md (AnimatedBar Cache & Delta-Time Integration)
 Resume file: None
 
 ---
-*Last updated: 2026-01-17 after 01-01 plan completion*
+*Last updated: 2026-01-17 after 01-03 plan completion*
