@@ -180,7 +180,7 @@
       // Sort bars by zIndex
       bars.sort((a, b) => a.zIndex - b.zIndex);
 
-      // Animation loop
+      // Animation loop with auto-replay
       function animate(timestamp) {
         perfMonitor.recordFrame();
 
@@ -188,9 +188,30 @@
 
         clearCanvas(ctx, canvas);
 
+        let allComplete = true;
         for (let i = 0; i < bars.length; i++) {
           bars[i].update(deltaTime);
           bars[i].draw();
+          if (bars[i].active) {
+            allComplete = false;
+          }
+        }
+
+        // If all bars completed, reset them for replay
+        if (allComplete) {
+          console.log('[Sidebar] Animation cycle complete - restarting');
+          bars.forEach(bar => {
+            bar.active = true;
+            bar.elapsedTime = 0;
+            bar.phaseStartTime = 0;
+            bar.phase = 'in';
+            bar.x = bar.startX;
+          });
+          // Restart text animation
+          textElement.style.animation = 'none';
+          setTimeout(() => {
+            textElement.style.animation = '';
+          }, 10);
         }
 
         requestAnimationFrame(animate);
