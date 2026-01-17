@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 ## Current Position
 
 Phase: 1 of 4 (Critical Fixes & Foundation)
-Plan: 3 of TBD in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-17 — Completed 01-03-PLAN.md (AnimatedBar Cache & Delta-Time Integration)
+Last activity: 2026-01-17 — Completed 01-04-PLAN.md (Background Scene Migration)
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 2.2 min
-- Total execution time: 0.11 hours
+- Total plans completed: 4
+- Average duration: 6.5 min
+- Total execution time: 0.43 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 3 | 6.8min | 2.3min |
+| 01 | 4 | 25.8min | 6.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (1.1min), 01-02 (2.7min), 01-01 (3.0min)
-- Trend: Accelerating (last plan 60% faster than average)
+- Last 5 plans: 01-04 (15.0min), 01-03 (1.1min), 01-02 (2.7min), 01-01 (3.0min)
+- Trend: Variable (01-04 took longer due to 2 auto-fixes + checkpoint verification)
 
 *Updated after each plan completion*
 
@@ -45,6 +45,9 @@ Recent decisions affecting current work:
 - Phase ordering prioritizes memory leaks and timing bugs before feature work (production-critical)
 - Testing phase positioned after config centralization to use constants in tests
 - Performance optimization deferred until tests lock down behavior
+- Removed mixed frame rate system (30fps/60fps split) in favor of unified 60fps for both layers [01-04]
+- Size animation uses smooth interpolation with easeInOutCubic for visual quality [01-04]
+- Direction changes and size transitions tracked independently with separate time accumulators [01-04]
 - LRUCache replaces plain Map for bounded memory usage [01-03]
 - Cache cleanup runs every 30 seconds via setInterval [01-03]
 - Cache stats logged only in dev mode via ?perf=true URL parameter [01-03]
@@ -69,9 +72,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-17T23:56:12Z
-Stopped at: Completed 01-03-PLAN.md (AnimatedBar Cache & Delta-Time Integration)
+Last session: 2026-01-17T23:21:59Z
+Stopped at: Completed 01-04-PLAN.md (Background Scene Migration)
 Resume file: None
 
 ---
-*Last updated: 2026-01-17 after 01-03 plan completion*
+*Last updated: 2026-01-17 after 01-04 plan completion*
