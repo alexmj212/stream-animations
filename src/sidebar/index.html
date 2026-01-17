@@ -180,44 +180,7 @@
       // Sort bars by zIndex
       bars.sort((a, b) => a.zIndex - b.zIndex);
 
-      // Track animation state
-      let animationFrameId = null;
-      let isAnimating = false;
-
-      // Function to reset and restart animation
-      function restartAnimation() {
-        console.log('[Sidebar] Starting animation');
-
-        // Cancel any ongoing animation
-        if (animationFrameId !== null) {
-          cancelAnimationFrame(animationFrameId);
-          animationFrameId = null;
-        }
-
-        // Reset all bars to initial state
-        bars.forEach(bar => {
-          bar.x = bar.startX;
-          bar.elapsedTime = 0;
-          bar.phaseStartTime = 0;
-          bar.phase = 'in';
-          bar.active = true;
-        });
-
-        // Reset text animation by removing and re-adding animation
-        textElement.style.animation = 'none';
-        // Trigger reflow to restart animation
-        void textElement.offsetHeight;
-        textElement.style.animation = `slideText ${durationMs}ms cubic-bezier(0.65, 0, 0.35, 1) forwards`;
-
-        // Reset delta timer
-        deltaTimer.reset();
-
-        // Start animation loop
-        isAnimating = true;
-        animationFrameId = requestAnimationFrame(animate);
-      }
-
-      // Animation loop - one-shot per visibility
+      // Animation loop - continuous with auto-restart for OBS usage
       function animate(timestamp) {
         perfMonitor.recordFrame();
 
@@ -225,37 +188,39 @@
 
         clearCanvas(ctx, canvas);
 
-        let anyActive = false;
+        let allComplete = true;
         for (let i = 0; i < bars.length; i++) {
           bars[i].update(deltaTime);
           bars[i].draw();
           if (bars[i].active) {
-            anyActive = true;
+            allComplete = false;
           }
         }
 
-        // Continue animation loop only while bars are active
-        if (anyActive) {
-          animationFrameId = requestAnimationFrame(animate);
-        } else {
-          console.log('[Sidebar] Animation complete - stopped');
-          isAnimating = false;
-          animationFrameId = null;
+        // If all bars have completed their animation, restart them
+        if (allComplete) {
+          console.log('[Sidebar] Animation cycle complete - restarting');
+
+          // Reset all bars to initial state
+          bars.forEach(bar => {
+            bar.x = bar.startX;
+            bar.elapsedTime = 0;
+            bar.phaseStartTime = 0;
+            bar.phase = 'in';
+            bar.active = true;
+          });
+
+          // Reset text animation
+          textElement.style.animation = 'none';
+          void textElement.offsetHeight;
+          textElement.style.animation = `slideText ${durationMs}ms cubic-bezier(0.65, 0, 0.35, 1) forwards`;
         }
+
+        requestAnimationFrame(animate);
       }
 
-      // Listen for visibility changes (OBS source toggle)
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          console.log('[Sidebar] Page became visible - restarting animation');
-          restartAnimation();
-        } else {
-          console.log('[Sidebar] Page hidden');
-        }
-      });
-
-      // Start initial animation
-      restartAnimation();
+      // Start continuous animation loop
+      requestAnimationFrame(animate);
     </script>
   </body>
 </html>
