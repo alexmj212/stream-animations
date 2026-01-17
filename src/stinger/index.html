@@ -48,7 +48,7 @@
 
         // Canvas setup
         const canvas = document.getElementById('canvas');
-        const ctx = setupCanvas(canvas);
+        const ctx = setupCanvas(canvas, { alpha: true });
 
         // Create bars
         const bars = [];
@@ -119,7 +119,9 @@
 
         bars.push(...tempBars);
 
-        // Animation loop
+        // Animation loop control
+        let isAnimating = false;
+
         function animate() {
             perfMonitor.recordFrame();
 
@@ -140,10 +142,92 @@
                 accentBars[i].draw();
             }
 
-            requestAnimationFrame(animate);
+            if (isAnimating) {
+                requestAnimationFrame(animate);
+            }
         }
 
-        animate();
+        // Function to generate new bars
+        function generateBars() {
+            bars.length = 0; // Clear existing bars
+
+            // First, create two large background curtain bars
+            const leftCurtain = new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, ANIMATION_DURATION);
+            leftCurtain.width = canvas.width * 0.75;
+            leftCurtain.opacity = 1.0;
+            leftCurtain.direction = 1;
+            leftCurtain.startX = -leftCurtain.width - 300;
+            leftCurtain.targetX = canvas.width / 2 - leftCurtain.width;
+            leftCurtain.x = leftCurtain.startX;
+            leftCurtain.startDelay = 0;
+            leftCurtain.isBackground = true;
+            leftCurtain.hue = baseHSL.h;
+            leftCurtain.saturation = baseHSL.s;
+            leftCurtain.lightness = Math.max(15, baseHSL.l - 25);
+            leftCurtain.isWhite = false;
+            bars.push(leftCurtain);
+
+            const rightCurtain = new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, ANIMATION_DURATION);
+            rightCurtain.width = canvas.width * 0.75;
+            rightCurtain.opacity = 1.0;
+            rightCurtain.direction = -1;
+            rightCurtain.startX = canvas.width + 300;
+            rightCurtain.targetX = canvas.width / 2;
+            rightCurtain.x = rightCurtain.startX;
+            rightCurtain.startDelay = 0;
+            rightCurtain.isBackground = true;
+            rightCurtain.hue = baseHSL.h;
+            rightCurtain.saturation = baseHSL.s;
+            rightCurtain.lightness = Math.max(15, baseHSL.l - 25);
+            rightCurtain.isWhite = false;
+            bars.push(rightCurtain);
+
+            // Add accent bars
+            const barCount = 6;
+            const tempBars = [];
+            for (let i = 0; i < barCount; i++) {
+                const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
+                tempBars.push(new StingerBar(ctx, canvas, type, i + 2, barCount + 2, baseHSL, ANIMATION_DURATION));
+            }
+
+            // Ensure at least 2 white bars exist
+            const whiteBarCount = tempBars.filter(bar => bar.isWhite).length;
+            if (whiteBarCount < 2) {
+                const nonWhiteBars = tempBars.filter(bar => !bar.isWhite);
+                const barsToConvert = Math.min(2 - whiteBarCount, nonWhiteBars.length);
+                for (let i = 0; i < barsToConvert; i++) {
+                    const randomIndex = Math.floor(Math.random() * nonWhiteBars.length);
+                    const barToConvert = nonWhiteBars.splice(randomIndex, 1)[0];
+                    barToConvert.isWhite = true;
+                    barToConvert.hue = 0;
+                    barToConvert.saturation = 0;
+                    barToConvert.lightness = 100;
+                    if (barToConvert.type === 'slanted') {
+                        barToConvert.width = Math.random() * 80 + 40;
+                    } else {
+                        barToConvert.height = Math.random() * 30 + 20;
+                    }
+                }
+            }
+
+            // Assign random z-index for weave effect
+            tempBars.forEach(bar => {
+                bar.zIndex = Math.random();
+            });
+
+            bars.push(...tempBars);
+        }
+
+        window.addEventListener('transitionStart', function(event) {
+            // Generate new bars
+            generateBars();
+
+            // Start animation loop if not already running
+            if (!isAnimating) {
+                isAnimating = true;
+                animate();
+            }
+        });
     </script>
 </body>
 </html>

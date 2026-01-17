@@ -3,6 +3,29 @@
  */
 
 /**
+ * Convert CSS color to hex format
+ * @param {string} color - CSS color (named, 3-digit hex, 6-digit hex)
+ * @returns {string} Hex color string
+ */
+export function cssColorToHex(color) {
+    // Already 6-digit hex
+    if (/^#?[a-f\d]{6}$/i.test(color)) {
+        return color.startsWith('#') ? color : `#${color}`;
+    }
+
+    // 3-digit hex - expand to 6-digit
+    const shortHex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i.exec(color);
+    if (shortHex) {
+        return `#${shortHex[1]}${shortHex[1]}${shortHex[2]}${shortHex[2]}${shortHex[3]}${shortHex[3]}`;
+    }
+
+    // Named color or other CSS color - use canvas to convert
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.fillStyle = color;
+    return ctx.fillStyle; // Returns hex format
+}
+
+/**
  * Convert hex color to HSL
  * @param {string} hex - Hex color string (e.g., "#ff6600")
  * @returns {{h: number, s: number, l: number}} HSL values
@@ -66,5 +89,9 @@ export function generateRandomColor() {
  */
 export function getColorFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('color') || generateRandomColor();
+    const colorParam = urlParams.get('color');
+    if (colorParam) {
+        return cssColorToHex(colorParam);
+    }
+    return generateRandomColor();
 }

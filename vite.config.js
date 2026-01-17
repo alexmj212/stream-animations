@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => {
     ? resolve(__dirname, 'src/stinger/index.html')
     : mode === 'background'
     ? resolve(__dirname, 'src/background/index.html')
+    : mode === 'sidebar'
+    ? resolve(__dirname, 'src/sidebar/index.html')
     : resolve(__dirname, 'src/stinger/index.html'); // default
 
   return {

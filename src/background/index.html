@@ -13,17 +13,30 @@
 
         body {
             overflow: hidden;
+            position: relative;
         }
 
-        #canvas {
+        canvas {
             display: block;
             width: 100vw;
             height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #backgroundCanvas {
+            z-index: 1;
+        }
+
+        #foregroundCanvas {
+            z-index: 2;
         }
     </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
+    <canvas id="backgroundCanvas"></canvas>
+    <canvas id="foregroundCanvas"></canvas>
 
     <script type="module">
         import { getColorFromURL, hexToHSL } from '../shared/colors.js';
@@ -47,62 +60,115 @@
             setInterval(() => perfMonitor.logStats(), 2000);
         }
 
-        // Canvas setup
-        const canvas = document.getElementById('canvas');
-        const ctx = setupCanvas(canvas);
+        // Canvas setup - layered approach for better performance
+        const backgroundCanvas = document.getElementById('backgroundCanvas');
+        const foregroundCanvas = document.getElementById('foregroundCanvas');
+        const bgCtx = setupCanvas(backgroundCanvas);
+        const fgCtx = setupCanvas(foregroundCanvas);
 
-        // Create bars with random types
-        const bars = [];
+        // Create bars with random types - split into slow and fast layers
+        const backgroundBars = []; // Slower moving bars
+        const foregroundBars = []; // Faster moving bars
+
         for (let i = 0; i < barDensity; i++) {
             const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-            const bar = new BackgroundBar(ctx, canvas, type, baseHSL, speedMultiplier);
-            bar.zIndex = Math.random();
-            bars.push(bar);
+            const speed = 0.1 + Math.random() * 0.9;
+
+            // Put slower bars (speed < 0.5) on background layer, faster on foreground
+            if (speed < 0.5) {
+                const bar = new BackgroundBar(bgCtx, backgroundCanvas, type, baseHSL, speedMultiplier * speed);
+                bar.zIndex = Math.random();
+                backgroundBars.push(bar);
+            } else {
+                const bar = new BackgroundBar(fgCtx, foregroundCanvas, type, baseHSL, speedMultiplier * speed);
+                bar.zIndex = Math.random();
+                foregroundBars.push(bar);
+            }
         }
 
         // Function to add a new bar when one is removed
-        function addNewBar() {
+        function addNewBar(layer) {
             const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-            const bar = new BackgroundBar(ctx, canvas, type, baseHSL, speedMultiplier, false); // false = fresh start
-            bar.zIndex = Math.random();
-            bars.push(bar);
+            const speed = 0.1 + Math.random() * 0.9;
+
+            if (layer === 'background') {
+                const bar = new BackgroundBar(bgCtx, backgroundCanvas, type, baseHSL, speedMultiplier * speed, false);
+                bar.zIndex = Math.random();
+                backgroundBars.push(bar);
+            } else {
+                const bar = new BackgroundBar(fgCtx, foregroundCanvas, type, baseHSL, speedMultiplier * speed, false);
+                bar.zIndex = Math.random();
+                foregroundBars.push(bar);
+            }
         }
 
-        // Track if bars need re-sorting (only when bars are added/removed)
-        let needsSort = true;
+        // Track if bars need re-sorting
+        let bgNeedsSort = true;
+        let fgNeedsSort = true;
 
-        // Animation loop
+        let frameCount = 0;
+
+        // Animation loop with layered rendering
         function animate() {
             perfMonitor.recordFrame();
+            frameCount++;
 
-            clearCanvas(ctx, canvas);
+            // Update background layer every 2 frames (30fps) for performance
+            if (frameCount % 2 === 0) {
+                clearCanvas(bgCtx, backgroundCanvas);
 
-            // Remove inactive bars and add new ones to maintain density
-            const initialCount = bars.length;
-            for (let i = bars.length - 1; i >= 0; i--) {
-                if (!bars[i].active) {
-                    bars.splice(i, 1);
-                    needsSort = true;
+                // Remove inactive bars and add new ones
+                const bgInitialCount = backgroundBars.length;
+                for (let i = backgroundBars.length - 1; i >= 0; i--) {
+                    if (!backgroundBars[i].active) {
+                        backgroundBars.splice(i, 1);
+                        bgNeedsSort = true;
+                    }
+                }
+
+                const bgRemovedCount = bgInitialCount - backgroundBars.length;
+                for (let i = 0; i < bgRemovedCount; i++) {
+                    addNewBar('background');
+                    bgNeedsSort = true;
+                }
+
+                if (bgNeedsSort) {
+                    backgroundBars.sort((a, b) => a.zIndex - b.zIndex);
+                    bgNeedsSort = false;
+                }
+
+                for (let i = 0; i < backgroundBars.length; i++) {
+                    backgroundBars[i].update();
+                    backgroundBars[i].draw();
                 }
             }
 
-            // Add new bars to maintain the target density
-            const removedCount = initialCount - bars.length;
-            for (let i = 0; i < removedCount; i++) {
-                addNewBar();
-                needsSort = true;
+            // Update foreground layer every frame (60fps)
+            clearCanvas(fgCtx, foregroundCanvas);
+
+            // Remove inactive bars and add new ones
+            const fgInitialCount = foregroundBars.length;
+            for (let i = foregroundBars.length - 1; i >= 0; i--) {
+                if (!foregroundBars[i].active) {
+                    foregroundBars.splice(i, 1);
+                    fgNeedsSort = true;
+                }
             }
 
-            // Only sort when bars are added/removed
-            if (needsSort) {
-                bars.sort((a, b) => a.zIndex - b.zIndex);
-                needsSort = false;
+            const fgRemovedCount = fgInitialCount - foregroundBars.length;
+            for (let i = 0; i < fgRemovedCount; i++) {
+                addNewBar('foreground');
+                fgNeedsSort = true;
             }
 
-            // Update and draw bars
-            for (let i = 0; i < bars.length; i++) {
-                bars[i].update();
-                bars[i].draw();
+            if (fgNeedsSort) {
+                foregroundBars.sort((a, b) => a.zIndex - b.zIndex);
+                fgNeedsSort = false;
+            }
+
+            for (let i = 0; i < foregroundBars.length; i++) {
+                foregroundBars[i].update();
+                foregroundBars[i].draw();
             }
 
             requestAnimationFrame(animate);

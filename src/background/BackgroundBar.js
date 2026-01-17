@@ -120,6 +120,11 @@ export class BackgroundBar extends AnimatedBar {
             // For new bars: always start fresh from off-screen
             this.initializeFreshStart();
         }
+
+        // Enable offscreen cache only for white horizontal bars (slanted bars extend beyond viewport)
+        if (this.isWhite && this.type === 'horizontal') {
+            this.useOffscreenCache = true;
+        }
     }
 
     initializeRandomPosition() {
@@ -274,7 +279,10 @@ export class BackgroundBar extends AnimatedBar {
         }
 
         // Viewport culling - skip drawing if bar is completely off-screen
-        if (!isBarInViewport(this.x, this.y, currentWidth, currentHeight, this.canvas.width, this.canvas.height, 200)) {
+        // For cached bars (centered at x,y), adjust culling bounds
+        const cullX = this.useOffscreenCache ? this.x - currentWidth / 2 : this.x;
+        const cullWidth = currentWidth;
+        if (!isBarInViewport(cullX, this.y, cullWidth, currentHeight, this.canvas.width, this.canvas.height, 200)) {
             return;
         }
 

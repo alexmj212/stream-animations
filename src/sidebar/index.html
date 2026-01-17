@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sidebar Animation</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        position: relative;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+      }
+
+      #textOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      #sidebarText {
+        position: absolute;
+        top: 66.66%;
+        right: -125%; /* Start off-screen to the right */
+        transform: translateY(-50%); /* Center vertically */
+        font-family: "Jost", Arial, sans-serif;
+        font-size: 1.5vw; /* Scales with viewport width - 48px at 1920px */
+        font-weight: bold;
+        color: white;
+        text-shadow: -0.15625vw -0.15625vw 0 #000, 0 -0.15625vw 0 #000, 0.15625vw -0.15625vw 0 #000, -0.15625vw 0 0 #000, 0.15625vw 0 0 #000, -0.15625vw 0.15625vw 0 #000, 0 0.15625vw 0 #000, 0.15625vw 0.15625vw 0 #000,
+          0.208vw 0.208vw 0 rgba(0, 0, 0, 0.6), 0.26vw 0.26vw 0 rgba(0, 0, 0, 0.4), 0.3125vw 0.3125vw 0 rgba(0, 0, 0, 0.2);
+        max-width: 50vw; /* Maximum width of 50% viewport width */
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        text-align: right;
+        padding: 0 2.08vw; /* 40px at 1920px */
+        animation: slideText var(--duration) cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      }
+
+      @keyframes slideText {
+        0% {
+          right: -125%; /* Start off-screen right */
+        }
+        25% {
+          right: 0; /* Slide in to right edge */
+        }
+        75% {
+          right: 0; /* Hold at right edge */
+        }
+        100% {
+          right: -125%; /* Slide back off-screen right */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <div id="textOverlay">
+      <div id="sidebarText"></div>
+    </div>
+
+    <script type="module">
+      import { getColorFromURL, hexToHSL } from "../shared/colors.js";
+      import { setupCanvas, clearCanvas } from "../shared/canvas.js";
+      import { SidebarBar } from "./SidebarBar.js";
+      import { PerformanceMonitor } from "../shared/performance.js";
+
+      // Get parameters from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const ANIMATION_DURATION = parseInt(urlParams.get("duration")) || 4000;
+      const showPerf = urlParams.get("perf") === "true";
+
+      const sidebarText = (urlParams.get("text") || "").toUpperCase();
+      const baseColor = getColorFromURL();
+      const baseHSL = hexToHSL(baseColor);
+
+      // Setup text element
+      const textElement = document.getElementById("sidebarText");
+      textElement.textContent = sidebarText;
+      textElement.style.setProperty("--duration", `${ANIMATION_DURATION}ms`);
+
+      // Setup performance monitoring
+      const perfMonitor = new PerformanceMonitor(60);
+      if (showPerf) {
+        perfMonitor.enable();
+        // Log performance stats every 2 seconds
+        setInterval(() => perfMonitor.logStats(), 2000);
+      }
+
+      // Canvas setup
+      const canvas = document.getElementById("canvas");
+      const ctx = setupCanvas(canvas, { alpha: true });
+
+      // Create bars for sidebar
+      const bars = [];
+
+      // First, create large vertical background bar (75vw minimum to prevent background exposure)
+      const backgroundBar = new SidebarBar(ctx, canvas, "slanted", 0, 1, baseHSL, ANIMATION_DURATION);
+      backgroundBar.width = canvas.width * 0.75; // 75% of viewport width
+      backgroundBar.opacity = 1.0;
+      backgroundBar.startX = canvas.width + 300;
+      backgroundBar.targetX = canvas.width * 0.8; // Position at 80% mark (right 20% of screen)
+      backgroundBar.x = backgroundBar.startX;
+      backgroundBar.startDelay = 0;
+      backgroundBar.isBackground = true;
+      backgroundBar.hue = baseHSL.h;
+      backgroundBar.saturation = baseHSL.s;
+      backgroundBar.lightness = Math.max(15, baseHSL.l - 25);
+      backgroundBar.isWhite = false;
+      backgroundBar.zIndex = -1; // Draw behind everything
+      bars.push(backgroundBar);
+
+      // Create accent bars - mostly slanted with max 3 horizontal
+      const accentBarCount = 8;
+      let horizontalCount = 0;
+      for (let i = 0; i < accentBarCount; i++) {
+        // Limit horizontal bars to 3 maximum
+        let type;
+        if (horizontalCount >= 3) {
+          type = "slanted";
+        } else {
+          type = Math.random() > 0.6 ? "slanted" : "horizontal";
+          if (type === "horizontal") horizontalCount++;
+        }
+        bars.push(new SidebarBar(ctx, canvas, type, i + 2, accentBarCount + 2, baseHSL, ANIMATION_DURATION));
+      }
+
+      // Ensure at least 2 white bars exist (exclude background bar and text bar with z-index 999)
+      const whiteBarCount = bars.filter((bar) => bar.isWhite).length;
+      if (whiteBarCount < 2) {
+        const nonWhiteBars = bars.filter((bar) => !bar.isWhite && bar.zIndex !== -1 && bar.zIndex !== 999);
+        const barsToConvert = Math.min(2 - whiteBarCount, nonWhiteBars.length);
+        for (let i = 0; i < barsToConvert; i++) {
+          const randomIndex = Math.floor(Math.random() * nonWhiteBars.length);
+          const barToConvert = nonWhiteBars.splice(randomIndex, 1)[0];
+          barToConvert.isWhite = true;
+          barToConvert.hue = 0;
+          barToConvert.saturation = 0;
+          barToConvert.lightness = 100;
+          if (barToConvert.type === "slanted") {
+            barToConvert.width = Math.random() * 80 + 40;
+          } else {
+            barToConvert.height = Math.random() * 30 + 20;
+          }
+        }
+      }
+
+      // Assign random z-index for weave effect (except bars with preset z-index)
+      bars.forEach((bar) => {
+        // Only randomize if z-index hasn't been explicitly set (background bar = -1, text bar = 999)
+        if (bar.zIndex !== -1 && bar.zIndex !== 999) {
+          bar.zIndex = Math.random();
+        }
+      });
+
+      // Sort bars by zIndex
+      bars.sort((a, b) => a.zIndex - b.zIndex);
+
+      // Animation loop
+      function animate() {
+        perfMonitor.recordFrame();
+
+        clearCanvas(ctx, canvas);
+
+        // Draw background bar first
+        const backgroundBars = bars.filter((bar) => bar.isBackground);
+        for (let i = 0; i < backgroundBars.length; i++) {
+          backgroundBars[i].update();
+          backgroundBars[i].draw();
+        }
+
+        // Draw accent bars on top, sorted by zIndex
+        const accentBars = bars.filter((bar) => !bar.isBackground).sort((a, b) => a.zIndex - b.zIndex);
+        for (let i = 0; i < accentBars.length; i++) {
+          accentBars[i].update();
+          accentBars[i].draw();
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>

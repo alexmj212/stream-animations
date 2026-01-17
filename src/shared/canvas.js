@@ -5,20 +5,23 @@
 /**
  * Setup canvas with proper sizing
  * @param {HTMLCanvasElement} canvas - Canvas element
+ * @param {Object} options - Canvas context options
+ * @param {boolean} options.alpha - Enable transparency (default: false for better performance)
  * @returns {CanvasRenderingContext2D} Canvas 2D context
  */
-export function setupCanvas(canvas) {
-    const ctx = canvas.getContext('2d');
+export function setupCanvas(canvas, options = {}) {
+  const { alpha = true } = options;
+  const ctx = canvas.getContext("2d", { alpha });
 
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
 
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+  window.addEventListener("resize", resizeCanvas);
 
-    return ctx;
+  return ctx;
 }
 
 /**
@@ -27,5 +30,5 @@ export function setupCanvas(canvas) {
  * @param {HTMLCanvasElement} canvas - Canvas element
  */
 export function clearCanvas(ctx, canvas) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 }

@@ -96,6 +96,11 @@ export class StingerBar extends AnimatedBar {
         this.frame = 0;
         this.phase = 'in'; // 'in', 'pause', 'out'
         this.pauseFrames = 0;
+
+        // Enable offscreen cache only for white horizontal bars (slanted bars extend beyond viewport)
+        if (this.isWhite && this.type === 'horizontal') {
+            this.useOffscreenCache = true;
+        }
     }
 
     update() {
@@ -181,7 +186,10 @@ export class StingerBar extends AnimatedBar {
         const withShadow = !this.isBackground;
 
         // Viewport culling - skip drawing if bar is completely off-screen
-        if (!isBarInViewport(this.x, this.y, this.width, height, this.canvas.width, this.canvas.height, 300)) {
+        // For cached bars (centered at x,y), adjust culling bounds
+        const cullX = this.useOffscreenCache ? this.x - this.width / 2 : this.x;
+        const cullWidth = this.width;
+        if (!isBarInViewport(cullX, this.y, cullWidth, height, this.canvas.width, this.canvas.height, 300)) {
             return;
         }
 
