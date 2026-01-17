@@ -4,6 +4,7 @@
  */
 import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { isBarInViewport } from '../shared/animations/calculations.js';
+import { config } from '../config/config.js';
 
 export class SidebarBar extends AnimatedBar {
     constructor(ctx, canvas, type, index, total, baseHSL, duration, options = {}) {
@@ -35,6 +36,25 @@ export class SidebarBar extends AnimatedBar {
 
         this.opacity = this.random() * 0.4 + 0.6;
 
+        // Time-based tracking
+        this.elapsedTime = 0;
+        this.phaseStartTime = 0;
+        this.delayTime = 0; // Will be set for staggering
+
+        // Phase durations from config (convert to seconds)
+        const slideInMs = this.duration * config.sidebar.timing.slideInProportion;
+        const slideOutMs = this.duration * config.sidebar.timing.slideOutProportion;
+        const holdMs = this.duration - slideInMs - slideOutMs;
+
+        this.slideInDuration = slideInMs / 1000;
+        this.holdDuration = holdMs / 1000;
+        this.slideOutDuration = slideOutMs / 1000;
+
+        // Positions from config
+        this.startX = this.canvas.width + config.sidebar.offscreen.startMargin;
+        this.holdX = this.canvas.width * config.sidebar.position.sidebarStart;
+        this.endX = this.canvas.width + config.sidebar.offscreen.startMargin;
+
         if (this.type === 'slanted') {
             // White bars are smaller, colored bars have more variation
             if (this.isWhite) {
@@ -46,19 +66,17 @@ export class SidebarBar extends AnimatedBar {
             this.y = 0; // Start at top, extend full height
 
             // Position bars in the right 20% of screen
-            const sidebarStart = this.canvas.width * 0.8;
-            const sidebarWidth = this.canvas.width * 0.2;
-            this.targetX = sidebarStart + (this.random() * sidebarWidth);
+            const sidebarStart = this.canvas.width * config.sidebar.position.sidebarStart;
+            const sidebarWidth = this.canvas.width * config.sidebar.position.sidebarWidth;
+            this.holdX = sidebarStart + (this.random() * sidebarWidth);
 
-            // All bars start from the right, off-screen
-            this.startX = this.canvas.width + 300;
             this.x = this.startX;
 
             // Stagger bars slightly
-            this.startDelay = (this.index / this.total) * 15;
+            this.delayTime = (this.index / this.total) * (config.sidebar.timing.slantedStaggerFrames / 60);
         } else {
             // Horizontal bars - constrained to right 20% of viewport
-            this.width = this.canvas.width * 0.2 + 200; // 20% of viewport + margin
+            this.width = this.canvas.width * config.sidebar.position.sidebarWidth + config.sidebar.horizontal.widthExtension;
 
             // White bars are smaller
             if (this.isWhite) {
@@ -70,21 +88,18 @@ export class SidebarBar extends AnimatedBar {
             this.y = (this.index / this.total) * this.canvas.height;
 
             // Horizontal bars positioned on right side
-            this.startX = this.canvas.width + 200;
-            this.targetX = this.canvas.width * 0.8 - 100; // Stop at 80% mark (left edge of 20% area)
+            this.holdX = this.canvas.width * config.sidebar.position.sidebarStart + config.sidebar.position.horizontalTargetOffset;
             this.x = this.startX;
 
             // Stagger horizontal bars
-            const fps = 60;
-            const totalFrames = (this.duration / 1000) * fps;
-            this.startDelay = (this.index / this.total) * (totalFrames * 0.15);
+            const totalDuration = this.duration / 1000;
+            this.delayTime = (this.index / this.total) * (totalDuration * config.sidebar.timing.horizontalStaggerProportion);
         }
 
-        this.frame = 0;
         this.phase = 'in'; // 'in', 'hold', 'out'
 
-        // Random velocity for hold phase (0.3-0.8 pixels per frame)
-        this.holdVelocity = this.random() * 0.5 + 0.3;
+        // Random velocity for hold phase (from config)
+        this.holdVelocity = config.sidebar.hold.velocityMin + this.random() * (config.sidebar.hold.velocityMax - config.sidebar.hold.velocityMin);
 
         // Enable offscreen cache only for white horizontal bars (slanted bars extend beyond viewport)
         if (this.isWhite && this.type === 'horizontal') {
@@ -92,58 +107,48 @@ export class SidebarBar extends AnimatedBar {
         }
     }
 
-    update() {
+    update(deltaTime) {
         if (!this.active) return;
 
-        this.frame++;
+        this.elapsedTime += deltaTime;
 
-        // Only start moving after delay
-        if (this.frame <= this.startDelay) return;
+        // Handle delay before animation starts
+        if (this.elapsedTime < this.delayTime) {
+            this.x = this.startX; // Stay offscreen
+            return;
+        }
 
-        const fps = 60;
-        const totalFrames = (this.duration / 1000) * fps;
-
-        // Animation timing: 25% slide in, 50% hold, 25% slide out
-        const slideInFrames = totalFrames * 0.25;
-        const holdFrames = totalFrames * 0.50;
-        const slideOutFrames = totalFrames * 0.25;
-
-        const adjustedFrame = this.frame - this.startDelay;
+        const animTime = this.elapsedTime - this.delayTime;
+        const phaseTime = animTime - this.phaseStartTime;
 
         if (this.phase === 'in') {
-            // Slide in from right with easeInOutCubic
-            const progress = adjustedFrame / slideInFrames;
-            const t = Math.min(progress, 1);
-            const eased = this.easeInOutCubic(t);
-            this.x = this.startX + (this.targetX - this.startX) * eased;
+            const progress = Math.min(phaseTime / this.slideInDuration, 1);
+            const easedProgress = this.easeInOutCubic(progress);
+            this.x = this.startX + (this.holdX - this.startX) * easedProgress;
 
-            if (t >= 1) {
+            if (progress >= 1) {
                 this.phase = 'hold';
-                this.holdStartFrame = this.frame;
+                this.phaseStartTime = animTime;
             }
         } else if (this.phase === 'hold') {
-            // Continue moving at constant velocity during hold
-            const holdElapsed = this.frame - this.holdStartFrame;
-
             // Move at constant velocity to the left (randomized per bar)
             if (!this.isBackground) {
-                this.x -= this.holdVelocity;
+                this.x -= this.holdVelocity * (deltaTime / (1/60)); // Scale velocity by deltaTime
+            } else {
+                this.x = this.holdX; // Background bar stays in place
             }
 
-            if (holdElapsed >= holdFrames) {
+            if (phaseTime >= this.holdDuration) {
                 this.phase = 'out';
-                this.outStartFrame = this.frame;
-                this.holdX = this.x; // Use current position for smooth transition
+                this.phaseStartTime = animTime;
+                this.outStartX = this.x; // Save current position for smooth transition
             }
         } else if (this.phase === 'out') {
-            // Slide out to the right
-            const outElapsed = this.frame - this.outStartFrame;
-            const progress = outElapsed / slideOutFrames;
-            const t = Math.min(progress, 1);
-            const eased = this.easeInOutCubic(t);
-            this.x = this.holdX + (this.startX - this.holdX) * eased;
+            const progress = Math.min(phaseTime / this.slideOutDuration, 1);
+            const easedProgress = this.easeInOutCubic(progress);
+            this.x = this.outStartX + (this.endX - this.outStartX) * easedProgress;
 
-            if (t >= 1) {
+            if (progress >= 1) {
                 this.active = false;
             }
         }

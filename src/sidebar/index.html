@@ -82,20 +82,22 @@
       import { setupCanvas, clearCanvas } from "../shared/canvas.js";
       import { SidebarBar } from "./SidebarBar.js";
       import { PerformanceMonitor } from "../shared/performance.js";
+      import { DeltaTimer } from "../shared/timing.js";
+      import { AnimationLifecycle } from "../shared/lifecycle.js";
+      import { config } from "../config/config.js";
 
       // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
-      const ANIMATION_DURATION = parseInt(urlParams.get("duration")) || 4000;
+      const text = urlParams.get("text") || "Sidebar Text";
+      const durationMs = parseInt(urlParams.get("duration")) || config.sidebar.timing.defaultDurationMs;
       const showPerf = urlParams.get("perf") === "true";
-
-      const sidebarText = (urlParams.get("text") || "").toUpperCase();
       const baseColor = getColorFromURL();
       const baseHSL = hexToHSL(baseColor);
 
       // Setup text element
       const textElement = document.getElementById("sidebarText");
-      textElement.textContent = sidebarText;
-      textElement.style.setProperty("--duration", `${ANIMATION_DURATION}ms`);
+      textElement.textContent = text.toUpperCase();
+      textElement.style.setProperty("--duration", `${durationMs}ms`);
 
       // Setup performance monitoring
       const perfMonitor = new PerformanceMonitor(60);
@@ -109,11 +111,23 @@
       const canvas = document.getElementById("canvas");
       const ctx = setupCanvas(canvas, { alpha: true });
 
+      // Initialize delta-time and lifecycle
+      const deltaTimer = new DeltaTimer();
+      const lifecycle = new AnimationLifecycle();
+
+      lifecycle.onCleanup(() => {
+        if (SidebarBar.cacheCleanupInterval) {
+          clearInterval(SidebarBar.cacheCleanupInterval);
+          SidebarBar.cacheCleanupInterval = null;
+        }
+        console.log('[Sidebar] Cleanup complete');
+      });
+
       // Create bars for sidebar
       const bars = [];
 
       // First, create large vertical background bar (75vw minimum to prevent background exposure)
-      const backgroundBar = new SidebarBar(ctx, canvas, "slanted", 0, 1, baseHSL, ANIMATION_DURATION);
+      const backgroundBar = new SidebarBar(ctx, canvas, "slanted", 0, 1, baseHSL, durationMs);
       backgroundBar.width = canvas.width * 0.75; // 75% of viewport width
       backgroundBar.opacity = 1.0;
       backgroundBar.startX = canvas.width + 300;
@@ -128,19 +142,11 @@
       backgroundBar.zIndex = -1; // Draw behind everything
       bars.push(backgroundBar);
 
-      // Create accent bars - mostly slanted with max 3 horizontal
-      const accentBarCount = 8;
-      let horizontalCount = 0;
-      for (let i = 0; i < accentBarCount; i++) {
-        // Limit horizontal bars to 3 maximum
-        let type;
-        if (horizontalCount >= 3) {
-          type = "slanted";
-        } else {
-          type = Math.random() > 0.6 ? "slanted" : "horizontal";
-          if (type === "horizontal") horizontalCount++;
-        }
-        bars.push(new SidebarBar(ctx, canvas, type, i + 2, accentBarCount + 2, baseHSL, ANIMATION_DURATION));
+      // Create accent bars - use config.sidebar.bars.accent
+      for (let i = 0; i < config.sidebar.bars.accent; i++) {
+        // Mix of slanted and horizontal bars
+        const type = Math.random() > 0.6 ? "slanted" : "horizontal";
+        bars.push(new SidebarBar(ctx, canvas, type, i + 2, config.sidebar.bars.accent + 2, baseHSL, durationMs));
       }
 
       // Ensure at least 2 white bars exist (exclude background bar and text bar with z-index 999)
@@ -175,23 +181,16 @@
       bars.sort((a, b) => a.zIndex - b.zIndex);
 
       // Animation loop
-      function animate() {
+      function animate(timestamp) {
         perfMonitor.recordFrame();
+
+        const deltaTime = deltaTimer.update(timestamp);
 
         clearCanvas(ctx, canvas);
 
-        // Draw background bar first
-        const backgroundBars = bars.filter((bar) => bar.isBackground);
-        for (let i = 0; i < backgroundBars.length; i++) {
-          backgroundBars[i].update();
-          backgroundBars[i].draw();
-        }
-
-        // Draw accent bars on top, sorted by zIndex
-        const accentBars = bars.filter((bar) => !bar.isBackground).sort((a, b) => a.zIndex - b.zIndex);
-        for (let i = 0; i < accentBars.length; i++) {
-          accentBars[i].update();
-          accentBars[i].draw();
+        for (let i = 0; i < bars.length; i++) {
+          bars[i].update(deltaTime);
+          bars[i].draw();
         }
 
         requestAnimationFrame(animate);
