@@ -61,10 +61,60 @@
 ## Traceability
 
 ### Phase Mapping
-*This section will be populated by roadmap creation*
 
-### Success Criteria
-*This section will be populated by roadmap creation*
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TEST-01 | Phase 2 | Pending |
+| TEST-02 | Phase 2 | Pending |
+| TEST-03 | Phase 2 | Pending |
+| TEST-04 | Phase 2 | Pending |
+| TEST-05 | Phase 2 | Pending |
+| TEST-06 | Phase 2 | Pending |
+| PERF-01 | Phase 1 | Pending |
+| PERF-02 | Phase 1 | Pending |
+| PERF-03 | Phase 1 | Pending |
+| PERF-04 | Phase 3 | Pending |
+| PERF-05 | Phase 3 | Pending |
+| PERF-06 | Phase 3 | Pending |
+| CONFIG-01 | Phase 1 | Pending |
+| CONFIG-02 | Phase 1 | Pending |
+| CONFIG-03 | Phase 1 | Pending |
+| CONFIG-04 | Phase 4 | Pending |
+| CONFIG-05 | Phase 4 | Pending |
+| VISUAL-01 | Phase 4 | Pending |
+| VISUAL-02 | Phase 4 | Pending |
+| VISUAL-03 | Phase 4 | Pending |
+| VISUAL-04 | Phase 4 | Pending |
+
+**Coverage:** 21/21 requirements mapped (100%)
+
+### Success Criteria by Phase
+
+**Phase 1: Critical Fixes & Foundation**
+- Background animation runs for 8+ hours without memory exhaustion or crashes
+- Animation timing remains consistent across different hardware refresh rates (30Hz/60Hz/120Hz)
+- All magic numbers (colors, timings, positions) are centralized in config file with documented coordinate system
+- Event listeners clean up properly when scenes are reloaded in OBS
+
+**Phase 2: Testing Infrastructure**
+- Tests verify bar positions using explicit coordinate system contracts (prevent positioning bugs)
+- Property-based tests validate animation invariants hold across random inputs (opacity 0-1, speed limits, phases)
+- All existing test failures fixed and passing (colors.test.js color parameter parsing)
+- Long-running stress tests detect memory leaks over simulated 1+ hour sessions
+- Frame rate consistency tests validate animations run at same speed on 30fps/60fps/120fps displays
+
+**Phase 3: Performance Optimization**
+- Alpha channel disabled where not needed (33% memory savings on opaque bars)
+- Dirty rectangle tracking reduces GPU clears by 60-80% for static background areas
+- Background scene maintains consistent 30fps foreground/60fps background split without timing drift
+- Performance monitoring shows stable memory usage and frame times during continuous rendering
+
+**Phase 4: Visual Consistency & Polish**
+- Stinger and sidebar brightness reduced to match background (20% reduction applied consistently)
+- Animation timing patterns use same easing functions and duration ratios across all scenes
+- Color palette consistency verified across all bar types (background, stinger, sidebar)
+- Sidebar positioning and timing easily adjustable via config schema with validation
+- All scenes tested in OBS output preview showing cohesive visual language
 
 ---
-*Last updated: 2026-01-17 after requirements definition*
+*Last updated: 2026-01-17 after roadmap creation*
