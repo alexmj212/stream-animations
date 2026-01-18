@@ -11,6 +11,9 @@
 export const config = {
   // Background scene configuration
   background: {
+    // Brightness multiplier (0.8 = 20% reduction for visual harmony)
+    brightness: 0.8,
+
     // Animation speeds in pixels per second (NOT per frame - frame-rate independent)
     speed: {
       defaultMultiplier: 1.0,     // Default speed multiplier from URL
@@ -35,6 +38,15 @@ export const config = {
       visibleFramesMin: 1800,     // 30 seconds minimum visible time
       visibleFramesMax: 7200,     // 120 seconds maximum visible time
       directionTransitionFrames: 180, // 3 seconds for smooth direction changes
+    },
+
+    // Per-scene duration overrides (2000ms entry/exit override - background fades slower than shared default)
+    durations: {
+      entryMs: 2000,      // Override shared default (background fades slower)
+      exitMs: 2000,       // Override shared default (background fades slower)
+      holdMinMs: 30000,   // 30 seconds minimum visible time
+      holdMaxMs: 120000,  // 120 seconds maximum visible time
+      transitionMs: 3000  // Direction transition duration
     },
 
     // Size variations
@@ -98,6 +110,9 @@ export const config = {
 
   // Stinger scene configuration
   stinger: {
+    // Brightness multiplier (0.8 = 20% reduction to match background)
+    brightness: 0.8,
+
     // Duration and timing
     timing: {
       defaultDurationMs: 1000,    // Default transition duration
@@ -174,6 +189,9 @@ export const config = {
 
   // Sidebar scene configuration
   sidebar: {
+    // Brightness multiplier (0.8 = 20% reduction to match background)
+    brightness: 0.8,
+
     // Positioning (X coordinates - origin at left edge)
     position: {
       sidebarStart: 0.8,          // Sidebar starts at 80% of viewport width
@@ -309,6 +327,19 @@ export const config = {
 
   // Shared configuration across all scenes
   shared: {
+    // Timing patterns (millisecond-based, consistent across scenes)
+    // 1000ms - smooth transition matching easeInOutCubic feel
+    durations: {
+      defaultMs: 1000,      // Default transition duration
+      entryMs: 1000,        // Entry/slide-in transitions
+      exitMs: 1000,         // Exit/slide-out transitions
+      holdMs: 2000          // Hold/pause durations
+    },
+
+    // Easing function (explicit config for documentation)
+    // Hardcoded in AnimatedBar.easeInOutCubic(), config for validation only
+    easingFunction: 'easeInOutCubic',  // Used by AnimatedBar.easeInOutCubic()
+
     // Shadow rendering
     shadow: {
       offset: 5,                  // Shadow offset in pixels (X and Y)
