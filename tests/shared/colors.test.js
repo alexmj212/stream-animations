@@ -118,7 +118,7 @@ describe('getColorFromURL', () => {
     it('should return color from URL parameter', () => {
         window.location = { search: '?color=FF5733' };
         const color = getColorFromURL();
-        expect(color).toBe('FF5733');
+        expect(color).toBe('#FF5733');
     });
 
     it('should return color from URL parameter with hash', () => {
@@ -137,6 +137,6 @@ describe('getColorFromURL', () => {
     it('should handle URL with multiple parameters', () => {
         window.location = { search: '?speed=2&color=00FF00&density=20' };
         const color = getColorFromURL();
-        expect(color).toBe('00FF00');
+        expect(color).toBe('#00FF00');
     });
 });
