@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 ## Current Position
 
 Phase: 3 of 4 (Performance Optimization)
-Plan: 6 of 8 in current phase
+Plan: 5 of 8 in current phase
 Status: In progress
-Last activity: 2026-01-18 — Completed 03-06-PLAN.md (CI Performance Tests)
+Last activity: 2026-01-18 — Completed 03-05-PLAN.md (Dirty Rectangle Optimization)
 
-Progress: [█████████░] 94%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
-- Average duration: 37.9 min
-- Total execution time: 11.84 hours
+- Total plans completed: 17
+- Average duration: 41.1 min
+- Total execution time: 11.65 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [█████████░] 94%
 |-------|-------|-------|----------|
 | 01 | 5 | 61.8min | 12.4min |
 | 02 | 8 | 23.1min | 2.9min |
-| 03 | 5 | 639.0min | 127.8min |
+| 03 | 4 | 636.0min | 159.0min |
 
 **Recent Trend:**
-- Last 5 plans: 03-06 (3.0min), 03-04 (2.0min deferred), 03-03 (630.0min deferred), 03-01 (2.0min), 03-02 (2.0min)
-- Trend: Wave 2 audit plans deferred (~2min each); implementation plans quick (2-3min); audit execution plans slow (630min)
+- Last 5 plans: 03-05 (4.0min), 03-04 (2.0min deferred), 03-03 (630.0min deferred), 03-01 (2.0min), 03-02 (2.0min)
+- Trend: Wave 2 audit plans (~2min each) deferred per user decision; actual execution time ~2-4min per plan
 
 *Updated after each plan completion*
 
@@ -44,10 +44,12 @@ Progress: [█████████░] 94%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- CI regression tests use generous thresholds: 20% memory headroom, 5-10fps variance to prevent false positives [03-06]
-- Memory tests skip gracefully if performance.memory unavailable (not all browsers/CI support it) [03-06]
-- Accelerated iteration (1000 cycles) simulates extended rendering without real-time delays [03-06]
-- Placeholder baselines with TODO markers await 03-03 and 03-04 audit updates [03-06]
+- Simple union merge strategy for overlapping rectangles - accepts redrawing clean pixels for CPU efficiency (avoids expensive polygon math) [03-05]
+- Safety margin of 5px expands dirty regions to catch anti-aliasing and shadow effects [03-05]
+- Dirty rectangles disabled by default until post-implementation audit validates benefit [03-05]
+- Debug visualization only when BOTH ?perf=true AND visualize=true (explicit opt-in) [03-05]
+- Background scene uses separate dirty trackers for background/foreground layers [03-05]
+- getBoundingBox() accounts for rotation/skew transforms AND shadow offset [03-05]
 - Frame rate audit execution DEFERRED to post-Wave 3 implementation [03-04]
 - Dirty rectangle optimization proceeds WITHOUT baseline performance data [03-04]
 - Post-implementation audit recommended to validate optimization impact [03-04]
@@ -123,9 +125,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-18T17:06:46Z
-Stopped at: Completed 03-06-PLAN.md (CI Performance Tests)
+Last session: 2026-01-18T17:07:23Z
+Stopped at: Completed 03-05-PLAN.md (Dirty Rectangle Optimization)
 Resume file: None
 
 ---
-*Last updated: 2026-01-18 after 03-06 completion (CI Performance Tests - Regression Detection Operational)*
+*Last updated: 2026-01-18 after 03-05 completion (Dirty Rectangle Optimization - GPU Clear Reduction Implemented)*
