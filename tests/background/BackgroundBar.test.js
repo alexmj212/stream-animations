@@ -5,12 +5,14 @@ import { AnimatedBar } from '../../src/shared/AnimatedBar.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
 describe('BackgroundBar positioning', () => {
-  // Clean up cache interval after all tests to prevent memory leaks
+  // Clean up cache interval and cache contents after all tests to prevent memory leaks
   afterEach(() => {
     if (AnimatedBar.cacheCleanupInterval) {
       clearInterval(AnimatedBar.cacheCleanupInterval);
       AnimatedBar.cacheCleanupInterval = null;
     }
+    // Clear the offscreen canvas cache to prevent memory accumulation
+    AnimatedBar.offscreenCache.clear();
   });
   describe('coordinate system contracts', () => {
     it('slanted bars extend full canvas height', () => {
@@ -280,12 +282,14 @@ describe('BackgroundBar positioning', () => {
 });
 
 describe('BackgroundBar property-based tests', () => {
-  // Clean up cache interval after each property test to prevent memory leaks
+  // Clean up cache interval and cache contents after each property test to prevent memory leaks
   afterEach(() => {
     if (AnimatedBar.cacheCleanupInterval) {
       clearInterval(AnimatedBar.cacheCleanupInterval);
       AnimatedBar.cacheCleanupInterval = null;
     }
+    // Clear the offscreen canvas cache to prevent memory accumulation
+    AnimatedBar.offscreenCache.clear();
   });
 
   test.prop([
