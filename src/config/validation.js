@@ -187,6 +187,110 @@ export function getDurationFromURL(defaultValue = 1000) {
 }
 
 /**
+ * Validate duration values (milliseconds)
+ * @param {object} durations - Duration config object
+ * @param {object} defaults - Default values
+ * @returns {object} Validated durations
+ */
+export function validateDurations(durations, defaults) {
+  if (!durations || typeof durations !== 'object') {
+    console.warn('Config validation: durations must be an object. Using defaults.');
+    return defaults;
+  }
+
+  const validated = {};
+
+  // Validate common duration fields
+  if (durations.defaultMs !== undefined) {
+    validated.defaultMs = validateNumber(durations.defaultMs, defaults.defaultMs, 'durations.defaultMs', 100, 10000);
+  }
+  if (durations.entryMs !== undefined) {
+    validated.entryMs = validateNumber(durations.entryMs, defaults.entryMs, 'durations.entryMs', 100, 10000);
+  }
+  if (durations.exitMs !== undefined) {
+    validated.exitMs = validateNumber(durations.exitMs, defaults.exitMs, 'durations.exitMs', 100, 10000);
+  }
+  if (durations.holdMs !== undefined) {
+    validated.holdMs = validateNumber(durations.holdMs, defaults.holdMs, 'durations.holdMs', 0, 30000);
+  }
+
+  // Validate background-specific fields
+  if (durations.holdMinMs !== undefined) {
+    validated.holdMinMs = validateNumber(durations.holdMinMs, defaults.holdMinMs, 'durations.holdMinMs', 0, 300000);
+  }
+  if (durations.holdMaxMs !== undefined) {
+    validated.holdMaxMs = validateNumber(durations.holdMaxMs, defaults.holdMaxMs, 'durations.holdMaxMs', 0, 300000);
+  }
+  if (durations.transitionMs !== undefined) {
+    validated.transitionMs = validateNumber(durations.transitionMs, defaults.transitionMs, 'durations.transitionMs', 100, 10000);
+  }
+
+  return validated;
+}
+
+/**
+ * Validate brightness multiplier (0-1 range)
+ * @param {number} brightness - Brightness multiplier
+ * @param {number} defaultBrightness - Default value
+ * @param {string} label - Config path for logging
+ * @returns {number} Validated brightness (0-1)
+ */
+export function validateBrightness(brightness, defaultBrightness, label) {
+  return validateNumber(brightness, defaultBrightness, label, 0, 1);
+}
+
+/**
+ * Validate easing function name exists
+ * @param {string} easingFunction - Function name
+ * @param {string} defaultEasing - Default value
+ * @returns {string} Validated easing function name
+ */
+export function validateEasingFunction(easingFunction, defaultEasing = 'easeInOutCubic') {
+  if (typeof easingFunction !== 'string' || easingFunction.trim() === '') {
+    console.warn(`Config validation: easingFunction must be a non-empty string. Using default: ${defaultEasing}`);
+    return defaultEasing;
+  }
+  // Note: Currently only easeInOutCubic implemented in AnimatedBar
+  // This validates format only, not that method exists
+  return easingFunction;
+}
+
+/**
+ * Validate sidebar positioning constraints
+ * @param {object} position - Position config
+ * @param {object} defaults - Default values
+ * @returns {object} Validated position
+ */
+export function validateSidebarPositioning(position, defaults) {
+  if (!position || typeof position !== 'object') {
+    console.warn('Config validation: sidebar.position must be an object. Using defaults.');
+    return defaults;
+  }
+
+  const sidebarStart = validateNumber(position.sidebarStart, defaults.sidebarStart, 'sidebar.position.sidebarStart', 0, 1);
+  const sidebarWidth = validateNumber(position.sidebarWidth, defaults.sidebarWidth, 'sidebar.position.sidebarWidth', 0, 1);
+
+  // Logical constraint: sidebar must fit within viewport
+  if (sidebarStart + sidebarWidth > 1.0) {
+    console.warn(
+      `Config validation: sidebar.position.sidebarStart (${sidebarStart}) + sidebarWidth (${sidebarWidth}) exceeds viewport (1.0). Sidebar may extend off-screen.`
+    );
+  }
+
+  return {
+    sidebarStart,
+    sidebarWidth,
+    horizontalTargetOffset: validateNumber(
+      position.horizontalTargetOffset,
+      defaults.horizontalTargetOffset,
+      'sidebar.position.horizontalTargetOffset',
+      -1000,
+      1000
+    )
+  };
+}
+
+/**
  * Validate performance configuration section with graceful degradation
  * @param {Object} config - Full configuration object
  * @returns {boolean} True if all validations pass, false if any warnings logged
