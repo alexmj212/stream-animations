@@ -290,6 +290,54 @@ export class BackgroundBar extends AnimatedBar {
         }
     }
 
+    /**
+     * Calculate bounding box accounting for rotation/skew and shadow offset
+     * @returns {{x: number, y: number, width: number, height: number}}
+     */
+    getBoundingBox() {
+        const shadowOffset = config.shared.shadow.offset;
+
+        // Calculate current size (with animation if enabled)
+        let currentWidth = this.width;
+        let currentHeight = this.type === 'horizontal' ? this.height : this.canvas.height * 1.5;
+
+        if (this.animateSize) {
+            // Only animate width (depth illusion) - never change height/tips
+            currentWidth = this.originalWidth * this.currentSizeMultiplier;
+            // Height remains constant - tips should never change size
+        }
+
+        if (this.type === 'slanted') {
+            // Rotated rectangle bounding box calculation
+            const angle = this.angle * Math.PI / 180;
+            const cos = Math.abs(Math.cos(angle));
+            const sin = Math.abs(Math.sin(angle));
+
+            // Calculate rotated bounding box
+            const bboxWidth = currentWidth * cos + currentHeight * sin;
+            const bboxHeight = currentWidth * sin + currentHeight * cos;
+
+            return {
+                x: this.x - bboxWidth / 2 - shadowOffset,
+                y: this.y - shadowOffset,
+                width: bboxWidth + shadowOffset * 2,
+                height: bboxHeight + shadowOffset * 2
+            };
+        } else {
+            // Skewed rectangle bounding box calculation
+            const skewAngle = this.skew * Math.PI / 180;
+            const skewOffset = Math.abs(currentHeight * Math.tan(skewAngle));
+
+            // Calculate skewed bounding box
+            return {
+                x: this.x - skewOffset - shadowOffset,
+                y: this.y - currentHeight / 2 - shadowOffset,
+                width: currentWidth + skewOffset + shadowOffset * 2,
+                height: currentHeight + shadowOffset * 2
+            };
+        }
+    }
+
     draw() {
         if (!this.active || this.currentOpacity <= 0) return;
 

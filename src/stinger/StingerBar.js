@@ -184,6 +184,45 @@ export class StingerBar extends AnimatedBar {
         }
     }
 
+    /**
+     * Calculate bounding box accounting for rotation/skew and shadow offset
+     * @returns {{x: number, y: number, width: number, height: number}}
+     */
+    getBoundingBox() {
+        const shadowOffset = config.shared.shadow.offset;
+        const height = this.type === 'horizontal' ? this.height : this.canvas.height * 1.5;
+
+        if (this.type === 'slanted') {
+            // Rotated rectangle bounding box calculation
+            const angle = this.angle * Math.PI / 180;
+            const cos = Math.abs(Math.cos(angle));
+            const sin = Math.abs(Math.sin(angle));
+
+            // Calculate rotated bounding box
+            const bboxWidth = this.width * cos + height * sin;
+            const bboxHeight = this.width * sin + height * cos;
+
+            return {
+                x: this.x - bboxWidth / 2 - shadowOffset,
+                y: this.y - shadowOffset,
+                width: bboxWidth + shadowOffset * 2,
+                height: bboxHeight + shadowOffset * 2
+            };
+        } else {
+            // Skewed rectangle bounding box calculation
+            const skewAngle = this.skew * Math.PI / 180;
+            const skewOffset = Math.abs(height * Math.tan(skewAngle));
+
+            // Calculate skewed bounding box
+            return {
+                x: this.x - skewOffset - shadowOffset,
+                y: this.y - height / 2 - shadowOffset,
+                width: this.width + skewOffset + shadowOffset * 2,
+                height: height + shadowOffset * 2
+            };
+        }
+    }
+
     draw() {
         if (!this.active) return;
 
