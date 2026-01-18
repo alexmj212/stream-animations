@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Critical Fixes & Foundation** - Memory management, timing fixes, centralized configuration
 - [x] **Phase 2: Testing Infrastructure** - Lock down positioning and animation logic
 - [ ] **Phase 3: Performance Optimization** - GPU optimization, dirty rectangles, frame rate audit
-- [ ] **Phase 4: Visual Consistency & Polish** - Brightness alignment, timing patterns, sidebar refinement
+- [x] **Phase 4: Visual Consistency & Polish** - Brightness alignment, timing patterns, sidebar refinement
 
 ## Phase Details
 
@@ -95,9 +95,9 @@ Plans:
 **Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 04-01-PLAN.md — Config Schema Extension & Validation (Wave 1: shared.durations, per-scene brightness, enhanced validation)
-- [ ] 04-02-PLAN.md — Timing & Brightness Harmonization (Wave 2: migrate BackgroundBar to millisecond-based, apply brightness multipliers)
-- [ ] 04-03-PLAN.md — Visual Consistency Verification (Wave 3: color palette audit, OBS visual verification checkpoint)
+- [x] 04-01-PLAN.md — Config Schema Extension & Validation (Wave 1: shared.durations, per-scene brightness, enhanced validation)
+- [x] 04-02-PLAN.md — Timing & Brightness Harmonization (Wave 2: migrate BackgroundBar to millisecond-based, apply brightness multipliers)
+- [x] 04-03-PLAN.md — Visual Consistency Verification (Wave 3: color palette audit, OBS visual verification checkpoint)
 
 ## Progress
 
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Critical Fixes & Foundation | 5/5 | Complete | 2026-01-17 |
 | 2. Testing Infrastructure | 8/8 | Complete | 2026-01-17 |
 | 3. Performance Optimization | 6/10 | Gap closure pending | 2026-01-18 |
-| 4. Visual Consistency & Polish | 0/3 | Ready for execution | - |
+| 4. Visual Consistency & Polish | 3/3 | Complete | 2026-01-18 |
 
 ---
-*Last updated: 2026-01-18 after Phase 4 planning*
+*Last updated: 2026-01-18 after Phase 4 completion*

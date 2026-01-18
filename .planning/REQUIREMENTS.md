@@ -22,14 +22,14 @@
 - [x] **CONFIG-01**: Create centralized configuration file for colors, timings, and positioning constants
 - [x] **CONFIG-02**: Document coordinate system explicitly in configuration (prevent AI positioning bugs)
 - [x] **CONFIG-03**: Extract scattered magic numbers into named constants
-- [ ] **CONFIG-04**: Create configuration schema with validation
-- [ ] **CONFIG-05**: Make sidebar positioning and timing easily adjustable via config
+- [x] **CONFIG-04**: Create configuration schema with validation
+- [x] **CONFIG-05**: Make sidebar positioning and timing easily adjustable via config
 
 ### Visual Consistency
-- [ ] **VISUAL-01**: Fix brightness inconsistency (apply 20% reduction to stinger and sidebar like background)
-- [ ] **VISUAL-02**: Align animation timing patterns across all scenes
-- [ ] **VISUAL-03**: Standardize easing functions across animations
-- [ ] **VISUAL-04**: Ensure color palette consistency across all bar types
+- [x] **VISUAL-01**: Fix brightness inconsistency (apply 20% reduction to stinger and sidebar like background)
+- [x] **VISUAL-02**: Align animation timing patterns across all scenes
+- [x] **VISUAL-03**: Standardize easing functions across animations
+- [x] **VISUAL-04**: Ensure color palette consistency across all bar types
 
 ## v2 Requirements (Deferred)
 
@@ -79,12 +79,12 @@
 | CONFIG-01 | Phase 1 | Complete |
 | CONFIG-02 | Phase 1 | Complete |
 | CONFIG-03 | Phase 1 | Complete |
-| CONFIG-04 | Phase 4 | Pending |
-| CONFIG-05 | Phase 4 | Pending |
-| VISUAL-01 | Phase 4 | Pending |
-| VISUAL-02 | Phase 4 | Pending |
-| VISUAL-03 | Phase 4 | Pending |
-| VISUAL-04 | Phase 4 | Pending |
+| CONFIG-04 | Phase 4 | Complete |
+| CONFIG-05 | Phase 4 | Complete |
+| VISUAL-01 | Phase 4 | Complete |
+| VISUAL-02 | Phase 4 | Complete |
+| VISUAL-03 | Phase 4 | Complete |
+| VISUAL-04 | Phase 4 | Complete |
 
 **Coverage:** 21/21 requirements mapped (100%)
 
