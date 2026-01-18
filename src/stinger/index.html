@@ -65,114 +65,13 @@
             console.log('[Stinger] Cleanup complete');
         });
 
-        // Create bars
+        // Create bars array
         const bars = [];
-
-        // First, create two large background curtain bars
-        const leftCurtain = new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, durationMs);
-        leftCurtain.width = canvas.width * 0.75;
-        leftCurtain.opacity = 1.0;
-        leftCurtain.direction = 1;
-        leftCurtain.startX = -leftCurtain.width - 300;
-        leftCurtain.targetX = canvas.width / 2 - leftCurtain.width;
-        leftCurtain.x = leftCurtain.startX;
-        leftCurtain.startDelay = 0;
-        leftCurtain.isBackground = true;
-        leftCurtain.hue = baseHSL.h;
-        leftCurtain.saturation = baseHSL.s;
-        leftCurtain.lightness = Math.max(15, baseHSL.l - 25);
-        leftCurtain.isWhite = false;
-        bars.push(leftCurtain);
-
-        const rightCurtain = new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, durationMs);
-        rightCurtain.width = canvas.width * 0.75;
-        rightCurtain.opacity = 1.0;
-        rightCurtain.direction = -1;
-        rightCurtain.startX = canvas.width + 300;
-        rightCurtain.targetX = canvas.width / 2;
-        rightCurtain.x = rightCurtain.startX;
-        rightCurtain.startDelay = 0;
-        rightCurtain.isBackground = true;
-        rightCurtain.hue = baseHSL.h;
-        rightCurtain.saturation = baseHSL.s;
-        rightCurtain.lightness = Math.max(15, baseHSL.l - 25);
-        rightCurtain.isWhite = false;
-        bars.push(rightCurtain);
-
-        // Add accent bars
-        const barCount = 6;
-        const tempBars = [];
-        for (let i = 0; i < barCount; i++) {
-            const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-            tempBars.push(new StingerBar(ctx, canvas, type, i + 2, barCount + 2, baseHSL, durationMs));
-        }
-
-        // Ensure at least 2 white bars exist
-        const whiteBarCount = tempBars.filter(bar => bar.isWhite).length;
-        if (whiteBarCount < 2) {
-            const nonWhiteBars = tempBars.filter(bar => !bar.isWhite);
-            const barsToConvert = Math.min(2 - whiteBarCount, nonWhiteBars.length);
-            for (let i = 0; i < barsToConvert; i++) {
-                const randomIndex = Math.floor(Math.random() * nonWhiteBars.length);
-                const barToConvert = nonWhiteBars.splice(randomIndex, 1)[0];
-                barToConvert.isWhite = true;
-                barToConvert.hue = 0;
-                barToConvert.saturation = 0;
-                barToConvert.lightness = 100;
-                if (barToConvert.type === 'slanted') {
-                    barToConvert.width = Math.random() * 80 + 40;
-                } else {
-                    barToConvert.height = Math.random() * 30 + 20;
-                }
-            }
-        }
-
-        // Assign random z-index for weave effect
-        tempBars.forEach(bar => {
-            bar.zIndex = Math.random();
-        });
-
-        bars.push(...tempBars);
 
         // Animation loop control
         let animationStarted = false;
 
-        function animate(timestamp) {
-            perfMonitor.recordFrame();
-
-            const deltaTime = deltaTimer.update(timestamp);
-
-            clearCanvas(ctx, canvas);
-
-            let allComplete = true;
-
-            // Draw background curtain bars first
-            const backgroundBars = bars.filter(bar => bar.isBackground);
-            for (let i = 0; i < backgroundBars.length; i++) {
-                backgroundBars[i].update(deltaTime);
-                backgroundBars[i].draw();
-                if (backgroundBars[i].active) {
-                    allComplete = false;
-                }
-            }
-
-            // Sort accent bars by zIndex and draw
-            const accentBars = bars.filter(bar => !bar.isBackground)
-                .sort((a, b) => a.zIndex - b.zIndex);
-            for (let i = 0; i < accentBars.length; i++) {
-                accentBars[i].update(deltaTime);
-                accentBars[i].draw();
-                if (accentBars[i].active) {
-                    allComplete = false;
-                }
-            }
-
-            if (!allComplete) {
-                requestAnimationFrame(animate);
-            }
-        }
-
-        // Function to generate new bars
+        // Function to generate bars (called on each transitionStart)
         function generateBars() {
             bars.length = 0; // Clear existing bars
 
@@ -243,16 +142,61 @@
             bars.push(...tempBars);
         }
 
+        // Animation loop
+        function animate(timestamp) {
+            perfMonitor.recordFrame();
+
+            const deltaTime = deltaTimer.update(timestamp);
+
+            clearCanvas(ctx, canvas);
+
+            let allComplete = true;
+
+            // Draw background curtain bars first
+            const backgroundBars = bars.filter(bar => bar.isBackground);
+            for (let i = 0; i < backgroundBars.length; i++) {
+                backgroundBars[i].update(deltaTime);
+                backgroundBars[i].draw();
+                if (backgroundBars[i].active) {
+                    allComplete = false;
+                }
+            }
+
+            // Sort accent bars by zIndex and draw
+            const accentBars = bars.filter(bar => !bar.isBackground)
+                .sort((a, b) => a.zIndex - b.zIndex);
+            for (let i = 0; i < accentBars.length; i++) {
+                accentBars[i].update(deltaTime);
+                accentBars[i].draw();
+                if (accentBars[i].active) {
+                    allComplete = false;
+                }
+            }
+
+            if (!allComplete) {
+                requestAnimationFrame(animate);
+            } else {
+                // Animation complete, reset state for next transition
+                animationStarted = false;
+            }
+        }
+
+        // Register transitionStart event listener IMMEDIATELY to catch first OBS scene change
         lifecycle.addEventListener(window, 'transitionStart', () => {
-            // Regenerate bars
-            bars.length = 0;
+            console.log('[Stinger] transitionStart event received');
+
+            // Regenerate bars for fresh animation
             generateBars();
 
+            // Start animation if not already running
             if (!animationStarted) {
                 animationStarted = true;
+                deltaTimer.reset(); // Reset timer for fresh start
                 requestAnimationFrame(animate);
             }
         });
+
+        console.log('[Stinger] Initialized - waiting for transitionStart event');
     </script>
 </body>
 </html>
