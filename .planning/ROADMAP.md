@@ -92,10 +92,12 @@ Plans:
   3. Color palette consistency verified across all bar types (background, stinger, sidebar)
   4. Sidebar positioning and timing easily adjustable via config schema with validation
   5. All scenes tested in OBS output preview showing cohesive visual language
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] TBD during phase planning
+- [ ] 04-01-PLAN.md — Config Schema Extension & Validation (Wave 1: shared.durations, per-scene brightness, enhanced validation)
+- [ ] 04-02-PLAN.md — Timing & Brightness Harmonization (Wave 2: migrate BackgroundBar to millisecond-based, apply brightness multipliers)
+- [ ] 04-03-PLAN.md — Visual Consistency Verification (Wave 3: color palette audit, OBS visual verification checkpoint)
 
 ## Progress
 
@@ -107,7 +109,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Critical Fixes & Foundation | 5/5 | Complete | 2026-01-17 |
 | 2. Testing Infrastructure | 8/8 | Complete | 2026-01-17 |
 | 3. Performance Optimization | 6/10 | Gap closure pending | 2026-01-18 |
-| 4. Visual Consistency & Polish | 0/TBD | Not started | - |
+| 4. Visual Consistency & Polish | 0/3 | Ready for execution | - |
 
 ---
-*Last updated: 2026-01-18 after Phase 3 gap closure planning*
+*Last updated: 2026-01-18 after Phase 4 planning*
