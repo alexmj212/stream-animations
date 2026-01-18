@@ -47,16 +47,17 @@ Plans:
   3. All existing test failures fixed and passing (colors.test.js color parameter parsing)
   4. Long-running stress tests detect memory leaks over simulated 1+ hour sessions
   5. Frame rate consistency tests validate animations run at same speed on 30fps/60fps/120fps displays
-**Plans**: 7 plans in 3 waves
+**Plans**: 8 plans in 3 waves
 
 Plans:
 - [ ] 02-01-PLAN.md — Test Infrastructure Setup (Wave 1: install deps, configure canvas mock, fix colors.test.js)
 - [ ] 02-02-PLAN.md — Shared Utilities Property Tests (Wave 1: timing, cache, lifecycle - property-based)
 - [ ] 02-03-PLAN.md — AnimatedBar Base Class Tests (Wave 1: easing, viewport, positioning)
 - [ ] 02-04-PLAN.md — BackgroundBar Position Tests (Wave 2: position-locking, trajectory sampling)
-- [ ] 02-05-PLAN.md — StingerBar Phase Tests (Wave 2: phase transitions, timing)
-- [ ] 02-06-PLAN.md — SidebarBar Sequence Tests (Wave 2: animation sequence, hold timing)
+- [ ] 02-05-PLAN.md — StingerBar Phase Tests (Wave 2: phase transitions, timing, position bounds)
+- [ ] 02-06-PLAN.md — SidebarBar Sequence Tests (Wave 2: animation sequence, hold timing, position bounds)
 - [ ] 02-07-PLAN.md — Frame Rate Consistency Tests (Wave 3: 30/60/120fps validation)
+- [ ] 02-08-PLAN.md — Long-Running Stress Tests (Wave 3: 1+ hour memory leak detection)
 
 ### Phase 3: Performance Optimization
 **Goal**: Minimize GPU operations and memory usage for continuous rendering
@@ -95,9 +96,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Critical Fixes & Foundation | 5/5 | Complete | 2026-01-17 |
-| 2. Testing Infrastructure | 0/7 | Not started | - |
+| 2. Testing Infrastructure | 0/8 | Not started | - |
 | 3. Performance Optimization | 0/TBD | Not started | - |
 | 4. Visual Consistency & Polish | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-17 after Phase 2 planning*
+*Last updated: 2026-01-17 after Phase 2 plan revision*
