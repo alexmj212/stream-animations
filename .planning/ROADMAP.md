@@ -12,7 +12,7 @@ This roadmap transforms a working but fragile brownfield codebase into a maintai
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Critical Fixes & Foundation** - Memory management, timing fixes, centralized configuration
+- [x] **Phase 1: Critical Fixes & Foundation** - Memory management, timing fixes, centralized configuration
 - [ ] **Phase 2: Testing Infrastructure** - Lock down positioning and animation logic
 - [ ] **Phase 3: Performance Optimization** - GPU optimization, dirty rectangles, frame rate audit
 - [ ] **Phase 4: Visual Consistency & Polish** - Brightness alignment, timing patterns, sidebar refinement
@@ -31,11 +31,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 5 plans in 3 waves
 
 Plans:
-- [ ] 01-01-PLAN.md — Timing & Cache Infrastructure (Wave 1: timing utilities, LRU cache, lifecycle management)
-- [ ] 01-02-PLAN.md — Configuration System (Wave 1: centralized config, validation functions)
-- [ ] 01-03-PLAN.md — AnimatedBar Integration (Wave 2: delta-time & LRU cache into base class)
-- [ ] 01-04-PLAN.md — Background Scene Migration (Wave 2: lifecycle cleanup, config migration, unified frame rate)
-- [ ] 01-05-PLAN.md — Stinger & Sidebar Migration (Wave 3: complete scene migrations with verification)
+- [x] 01-01-PLAN.md — Timing & Cache Infrastructure (Wave 1: timing utilities, LRU cache, lifecycle management)
+- [x] 01-02-PLAN.md — Configuration System (Wave 1: centralized config, validation functions)
+- [x] 01-03-PLAN.md — AnimatedBar Integration (Wave 2: delta-time & LRU cache into base class)
+- [x] 01-04-PLAN.md — Background Scene Migration (Wave 3: lifecycle cleanup, config migration, unified frame rate)
+- [x] 01-05-PLAN.md — Stinger & Sidebar Migration (Wave 4: complete scene migrations with verification)
 
 ### Phase 2: Testing Infrastructure
 **Goal**: Lock down positioning and animation math to prevent AI coding regressions
@@ -88,10 +88,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Critical Fixes & Foundation | 0/5 | Ready to execute | - |
+| 1. Critical Fixes & Foundation | 5/5 | Complete | 2026-01-17 |
 | 2. Testing Infrastructure | 0/TBD | Not started | - |
 | 3. Performance Optimization | 0/TBD | Not started | - |
 | 4. Visual Consistency & Polish | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-17 after Phase 1 planning*
+*Last updated: 2026-01-17 after Phase 1 execution*
