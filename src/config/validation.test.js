@@ -8,6 +8,10 @@ import {
   validateNumberInRange,
   validatePositiveNumber,
   validateProbability,
+  validateDurations,
+  validateBrightness,
+  validateEasingFunction,
+  validateSidebarPositioning,
   isDevMode,
   getSpeedFromURL,
   getDensityFromURL,
@@ -271,5 +275,184 @@ describe('getDurationFromURL', () => {
 
     consoleWarnSpy.mockRestore();
     delete global.window;
+  });
+});
+
+describe('duration validation', () => {
+  it('validateDurations accepts valid millisecond values', () => {
+    const durations = { defaultMs: 1000, entryMs: 1500, exitMs: 800, holdMs: 2000 };
+    const defaults = { defaultMs: 1000, entryMs: 1000, exitMs: 1000, holdMs: 2000 };
+    const result = validateDurations(durations, defaults);
+    expect(result).toEqual(durations);
+  });
+
+  it('validateDurations accepts valid background-specific values', () => {
+    const durations = { entryMs: 2000, exitMs: 2000, holdMinMs: 30000, holdMaxMs: 120000, transitionMs: 3000 };
+    const defaults = { entryMs: 2000, exitMs: 2000, holdMinMs: 30000, holdMaxMs: 120000, transitionMs: 3000 };
+    const result = validateDurations(durations, defaults);
+    expect(result).toEqual(durations);
+  });
+
+  it('validateDurations clamps values outside range', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const durations = { defaultMs: 50, entryMs: 20000, exitMs: 1000, holdMs: 50000 };
+    const defaults = { defaultMs: 1000, entryMs: 1000, exitMs: 1000, holdMs: 2000 };
+    const result = validateDurations(durations, defaults);
+
+    expect(result.defaultMs).toBe(1000); // 50 < min(100)
+    expect(result.entryMs).toBe(1000);   // 20000 > max(10000)
+    expect(result.exitMs).toBe(1000);    // valid, passed through
+    expect(result.holdMs).toBe(2000);    // 50000 > max(30000)
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(3);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateDurations returns defaults for invalid input', () => {
+    const defaults = { defaultMs: 1000, entryMs: 1000, exitMs: 1000, holdMs: 2000 };
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(validateDurations(null, defaults)).toEqual(defaults);
+    expect(validateDurations('invalid', defaults)).toEqual(defaults);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateDurations handles partial objects', () => {
+    const durations = { entryMs: 1500 };
+    const defaults = { defaultMs: 1000, entryMs: 1000, exitMs: 1000, holdMs: 2000 };
+    const result = validateDurations(durations, defaults);
+
+    expect(result.entryMs).toBe(1500);
+    expect(result.defaultMs).toBeUndefined();
+    expect(result.exitMs).toBeUndefined();
+    expect(result.holdMs).toBeUndefined();
+  });
+});
+
+describe('brightness validation', () => {
+  it('validateBrightness accepts values in 0-1 range', () => {
+    expect(validateBrightness(0.8, 0.8, 'test')).toBe(0.8);
+    expect(validateBrightness(0, 0.8, 'test')).toBe(0);
+    expect(validateBrightness(1, 0.8, 'test')).toBe(1);
+    expect(validateBrightness(0.5, 0.8, 'test')).toBe(0.5);
+  });
+
+  it('validateBrightness clamps values outside 0-1', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(validateBrightness(-0.5, 0.8, 'test')).toBe(0.8); // < 0
+    expect(validateBrightness(1.5, 0.8, 'test')).toBe(0.8);  // > 1
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateBrightness returns default for non-numeric input', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(validateBrightness('0.8', 0.8, 'test')).toBe(0.8);
+    expect(validateBrightness(null, 0.8, 'test')).toBe(0.8);
+    expect(validateBrightness(undefined, 0.8, 'test')).toBe(0.8);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(3);
+
+    consoleWarnSpy.mockRestore();
+  });
+});
+
+describe('easing function validation', () => {
+  it('validateEasingFunction accepts valid string', () => {
+    expect(validateEasingFunction('easeInOutCubic')).toBe('easeInOutCubic');
+    expect(validateEasingFunction('linear')).toBe('linear');
+    expect(validateEasingFunction('easeInQuad')).toBe('easeInQuad');
+  });
+
+  it('validateEasingFunction returns default for invalid input', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(validateEasingFunction('')).toBe('easeInOutCubic');
+    expect(validateEasingFunction('   ')).toBe('easeInOutCubic');
+    expect(validateEasingFunction(null)).toBe('easeInOutCubic');
+    expect(validateEasingFunction(123)).toBe('easeInOutCubic');
+    expect(validateEasingFunction(undefined)).toBe('easeInOutCubic');
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(5);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateEasingFunction accepts custom default', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(validateEasingFunction('', 'linear')).toBe('linear');
+    expect(consoleWarnSpy).toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+});
+
+describe('sidebar positioning validation', () => {
+  it('validateSidebarPositioning accepts valid percentages', () => {
+    const position = { sidebarStart: 0.8, sidebarWidth: 0.2, horizontalTargetOffset: -100 };
+    const result = validateSidebarPositioning(position, position);
+    expect(result).toEqual(position);
+  });
+
+  it('validateSidebarPositioning accepts edge case values', () => {
+    const position = { sidebarStart: 0.0, sidebarWidth: 1.0, horizontalTargetOffset: 0 };
+    const result = validateSidebarPositioning(position, position);
+    expect(result.sidebarStart).toBe(0.0);
+    expect(result.sidebarWidth).toBe(1.0);
+    expect(result.horizontalTargetOffset).toBe(0);
+  });
+
+  it('validateSidebarPositioning warns when sidebar exceeds viewport', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const position = { sidebarStart: 0.9, sidebarWidth: 0.3, horizontalTargetOffset: 0 };
+    const defaults = { sidebarStart: 0.8, sidebarWidth: 0.2, horizontalTargetOffset: -100 };
+
+    const result = validateSidebarPositioning(position, defaults);
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('exceeds viewport')
+    );
+    expect(result.sidebarStart).toBe(0.9);
+    expect(result.sidebarWidth).toBe(0.3);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateSidebarPositioning clamps values outside 0-1', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const position = { sidebarStart: 1.5, sidebarWidth: -0.2, horizontalTargetOffset: -100 };
+    const defaults = { sidebarStart: 0.8, sidebarWidth: 0.2, horizontalTargetOffset: -100 };
+
+    const result = validateSidebarPositioning(position, defaults);
+
+    expect(result.sidebarStart).toBe(0.8);  // 1.5 > 1
+    expect(result.sidebarWidth).toBe(0.2);  // -0.2 < 0
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateSidebarPositioning clamps horizontalTargetOffset', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const position = { sidebarStart: 0.8, sidebarWidth: 0.2, horizontalTargetOffset: -2000 };
+    const defaults = { sidebarStart: 0.8, sidebarWidth: 0.2, horizontalTargetOffset: -100 };
+
+    const result = validateSidebarPositioning(position, defaults);
+
+    expect(result.horizontalTargetOffset).toBe(-100); // -2000 < -1000
+    expect(consoleWarnSpy).toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateSidebarPositioning returns defaults for invalid input', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const defaults = { sidebarStart: 0.8, sidebarWidth: 0.2, horizontalTargetOffset: -100 };
+
+    expect(validateSidebarPositioning(null, defaults)).toEqual(defaults);
+    expect(validateSidebarPositioning('invalid', defaults)).toEqual(defaults);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+
+    consoleWarnSpy.mockRestore();
   });
 });
