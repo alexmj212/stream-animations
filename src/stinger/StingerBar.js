@@ -50,9 +50,10 @@ export class StingerBar extends AnimatedBar {
         this.elapsedTime = 0;
         this.phaseStartTime = 0;
 
-        // Convert duration from milliseconds to seconds
+        // Convert duration from milliseconds to seconds with shared fallback
         this.inDuration = (this.duration * 0.4) / 1000;  // 40% for 'in' phase
-        this.pauseDuration = config.stinger.timing.pauseDurationMs / 1000;
+        const pauseDurationMs = config.stinger.timing?.pauseDurationMs ?? config.shared.durations.holdMs;
+        this.pauseDuration = pauseDurationMs / 1000;
         this.outDuration = (this.duration * 0.4) / 1000; // 40% for 'out' phase
 
         // Some slanted bars reverse direction during exit (not background bars)

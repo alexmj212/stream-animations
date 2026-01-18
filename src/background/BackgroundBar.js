@@ -76,14 +76,17 @@ export class BackgroundBar extends AnimatedBar {
         this.phaseStartTime = 0;     // Time when current phase started
         this.sizeTransitionTime = 0; // Time since size transition started
 
-        // Convert frame-based durations to time-based (frames / 60fps)
-        this.fadeInDuration = AnimatedBar.framesToSeconds(config.background.timing.fadeInFrames);
-        this.fadeOutDuration = AnimatedBar.framesToSeconds(config.background.timing.fadeOutFrames);
-        this.visibleDuration = AnimatedBar.framesToSeconds(
-            config.background.timing.visibleFramesMin +
-            this.random() * (config.background.timing.visibleFramesMax - config.background.timing.visibleFramesMin)
-        );
-        this.directionTransitionDuration = AnimatedBar.framesToSeconds(config.background.timing.directionTransitionFrames);
+        // Millisecond-based durations with per-scene overrides and shared fallback
+        const entryMs = config.background.durations?.entryMs ?? config.shared.durations.entryMs;
+        const exitMs = config.background.durations?.exitMs ?? config.shared.durations.exitMs;
+        const holdMinMs = config.background.durations?.holdMinMs ?? 30000; // 30 seconds min
+        const holdMaxMs = config.background.durations?.holdMaxMs ?? 120000; // 120 seconds max
+        const transitionMs = config.background.durations?.transitionMs ?? 3000;
+
+        this.fadeInDuration = entryMs / 1000;  // Convert to seconds for deltaTime
+        this.fadeOutDuration = exitMs / 1000;
+        this.visibleDuration = (holdMinMs + this.random() * (holdMaxMs - holdMinMs)) / 1000;
+        this.directionTransitionDuration = transitionMs / 1000;
 
         // Drift speed (pixels per second, NOT per frame) - more variable, from very slow to same max
         this.baseSpeed = ((0.1 + this.random() * 0.9) * this.speedMultiplier) * 60; // Convert from per-frame to per-second
