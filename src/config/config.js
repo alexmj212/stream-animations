@@ -31,15 +31,6 @@ export const config = {
       max: 50                     // Maximum before performance degrades
     },
 
-    // Animation timing (in frames at 60fps - will be converted to time-based)
-    timing: {
-      fadeInFrames: 120,          // 2 seconds fade in
-      fadeOutFrames: 120,         // 2 seconds fade out
-      visibleFramesMin: 1800,     // 30 seconds minimum visible time
-      visibleFramesMax: 7200,     // 120 seconds maximum visible time
-      directionTransitionFrames: 180, // 3 seconds for smooth direction changes
-    },
-
     // Per-scene duration overrides (2000ms entry/exit override - background fades slower than shared default)
     durations: {
       entryMs: 2000,      // Override shared default (background fades slower)
@@ -127,11 +118,6 @@ export const config = {
       horizontalStaggerProportion: 0.2 // Stagger as proportion of duration (20%)
     },
 
-    // Curtain bar configuration
-    curtain: {
-      lightnessReductionMin: 15,  // Minimum lightness reduction for white curtain bars
-      lightnessReductionMax: 30   // Maximum lightness reduction for white curtain bars
-    },
 
     // Slanted bar configuration
     slanted: {
