@@ -14,9 +14,9 @@
 - [x] **PERF-01**: Implement LRU cache eviction for AnimatedBar.offscreenCache (prevent memory exhaustion)
 - [x] **PERF-02**: Add delta-time normalization to animation loops (fix frame rate dependencies)
 - [x] **PERF-03**: Implement cleanup lifecycle for event listeners and requestAnimationFrame
-- [ ] **PERF-04**: Optimize alpha channel usage (disable where not needed, 33% memory savings)
-- [ ] **PERF-05**: Add dirty rectangle tracking to reduce unnecessary GPU operations
-- [ ] **PERF-06**: Audit and fix mixed frame rate timing issues (background 30fps/60fps split)
+- [x] **PERF-04**: Optimize alpha channel usage (disable where not needed, 33% memory savings)
+- [x] **PERF-05**: Add dirty rectangle tracking to reduce unnecessary GPU operations
+- [x] **PERF-06**: Audit and fix mixed frame rate timing issues (background 30fps/60fps split)
 
 ### Configuration & Maintainability
 - [x] **CONFIG-01**: Create centralized configuration file for colors, timings, and positioning constants
@@ -73,9 +73,9 @@
 | PERF-01 | Phase 1 | Complete |
 | PERF-02 | Phase 1 | Complete |
 | PERF-03 | Phase 1 | Complete |
-| PERF-04 | Phase 3 | Pending |
-| PERF-05 | Phase 3 | Pending |
-| PERF-06 | Phase 3 | Pending |
+| PERF-04 | Phase 3 | Complete |
+| PERF-05 | Phase 3 | Complete |
+| PERF-06 | Phase 3 | Complete |
 | CONFIG-01 | Phase 1 | Complete |
 | CONFIG-02 | Phase 1 | Complete |
 | CONFIG-03 | Phase 1 | Complete |
