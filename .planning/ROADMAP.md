@@ -13,7 +13,7 @@ This roadmap transforms a working but fragile brownfield codebase into a maintai
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Critical Fixes & Foundation** - Memory management, timing fixes, centralized configuration
-- [ ] **Phase 2: Testing Infrastructure** - Lock down positioning and animation logic
+- [x] **Phase 2: Testing Infrastructure** - Lock down positioning and animation logic
 - [ ] **Phase 3: Performance Optimization** - GPU optimization, dirty rectangles, frame rate audit
 - [ ] **Phase 4: Visual Consistency & Polish** - Brightness alignment, timing patterns, sidebar refinement
 
@@ -50,14 +50,14 @@ Plans:
 **Plans**: 8 plans in 3 waves
 
 Plans:
-- [ ] 02-01-PLAN.md — Test Infrastructure Setup (Wave 1: install deps, configure canvas mock, fix colors.test.js)
-- [ ] 02-02-PLAN.md — Shared Utilities Property Tests (Wave 1: timing, cache, lifecycle - property-based)
-- [ ] 02-03-PLAN.md — AnimatedBar Base Class Tests (Wave 1: easing, viewport, positioning)
-- [ ] 02-04-PLAN.md — BackgroundBar Position Tests (Wave 2: position-locking, trajectory sampling)
-- [ ] 02-05-PLAN.md — StingerBar Phase Tests (Wave 2: phase transitions, timing, position bounds)
-- [ ] 02-06-PLAN.md — SidebarBar Sequence Tests (Wave 2: animation sequence, hold timing, position bounds)
-- [ ] 02-07-PLAN.md — Frame Rate Consistency Tests (Wave 3: 30/60/120fps validation)
-- [ ] 02-08-PLAN.md — Long-Running Stress Tests (Wave 3: 1+ hour memory leak detection)
+- [x] 02-01-PLAN.md — Test Infrastructure Setup (Wave 1: install deps, configure canvas mock, fix colors.test.js)
+- [x] 02-02-PLAN.md — Shared Utilities Property Tests (Wave 1: timing, cache, lifecycle - property-based)
+- [x] 02-03-PLAN.md — AnimatedBar Base Class Tests (Wave 1: easing, viewport, positioning)
+- [x] 02-04-PLAN.md — BackgroundBar Position Tests (Wave 2: position-locking, trajectory sampling)
+- [x] 02-05-PLAN.md — StingerBar Phase Tests (Wave 2: phase transitions, timing, position bounds)
+- [x] 02-06-PLAN.md — SidebarBar Sequence Tests (Wave 2: animation sequence, hold timing, position bounds)
+- [x] 02-07-PLAN.md — Frame Rate Consistency Tests (Wave 3: 30/60/120fps validation)
+- [x] 02-08-PLAN.md — Long-Running Stress Tests (Wave 3: 1+ hour memory leak detection)
 
 ### Phase 3: Performance Optimization
 **Goal**: Minimize GPU operations and memory usage for continuous rendering
@@ -96,9 +96,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Critical Fixes & Foundation | 5/5 | Complete | 2026-01-17 |
-| 2. Testing Infrastructure | 0/8 | Not started | - |
+| 2. Testing Infrastructure | 8/8 | Complete | 2026-01-17 |
 | 3. Performance Optimization | 0/TBD | Not started | - |
 | 4. Visual Consistency & Polish | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-17 after Phase 2 plan revision*
+*Last updated: 2026-01-17 after Phase 2 execution*
