@@ -185,3 +185,167 @@ export function getDurationFromURL(defaultValue = 1000) {
   const duration = parseInt(durationParam, 10);
   return validatePositiveNumber(duration, defaultValue, 'URL parameter duration');
 }
+
+/**
+ * Validate performance configuration section with graceful degradation
+ * @param {Object} config - Full configuration object
+ * @returns {boolean} True if all validations pass, false if any warnings logged
+ */
+export function validatePerformanceConfig(config) {
+  // Check config.performance exists
+  if (!config.performance) {
+    console.warn('Config validation: config.performance section missing. Performance features may not work correctly.');
+    return false;
+  }
+
+  let allValid = true;
+  const perf = config.performance;
+
+  // Validate alpha settings
+  if (perf.alpha) {
+    if (typeof perf.alpha.background !== 'boolean') {
+      console.warn('Config validation: config.performance.alpha.background must be boolean. Using default: true');
+      allValid = false;
+    }
+    if (typeof perf.alpha.stinger !== 'boolean') {
+      console.warn('Config validation: config.performance.alpha.stinger must be boolean. Using default: true');
+      allValid = false;
+    }
+    if (typeof perf.alpha.sidebar !== 'boolean') {
+      console.warn('Config validation: config.performance.alpha.sidebar must be boolean. Using default: true');
+      allValid = false;
+    }
+
+    // Check for incompatibilities: alpha disabled but opacity animations configured
+    if (perf.alpha.background === false && config.background?.opacity) {
+      console.warn('Config validation: Alpha disabled for background but opacity animations configured in config.background.opacity. Visual artifacts may occur.');
+      allValid = false;
+    }
+    if (perf.alpha.stinger === false && config.stinger?.opacity) {
+      console.warn('Config validation: Alpha disabled for stinger but opacity animations configured in config.stinger.opacity. Visual artifacts may occur.');
+      allValid = false;
+    }
+    if (perf.alpha.sidebar === false && config.sidebar?.opacity) {
+      console.warn('Config validation: Alpha disabled for sidebar but opacity animations configured in config.sidebar.opacity. Visual artifacts may occur.');
+      allValid = false;
+    }
+  }
+
+  // Validate thresholds
+  if (perf.thresholds) {
+    const t = perf.thresholds;
+
+    // maxMemoryMB: > 0 and <= 1000
+    if (typeof t.maxMemoryMB !== 'number' || t.maxMemoryMB <= 0 || t.maxMemoryMB > 1000) {
+      console.warn(`Config validation: config.performance.thresholds.maxMemoryMB must be between 0 and 1000, got ${t.maxMemoryMB}. Using default: 300`);
+      allValid = false;
+    }
+
+    // minFPS: > 0 and <= targetFPS
+    if (typeof t.minFPS !== 'number' || t.minFPS <= 0) {
+      console.warn(`Config validation: config.performance.thresholds.minFPS must be > 0, got ${t.minFPS}. Using default: 55`);
+      allValid = false;
+    }
+
+    // targetFPS: typically 60 or 30
+    if (typeof t.targetFPS !== 'number' || t.targetFPS <= 0) {
+      console.warn(`Config validation: config.performance.thresholds.targetFPS must be > 0, got ${t.targetFPS}. Using default: 60`);
+      allValid = false;
+    }
+
+    // minFPS should not exceed targetFPS
+    if (typeof t.minFPS === 'number' && typeof t.targetFPS === 'number' && t.minFPS > t.targetFPS) {
+      console.warn(`Config validation: config.performance.thresholds.minFPS (${t.minFPS}) exceeds targetFPS (${t.targetFPS}). minFPS should be <= targetFPS.`);
+      allValid = false;
+    }
+
+    // maxContinuousHours: > 0
+    if (typeof t.maxContinuousHours !== 'number' || t.maxContinuousHours <= 0) {
+      console.warn(`Config validation: config.performance.thresholds.maxContinuousHours must be > 0, got ${t.maxContinuousHours}. Using default: 8`);
+      allValid = false;
+    }
+
+    // frameTimeBudgetMs: should equal 1000 / targetFPS (with 0.1ms tolerance)
+    if (typeof t.frameTimeBudgetMs === 'number' && typeof t.targetFPS === 'number') {
+      const expectedBudget = 1000 / t.targetFPS;
+      const diff = Math.abs(t.frameTimeBudgetMs - expectedBudget);
+      if (diff > 0.1) {
+        console.warn(`Config validation: config.performance.thresholds.frameTimeBudgetMs (${t.frameTimeBudgetMs}) does not match 1000 / targetFPS (${expectedBudget}). Expected: ${expectedBudget.toFixed(2)}ms`);
+        allValid = false;
+      }
+    }
+  }
+
+  // Validate dirtyRectangles
+  if (perf.dirtyRectangles) {
+    const dr = perf.dirtyRectangles;
+
+    if (typeof dr.enabled !== 'boolean') {
+      console.warn('Config validation: config.performance.dirtyRectangles.enabled must be boolean. Using default: false');
+      allValid = false;
+    }
+
+    if (typeof dr.safetyMargin !== 'number' || dr.safetyMargin < 0 || dr.safetyMargin > 50) {
+      console.warn(`Config validation: config.performance.dirtyRectangles.safetyMargin must be between 0 and 50, got ${dr.safetyMargin}. Using default: 5`);
+      allValid = false;
+    }
+
+    if (typeof dr.visualize !== 'boolean') {
+      console.warn('Config validation: config.performance.dirtyRectangles.visualize must be boolean. Using default: false');
+      allValid = false;
+    }
+  }
+
+  // Validate overlay
+  if (perf.overlay) {
+    const o = perf.overlay;
+    const validPositions = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
+
+    if (!validPositions.includes(o.position)) {
+      console.warn(`Config validation: config.performance.overlay.position must be one of ${validPositions.join(', ')}, got "${o.position}". Using default: "top-right"`);
+      allValid = false;
+    }
+
+    if (typeof o.opacity !== 'number' || o.opacity < 0 || o.opacity > 1) {
+      console.warn(`Config validation: config.performance.overlay.opacity must be between 0 and 1, got ${o.opacity}. Using default: 0.9`);
+      allValid = false;
+    }
+
+    if (typeof o.updateIntervalMs !== 'number' || o.updateIntervalMs <= 0) {
+      console.warn(`Config validation: config.performance.overlay.updateIntervalMs must be > 0, got ${o.updateIntervalMs}. Using default: 100`);
+      allValid = false;
+    }
+  }
+
+  // Validate monitoring
+  if (perf.monitoring) {
+    const m = perf.monitoring;
+
+    if (typeof m.enabled !== 'boolean') {
+      console.warn('Config validation: config.performance.monitoring.enabled must be boolean. Using default: false');
+      allValid = false;
+    }
+
+    if (typeof m.sampleSize !== 'number' || m.sampleSize <= 0 || m.sampleSize > 300) {
+      console.warn(`Config validation: config.performance.monitoring.sampleSize must be between 0 and 300, got ${m.sampleSize}. Using default: 60`);
+      allValid = false;
+    }
+
+    if (typeof m.sampleIntervalMs !== 'number' || m.sampleIntervalMs <= 0) {
+      console.warn(`Config validation: config.performance.monitoring.sampleIntervalMs must be > 0, got ${m.sampleIntervalMs}. Using default: 1000`);
+      allValid = false;
+    }
+
+    if (typeof m.logIntervalMs !== 'number' || m.logIntervalMs <= 0) {
+      console.warn(`Config validation: config.performance.monitoring.logIntervalMs must be > 0, got ${m.logIntervalMs}. Using default: 2000`);
+      allValid = false;
+    }
+
+    if (typeof m.sessionHistoryLimit !== 'number' || m.sessionHistoryLimit <= 0 || m.sessionHistoryLimit > 200) {
+      console.warn(`Config validation: config.performance.monitoring.sessionHistoryLimit must be between 0 and 200, got ${m.sessionHistoryLimit}. Using default: 50`);
+      allValid = false;
+    }
+  }
+
+  return allValid;
+}
