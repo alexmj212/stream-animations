@@ -12,16 +12,16 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 Phase: 3 of 4 (Performance Optimization)
 Plan: 2 of 8 in current phase
 Status: In progress
-Last activity: 2026-01-18 — Completed 03-02-PLAN.md
+Last activity: 2026-01-18 — Completed 03-01-PLAN.md
 
-Progress: [███████░░░] 74%
+Progress: [████████░░] 79%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 6.1 min
-- Total execution time: 1.45 hours
+- Total plans completed: 15
+- Average duration: 5.8 min
+- Total execution time: 1.48 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [███████░░░] 74%
 |-------|-------|-------|----------|
 | 01 | 5 | 61.8min | 12.4min |
 | 02 | 8 | 23.1min | 2.9min |
-| 03 | 1 | 2.0min | 2.0min |
+| 03 | 2 | 4.0min | 2.0min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (2.0min), 02-07 (3.0min), 02-08 (1.4min), 02-06 (1.4min), 02-05 (1.2min)
-- Trend: Performance phase starting strong with 2.0min execution (config-only plan)
+- Last 5 plans: 03-01 (2.0min), 03-02 (2.0min), 02-07 (3.0min), 02-08 (1.4min), 02-06 (1.4min)
+- Trend: Performance phase maintaining 2.0min average (monitoring infrastructure plan)
 
 *Updated after each plan completion*
 
@@ -44,6 +44,12 @@ Progress: [███████░░░] 74%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- P99 frame time tracks tail latency for 99th percentile outliers [03-01]
+- Dropped frames detected when frameTime > targetFrameTime + 1ms [03-01]
+- localStorage enforces 50 session limit with FIFO eviction [03-01]
+- Overlay gated behind ?perf=true URL parameter (opt-in dev tool) [03-01]
+- Color thresholds: FPS 58/55, Memory 250MB/300MB [03-01]
+- Sessions saved on beforeunload for persistence across reloads [03-01]
 - Alpha channel enabled by default for all scenes to preserve Phase 4 flexibility [03-02]
 - Dirty rectangles disabled by default (enabled=false) until audit proves benefit [03-02]
 - Conservative thresholds: maxMemoryMB (300), minFPS (55), targetFPS (60) for 8+ hour streaming [03-02]
@@ -101,13 +107,15 @@ None yet.
 
 ### Blockers/Concerns
 
-None - all pre-existing test failures have been fixed as of 02-01
+**Context for Wave 2 audits:**
+- Performance is worse when GPU acceleration OFF (expected - CPU fallback slower) [03-01]
+- This will be important baseline for alpha channel impact testing in 03-04
 
 ## Session Continuity
 
-Last session: 2026-01-18T00:38:29Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-01-18T06:25:03Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
 
 ---
-*Last updated: 2026-01-18 after 03-02 completion (Performance Configuration Schema)*
+*Last updated: 2026-01-18 after 03-01 completion (Performance Monitoring Infrastructure)*
