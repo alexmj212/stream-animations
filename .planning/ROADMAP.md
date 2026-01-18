@@ -68,15 +68,19 @@ Plans:
   2. Dirty rectangle tracking reduces GPU clears by 60-80% for static background areas (if needed based on audit)
   3. Frame rate validated under stress (55fps floor, 60fps target) with delta-time system correctness confirmed
   4. Performance monitoring shows stable memory usage and frame times during 4-6 hour streaming simulations
-**Plans**: 6 plans in 3 waves
+**Plans**: 10 plans (6 implementation + 4 gap closure)
 
 Plans:
-- [ ] 03-01-PLAN.md — Performance Overlay + Storage Infrastructure (Wave 1: real-time metrics, localStorage sessions, window.perfMonitor API)
-- [ ] 03-02-PLAN.md — Config Schema Extension (Wave 1: config.performance section with alpha toggles, thresholds, feature flags)
-- [ ] 03-03-PLAN.md — Alpha Channel Audit (Wave 2: 4-6 hour measurements, heap snapshots, findings vs thresholds)
-- [ ] 03-04-PLAN.md — Frame Rate Audit (Wave 2: stress scenarios, delta-time validation, P99 frame time analysis)
-- [ ] 03-05-PLAN.md — Dirty Rectangle Implementation (Wave 3: DirtyRectTracker, selective clearing, A/B testing)
-- [ ] 03-06-PLAN.md — CI Performance Regression Tests (Wave 3: automated threshold checks, baseline validation)
+- [x] 03-01-PLAN.md — Performance Overlay + Storage Infrastructure (Wave 1: real-time metrics, localStorage sessions, window.perfMonitor API)
+- [x] 03-02-PLAN.md — Config Schema Extension (Wave 1: config.performance section with alpha toggles, thresholds, feature flags)
+- [x] 03-03-PLAN.md — Alpha Channel Audit (Wave 2: 4-6 hour measurements, heap snapshots, findings vs thresholds)
+- [x] 03-04-PLAN.md — Frame Rate Audit (Wave 2: stress scenarios, delta-time validation, P99 frame time analysis)
+- [x] 03-05-PLAN.md — Dirty Rectangle Implementation (Wave 3: DirtyRectTracker, selective clearing, A/B testing)
+- [x] 03-06-PLAN.md — CI Performance Regression Tests (Wave 3: automated threshold checks, baseline validation)
+- [ ] 03-07-PLAN.md — Alpha Channel Audit Execution (Gap Closure Wave 4: execute 8-12 hour simulations, populate AUDIT-ALPHA.md)
+- [ ] 03-08-PLAN.md — Frame Rate Audit Execution (Gap Closure Wave 4: execute 5 stress scenarios, populate AUDIT-FRAMERATE.md)
+- [ ] 03-09-PLAN.md — Dirty Rectangle Empirical Validation (Gap Closure Wave 5: enable optimization, measure GPU reduction, validate overhead)
+- [ ] 03-10-PLAN.md — Long-Duration Stability Validation (Gap Closure Wave 4: execute 4-6 hour stability test, create STABILITY-REPORT.md)
 
 ### Phase 4: Visual Consistency & Polish
 **Goal**: Align visual aesthetics and finalize sidebar positioning/timing
@@ -102,8 +106,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Critical Fixes & Foundation | 5/5 | Complete | 2026-01-17 |
 | 2. Testing Infrastructure | 8/8 | Complete | 2026-01-17 |
-| 3. Performance Optimization | 6/6 | Complete (gaps found) | 2026-01-18 |
+| 3. Performance Optimization | 6/10 | Gap closure pending | 2026-01-18 |
 | 4. Visual Consistency & Polish | 0/TBD | Not started | - |
 
 ---
-*Last updated: 2026-01-18 after Phase 3 execution*
+*Last updated: 2026-01-18 after Phase 3 gap closure planning*
