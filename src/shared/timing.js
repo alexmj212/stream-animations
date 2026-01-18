@@ -33,7 +33,8 @@ export class DeltaTimer {
     }
 
     const rawDelta = (timestamp - this.lastTimestamp) / 1000;
-    const deltaTime = Math.min(rawDelta, this.maxDeltaTime);
+    // Clamp delta to [0, maxDeltaTime] to handle backwards time and tab-switch spikes
+    const deltaTime = Math.max(0, Math.min(rawDelta, this.maxDeltaTime));
     this.lastTimestamp = timestamp;
 
     return deltaTime;
