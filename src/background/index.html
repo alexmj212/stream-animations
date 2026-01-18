@@ -47,6 +47,7 @@
         import { PerformanceOverlay } from '../shared/perfOverlay.js';
         import { DeltaTimer } from '../shared/timing.js';
         import { AnimationLifecycle } from '../shared/lifecycle.js';
+        import { DirtyRectTracker } from '../shared/dirtyRect.js';
         import { config } from '../config/config.js';
 
         // Get parameters from URL with config defaults
@@ -81,6 +82,26 @@
         const foregroundCanvas = document.getElementById('foregroundCanvas');
         const bgCtx = setupCanvas(backgroundCanvas);
         const fgCtx = setupCanvas(foregroundCanvas);
+
+        // Initialize dirty rectangle trackers (if enabled)
+        const dirtyRectanglesEnabled = config.performance.dirtyRectangles.enabled;
+        const visualize = config.performance.dirtyRectangles.visualize && showPerf; // Only visualize in perf mode
+
+        let bgDirtyTracker = null;
+        let fgDirtyTracker = null;
+        if (dirtyRectanglesEnabled) {
+            bgDirtyTracker = new DirtyRectTracker(
+                config.performance.dirtyRectangles.safetyMargin,
+                visualize
+            );
+            bgDirtyTracker.setCanvas(backgroundCanvas, bgCtx);
+
+            fgDirtyTracker = new DirtyRectTracker(
+                config.performance.dirtyRectangles.safetyMargin,
+                visualize
+            );
+            fgDirtyTracker.setCanvas(foregroundCanvas, fgCtx);
+        }
 
         // Initialize delta-time system
         const deltaTimer = new DeltaTimer();
@@ -152,7 +173,7 @@
             const deltaTime = deltaTimer.update(timestamp);
 
             // Update and render background layer (now at full 60fps, not 30fps)
-            clearCanvas(bgCtx, backgroundCanvas);
+            clearCanvas(bgCtx, backgroundCanvas, bgDirtyTracker);
 
             // Remove inactive bars and add new ones
             const bgInitialCount = backgroundBars.length;
@@ -176,11 +197,18 @@
 
             for (let i = 0; i < backgroundBars.length; i++) {
                 backgroundBars[i].update(deltaTime);
+
+                // Report dirty region before drawing
+                if (bgDirtyTracker && backgroundBars[i].active) {
+                    const bbox = backgroundBars[i].getBoundingBox();
+                    bgDirtyTracker.addRegion(bbox.x, bbox.y, bbox.width, bbox.height);
+                }
+
                 backgroundBars[i].draw();
             }
 
             // Update and render foreground layer
-            clearCanvas(fgCtx, foregroundCanvas);
+            clearCanvas(fgCtx, foregroundCanvas, fgDirtyTracker);
 
             // Remove inactive bars and add new ones
             const fgInitialCount = foregroundBars.length;
@@ -204,6 +232,13 @@
 
             for (let i = 0; i < foregroundBars.length; i++) {
                 foregroundBars[i].update(deltaTime);
+
+                // Report dirty region before drawing
+                if (fgDirtyTracker && foregroundBars[i].active) {
+                    const bbox = foregroundBars[i].getBoundingBox();
+                    fgDirtyTracker.addRegion(bbox.x, bbox.y, bbox.width, bbox.height);
+                }
+
                 foregroundBars[i].draw();
             }
 

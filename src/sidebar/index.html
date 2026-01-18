@@ -86,6 +86,7 @@
       import { PerformanceOverlay } from "../shared/perfOverlay.js";
       import { DeltaTimer } from "../shared/timing.js";
       import { AnimationLifecycle } from "../shared/lifecycle.js";
+      import { DirtyRectTracker } from "../shared/dirtyRect.js";
       import { config } from "../config/config.js";
 
       // Get parameters from URL
@@ -123,6 +124,19 @@
       // Canvas setup
       const canvas = document.getElementById("canvas");
       const ctx = setupCanvas(canvas, { alpha: true });
+
+      // Initialize dirty rectangle tracker (if enabled)
+      const dirtyRectanglesEnabled = config.performance.dirtyRectangles.enabled;
+      const visualize = config.performance.dirtyRectangles.visualize && showPerf; // Only visualize in perf mode
+
+      let dirtyTracker = null;
+      if (dirtyRectanglesEnabled) {
+        dirtyTracker = new DirtyRectTracker(
+          config.performance.dirtyRectangles.safetyMargin,
+          visualize
+        );
+        dirtyTracker.setCanvas(canvas, ctx);
+      }
 
       // Initialize delta-time and lifecycle
       const deltaTimer = new DeltaTimer();
@@ -206,11 +220,18 @@
 
         const deltaTime = deltaTimer.update(timestamp);
 
-        clearCanvas(ctx, canvas);
+        clearCanvas(ctx, canvas, dirtyTracker);
 
         let allComplete = true;
         for (let i = 0; i < bars.length; i++) {
           bars[i].update(deltaTime);
+
+          // Report dirty region before drawing
+          if (dirtyTracker && bars[i].active) {
+            const bbox = bars[i].getBoundingBox();
+            dirtyTracker.addRegion(bbox.x, bbox.y, bbox.width, bbox.height);
+          }
+
           bars[i].draw();
           if (bars[i].active) {
             allComplete = false;
