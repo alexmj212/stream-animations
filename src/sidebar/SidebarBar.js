@@ -20,10 +20,12 @@ export class SidebarBar extends AnimatedBar {
         // Some bars are white, others use hue variations
         this.isWhite = this.random() > 0.7;
 
+        const brightness = config.sidebar.brightness; // 0.8 from config
+
         if (this.isWhite) {
             this.hue = 0;
             this.saturation = 0;
-            this.lightness = 100;
+            this.lightness = 100 * brightness; // 100 * 0.8 = 80 (matches background/stinger)
         } else {
             // Vary the hue slightly from base color
             const hueVariation = (this.random() - 0.5) * 40;
@@ -31,7 +33,8 @@ export class SidebarBar extends AnimatedBar {
 
             this.hue = (this.baseHSL.h + hueVariation + 360) % 360;
             this.saturation = this.baseHSL.s;
-            this.lightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
+            const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
+            this.lightness = Math.max(10, baseLightness * brightness); // Apply brightness multiplier
         }
 
         this.opacity = this.random() * 0.4 + 0.6;
