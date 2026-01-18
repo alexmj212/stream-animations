@@ -8,6 +8,18 @@ Browser-based animation scenes for OBS stream graphics, including a persistent b
 
 The background animation must perform flawlessly with minimal CPU/GPU usage since it runs continuously throughout every stream.
 
+## Current Milestone: v1.1 Shade Component
+
+**Goal:** Add shade component for major stream events (raids, massive gift subs) with semi-transparent curtains and scrolling text
+
+**Target features:**
+- Shade component with semi-transparent curtains entering from top/bottom edges
+- Large scrolling text synchronized to three-phase animation (enter/hold/exit)
+- Dynamic hold duration based on text length with minimum readability time
+- One-shot animation triggered on page load (OBS integration pattern)
+- Smooth phase transitions with text flying in/scrolling/flying out
+- Consistent visual style with existing components (sidebar, stinger)
+
 ## Requirements
 
 ### Validated
@@ -30,7 +42,12 @@ The background animation must perform flawlessly with minimal CPU/GPU usage sinc
 
 ### Active
 
-- [ ] Phase 3 validation work: Alpha audit, frame rate audit, dirty rectangle validation, long-duration stability test (infrastructure ready)
+- [ ] Shade component with semi-transparent curtains (top/bottom entry)
+- [ ] Large scrolling text for major events (raids, gift subs)
+- [ ] Dynamic hold duration based on text length
+- [ ] Three-phase animation synchronized with text
+- [ ] One-shot page load trigger pattern
+- [ ] Phase 3 validation work: Alpha audit, frame rate audit, dirty rectangle validation, long-duration stability test (infrastructure ready - deferred)
 
 ### Out of Scope
 
@@ -96,4 +113,4 @@ This is a brownfield project that has been "vibe coded" to work with a personal 
 | Phase 3 validation deferred | Infrastructure complete and tested, empirical validation can be post-milestone | — Pending |
 
 ---
-*Last updated: 2026-01-18 after v1.0 milestone*
+*Last updated: 2026-01-18 after v1.1 milestone start*
