@@ -43,6 +43,8 @@
         import { setupCanvas, clearCanvas } from '../shared/canvas.js';
         import { BackgroundBar } from './BackgroundBar.js';
         import { PerformanceMonitor } from '../shared/performance.js';
+        import { PerformanceStorage } from '../shared/perfStorage.js';
+        import { PerformanceOverlay } from '../shared/perfOverlay.js';
         import { DeltaTimer } from '../shared/timing.js';
         import { AnimationLifecycle } from '../shared/lifecycle.js';
         import { config } from '../config/config.js';
@@ -56,11 +58,22 @@
         const baseHSL = hexToHSL(baseColor);
 
         // Setup performance monitoring
-        const perfMonitor = new PerformanceMonitor(60);
+        const perfMonitor = new PerformanceMonitor(60, 60);
+        let perfOverlay = null;
+
         if (showPerf) {
+            const perfStorage = new PerformanceStorage(50);
+            perfOverlay = new PerformanceOverlay(perfMonitor, perfStorage, {
+                position: 'top-right',
+                opacity: 0.9,
+                scene: 'background'
+            });
+
             perfMonitor.enable();
-            // Log performance stats every 2 seconds
-            setInterval(() => perfMonitor.logStats(), 2000);
+            perfOverlay.setupHotkey();
+            perfOverlay.startSession();
+            perfOverlay.show();
+            perfOverlay.exposeAPI();
         }
 
         // Canvas setup - layered approach for better performance
@@ -124,9 +137,16 @@
         let bgNeedsSort = true;
         let fgNeedsSort = true;
 
+        // Save session on page unload
+        window.addEventListener('beforeunload', () => {
+            if (showPerf && perfOverlay) {
+                perfOverlay.endSession();
+            }
+        });
+
         // Animation loop with delta-time
         function animate(timestamp) {
-            perfMonitor.recordFrame();
+            if (showPerf) perfMonitor.recordFrame();
 
             // Calculate delta-time in seconds
             const deltaTime = deltaTimer.update(timestamp);

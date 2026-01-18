@@ -82,6 +82,8 @@
       import { setupCanvas, clearCanvas } from "../shared/canvas.js";
       import { SidebarBar } from "./SidebarBar.js";
       import { PerformanceMonitor } from "../shared/performance.js";
+      import { PerformanceStorage } from "../shared/perfStorage.js";
+      import { PerformanceOverlay } from "../shared/perfOverlay.js";
       import { DeltaTimer } from "../shared/timing.js";
       import { AnimationLifecycle } from "../shared/lifecycle.js";
       import { config } from "../config/config.js";
@@ -100,11 +102,22 @@
       textElement.style.setProperty("--duration", `${durationMs}ms`);
 
       // Setup performance monitoring
-      const perfMonitor = new PerformanceMonitor(60);
+      const perfMonitor = new PerformanceMonitor(60, 60);
+      let perfOverlay = null;
+
       if (showPerf) {
+        const perfStorage = new PerformanceStorage(50);
+        perfOverlay = new PerformanceOverlay(perfMonitor, perfStorage, {
+          position: 'top-right',
+          opacity: 0.9,
+          scene: 'sidebar'
+        });
+
         perfMonitor.enable();
-        // Log performance stats every 2 seconds
-        setInterval(() => perfMonitor.logStats(), 2000);
+        perfOverlay.setupHotkey();
+        perfOverlay.startSession();
+        perfOverlay.show();
+        perfOverlay.exposeAPI();
       }
 
       // Canvas setup
@@ -180,9 +193,16 @@
       // Sort bars by zIndex
       bars.sort((a, b) => a.zIndex - b.zIndex);
 
+      // Save session on page unload
+      window.addEventListener('beforeunload', () => {
+        if (showPerf && perfOverlay) {
+          perfOverlay.endSession();
+        }
+      });
+
       // Animation loop - one-shot animation on page load
       function animate(timestamp) {
-        perfMonitor.recordFrame();
+        if (showPerf) perfMonitor.recordFrame();
 
         const deltaTime = deltaTimer.update(timestamp);
 
