@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-01-17)
 
 ## Current Position
 
-Phase: 3 of 4 (Performance Optimization - COMPLETE WITH GAPS)
-Plan: 6 of 6 in current phase
-Status: Phase complete but validation gaps found
-Last activity: 2026-01-18 — Phase 3 execution and verification complete
+Phase: 4 of 4 (Visual Consistency & Polish)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-01-18 — Completed 04-01-PLAN.md (Config Schema Extension)
 
-Progress: [███████░░░] 75%
+Progress: [████████░░] 78%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
-- Average duration: 41.1 min
-- Total execution time: 11.65 hours
+- Total plans completed: 18
+- Average duration: 38.2 min
+- Total execution time: 11.45 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [███████░░░] 75%
 | 01 | 5 | 61.8min | 12.4min |
 | 02 | 8 | 23.1min | 2.9min |
 | 03 | 4 | 636.0min | 159.0min |
+| 04 | 1 | 2.0min | 2.0min |
 
 **Recent Trend:**
-- Last 5 plans: 03-05 (4.0min), 03-04 (2.0min deferred), 03-03 (630.0min deferred), 03-01 (2.0min), 03-02 (2.0min)
-- Trend: Wave 2 audit plans (~2min each) deferred per user decision; actual execution time ~2-4min per plan
+- Last 5 plans: 04-01 (2.0min), 03-05 (4.0min), 03-04 (2.0min deferred), 03-03 (630.0min deferred), 03-01 (2.0min)
+- Trend: Configuration and validation tasks complete quickly (~2min); audit/implementation tasks vary widely
 
 *Updated after each plan completion*
 
@@ -44,6 +45,12 @@ Progress: [███████░░░] 75%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- Shared timing defaults in config.shared.durations (1000ms entry/exit, 2000ms hold) [04-01]
+- Background timing overrides slower than shared defaults (2000ms entry/exit vs 1000ms) [04-01]
+- Brightness multipliers at 0.8 across all scenes (20% reduction for visual harmony) [04-01]
+- Duration validation ranges: 100-10000ms for transitions, 0-30000ms for holds, 0-300000ms for background holds [04-01]
+- Sidebar positioning validates logical constraint: sidebarStart + sidebarWidth <= 1.0 (warns if exceeded) [04-01]
+- Easing function validation accepts any string (format validation only, not method existence check) [04-01]
 - Simple union merge strategy for overlapping rectangles - accepts redrawing clean pixels for CPU efficiency (avoids expensive polygon math) [03-05]
 - Safety margin of 5px expands dirty regions to catch anti-aliasing and shadow effects [03-05]
 - Dirty rectangles disabled by default until post-implementation audit validates benefit [03-05]
@@ -125,9 +132,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-18T17:07:23Z
-Stopped at: Completed 03-05-PLAN.md (Dirty Rectangle Optimization)
+Last session: 2026-01-18T22:59:16Z
+Stopped at: Completed 04-01-PLAN.md (Config Schema Extension)
 Resume file: None
 
 ---
-*Last updated: 2026-01-18 after 03-05 completion (Dirty Rectangle Optimization - GPU Clear Reduction Implemented)*
+*Last updated: 2026-01-18 after 04-01 completion (Config Schema Extension - Timing and Brightness Config Added)*
