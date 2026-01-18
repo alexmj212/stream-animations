@@ -251,6 +251,62 @@ export const config = {
     }
   },
 
+  /**
+   * Performance optimization configuration
+   *
+   * Alpha toggles: Preserve visual flexibility for Phase 4 enhancements while
+   * enabling A/B testing of GPU memory impact.
+   *
+   * Thresholds: Conservative values based on streaming requirements (8+ hour sessions)
+   * for production validation. Tests fail if exceeded to catch regressions.
+   *
+   * Feature flags: Allow controlled rollout of optimizations (dirty rectangles)
+   * with easy rollback via config toggle.
+   *
+   * Overlay/monitoring: Dev tooling controlled via ?perf=true URL parameter for
+   * real-time performance debugging during development.
+   */
+  performance: {
+    // Alpha channel settings (per-scene control)
+    alpha: {
+      background: true,     // Keep alpha for Phase 4 visual flexibility
+      stinger: true,
+      sidebar: true
+    },
+
+    // Performance thresholds (conservative for 8+ hour streaming)
+    thresholds: {
+      maxMemoryMB: 300,        // Fail if memory exceeds 300MB steady-state
+      minFPS: 55,              // Acceptable floor under stress (target: 60fps)
+      targetFPS: 60,           // Target frame rate
+      maxContinuousHours: 8,   // Test duration for long-running validation
+      frameTimeBudgetMs: 16.67 // 60fps frame budget (1000ms / 60fps)
+    },
+
+    // Dirty rectangle optimization
+    dirtyRectangles: {
+      enabled: false,          // Toggle for A/B testing (disable by default until audit)
+      safetyMargin: 5,         // Pixels to expand dirty regions (catch anti-aliasing)
+      visualize: false         // Show dirty regions when ?perf=true (for debugging)
+    },
+
+    // Performance overlay settings
+    overlay: {
+      position: 'top-right',   // Position: 'top-right', 'top-left', 'bottom-right', 'bottom-left'
+      opacity: 0.9,            // Overlay background opacity (0-1)
+      updateIntervalMs: 100    // Refresh overlay metrics every 100ms (not every frame)
+    },
+
+    // Performance monitoring
+    monitoring: {
+      enabled: false,          // Enable via ?perf=true URL parameter (overrides this)
+      sampleSize: 60,          // Rolling window size for FPS calculation (frames)
+      sampleIntervalMs: 1000,  // Collect metrics every 1 second for session summaries
+      logIntervalMs: 2000,     // Log stats to console every 2 seconds
+      sessionHistoryLimit: 50  // Max localStorage sessions before FIFO eviction
+    }
+  },
+
   // Shared configuration across all scenes
   shared: {
     // Shadow rendering
@@ -259,18 +315,6 @@ export const config = {
       baseOpacity: 0.2,           // Base shadow opacity (multiplied by bar opacity)
       color: 'rgba(0, 0, 0, 0.3)', // Shadow color
       padding: 10                 // Extra canvas padding for shadow rendering
-    },
-
-    // Performance monitoring
-    performance: {
-      enableMonitoring: false,    // Enable via ?perf=true URL parameter
-      sampleSize: 60,             // Frame samples for FPS calculation
-      logIntervalMs: 2000         // Log stats every 2 seconds
-    },
-
-    // Canvas rendering
-    canvas: {
-      alpha: true                 // Enable alpha channel (for transparency)
     },
 
     // Cache settings (for offscreen canvases)
