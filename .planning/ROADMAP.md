@@ -57,14 +57,16 @@ Plans:
 **Requirements**: TEXT-01, TEXT-02, TEXT-05, CONFIG-01, CONFIG-02, CONFIG-04, CONFIG-05, TEST-01
 **Success Criteria** (what must be TRUE):
   1. Text renders on canvas with explicit fillStyle for OBS browser source compatibility
-  2. Hold duration calculated dynamically from text length using reading speed baseline (250ms/word)
+  2. Hold duration calculated dynamically from text length using reading speed baseline (200ms/word)
   3. Text is fully readable - minimum duration enforced regardless of text length
   4. Shade scene accepts URL parameters (?text, ?color, ?duration) for OBS integration
   5. Custom fonts load before text measurement to prevent race conditions
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: [TBD during phase planning]
+- [ ] 05-01-PLAN.md — Text core & URL configuration
+- [ ] 05-02-PLAN.md — Scrolling animation & timing
+- [ ] 05-03-PLAN.md — Integration & testing
 
 #### Phase 6: Curtain Integration & Synchronization
 **Goal**: Text and curtains animate as unified "shade" effect with synchronized three-phase lifecycle
@@ -106,6 +108,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Core Architecture Unification | v1.0 | 3/3 | Complete | 2026-01-18 |
 | 3. Memory Management & Performance Optimization | v1.0 | 2/2 | Complete | 2026-01-18 |
 | 4. Visual Consistency Polish | v1.0 | 3/3 | Complete | 2026-01-18 |
-| 5. Text Animation Core | v1.1 | 0/TBD | Not started | - |
+| 5. Text Animation Core | v1.1 | 0/3 | Not started | - |
 | 6. Curtain Integration & Synchronization | v1.1 | 0/TBD | Not started | - |
 | 7. Performance Optimization & Polish | v1.1 | 0/TBD | Not started | - |
