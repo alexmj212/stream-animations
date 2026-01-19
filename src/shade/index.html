@@ -74,11 +74,10 @@
         /**
          * Animation loop
          *
-         * Note: Currently displays static text at offscreen position (x = canvas.width).
-         * Plan 02 will add scrolling animation logic:
-         * - Enter phase: fly in from right edge
-         * - Hold phase: continuous right-to-left scrolling
-         * - Exit phase: fly out left edge
+         * Three-phase animation:
+         * - Enter phase: fly in from right edge (1 second)
+         * - Hold phase: continuous right-to-left scrolling (dynamic duration)
+         * - Exit phase: fly out left edge (1 second)
          */
         function animate(timestamp) {
           const deltaTime = deltaTimer.update(timestamp);
@@ -90,7 +89,10 @@
           shadeBar.update(deltaTime);
           shadeBar.draw();
 
-          requestAnimationFrame(animate);
+          // Continue animation if still active
+          if (shadeBar.active) {
+            requestAnimationFrame(animate);
+          }
         }
 
         // Start animation loop

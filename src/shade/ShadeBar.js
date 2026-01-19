@@ -38,6 +38,24 @@ export class ShadeBar extends AnimatedBar {
   }
 
   /**
+   * Calculate scroll speed to ensure full text visibility within hold duration
+   * @param {number} textWidth - Width of text in pixels
+   * @param {number} canvasWidth - Canvas width in pixels
+   * @param {number} holdDurationMs - Hold phase duration in milliseconds
+   * @returns {number} Scroll speed in pixels per second
+   */
+  static calculateScrollSpeed(textWidth, canvasWidth, holdDurationMs) {
+    // Text must travel its full width plus canvas width to scroll completely across screen
+    // (starts fully on right, ends fully off left)
+    const totalDistance = textWidth + canvasWidth;
+
+    // Speed = distance / time (convert ms to seconds)
+    const speedPxPerSecond = (totalDistance / holdDurationMs) * 1000;
+
+    return speedPxPerSecond;
+  }
+
+  /**
    * Create a ShadeBar instance
    *
    * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
@@ -81,25 +99,69 @@ export class ShadeBar extends AnimatedBar {
     this.ctx.font = config.shade.text.font;
     const metrics = this.ctx.measureText(this.text);
     this.textWidth = metrics.width;
+
+    // Calculate scroll speed based on text width and hold duration (TEXT-03 requirement)
+    this.scrollSpeed = ShadeBar.calculateScrollSpeed(
+      this.textWidth,
+      this.canvas.width,
+      this.holdDurationMs
+    );
+
+    // Store phase durations (use shared.durations from config - established in Phase 04)
+    this.enterDurationMs = config.shared.durations.entryMs;
+    this.exitDurationMs = config.shared.durations.exitMs;
   }
 
   /**
    * Update text position and phase tracking
    *
    * @param {number} deltaTime - Time elapsed since last frame in seconds
-   *
-   * Note: Scrolling animation logic will be added in Phase 05 Plan 02.
-   * Currently this is a stub that tracks elapsed time.
    */
   update(deltaTime) {
-    // Stub for Phase 06 - will implement enter/hold/exit animations in Plan 02
     this.elapsedTime += deltaTime;
 
-    // Text remains stationary at initial position (x = canvas.width)
-    // Plan 02 will add:
-    // - Enter animation: fly in from right edge
-    // - Hold animation: continuous right-to-left scrolling
-    // - Exit animation: fly out left edge
+    // Phase transitions based on time
+    if (this.phase === 'enter' && this.elapsedTime >= this.enterDurationMs / 1000) {
+      this.phase = 'hold';
+      this.elapsedTime = 0; // Reset for hold phase timing
+    } else if (this.phase === 'hold' && this.elapsedTime >= this.holdDurationMs / 1000) {
+      this.phase = 'exit';
+      this.elapsedTime = 0; // Reset for exit phase timing
+    } else if (this.phase === 'exit' && this.elapsedTime >= this.exitDurationMs / 1000) {
+      this.active = false; // Animation complete
+      return;
+    }
+
+    // Calculate velocity based on phase
+    let velocity = 0; // pixels per second
+
+    if (this.phase === 'enter') {
+      // Fly in from right edge (offscreen → onscreen)
+      // Use easing for smooth entrance
+      const progress = this.elapsedTime / (this.enterDurationMs / 1000);
+      const eased = this.easeInOutCubic(Math.min(progress, 1));
+      // Start position: canvas.width (offscreen right)
+      // Target position: 0 (left edge of text at screen origin)
+      const startX = this.canvas.width;
+      const targetX = 0;
+      this.x = startX + (targetX - startX) * eased;
+    } else if (this.phase === 'hold') {
+      // Scroll right-to-left at constant speed (TEXT-03 requirement)
+      velocity = -this.scrollSpeed; // Negative for left movement
+    } else if (this.phase === 'exit') {
+      // Fly out to left edge (onscreen → offscreen)
+      const progress = this.elapsedTime / (this.exitDurationMs / 1000);
+      const eased = this.easeInOutCubic(Math.min(progress, 1));
+      // Current position at end of hold → offscreen left
+      const startX = this.x; // Where hold phase ended
+      const targetX = -this.textWidth; // Fully offscreen left
+      this.x = startX + (targetX - startX) * eased;
+    }
+
+    // Apply velocity (hold phase scrolling)
+    if (velocity !== 0) {
+      this.x += velocity * deltaTime; // Delta-time normalized movement (CONFIG-05)
+    }
   }
 
   /**
