@@ -2,14 +2,15 @@ import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { config } from '../config/config.js';
 
 /**
- * CurtainBar - Semi-transparent curtain overlay
+ * CurtainBar - Semi-transparent curtain overlay with animated horizontal bars
  *
  * Creates top or bottom curtain overlays that enter/hold/exit in sync with text animation.
- * Curtains provide dramatic "shade" framing effect for major stream events.
+ * Each curtain contains continuously animating horizontal bars for visual interest.
  *
  * Features:
  * - Three-phase animation (enter/hold/exit) with easeInOutCubic transitions
  * - Semi-transparent gradient fill (0.4-0.6 opacity range)
+ * - Horizontal bars embedded and clipped to curtain boundaries
  * - Synchronized with ShadeBar via shared total duration
  *
  * @extends AnimatedBar
@@ -60,15 +61,83 @@ export class CurtainBar extends AnimatedBar {
 
     this.y = this.startY; // Current Y position
     this.exitStartY = 0; // Will be set when entering exit phase
+
+    // Initialize horizontal bars inside curtain
+    this.bars = [];
+    this.initBars();
   }
 
   /**
-   * Update curtain position
+   * Initialize horizontal bars inside curtain boundaries
+   *
+   * Creates 6 horizontal bars with randomized properties (direction, speed, color).
+   * Bars are positioned within curtain area and animate continuously throughout
+   * enter/hold/exit phases.
+   */
+  initBars() {
+    const barCount = 6; // Balance between visual density and performance
+
+    for (let i = 0; i < barCount; i++) {
+      // Create horizontal bar (using AnimatedBar type='horizontal' pattern)
+      const bar = {
+        type: 'horizontal',
+        direction: Math.random() > 0.5 ? 1 : -1, // Both L-R and R-L
+      };
+
+      // Position within curtain area
+      if (this.position === 'top') {
+        // Top curtain: y from 0 to canvas.height/2
+        bar.y = (i / barCount) * (this.canvas.height / 2);
+      } else {
+        // Bottom curtain: y from canvas.height/2 to canvas.height
+        bar.y = this.canvas.height / 2 + (i / barCount) * (this.canvas.height / 2);
+      }
+
+      // Visual properties (match stinger pattern from RESEARCH.md)
+      bar.isWhite = Math.random() > 0.7; // 70% white bars
+
+      if (bar.isWhite) {
+        bar.hue = 0;
+        bar.saturation = 0;
+        bar.lightness = 100 * config.shade.brightness;
+        bar.width = Math.random() * 30 + 20; // 20-50px
+      } else {
+        // Colored bar with hue variation
+        const hueVariation = (Math.random() - 0.5) * 40; // ±20 from base
+        bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
+        bar.saturation = this.baseHSL.s;
+        bar.lightness = Math.max(10, (this.baseHSL.l + (Math.random() - 0.5) * 30) * config.shade.brightness);
+        bar.width = Math.random() * 60 + 40; // 40-100px
+      }
+
+      // Height is full canvas width (horizontal bar extends across screen)
+      bar.height = this.canvas.width + 400;
+
+      // Skew angle (matches stinger pattern)
+      bar.skew = config.stinger.horizontal.skewAngle; // -15 degrees
+
+      // Opacity variation
+      bar.opacity = Math.random() * 0.4 + 0.6; // 0.6-1.0 (from config.stinger.opacity)
+
+      // Start offscreen (direction determines which side)
+      bar.x = bar.direction === 1 ? -200 : this.canvas.width + 200;
+
+      // Speed to traverse canvas in 2-3 seconds
+      bar.speed = (this.canvas.width + 400) / (2 + Math.random());
+
+      this.bars.push(bar);
+    }
+  }
+
+  /**
+   * Update curtain position and bar positions
    *
    * Three-phase animation:
    * - Enter: Curtain moves from offscreen to target position using easeInOutCubic
    * - Hold: Static position at targetY (no movement)
    * - Exit: Curtain returns to offscreen using easeInOutCubic
+   *
+   * Bars animate continuously throughout all phases with wrapping.
    *
    * @param {number} deltaTime - Time elapsed since last frame in seconds
    */
@@ -108,10 +177,26 @@ export class CurtainBar extends AnimatedBar {
         this.active = false;
       }
     }
+
+    // Update bars continuously (animate throughout enter/hold/exit)
+    this.bars.forEach(bar => {
+      bar.x += bar.speed * bar.direction * deltaTime;
+
+      // Wrap around when offscreen
+      if (bar.direction === 1 && bar.x > this.canvas.width + 200) {
+        bar.x = -200;
+      } else if (bar.direction === -1 && bar.x < -200) {
+        bar.x = this.canvas.width + 200;
+      }
+    });
   }
 
   /**
-   * Draw curtain with semi-transparent gradient fill
+   * Draw curtain with semi-transparent gradient fill and clipped bars
+   *
+   * Drawing order:
+   * 1. Semi-transparent gradient rectangle (curtain background)
+   * 2. Horizontal bars clipped to curtain's current visible area
    *
    * Uses ctx.save/restore to prevent globalAlpha persistence (RESEARCH Pitfall 5).
    */
@@ -136,6 +221,43 @@ export class CurtainBar extends AnimatedBar {
 
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, this.y, this.canvas.width, this.targetHeight);
+
+    this.ctx.restore();
+
+    // Draw bars on top of curtain, clipped to curtain boundaries
+    // (RESEARCH Pitfall 4: bars must not render outside curtain area)
+    this.ctx.save();
+    this.ctx.beginPath();
+
+    // Create clipping region matching curtain's current visible area
+    if (this.position === 'top') {
+      // Top curtain: clip from top of viewport to current bottom edge of curtain
+      const visibleHeight = Math.max(0, this.y + this.targetHeight);
+      this.ctx.rect(0, 0, this.canvas.width, visibleHeight);
+    } else {
+      // Bottom curtain: clip from current top edge to bottom of viewport
+      const clipY = Math.max(this.y, this.canvas.height / 2);
+      const clipHeight = this.canvas.height - clipY;
+      this.ctx.rect(0, clipY, this.canvas.width, clipHeight);
+    }
+
+    this.ctx.clip();
+
+    // Draw bars using AnimatedBar's drawBar method
+    this.bars.forEach(bar => {
+      this.drawBar(
+        bar.x,
+        bar.y,
+        bar.width,
+        bar.height,
+        bar.hue,
+        bar.saturation,
+        bar.lightness,
+        bar.opacity,
+        bar.skew,
+        true // withShadow
+      );
+    });
 
     this.ctx.restore();
   }
