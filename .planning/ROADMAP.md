@@ -64,9 +64,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Text core & URL configuration
-- [ ] 05-02-PLAN.md — Scrolling animation & timing
-- [ ] 05-03-PLAN.md — Integration & testing
+- [x] 05-01-PLAN.md — Text core & URL configuration
+- [x] 05-02-PLAN.md — Scrolling animation & timing
+- [x] 05-03-PLAN.md — Integration & testing
 
 #### Phase 6: Curtain Integration & Synchronization
 **Goal**: Text and curtains animate as unified "shade" effect with synchronized three-phase lifecycle
@@ -108,6 +108,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Core Architecture Unification | v1.0 | 3/3 | Complete | 2026-01-18 |
 | 3. Memory Management & Performance Optimization | v1.0 | 2/2 | Complete | 2026-01-18 |
 | 4. Visual Consistency Polish | v1.0 | 3/3 | Complete | 2026-01-18 |
-| 5. Text Animation Core | v1.1 | 0/3 | Not started | - |
+| 5. Text Animation Core | v1.1 | 3/3 | Complete | 2026-01-19 |
 | 6. Curtain Integration & Synchronization | v1.1 | 0/TBD | Not started | - |
 | 7. Performance Optimization & Polish | v1.1 | 0/TBD | Not started | - |
