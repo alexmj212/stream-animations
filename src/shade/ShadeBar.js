@@ -102,30 +102,27 @@ export class ShadeBar extends AnimatedBar {
     this.exitDurationMs = config.shared.durations.exitMs;
     this.totalDurationMs = this.enterDurationMs + this.holdDurationMs + this.exitDurationMs;
 
-    // Calculate keyframe positions (percentage of viewport width)
-    // Enter: 0-25% (rush in from offscreen right, decelerate)
-    // Hold: 25-75% (slow marquee for readability)
-    // Exit: 75-100% (accelerate, rush out to offscreen left)
-    this.enterEndX = this.canvas.width * 0.25;    // Enter ends at 25% mark
-    this.holdEndX = -this.textWidth * 0.25;       // Hold ends at 75% mark (text 25% offscreen left)
-    this.exitEndX = -this.textWidth;              // Exit ends fully offscreen left
+    // Calculate keyframe positions (viewport-based)
+    // Enter phase: text LEFT EDGE goes from offscreen right to 25% viewport
+    this.enterEndX = this.canvas.width * 0.25;
 
-    // Calculate velocities for each phase to match timing
-    // These are target velocities - actual velocity will smoothly transition between them
-    this.enterVelocity = (this.canvas.width - this.enterEndX) / (this.enterDurationMs / 1000); // px/s
-    this.holdVelocity = (this.enterEndX - this.holdEndX) / (this.holdDurationMs / 1000);       // px/s
-    this.exitVelocity = (this.holdEndX - this.exitEndX) / (this.exitDurationMs / 1000);       // px/s
+    // Hold phase: text scrolls slowly, LEFT EDGE reaches left edge of viewport (0)
+    // This creates a slow marquee across 25% of the screen width
+    this.holdEndX = 0;
+
+    // Exit phase: text accelerates offscreen, LEFT EDGE ends at -textWidth
+    this.exitEndX = -this.textWidth;
   }
 
   /**
    * Update text position with continuous motion and smooth velocity transitions
    *
-   * Animation is ONE continuous motion with velocity changes (not three separate animations):
-   * - Enter phase (0-25%): Rush in from offscreen, decelerate smoothly into hold
-   * - Hold phase (25-75%): Slow marquee for readability
-   * - Exit phase (75-100%): Accelerate smoothly from hold, rush out offscreen
+   * Animation is ONE continuous motion with keyframe-based positions:
+   * - Enter phase (canvas.width → 25% viewport): Fast → slow (decelerate)
+   * - Hold phase (25% → 75% viewport): Slow constant speed (readability)
+   * - Exit phase (75% viewport → -textWidth): Slow → fast (accelerate)
    *
-   * Momentum preservation ensures smooth transitions between phases.
+   * Uses easeOut for enter (smooth deceleration) and easeIn for exit (smooth acceleration).
    *
    * @param {number} deltaTime - Time elapsed since last frame in seconds
    */
@@ -145,69 +142,52 @@ export class ShadeBar extends AnimatedBar {
     const holdDurationSec = this.holdDurationMs / 1000;
     const exitDurationSec = this.exitDurationMs / 1000;
 
-    let currentVelocity;
-    let targetX;
-
     if (this.totalAnimationTime < enterDurationSec) {
-      // ENTER PHASE (0-25%): Rush in from right, decelerate into hold
+      // ENTER PHASE: Rush in from offscreen right → 25% viewport
       const progress = this.totalAnimationTime / enterDurationSec;
-      const eased = this.easeInOutCubic(progress);
+      const eased = this.easeOut(progress); // Smooth deceleration
 
-      // Position transitions from canvas.width (offscreen right) to enterEndX (25% mark)
+      // Interpolate position from canvas.width to enterEndX (25% viewport)
       const startX = this.canvas.width;
-      targetX = startX + (this.enterEndX - startX) * eased;
+      this.x = startX + (this.enterEndX - startX) * eased;
 
-      // Velocity starts fast, smoothly decelerates into hold velocity
-      // Use derivative of easing function for smooth velocity transition
-      currentVelocity = -this.enterVelocity * this.easeInOutCubicDerivative(progress);
-
-      this.x = targetX;
     } else if (this.totalAnimationTime < enterDurationSec + holdDurationSec) {
-      // HOLD PHASE (25-75%): Slow constant marquee for readability
+      // HOLD PHASE: Slow marquee from 25% → 75% viewport
       const progress = (this.totalAnimationTime - enterDurationSec) / holdDurationSec;
 
-      // Position transitions from enterEndX (25%) to holdEndX (75%)
+      // Linear interpolation for constant velocity
       const startX = this.enterEndX;
-      targetX = startX + (this.holdEndX - startX) * progress;
+      this.x = startX + (this.holdEndX - startX) * progress;
 
-      // Constant velocity (linear motion)
-      currentVelocity = -this.holdVelocity;
-
-      this.x = targetX;
     } else {
-      // EXIT PHASE (75-100%): Accelerate into fast rush out
+      // EXIT PHASE: Accelerate from 75% viewport → fully offscreen left
       const progress = (this.totalAnimationTime - enterDurationSec - holdDurationSec) / exitDurationSec;
-      const eased = this.easeInOutCubic(progress);
+      const eased = this.easeIn(progress); // Smooth acceleration
 
-      // Position transitions from holdEndX (75%) to exitEndX (offscreen left)
+      // Interpolate position from holdEndX (75%) to exitEndX (-textWidth)
       const startX = this.holdEndX;
-      targetX = startX + (this.exitEndX - startX) * eased;
-
-      // Velocity smoothly accelerates from hold velocity to fast exit
-      currentVelocity = -this.exitVelocity * this.easeInOutCubicDerivative(progress);
-
-      this.x = targetX;
+      this.x = startX + (this.exitEndX - startX) * eased;
     }
   }
 
   /**
-   * Calculate derivative of easeInOutCubic for smooth velocity transitions
-   *
-   * Used to derive instantaneous velocity from position easing function.
-   * Ensures smooth acceleration/deceleration between phases.
-   *
+   * Ease out cubic - decelerating motion
+   * Used for enter phase to smoothly decelerate into hold
    * @param {number} t - Progress value (0-1)
-   * @returns {number} Derivative value (rate of change)
+   * @returns {number} Eased value (0-1)
    */
-  easeInOutCubicDerivative(t) {
-    if (t < 0.5) {
-      // Derivative of 4*t^3 is 12*t^2
-      return 12 * t * t;
-    } else {
-      // Derivative of 1 - (-2*t + 2)^3 / 2
-      const u = -2 * t + 2;
-      return 6 * u * u; // Simplified derivative
-    }
+  easeOut(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  /**
+   * Ease in cubic - accelerating motion
+   * Used for exit phase to smoothly accelerate from hold
+   * @param {number} t - Progress value (0-1)
+   * @returns {number} Eased value (0-1)
+   */
+  easeIn(t) {
+    return t * t * t;
   }
 
   /**
