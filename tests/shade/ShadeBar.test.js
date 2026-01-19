@@ -191,17 +191,40 @@ describe('ShadeBar', () => {
       expect(bar.textWidth).toBeGreaterThan(0);
     });
 
-    it('calculates velocities for each phase', () => {
+    it('calculates continuous velocity across phases with no discontinuities', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
       const bar = new ShadeBar(ctx, canvas, 'Test', 5000);
       bar.init();
 
-      // Velocities should be calculated for enter, hold, and exit phases
-      expect(bar.enterVelocity).toBeGreaterThan(0);
-      expect(bar.holdVelocity).toBeGreaterThan(0);
-      expect(bar.exitVelocity).toBeGreaterThan(0);
+      // Test velocity at phase boundaries - should be continuous (no jumps)
+      const enterDurationSec = bar.enterDurationMs / 1000;
+      const holdDurationSec = bar.holdDurationMs / 1000;
+
+      // Velocity at end of enter phase
+      const enterEndVelocity = bar.calculateVelocity(enterDurationSec - 0.001);
+
+      // Velocity at start of hold phase
+      const holdStartVelocity = bar.calculateVelocity(enterDurationSec + 0.001);
+
+      // Velocity at end of hold phase
+      const holdEndVelocity = bar.calculateVelocity(enterDurationSec + holdDurationSec - 0.001);
+
+      // Velocity at start of exit phase
+      const exitStartVelocity = bar.calculateVelocity(enterDurationSec + holdDurationSec + 0.001);
+
+      // All velocities should be positive (moving left)
+      expect(enterEndVelocity).toBeGreaterThan(0);
+      expect(holdStartVelocity).toBeGreaterThan(0);
+      expect(holdEndVelocity).toBeGreaterThan(0);
+      expect(exitStartVelocity).toBeGreaterThan(0);
+
+      // Velocity should be continuous at enter→hold boundary (within 10% tolerance)
+      expect(Math.abs(enterEndVelocity - holdStartVelocity)).toBeLessThan(holdStartVelocity * 0.1);
+
+      // Velocity should be continuous at hold→exit boundary (within 10% tolerance)
+      expect(Math.abs(holdEndVelocity - exitStartVelocity)).toBeLessThan(exitStartVelocity * 0.1);
     });
 
     it('stores phase durations from config', () => {

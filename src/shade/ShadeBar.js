@@ -115,14 +115,17 @@ export class ShadeBar extends AnimatedBar {
   }
 
   /**
-   * Update text position with continuous motion and smooth velocity transitions
+   * Update text position using continuous velocity function
    *
-   * Animation is ONE continuous motion with keyframe-based positions:
-   * - Enter phase (canvas.width → 25% viewport): Fast → slow (decelerate)
-   * - Hold phase (25% → 75% viewport): Slow constant speed (readability)
-   * - Exit phase (75% viewport → -textWidth): Slow → fast (accelerate)
+   * Velocity is calculated as a function of total animation time (not per-phase).
+   * This ensures smooth velocity transitions at phase boundaries with NO discontinuities.
    *
-   * Uses easeOut for enter (smooth deceleration) and easeIn for exit (smooth acceleration).
+   * Velocity curve:
+   * - Enter phase: High velocity (fast movement), smoothly decelerating
+   * - Hold phase: Low constant velocity (middle of deceleration curve)
+   * - Exit phase: Low velocity accelerating to high (smooth ramp up)
+   *
+   * Position is updated by integrating velocity: x -= velocity * deltaTime
    *
    * @param {number} deltaTime - Time elapsed since last frame in seconds
    */
@@ -137,57 +140,77 @@ export class ShadeBar extends AnimatedBar {
       return;
     }
 
-    // Calculate current phase and progress within that phase
+    // Calculate velocity as a continuous function of total time
+    const velocity = this.calculateVelocity(this.totalAnimationTime);
+
+    // Update position by integrating velocity (moving left means subtracting)
+    this.x -= velocity * deltaTime;
+  }
+
+  /**
+   * Calculate velocity as a continuous function of total elapsed time
+   *
+   * Uses a piecewise velocity curve that's smooth at phase boundaries:
+   * - Enter: High velocity smoothly decelerating (cosine deceleration)
+   * - Hold: Constant low velocity (smooth transition from enter deceleration)
+   * - Exit: Low velocity smoothly accelerating to high (cosine acceleration)
+   *
+   * The key insight: velocity at END of enter must equal velocity at START of hold.
+   * Similarly, velocity at END of hold must equal velocity at START of exit.
+   *
+   * @param {number} timeSeconds - Total elapsed time in seconds (0 to totalDuration)
+   * @returns {number} Velocity in pixels per second (always positive, moving left)
+   */
+  calculateVelocity(timeSeconds) {
     const enterDurationSec = this.enterDurationMs / 1000;
     const holdDurationSec = this.holdDurationMs / 1000;
     const exitDurationSec = this.exitDurationMs / 1000;
 
-    if (this.totalAnimationTime < enterDurationSec) {
-      // ENTER PHASE: Rush in from offscreen right → 25% viewport
-      const progress = this.totalAnimationTime / enterDurationSec;
-      const eased = this.easeOut(progress); // Smooth deceleration
+    // Calculate distances for each phase
+    const enterDistance = this.canvas.width - this.enterEndX; // canvas.width → 25%
+    const holdDistance = this.enterEndX - this.holdEndX; // 25% → 0
+    const exitDistance = this.holdEndX - this.exitEndX; // 0 → -textWidth
 
-      // Interpolate position from canvas.width to enterEndX (25% viewport)
-      const startX = this.canvas.width;
-      this.x = startX + (this.enterEndX - startX) * eased;
+    if (timeSeconds < enterDurationSec) {
+      // ENTER PHASE: Decelerate from high velocity to hold velocity
+      // Use cosine deceleration: v(t) = v_min + (v_max - v_min) * (1 + cos(π*t/T)) / 2
 
-    } else if (this.totalAnimationTime < enterDurationSec + holdDurationSec) {
-      // HOLD PHASE: Slow marquee from 25% → 75% viewport
-      const progress = (this.totalAnimationTime - enterDurationSec) / holdDurationSec;
+      const holdVelocity = holdDistance / holdDurationSec;
+      const progress = timeSeconds / enterDurationSec; // 0 to 1
 
-      // Linear interpolation for constant velocity
-      const startX = this.enterEndX;
-      this.x = startX + (this.holdEndX - startX) * progress;
+      // Start velocity calculated to cover enter distance with cosine deceleration
+      // Average velocity = (v_start + v_end) / 2 = distance / time
+      // v_end = holdVelocity
+      // v_start = 2 * (distance / time) - v_end
+      const averageVelocity = enterDistance / enterDurationSec;
+      const startVelocity = 2 * averageVelocity - holdVelocity;
+
+      // Cosine interpolation: starts at startVelocity, ends at holdVelocity
+      const velocity = holdVelocity + (startVelocity - holdVelocity) * (1 + Math.cos(Math.PI * progress)) / 2;
+
+      return velocity;
+
+    } else if (timeSeconds < enterDurationSec + holdDurationSec) {
+      // HOLD PHASE: Constant velocity
+      const holdVelocity = holdDistance / holdDurationSec;
+      return holdVelocity;
 
     } else {
-      // EXIT PHASE: Accelerate from 75% viewport → fully offscreen left
-      const progress = (this.totalAnimationTime - enterDurationSec - holdDurationSec) / exitDurationSec;
-      const eased = this.easeIn(progress); // Smooth acceleration
+      // EXIT PHASE: Accelerate from hold velocity to high velocity
+      // Use cosine acceleration: v(t) = v_min + (v_max - v_min) * (1 - cos(π*t/T)) / 2
 
-      // Interpolate position from holdEndX (75%) to exitEndX (-textWidth)
-      const startX = this.holdEndX;
-      this.x = startX + (this.exitEndX - startX) * eased;
+      const holdVelocity = holdDistance / holdDurationSec;
+      const progress = (timeSeconds - enterDurationSec - holdDurationSec) / exitDurationSec; // 0 to 1
+
+      // End velocity calculated to cover exit distance with cosine acceleration
+      const averageVelocity = exitDistance / exitDurationSec;
+      const endVelocity = 2 * averageVelocity - holdVelocity;
+
+      // Cosine interpolation: starts at holdVelocity, ends at endVelocity
+      const velocity = holdVelocity + (endVelocity - holdVelocity) * (1 - Math.cos(Math.PI * progress)) / 2;
+
+      return velocity;
     }
-  }
-
-  /**
-   * Ease out cubic - decelerating motion
-   * Used for enter phase to smoothly decelerate into hold
-   * @param {number} t - Progress value (0-1)
-   * @returns {number} Eased value (0-1)
-   */
-  easeOut(t) {
-    return 1 - Math.pow(1 - t, 3);
-  }
-
-  /**
-   * Ease in cubic - accelerating motion
-   * Used for exit phase to smoothly accelerate from hold
-   * @param {number} t - Progress value (0-1)
-   * @returns {number} Eased value (0-1)
-   */
-  easeIn(t) {
-    return t * t * t;
   }
 
   /**
