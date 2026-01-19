@@ -39,12 +39,11 @@
       import { config } from '../config/config.js';
       import { DeltaTimer } from '../shared/timing.js';
       import { AnimationLifecycle } from '../shared/lifecycle.js';
-      import { hexToHSL } from '../shared/colors.js';
+      import { getColorFromURL, hexToHSL } from '../shared/colors.js';
 
       // Parse URL parameters (CONFIG-01: URL parameter configuration)
       const urlParams = new URLSearchParams(window.location.search);
       const text = urlParams.get('text') || 'Default Text';
-      const colorParam = urlParams.get('color') || '7289DA'; // Default Discord blurple
       const durationParam = urlParams.get('duration');
       const holdDurationMs = durationParam ? parseInt(durationParam) : null; // null triggers calculation
 
@@ -54,8 +53,8 @@
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
-      // Convert hex color to HSL for curtains
-      const baseColor = colorParam.startsWith('#') ? colorParam : `#${colorParam}`;
+      // Get base color (random if no URL parameter, like other scenes)
+      const baseColor = getColorFromURL();
       const baseHSL = hexToHSL(baseColor);
 
       // Initialize lifecycle manager (CONFIG-03: AnimationLifecycle cleanup)
