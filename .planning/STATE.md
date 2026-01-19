@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-18)
 ## Current Position
 
 Phase: 5 of 7 (Text Animation Core)
-Plan: 2 of TBD in current phase
-Status: In progress
-Last activity: 2026-01-19 — Completed 05-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-01-19 — Completed 05-03-PLAN.md
 
-Progress: [████████░░] 65% (13 plans complete, 7 total remaining in v1.1)
+Progress: [█████████░] 70% (14 plans complete, 6 total remaining in v1.1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22 (v1.0 baseline: 11 plans)
-- Average duration: 30.7 min
-- Total execution time: 11.60 hours
+- Total plans completed: 14 (v1.1 in progress, v1.0 baseline: 11 plans)
+- Average duration: 49.1 min
+- Total execution time: 11.44 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [████████░░] 65% (13 plans complete, 7 total remai
 | 02 | 8 | 23.1min | 2.9min |
 | 03 | 4 | 636.0min | 159.0min |
 | 04 | 3 | 7.0min | 2.3min |
-| 05 | 2 | 6.0min | 3.0min |
+| 05 | 3 | 140.0min | 46.7min |
 
 **Recent Trend:**
-- v1.0 completed successfully (11 plans)
-- v1.1 Phase 5 in progress: Text rendering (4min) + scrolling animation (2min)
+- v1.0 completed successfully (11 plans, 11.60 hours total)
+- v1.1 Phase 5 complete: Text rendering (4min) + scrolling animation (2min) + testing & continuous motion (134min)
 
 *Updated after each plan completion*
 
@@ -46,12 +46,15 @@ Progress: [████████░░] 65% (13 plans complete, 7 total remai
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- 05-03: Animation is ONE continuous motion with velocity transitions (not three separate stop-start animations)
+- 05-03: Text color is always white (removed color URL parameter for consistent branding)
+- 05-03: Keyframe positions: Enter (0-25%), Hold (25-75%), Exit (75-100%) of viewport width
+- 05-03: easeInOutCubicDerivative() calculates instantaneous velocity for smooth acceleration/deceleration
+- 05-03: Phase-specific velocities calculated in init() from keyframe positions and durations
 - 05-02: Word count (not character count) for duration calculation correlates with reading comprehension time
 - 05-02: 3-second minimum hold duration enforced regardless of text length for short message readability
 - 05-02: Scroll speed dynamically calculated from text width and hold duration ensures full text visibility
 - 05-02: Enter/exit phases use shared.durations (1000ms) for consistency with stinger/sidebar
-- 05-02: Hold phase uses constant velocity (linear scrolling) for marquee feel
-- 05-02: Enter/exit phases use easeInOutCubic for smooth transitions
 - 05-01: Font Loading API integration prevents race condition (document.fonts.ready → init() → measureText)
 - 05-01: Text measurement in init() method (not constructor) ensures fonts loaded before measurement
 - 05-01: Explicit ctx.fillStyle usage (no relying on defaults) for OBS browser source compatibility
@@ -72,8 +75,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed 05-02-PLAN.md (text scrolling animation)
-Resume file: None - ready for Phase 05 Plan 03 (if exists) or Phase 06 (curtain integration)
+Stopped at: Completed 05-03-PLAN.md (text animation testing & continuous motion)
+Resume file: None - Phase 5 complete, ready for Phase 06 (curtain integration)
 
 ---
-*Last updated: 2026-01-19 after 05-02 completion*
+*Last updated: 2026-01-19 after 05-03 completion*
