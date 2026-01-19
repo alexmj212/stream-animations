@@ -291,6 +291,108 @@ export function validateSidebarPositioning(position, defaults) {
 }
 
 /**
+ * Validate shade scene configuration
+ * @param {object} shade - Shade config section
+ * @returns {boolean} True if all validations pass, false if any warnings logged
+ */
+export function validateShadeConfig(shade) {
+  if (!shade || typeof shade !== 'object') {
+    console.warn('Config validation: config.shade section missing or invalid. Shade scene may not work correctly.');
+    return false;
+  }
+
+  let allValid = true;
+
+  // Validate brightness
+  if (typeof shade.brightness !== 'number' || shade.brightness < 0 || shade.brightness > 1) {
+    console.warn(`Config validation: config.shade.brightness must be between 0 and 1, got ${shade.brightness}. Using default: 0.8`);
+    allValid = false;
+  }
+
+  // Validate text config
+  if (shade.text) {
+    const text = shade.text;
+
+    // Validate font string
+    if (typeof text.font !== 'string' || text.font.trim() === '') {
+      console.warn('Config validation: config.shade.text.font must be a non-empty string. Using default: "bold 96px Jost"');
+      allValid = false;
+    }
+
+    // Validate color string
+    if (typeof text.color !== 'string' || text.color.trim() === '') {
+      console.warn('Config validation: config.shade.text.color must be a non-empty string. Using default: "#ffffff"');
+      allValid = false;
+    }
+
+    // Validate shadow properties
+    if (text.shadow) {
+      const shadow = text.shadow;
+
+      if (typeof shadow.blur !== 'number' || shadow.blur < 0) {
+        console.warn(`Config validation: config.shade.text.shadow.blur must be >= 0, got ${shadow.blur}. Using default: 8`);
+        allValid = false;
+      }
+
+      if (typeof shadow.offsetX !== 'number') {
+        console.warn(`Config validation: config.shade.text.shadow.offsetX must be a number, got ${shadow.offsetX}. Using default: 4`);
+        allValid = false;
+      }
+
+      if (typeof shadow.offsetY !== 'number') {
+        console.warn(`Config validation: config.shade.text.shadow.offsetY must be a number, got ${shadow.offsetY}. Using default: 4`);
+        allValid = false;
+      }
+
+      if (typeof shadow.color !== 'string' || shadow.color.trim() === '') {
+        console.warn('Config validation: config.shade.text.shadow.color must be a non-empty string. Using default: "rgba(0, 0, 0, 0.6)"');
+        allValid = false;
+      }
+    }
+  }
+
+  // Validate timing config
+  if (shade.timing) {
+    const timing = shade.timing;
+
+    // Validate readingSpeedMsPerWord (100-500ms range)
+    if (typeof timing.readingSpeedMsPerWord !== 'number' || timing.readingSpeedMsPerWord < 100 || timing.readingSpeedMsPerWord > 500) {
+      console.warn(`Config validation: config.shade.timing.readingSpeedMsPerWord must be between 100 and 500, got ${timing.readingSpeedMsPerWord}. Using default: 200`);
+      allValid = false;
+    }
+
+    // Validate minHoldMs (1000-10000ms range)
+    if (typeof timing.minHoldMs !== 'number' || timing.minHoldMs < 1000 || timing.minHoldMs > 10000) {
+      console.warn(`Config validation: config.shade.timing.minHoldMs must be between 1000 and 10000, got ${timing.minHoldMs}. Using default: 3000`);
+      allValid = false;
+    }
+
+    // Validate scrollSpeedPxPerSec (positive number)
+    if (typeof timing.scrollSpeedPxPerSec !== 'number' || timing.scrollSpeedPxPerSec <= 0) {
+      console.warn(`Config validation: config.shade.timing.scrollSpeedPxPerSec must be > 0, got ${timing.scrollSpeedPxPerSec}. Using default: 300`);
+      allValid = false;
+    }
+  }
+
+  // Validate durations
+  if (shade.durations) {
+    const durations = shade.durations;
+
+    if (typeof durations.entryMs !== 'number' || durations.entryMs < 100 || durations.entryMs > 10000) {
+      console.warn(`Config validation: config.shade.durations.entryMs must be between 100 and 10000, got ${durations.entryMs}. Using default: 1000`);
+      allValid = false;
+    }
+
+    if (typeof durations.exitMs !== 'number' || durations.exitMs < 100 || durations.exitMs > 10000) {
+      console.warn(`Config validation: config.shade.durations.exitMs must be between 100 and 10000, got ${durations.exitMs}. Using default: 1000`);
+      allValid = false;
+    }
+  }
+
+  return allValid;
+}
+
+/**
  * Validate performance configuration section with graceful degradation
  * @param {Object} config - Full configuration object
  * @returns {boolean} True if all validations pass, false if any warnings logged

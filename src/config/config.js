@@ -255,6 +255,37 @@ export const config = {
     }
   },
 
+  // Shade scene configuration (text animation component)
+  shade: {
+    // Brightness multiplier (0.8 = 20% reduction to match background/sidebar/stinger)
+    brightness: 0.8,
+
+    // Text styling
+    text: {
+      font: 'bold 96px Jost',     // Large celebratory font size
+      color: '#ffffff',           // Default white (overridden by URL ?color parameter)
+      shadow: {
+        blur: 8,                  // Shadow blur radius
+        offsetX: 4,               // Shadow X offset
+        offsetY: 4,               // Shadow Y offset
+        color: 'rgba(0, 0, 0, 0.6)' // Shadow color with opacity
+      }
+    },
+
+    // Timing configuration
+    timing: {
+      readingSpeedMsPerWord: 200, // 200ms per word = 5 words/second (fast pace for stream events)
+      minHoldMs: 3000,            // Minimum 3-second hold duration
+      scrollSpeedPxPerSec: 300    // Initial baseline scroll speed (will be dynamically calculated)
+    },
+
+    // Durations (use shared defaults for entry/exit transitions)
+    durations: {
+      entryMs: 1000,              // Entry animation duration
+      exitMs: 1000                // Exit animation duration
+    }
+  },
+
   /**
    * Performance optimization configuration
    *

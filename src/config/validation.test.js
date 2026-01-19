@@ -12,6 +12,7 @@ import {
   validateBrightness,
   validateEasingFunction,
   validateSidebarPositioning,
+  validateShadeConfig,
   isDevMode,
   getSpeedFromURL,
   getDensityFromURL,
@@ -453,6 +454,142 @@ describe('sidebar positioning validation', () => {
     expect(validateSidebarPositioning('invalid', defaults)).toEqual(defaults);
     expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
 
+    consoleWarnSpy.mockRestore();
+  });
+});
+
+describe('shade config validation', () => {
+  const validShadeConfig = {
+    brightness: 0.8,
+    text: {
+      font: 'bold 96px Jost',
+      color: '#ffffff',
+      shadow: {
+        blur: 8,
+        offsetX: 4,
+        offsetY: 4,
+        color: 'rgba(0, 0, 0, 0.6)'
+      }
+    },
+    timing: {
+      readingSpeedMsPerWord: 200,
+      minHoldMs: 3000,
+      scrollSpeedPxPerSec: 300
+    },
+    durations: {
+      entryMs: 1000,
+      exitMs: 1000
+    }
+  };
+
+  it('validateShadeConfig accepts valid config', () => {
+    const result = validateShadeConfig(validShadeConfig);
+    expect(result).toBe(true);
+  });
+
+  it('validateShadeConfig returns false for missing config', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(validateShadeConfig(null)).toBe(false);
+    expect(validateShadeConfig(undefined)).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateShadeConfig validates brightness range', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = { ...validShadeConfig, brightness: 1.5 };
+    const result = validateShadeConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('brightness must be between 0 and 1')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateShadeConfig validates font string', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = { ...validShadeConfig, text: { ...validShadeConfig.text, font: '' } };
+    const result = validateShadeConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('text.font must be a non-empty string')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateShadeConfig validates shadow properties', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = {
+      ...validShadeConfig,
+      text: {
+        ...validShadeConfig.text,
+        shadow: {
+          blur: -5,
+          offsetX: 4,
+          offsetY: 4,
+          color: 'rgba(0, 0, 0, 0.6)'
+        }
+      }
+    };
+    const result = validateShadeConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('shadow.blur must be >= 0')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateShadeConfig validates readingSpeedMsPerWord range', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = {
+      ...validShadeConfig,
+      timing: { ...validShadeConfig.timing, readingSpeedMsPerWord: 50 }
+    };
+    const result = validateShadeConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('readingSpeedMsPerWord must be between 100 and 500')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateShadeConfig validates minHoldMs range', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = {
+      ...validShadeConfig,
+      timing: { ...validShadeConfig.timing, minHoldMs: 500 }
+    };
+    const result = validateShadeConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('minHoldMs must be between 1000 and 10000')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateShadeConfig validates scrollSpeedPxPerSec positive', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = {
+      ...validShadeConfig,
+      timing: { ...validShadeConfig.timing, scrollSpeedPxPerSec: -100 }
+    };
+    const result = validateShadeConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('scrollSpeedPxPerSec must be > 0')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateShadeConfig validates durations', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = {
+      ...validShadeConfig,
+      durations: { entryMs: 50, exitMs: 20000 }
+    };
+    const result = validateShadeConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
     consoleWarnSpy.mockRestore();
   });
 });
