@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-18)
 ## Current Position
 
 Phase: 6 of 7 (Curtain Integration & Synchronization)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-01-19 — Phase 5 complete (Text Animation Core)
+Plan: 1 of TBD in current phase
+Status: In progress
+Last activity: 2026-01-19 — Completed 06-01-PLAN.md (CurtainBar component)
 
-Progress: [█████████░] 70% (14 plans complete, 6 total remaining in v1.1)
+Progress: [█████████░] 75% (15 plans complete, 5 total remaining in v1.1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14 (v1.1 in progress, v1.0 baseline: 11 plans)
-- Average duration: 49.1 min
-- Total execution time: 11.44 hours
+- Total plans completed: 15 (v1.1 in progress, v1.0 baseline: 11 plans)
+- Average duration: 45.9 min
+- Total execution time: 11.49 hours
 
 **By Phase:**
 
@@ -32,10 +32,12 @@ Progress: [█████████░] 70% (14 plans complete, 6 total remai
 | 03 | 4 | 636.0min | 159.0min |
 | 04 | 3 | 7.0min | 2.3min |
 | 05 | 3 | 140.0min | 46.7min |
+| 06 | 1 | 3.0min | 3.0min |
 
 **Recent Trend:**
 - v1.0 completed successfully (11 plans, 11.60 hours total)
 - v1.1 Phase 5 complete: Text rendering (4min) + scrolling animation (2min) + testing & continuous motion (134min)
+- v1.1 Phase 6 started: CurtainBar component (3min)
 
 *Updated after each plan completion*
 
@@ -46,6 +48,11 @@ Progress: [█████████░] 70% (14 plans complete, 6 total remai
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- 06-01: Canvas clipping (ctx.clip()) prevents bars from rendering outside curtain boundaries during enter/exit
+- 06-01: Opacity 0.5 (middle of 0.4-0.6 range) provides balanced semi-transparency for curtains
+- 06-01: 6 horizontal bars per curtain balances visual density with performance
+- 06-01: ctx.save/restore wrapping prevents globalAlpha persistence across draw calls
+- 06-01: Top/bottom curtains meet at centerline (0 to height/2, height/2 to height)
 - 05-03: Velocity-first animation architecture eliminates phase boundary discontinuities (< 0.01 px/s at transitions)
 - 05-03: calculateVelocity(totalTime) returns continuous velocity function, position derived by integration
 - 05-03: Position updated each frame: x -= velocity * deltaTime (not position interpolation with easing)
@@ -77,8 +84,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-19
-Stopped at: Completed 05-03-PLAN.md (text animation testing & continuous motion)
-Resume file: None - Phase 5 complete, ready for Phase 06 (curtain integration)
+Stopped at: Completed 06-01-PLAN.md (CurtainBar component with embedded bars)
+Resume file: None - ready for 06-02 (curtain + text synchronization)
 
 ---
-*Last updated: 2026-01-19 after 05-03 completion*
+*Last updated: 2026-01-19 after 06-01 completion*
