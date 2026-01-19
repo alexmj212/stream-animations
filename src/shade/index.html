@@ -37,31 +37,88 @@
       import { ShadeBar } from './ShadeBar.js';
       import { CurtainBar } from './CurtainBar.js';
       import { config } from '../config/config.js';
+      import { setupCanvas, clearCanvas } from '../shared/canvas.js';
       import { DeltaTimer } from '../shared/timing.js';
       import { AnimationLifecycle } from '../shared/lifecycle.js';
       import { getColorFromURL, hexToHSL } from '../shared/colors.js';
+      import { PerformanceMonitor } from '../shared/performance.js';
+      import { PerformanceStorage } from '../shared/perfStorage.js';
+      import { PerformanceOverlay } from '../shared/perfOverlay.js';
+      import { DirtyRectTracker } from '../shared/dirtyRect.js';
 
-      // Parse URL parameters (CONFIG-01: URL parameter configuration)
+      // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
       const text = urlParams.get('text') || 'Default Text';
       const durationParam = urlParams.get('duration');
       const holdDurationMs = durationParam ? parseInt(durationParam) : null; // null triggers calculation
-
-      // Setup canvas
-      const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d', { alpha: config.performance.alpha.background });
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-
-      // Get base color (random if no URL parameter, like other scenes)
+      const showPerf = urlParams.get('perf') === 'true';
       const baseColor = getColorFromURL();
       const baseHSL = hexToHSL(baseColor);
 
-      // Initialize lifecycle manager (CONFIG-03: AnimationLifecycle cleanup)
+      // Setup performance monitoring
+      const perfMonitor = new PerformanceMonitor(60, 60);
+      let perfOverlay = null;
+
+      if (showPerf) {
+        const perfStorage = new PerformanceStorage(50);
+        perfOverlay = new PerformanceOverlay(perfMonitor, perfStorage, {
+          position: 'top-right',
+          opacity: 0.9,
+          scene: 'shade'
+        });
+
+        perfMonitor.enable();
+        perfOverlay.setupHotkey();
+        perfOverlay.startSession();
+        perfOverlay.show();
+        perfOverlay.exposeAPI();
+      }
+
+      // Canvas setup
+      const canvas = document.getElementById('canvas');
+      const ctx = setupCanvas(canvas, { alpha: true });
+
+      // Initialize dirty rectangle tracker (if enabled)
+      const dirtyRectanglesEnabled = config.performance.dirtyRectangles.enabled;
+      const visualize = config.performance.dirtyRectangles.visualize && showPerf; // Only visualize in perf mode
+
+      let dirtyTracker = null;
+      if (dirtyRectanglesEnabled) {
+        dirtyTracker = new DirtyRectTracker(
+          config.performance.dirtyRectangles.safetyMargin,
+          visualize
+        );
+        dirtyTracker.setCanvas(canvas, ctx);
+      }
+
+      // Initialize delta-time and lifecycle
+      const deltaTimer = new DeltaTimer();
       const lifecycle = new AnimationLifecycle();
 
+      lifecycle.onCleanup(() => {
+        // Cleanup any cache intervals if components use them
+        if (ShadeBar.cacheCleanupInterval) {
+          clearInterval(ShadeBar.cacheCleanupInterval);
+          ShadeBar.cacheCleanupInterval = null;
+        }
+        if (CurtainBar.cacheCleanupInterval) {
+          clearInterval(CurtainBar.cacheCleanupInterval);
+          CurtainBar.cacheCleanupInterval = null;
+        }
+        console.log('[Shade] Cleanup complete');
+      });
+
+      // Create components array (following stinger/sidebar/background pattern)
+      const components = [];
+
+      // Save session on page unload
+      window.addEventListener('beforeunload', () => {
+        if (showPerf && perfOverlay) {
+          perfOverlay.endSession();
+        }
+      });
+
       // Wait for fonts to load before initializing (RESEARCH.md Pitfall 1: Font Loading)
-      // CONFIG-04: Font loading prevents measurement race conditions
       document.fonts.ready.then(() => {
         console.log('[Shade] Fonts loaded, initializing components');
 
@@ -91,11 +148,11 @@
 
         console.log('[Shade] Text Width:', shadeBar.textWidth, 'px');
 
-        // Initialize delta-time timer (CONFIG-05: Frame-rate independence)
-        const deltaTimer = new DeltaTimer();
+        // Add components to array (following stinger/sidebar/background pattern)
+        components.push(topCurtain, bottomCurtain, shadeBar);
 
         /**
-         * Animation loop
+         * Animation loop (following stinger/sidebar/background pattern)
          *
          * Three-phase animation (synchronized across all components):
          * - Enter phase: curtains enter, text flies in from right (1 second)
@@ -107,31 +164,35 @@
          * - Text drawn last (foreground layer - always visible on top)
          */
         function animate(timestamp) {
+          if (showPerf) perfMonitor.recordFrame();
+
           const deltaTime = deltaTimer.update(timestamp);
 
-          // Clear canvas
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          clearCanvas(ctx, canvas, dirtyTracker);
 
-          // Update all components with same deltaTime (synchronized)
-          topCurtain.update(deltaTime);
-          bottomCurtain.update(deltaTime);
-          shadeBar.update(deltaTime);
+          let allComplete = true;
 
-          // RENDERING ORDER CRITICAL
-          // Draw curtains FIRST (background layer)
-          topCurtain.draw();
-          bottomCurtain.draw();
+          // Update and draw all components in order
+          for (let i = 0; i < components.length; i++) {
+            components[i].update(deltaTime);
 
-          // Draw text LAST (foreground layer - always visible on top)
-          shadeBar.draw();
+            // Report dirty region before drawing (if component has getBoundingBox)
+            if (dirtyTracker && components[i].active && typeof components[i].getBoundingBox === 'function') {
+              const bbox = components[i].getBoundingBox();
+              dirtyTracker.addRegion(bbox.x, bbox.y, bbox.width, bbox.height);
+            }
 
-          // Continue until all components inactive (synchronized completion)
-          const anyActive = topCurtain.active || bottomCurtain.active || shadeBar.active;
-          if (anyActive) {
+            components[i].draw();
+            if (components[i].active) {
+              allComplete = false;
+            }
+          }
+
+          // Continue animation if any component is still active
+          if (!allComplete) {
             requestAnimationFrame(animate);
           } else {
-            console.log('[Shade] Animation complete, cleaning up');
-            lifecycle.cleanup(); // AnimationLifecycle cleanup
+            console.log('[Shade] Animation complete');
           }
         }
 
