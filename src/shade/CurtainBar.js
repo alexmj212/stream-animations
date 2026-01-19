@@ -93,8 +93,8 @@ export class CurtainBar extends AnimatedBar {
         bar.y = this.canvas.height / 2 + (i / barCount) * (this.canvas.height / 2);
       }
 
-      // Visual properties (match stinger pattern from RESEARCH.md)
-      bar.isWhite = Math.random() > 0.7; // 70% white bars
+      // Visual properties (match stinger/sidebar randomization pattern)
+      bar.isWhite = Math.random() > 0.7; // 30% white bars
 
       if (bar.isWhite) {
         bar.hue = 0;
@@ -102,11 +102,14 @@ export class CurtainBar extends AnimatedBar {
         bar.lightness = 100 * config.shade.brightness;
         bar.width = Math.random() * 30 + 20; // 20-50px
       } else {
-        // Colored bar with hue variation
+        // Colored bar with randomized hue variation (like stinger/sidebar)
         const hueVariation = (Math.random() - 0.5) * 40; // ±20 from base
+        const lightnessVariation = (Math.random() - 0.5) * 30; // ±15 from base
+
         bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
         bar.saturation = this.baseHSL.s;
-        bar.lightness = Math.max(10, (this.baseHSL.l + (Math.random() - 0.5) * 30) * config.shade.brightness);
+        const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
+        bar.lightness = Math.max(10, baseLightness * config.shade.brightness);
         bar.width = Math.random() * 60 + 40; // 40-100px
       }
 
@@ -116,8 +119,8 @@ export class CurtainBar extends AnimatedBar {
       // Skew angle (matches stinger pattern)
       bar.skew = config.stinger.horizontal.skewAngle; // -15 degrees
 
-      // Opacity variation
-      bar.opacity = Math.random() * 0.4 + 0.6; // 0.6-1.0 (from config.stinger.opacity)
+      // Opacity variation (match stinger/sidebar pattern)
+      bar.opacity = Math.random() * 0.4 + 0.6; // 0.6-1.0
 
       // Start offscreen (direction determines which side)
       bar.x = bar.direction === 1 ? -200 : this.canvas.width + 200;
