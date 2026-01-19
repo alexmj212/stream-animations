@@ -81,13 +81,36 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| *To be filled by roadmapper* | | |
+| TEXT-01 | Phase 5 | Pending |
+| TEXT-02 | Phase 5 | Pending |
+| TEXT-05 | Phase 5 | Pending |
+| CONFIG-01 | Phase 5 | Pending |
+| CONFIG-02 | Phase 5 | Pending |
+| CONFIG-04 | Phase 5 | Pending |
+| CONFIG-05 | Phase 5 | Pending |
+| TEST-01 | Phase 5 | Pending |
+| CURTAIN-01 | Phase 6 | Pending |
+| CURTAIN-02 | Phase 6 | Pending |
+| CURTAIN-03 | Phase 6 | Pending |
+| CURTAIN-04 | Phase 6 | Pending |
+| CURTAIN-05 | Phase 6 | Pending |
+| TEXT-03 | Phase 6 | Pending |
+| TEXT-04 | Phase 6 | Pending |
+| TEXT-06 | Phase 6 | Pending |
+| TEXT-07 | Phase 6 | Pending |
+| CONFIG-03 | Phase 6 | Pending |
+| PERF-04 | Phase 6 | Pending |
+| TEST-02 | Phase 6 | Pending |
+| PERF-01 | Phase 7 | Pending |
+| PERF-02 | Phase 7 | Pending |
+| PERF-03 | Phase 7 | Pending |
+| TEST-03 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 22 total
-- Mapped to phases: 0 (pending)
-- Unmapped: 22 ⚠️
+- Mapped to phases: 22 (100% coverage)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-18*
-*Last updated: 2026-01-18 after initial definition*
+*Last updated: 2026-01-18 after roadmap creation*
