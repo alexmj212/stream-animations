@@ -1,7 +1,7 @@
-# Feature Research
+# Feature Research: Shade Component for Stream Graphics
 
-**Domain:** OBS Stream Graphics & Animations (Canvas-based Browser Sources)
-**Researched:** 2026-01-17
+**Domain:** Stream overlay notifications with scrolling text
+**Researched:** 2026-01-18
 **Confidence:** MEDIUM
 
 ## Feature Landscape
@@ -12,26 +12,24 @@ Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Event-driven alerts (follow, subscribe, donation, raid) | Core function of stream graphics - viewers expect visual feedback for community events | MEDIUM | Requires event source integration (Twitch API, StreamElements, Streamlabs). Animation timing critical. |
-| Basic customization (colors, text, sounds) | Every streamer wants unique branding; "one-size-fits-all" = unprofessional | LOW | URL parameters or config file. Color theming via CSS variables or JSON config. |
-| Transparent background support | Must layer over gameplay without blocking content | LOW | Canvas already transparent. Export as WebM for video transitions. |
-| Persistent background animations | Streams look static/cheap without ambient motion | MEDIUM | Performance-critical - must maintain 30-60fps with minimal CPU. Already implemented. |
-| Scene transition animations (stingers) | Hard cuts between scenes look unprofessional | MEDIUM | 0.5-2 second duration, timing transition point correctly (500-1000ms mark). Already implemented. |
-| Responsive to platform events | Must respond to Twitch/YouTube events in real-time | MEDIUM | Event integration via browser source communication or API polling. Existing implementation handles OBS events. |
+| Semi-transparent backdrop curtains | Standard pattern for major event overlays - dims gameplay without fully obscuring it | LOW | Already validated pattern from stinger (top/bottom curtain entry) |
+| Large readable text | Major events deserve prominent display - must be readable at stream resolution (1920x1080) | LOW | Canvas measureText() for width calculation, font sizing from config |
+| Smooth enter/exit animations | Jarring cuts break viewer immersion - eased transitions are table stakes | LOW | easeInOutCubic already implemented in AnimatedBar base class |
+| One-shot trigger pattern | Must integrate with OBS page load pattern (tested with stinger/sidebar) | LOW | Existing pattern: page load → animation → exit → OBS hides source |
+| Performance (minimal CPU/GPU) | Shade runs during active gameplay - cannot impact stream encoding performance | MEDIUM | Core value constraint - must measure and verify during implementation |
+| Text visibility guarantee | Text must be fully visible (not cut off) for entire hold phase | MEDIUM | Requires text width measurement + scroll timing coordination |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the product apart. Not required, but valuable.
+Features that set the product apart. Not expected, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Ultra-low CPU/GPU usage | Personal streamers often have limited hardware; performance = competitive edge | HIGH | Requires canvas optimization (requestAnimationFrame, dirty regions, layered canvases, hardware acceleration). **Aligns with core value.** |
-| Cohesive visual language across all animations | Most overlays feel like Frankenstein collections; unified design = professional | MEDIUM | Shared animation primitives, color system, timing curves. Already started with shared bars/colors. |
-| Local-first configuration | No accounts, no server dependencies, works offline | LOW | URL parameters + localStorage. Better DX than cloud dashboards for personal use. |
-| Quick notification type extension | Adding new alert types should be trivial, not a refactor | MEDIUM | Shared animation components, plugin architecture. **Current goal: "Make adding new notification types quick."** |
-| Minimal visual footprint | Clean, distraction-free overlays let gameplay/streamer shine | LOW | Minimal design philosophy. Growing trend in 2025. |
-| Frame-perfect animation timing | Smooth 60fps animations feel premium vs janky 30fps defaults | MEDIUM | requestAnimationFrame, proper easing functions, no layout thrashing. |
-| Smart queueing for rapid events | Multiple alerts don't overlap/skip - they queue gracefully | MEDIUM | Event queue with timing management. Prevents alert spam during raids. |
+| Dynamic hold duration based on text length | Generic overlays use fixed timing - smart timing ensures text is always fully readable | MEDIUM | Calculate: textWidth + viewportWidth → scroll duration, apply minimum readability threshold (reading speed ~200 WPM speaking, ~240 WPM reading) |
+| Three-phase text choreography | Text "flies in" with curtains, scrolls during hold, "flies out" with curtains - feels cohesive and polished | MEDIUM | Synchronized text position with curtain phase (in: fly in from right, hold: scroll left, out: fly out to left) |
+| Consistent visual language | Shade uses same bar patterns (slanted/horizontal), colors, timing as stinger/sidebar - feels like unified system | LOW | Leverage existing AnimatedBar patterns, config-driven colors/timing, brightness multiplier (0.8) |
+| Minimum readability guarantee | Unlike generic tickers that scroll too fast, enforce minimum display time regardless of text length | LOW | Config-driven minimum hold duration (e.g., 3000ms baseline) before scroll calculation |
+| Visual harmony with gameplay | Semi-transparent curtains with controlled brightness (0.8 multiplier) preserve gameplay visibility while establishing focus | LOW | Reuse existing brightness/opacity config pattern from stinger |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
@@ -39,212 +37,283 @@ Features that seem good but create problems.
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Rich WYSIWYG editor in-app | "I want to customize without code" | Adds massive complexity (300KB+ JS framework), increases CPU usage, creates maintenance burden for solo streamer tool | Use URL parameters + simple JSON config. Document examples. Pre-built themes. |
-| Video file backgrounds (MP4 loops) | "Animated backgrounds look cool" | Chroma key hacks, poor performance, 10MB+ file sizes, not hardware decoded in browser sources | Canvas animations (current approach). WebM for transitions only. Procedural generation. |
-| Real-time preview mode | "I want to see changes immediately" | Requires dev server, hot reload, complicates deployment | Use OBS Studio's built-in preview. Refresh browser source to see changes. |
-| Dozens of animation presets | "More options = more value" | Analysis paralysis, maintenance burden, most go unused | 3-5 well-designed presets. Focus on customization of core animations. |
-| Cloud sync/account system | "Save my settings across devices" | Server costs, privacy concerns, adds latency, authentication complexity | localStorage + export/import JSON. Personal streamers use one machine. |
-| 3D animations / particle systems | "Advanced effects = professional" | WebGL overhead, GPU memory, mobile compatibility issues, complexity | Optimized 2D canvas animations can look premium with good design. |
-| Integrate with every platform | "Support Facebook/TikTok/Mixer" | Maintenance nightmare, each platform has quirks | Focus on Twitch + OBS events. Generic event API lets users bridge others. |
+| Multiple scrolling text lines | "Show more information" - raids/gift subs have username, count, message | Vertical space = vertical complexity, readability degrades fast, timing coordination nightmare | Single-line with strategic text composition: "Username raided with 50 viewers!" - all essential info, one line |
+| Configurable scroll speed (user control) | "Let user decide readability" - seems flexible | Users will misconfigure (too fast = unreadable, too slow = boring), testing burden explodes, defeats dynamic timing value prop | Calculate optimal speed based on text length + minimum readability time - trust the algorithm, not user guessing |
+| Real-time text updates during hold | "Show live count updates" - hype train level changes, sub count increases | Introduces state management complexity, requires event system integration, breaks one-shot OBS pattern, GPU thrash from constant re-measurement | One-shot snapshot at trigger time - clean, predictable, matches existing OBS integration pattern |
+| Backdrop blur effects | "Frosted glass looks premium" - backdrop-filter: blur() for visual polish | Canvas doesn't support CSS backdrop-filter, implementing blur in canvas is GPU-intensive (kills performance core value), browser compatibility issues in OBS Chromium | Semi-transparent solid color curtains with controlled opacity - fast, reliable, already validated pattern |
+| Text wrapping for long messages | "Don't truncate messages" - preserve full raid message | Adds vertical space (breaks single-line design), complicates scroll timing (multi-line width calculations), reduces text size (readability loss) | Strategic truncation with ellipsis - preserve username and key info, sacrifice message tail. Example: "StreamerName raided with 100 viewers! Thanks for..." |
+| Per-character color animation (RGB wave) | "Make it flashy" - rainbow text for excitement | GPU overhead (every character = separate draw call), visual noise distracts from information, clashes with existing visual language (harmony > hype) | Single color with slight hue variation from base theme - maintains visual consistency, performs well |
 
 ## Feature Dependencies
 
 ```
-[Event-driven alerts]
-    └──requires──> [Event source integration]
-                       └──requires──> [Browser message protocol]
+[Semi-transparent backdrop curtains]
+    └──requires──> [Three-phase animation system]
+                       └──requires──> [Phase timing configuration]
 
-[Smart queueing]
-    └──requires──> [Event-driven alerts]
-    └──enhances──> [Notification animations]
+[Scrolling text]
+    ├──requires──> [Canvas measureText for width calculation]
+    ├──requires──> [Dynamic hold duration calculation]
+    └──requires──> [Text position synchronization with curtain phases]
 
-[Ultra-low CPU usage]
-    └──requires──> [Canvas optimizations]
-    └──requires──> [Hardware acceleration enabled]
+[One-shot trigger pattern]
+    └──requires──> [Page load animation lifecycle]
 
-[Cohesive visual language]
-    └──requires──> [Shared animation primitives]
-    └──enhances──> [All animation types]
+[Performance guarantee]
+    ├──requires──> [Viewport culling]
+    ├──requires──> [Offscreen canvas caching for text]
+    └──requires──> [Frame rate monitoring]
 
-[Quick notification extension]
-    └──requires──> [Shared animation components]
-    └──requires──> [Centralized configuration]
+[Dynamic hold duration] ──enhances──> [Minimum readability guarantee]
 
-[Frame-perfect timing]
-    └──conflicts──> [Heavy animations]
+[Text wrapping] ──conflicts──> [Single-line scrolling design]
+[Real-time updates] ──conflicts──> [One-shot OBS pattern]
 ```
 
 ### Dependency Notes
 
-- **Event-driven alerts require browser message protocol:** OBS browser sources communicate via `window.obsstudio` and custom events. Must handle event payload parsing.
-- **Smart queueing requires event-driven alerts:** Can't queue events that don't exist. Queue must respect animation durations.
-- **Ultra-low CPU usage requires canvas optimizations:** requestAnimationFrame, minimize redraws, avoid layout thrashing, use layered canvases for static/dynamic content.
-- **Quick notification extension requires shared components:** Notification types should inherit from base animation classes, use shared color/timing systems.
-- **Frame-perfect timing conflicts with heavy animations:** Can't maintain 60fps if each frame does expensive operations. Must optimize or cap at 30fps.
+- **Curtains require phase system:** Top/bottom curtain entry mirrors stinger pattern (validated). Reuse StingerBar three-phase logic (in/pause/out) with appropriate timing adjustments.
+- **Text requires measurement:** Canvas measureText() provides pixel-width for scroll timing calculation. Must measure with actual font/size before animation starts.
+- **Dynamic duration enhances readability:** Calculate scroll time from text width, but floor at minimum (e.g., 3000ms) to prevent "blink and miss" for short text.
+- **Text wrapping conflicts with design:** Single-line scrolling is simple, performant, and readable. Multi-line introduces complexity without proportional value gain.
+- **Real-time updates conflict with OBS pattern:** One-shot page load trigger is proven (stinger: OBS transitionStart event, sidebar: page load). Adding real-time updates requires event system (WebSocket/OBS events) which breaks simplicity.
 
 ## MVP Definition
 
-### Launch With (v1)
+### Launch With (v1.1)
 
-Minimum viable product — what's needed to validate the concept.
+Minimum viable shade component for major stream events.
 
-- [x] Background animation (continuous, persistent) — Already implemented. Performance-critical foundation.
-- [x] Stinger transition (OBS event-driven) — Already implemented. Validates event integration.
-- [x] Basic notification sidebar — Already implemented. Proves notification pattern works.
-- [ ] URL parameter configuration — Essential for customization without complexity.
-- [ ] 2-3 notification types (follow, subscribe, generic) — Validates "quick to add new types" goal.
-- [ ] Performance monitoring/FPS counter — Validates core value (low CPU usage).
-- [ ] Shared animation primitive library — Enables future extension.
+- [x] **Semi-transparent curtains (top/bottom entry)** — Table stakes for shade overlay pattern
+- [x] **Large single-line scrolling text** — Core value: display raid/gift sub information prominently
+- [x] **Dynamic hold duration** — Differentiator: smart timing ensures readability regardless of text length
+- [x] **Three-phase animation (enter/hold/exit)** — Smooth UX, mirrors existing stinger pattern
+- [x] **One-shot page load trigger** — Proven OBS integration pattern (sidebar validates this)
+- [x] **Minimum readability guarantee** — Baseline hold time (e.g., 3000ms) before text scroll
+- [x] **Visual consistency (colors, brightness, timing)** — Reuse config patterns from stinger/sidebar
+- [x] **Performance validation** — Must not impact encoding (measure FPS, memory during gameplay)
 
 ### Add After Validation (v1.x)
 
-Features to add once core is working.
+Features to add once core is working and validated in production streams.
 
-- [ ] Smart event queueing — Add when users report overlapping alerts.
-- [ ] Additional notification types (raid, donation, bits) — Add as usage patterns emerge.
-- [ ] Animation timing presets (fast/medium/slow) — Add when customization requests arrive.
-- [ ] Export/import configuration — Add when users request sharing setups.
-- [ ] Multiple visual themes — Add when core animations are locked down.
-- [ ] Sound effect support — Add when visual animations are solid.
+- [ ] **Text truncation with ellipsis** — Trigger: First real-world use case where raid message exceeds single-line readability (estimate: >150 characters). Graceful handling for edge cases.
+- [ ] **Multiple shade variants (visual styles)** — Trigger: After 5+ production uses, identify if different event types (raid vs gift subs vs hype train) benefit from visual distinction. LOW priority - consistency may be more valuable than variety.
+- [ ] **Font weight variations** — Trigger: Readability issues in production. Some fonts read better bold vs regular at large sizes. Test after 3+ streams.
+- [ ] **Configurable text alignment (left/center/right)** — Trigger: User preference after 10+ uses. May want centered text for symmetry or left-aligned for consistency with sidebar.
 
 ### Future Consideration (v2+)
 
 Features to defer until product-market fit is established.
 
-- [ ] Visual configuration builder — Only if users struggle with URL parameters.
-- [ ] Custom CSS injection — Advanced users only. Document risks.
-- [ ] Animation editor/timeline — High complexity. Defer until proven demand.
-- [ ] Community preset marketplace — Only if user base grows significantly.
-- [ ] Goal bars / progress widgets — Different use case. Separate concern.
+- [ ] **Multi-line text support** — Why defer: Complexity not justified until single-line proves insufficient. Adds vertical layout, scroll timing coordination, testing burden. Wait for real-world use case that demands it.
+- [ ] **Event-driven triggers (OBS WebSocket)** — Why defer: Requires OBS event integration (raids, subs, hype trains). Current manual trigger (page load) validates UX first, then automate. Phase 2 feature after manual validation.
+- [ ] **Sound integration** — Why defer: Audio is separate concern (OBS handles alert sounds). Shade is visual-only for v1. Add if user research identifies value.
+- [ ] **Multiple concurrent shades** — Why defer: Edge case (multiple raids simultaneously). Adds complexity (z-index management, visual clutter). Validate single shade first, then consider queuing system.
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| URL parameter configuration | HIGH | LOW | P1 |
-| Shared animation primitives | HIGH | MEDIUM | P1 |
-| 2-3 notification types | HIGH | MEDIUM | P1 |
-| Performance monitoring | MEDIUM | LOW | P1 |
-| Smart event queueing | MEDIUM | MEDIUM | P2 |
-| Additional notification types | MEDIUM | LOW | P2 |
-| Animation timing presets | MEDIUM | LOW | P2 |
-| Export/import config | LOW | LOW | P2 |
-| Sound effect support | MEDIUM | MEDIUM | P2 |
-| Multiple visual themes | MEDIUM | MEDIUM | P2 |
-| Visual config builder | LOW | HIGH | P3 |
-| Custom CSS injection | LOW | MEDIUM | P3 |
-| Animation editor | LOW | HIGH | P3 |
-| Community marketplace | LOW | HIGH | P3 |
+| Semi-transparent curtains | HIGH | LOW | P1 |
+| Large scrolling text | HIGH | LOW | P1 |
+| Three-phase animation | HIGH | LOW | P1 |
+| Dynamic hold duration | HIGH | MEDIUM | P1 |
+| One-shot trigger | HIGH | LOW | P1 |
+| Minimum readability guarantee | HIGH | LOW | P1 |
+| Visual consistency | MEDIUM | LOW | P1 |
+| Performance validation | HIGH | MEDIUM | P1 |
+| Text truncation with ellipsis | MEDIUM | MEDIUM | P2 |
+| Multiple shade variants | LOW | MEDIUM | P2 |
+| Font weight variations | LOW | LOW | P2 |
+| Configurable text alignment | LOW | LOW | P2 |
+| Multi-line text support | LOW | HIGH | P3 |
+| Event-driven triggers | MEDIUM | HIGH | P3 |
+| Sound integration | LOW | MEDIUM | P3 |
+| Multiple concurrent shades | LOW | HIGH | P3 |
 
 **Priority key:**
-- P1: Must have for launch (validates core value + goals)
-- P2: Should have, add when possible (improves UX, extends capability)
-- P3: Nice to have, future consideration (high complexity, unclear demand)
+- P1: Must have for launch - validates core shade component value prop
+- P2: Should have, add when possible - quality of life improvements after validation
+- P3: Nice to have, future consideration - complexity not justified until proven demand
 
 ## Competitor Feature Analysis
 
-| Feature | StreamElements | Streamlabs | Our Approach |
-|---------|---------------|------------|--------------|
-| Alert types | Comprehensive (follow, sub, donation, raid, bits, host) | Comprehensive + premium animated themes | Start with 2-3 core types, optimize performance. Add types incrementally. |
-| Customization | Browser-based editor, CSS/HTML/JS support | WYSIWYG editor (limited) + premium themes | URL parameters + JSON config. No server, no accounts. Documentation-first. |
-| Configuration | Cloud-based, requires account | Desktop app (Streamlabs Desktop) or cloud | Local-first. localStorage + export/import. Works offline. |
-| Performance | Cloud-based = low system impact | Desktop app = heavy on resources | Ultra-low CPU via canvas optimization. Hardware acceleration. Single browser source. |
-| Animation quality | Template-based, varies widely | Professional but paywalled | Cohesive visual language. Frame-perfect timing. Minimal design. |
-| Cost model | Free with upsells | Free + premium (Ultra subscription) | Fully free. Open source potential. |
-| Platform integration | Twitch, YouTube, Facebook, Trovo | Twitch, YouTube, Facebook | Focus on OBS events + generic event API. Platform-agnostic design. |
-| Extension model | Widget marketplace | Premium theme packs | Shared components make adding types trivial. Document patterns. |
+| Feature | StreamElements | OBS Native Scrolling Text | Our Approach |
+|---------|----------------|---------------------------|--------------|
+| Curtain backdrop | Yes (animated overlays) | No (text only) | **Yes** - semi-transparent curtains top/bottom with bar patterns |
+| Text scrolling | Yes (ticker widget) | Yes (scroll filter) | **Yes** - single-line scrolling with dynamic timing |
+| Dynamic duration | No (fixed speed) | No (user-configured speed) | **Yes** - calculated from text length + min readability |
+| Visual consistency | Mixed (depends on overlay pack) | N/A (text only) | **Yes** - unified visual language with stinger/sidebar (colors, timing, brightness) |
+| Performance focus | Unknown (cloud-based) | Good (native OBS) | **Explicit** - core value constraint, measured and validated |
+| One-shot pattern | Yes (alert system) | No (continuous loop) | **Yes** - OBS page load trigger (proven pattern) |
+| Text measurement | Yes (automatic) | No (manual config) | **Yes** - Canvas measureText() for precise width calculation |
+| Three-phase choreography | Partial (enter/exit, no synchronized text) | No (continuous scroll) | **Yes** - text flies in with curtains, scrolls during hold, flies out with curtains |
 
-## Animation Type Catalog
+### Analysis
 
-Based on professional stream graphics research, animation types by frequency:
+**StreamElements strength:** Comprehensive alert system with cloud-based event integration. Pre-built widgets for raids, subs, hype trains.
 
-### Core Notification Types (Table Stakes)
-- **Follow alert:** User follows the channel. Simplest event. ~1-2 second duration.
-- **Subscription alert:** User subscribes. May include tier info. ~2-3 second duration.
-- **Donation/Tip alert:** Monetary support. May include amount, message. ~3-5 second duration.
-- **Raid alert:** Incoming raid from another channel. Include raider name, count. ~3-5 second duration.
-- **Bits/Cheer alert:** Twitch bits donation. Similar to donation. ~2-3 second duration.
+**StreamElements weakness:** Generic visual style (not customized to stream brand), performance unknown (depends on cloud service), requires account/setup overhead.
 
-### Extended Notification Types (Differentiators)
-- **Host alert:** Channel is hosting you (less common now). ~2-3 second duration.
-- **Gift sub alert:** User gifts subscriptions to others. Include count. ~2-3 second duration.
-- **Milestone alert:** Follower/subscriber milestones (100 followers, etc.). ~3-5 second duration.
-- **Custom event alert:** User-triggered via channel points, commands. Flexible duration.
+**OBS Native strength:** Zero dependencies, perfect integration, known performance characteristics.
 
-### Persistent Widgets (Different Category)
-- **Goal bars:** Progress toward follower/subscriber goals. Static or slow-updating.
-- **Countdown timers:** Stream start, event countdown. Updates every second.
-- **Chat box:** Live chat overlay. Continuous updates.
-- **Viewer count:** Current viewer stat. Updates every 30-60 seconds.
-- **Recent events list:** Scrolling list of recent follows/subs. Continuous.
+**OBS Native weakness:** No curtain backdrop (text only), no dynamic timing (user guesses scroll speed), no visual polish (bare text filter).
 
-### Transition Types (Scene Changes)
-- **Stinger transition:** Animated scene transition. 0.5-2 seconds. Already implemented.
-- **Fade transition:** Simple cross-fade. Basic, but smooth.
-- **Slide transition:** Scenes slide in/out. Directional.
-- **Zoom transition:** Scale in/out effect. Can be jarring if overused.
+**Our differentiator:** Hybrid approach - performance and integration of native OBS (one-shot page load) with visual polish and intelligence of StreamElements (dynamic timing, unified visual language). Custom-built for personal stream aesthetic, no cloud dependencies, explicit performance guarantees.
 
-### Background Types (Persistent Ambient)
-- **Animated bars:** Geometric shapes moving. Already implemented. Low CPU.
-- **Particle effects:** Floating elements. Higher CPU. Use sparingly.
-- **Gradient animations:** Color shifts over time. Very low CPU.
-- **Waveforms:** Audio-reactive. Medium CPU. Requires audio input.
+## Reading Speed Research Findings
 
-## Configuration Approach Comparison
+**Context:** Dynamic hold duration calculation requires understanding how fast viewers can read scrolling text.
 
-| Approach | Pros | Cons | Recommended For |
-|----------|------|------|-----------------|
-| URL parameters | Simple, no server, shareable links | Limited for complex config | Personal streamers, quick setup |
-| JSON config file | Structured, supports complexity, versionable | Requires file editing | Advanced users, source control |
-| localStorage | Persists across sessions, no files | Not shareable, browser-specific | Local-only, no backups |
-| Cloud dashboard | User-friendly, accessible anywhere | Requires account, server costs, latency | Enterprise, multi-device |
-| In-app WYSIWYG | Visual, no code needed | High complexity, large bundle size | Mainstream products only |
+### Reading Speed Benchmarks (Source: LOW confidence - WebSearch only)
 
-**Our recommendation:** Hybrid URL parameters + JSON config. URL params for simple customization (colors, text). JSON for advanced (animation timing, behavior). Export/import JSON for sharing.
+- **Average reading speed:** 170-240 WPM for silent reading in English
+- **Average speaking speed:** 130 WPM (natural conversation), 100-125 WPM (public speaking for clarity)
+- **Fast speakers:** 200+ WPM
+- **Scrolling text (teleprompter):** Based on speaking speed, typically 100-150 WPM for comfortable reading
 
-## Performance Benchmarks (Research Findings)
+### Implications for Shade Component
 
-Based on OBS community feedback and best practices:
+**Conservative estimate:** 150 WPM for scrolling text readability (between speaking and silent reading).
 
-| Optimization | CPU Impact | Implementation |
-|--------------|------------|----------------|
-| requestAnimationFrame vs setInterval | -30% CPU | Use RAF for all animations. Already implemented. |
-| Hardware acceleration | -40% CPU | Enable in OBS browser source settings. Document requirement. |
-| Custom frame rate (30fps) | -25% CPU | Set in browser source properties. User configurable. |
-| Dirty region redraws | -20% CPU | Only redraw changed canvas areas. Implement for static backgrounds. |
-| Layered canvases | -15% CPU | Separate static/dynamic content. Consider for complex scenes. |
-| WebM format for videos | -50% CPU vs MP4 | Use WebM with alpha for transitions. Already using for stingers. |
-| Minimize canvas size | -10% CPU | 1920x1080 max. Smaller if possible. Document sizing. |
+**Calculation approach:**
+1. Measure text width in pixels (Canvas measureText)
+2. Calculate viewport traverse time: `scrollDuration = (textWidth + viewportWidth) / scrollSpeed`
+3. Estimate word count from character count: `words ≈ characters / 5` (English average)
+4. Calculate minimum duration: `minDuration = (words / 150) * 60 * 1000` (milliseconds)
+5. Use `max(calculated_scroll_duration, minDuration, baseline_minimum_3000ms)`
 
-**Target:** 1-3% CPU usage for background animation + alerts on modern hardware. Under 5% on older systems.
+**Example:** "StreamerName raided with 100 viewers!" = 40 characters ≈ 8 words
+- Minimum duration: (8 / 150) * 60 * 1000 = 3200ms
+- Baseline minimum: 3000ms
+- Final: max(scroll_time, 3200ms, 3000ms) = use calculated value
 
-## Sources
+**Confidence level:** LOW - reading speed research is not stream-specific. Requires validation in production with real viewer feedback. May need adjustment after testing.
 
-### Professional Stream Graphics Research
-- [Nerd or Die - Streamlabs vs StreamElements](https://nerdordie.com/blog/tutorials/streamlabs-vs-streamelements/)
-- [Restream - Streamlabs vs StreamElements Comparison](https://restream.io/learn/comparisons/streamlabs-vs-streamelements/)
-- [FragileGFX - Streamlabs vs StreamElements 2025](https://fragilegfx.com/blogs/news/streamlabs-vs-streamelements-2025)
-- [Twitch Help - Types of Alerts](https://help.twitch.tv/s/article/alerts-by-twitch-events?language=en_US)
-- [Streamlabs - Setting Up Alerts](https://streamlabs.com/content-hub/post/setting-up-your-streamlabs-alerts)
+## Text Measurement Implementation Notes
 
-### Design & Best Practices
-- [GETREKT Labs - Stream Overlay Design Guide](https://getrektlabs.com/blogs/news/choose-your-stream-overlays-where-to-start-what-to-avoid)
-- [Nerd or Die - Focus Minimal Overlay](https://nerdordie.com/product/focus-minimal-overlay-and-alerts/)
-- [Dexpixel - Stream Transitions in OBS](https://dexpixel.com/blogs/live-streaming/what-is-stream-transtion)
-- [StreamGeeks - Stinger Transitions Guide](https://streamgeeks.us/how-to-use-and-make-stingers-transitions-in-obs/)
+**Canvas measureText() method:**
+- Returns TextMetrics object with `width` property (pixel width of text)
+- Width includes kerning and character spacing (full string measurement ≠ sum of individual characters)
+- Must call with exact font context: `ctx.font = "72px Arial Bold"`
+- Width is DPI-independent (canvas logical pixels)
 
-### Performance Optimization
-- [GitHub - HTML5 Canvas Performance Tips](https://gist.github.com/jaredwilli/5469626)
-- [web.dev - Improving HTML5 Canvas Performance](https://web.dev/articles/canvas-performance)
-- [OBS Forums - Browser Source CPU Optimization](https://obsproject.com/forum/threads/browser-source-cpu-optimization.82406/)
-- [Movavi - OBS High CPU Usage Fixes](https://www.movavi.com/learning-portal/obs-high-cpu-usage.html)
+**Performance consideration:** measureText() is fast, but avoid calling every frame. Measure once during initialization, cache result.
 
-### Widget & Configuration Research
-- [StreamElements - Countdown Timer Widget](https://widgets.streamelements.com/element/countdown-timer)
-- [Yostream - Twitch Alerts in OBS](https://yostream.io/tutorials/add-twitch-alerts-chat-obs-guide/)
-- [OBS Knowledge Base - Stream Tutorial 2: Alerts & Chat](https://obsproject.com/kb/stream-tutorial-2-alerts)
+**Sources:**
+- [HTML canvas measureText() Method - W3Schools](https://www.w3schools.com/tags/canvas_measuretext.asp)
+- [JavaScript Canvas measureText Tutorial - ZetCode](https://zetcode.com/canvas-api/measuretext/)
+
+## Common Overlay Design Mistakes (Source: MEDIUM confidence - WebSearch verified)
+
+**Mistake 1: Overcrowding and clutter**
+- Trying to show too much information at once
+- **Shade mitigation:** Single-line text, strategic information composition, no multi-line temptation
+
+**Mistake 2: Poor readability**
+- Ornate/decorative fonts, tiny text, insufficient contrast
+- **Shade mitigation:** Large font size, high contrast (white/colored text on semi-transparent dark curtains), sans-serif font preference
+
+**Mistake 3: Overdesigned layouts**
+- Visual noise, inconsistent styling, "slapped together" aesthetic
+- **Shade mitigation:** Unified visual language with stinger/sidebar (config-driven colors, brightness multiplier, consistent timing patterns)
+
+**Mistake 4: Mobile incompatibility**
+- ~40% of viewers watch on mobile, tiny text = unreadable
+- **Shade mitigation:** Not applicable (OBS desktop streaming target), but principle applies: large text, high contrast, simple composition
+
+**Mistake 5: Lack of testing**
+- Overlays look different in practice vs design tools
+- **Shade mitigation:** Test in OBS output preview (not just browser), validate during gameplay encoding, performance monitoring
+
+**Sources:**
+- [Stream Overlay Design: Where To Start & What To Avoid - GETREKT Labs](https://getrektlabs.com/blogs/news/choose-your-stream-overlays-where-to-start-what-to-avoid)
+- [What Streamers Need To Know About Stream Overlays - GETREKT Labs](https://getrektlabs.com/blogs/news/stream-overlay-essentials-what-every-streamer-needs-to-know)
+
+## Performance Optimization Research (Source: HIGH confidence - recent technical articles)
+
+**Key findings for canvas scrolling text:**
+
+**RequestAnimationFrame is mandatory:**
+- Tells browser that animation is occurring → optimizes repaints
+- Throttles animation for inactive tabs → saves battery
+- Provides high-resolution timestamps for smooth motion
+
+**Redraw regions (dirty rectangles):**
+- Clear/redraw only changed pixels, not full canvas
+- `clearRect(x, y, width, height)` for partial clears
+- Significant performance gain for localized changes (scrolling text is ideal use case)
+
+**Multiple canvas layers:**
+- Separate static elements (curtains) from dynamic elements (scrolling text)
+- Static layer: redraw only on phase changes (enter/hold/exit)
+- Dynamic layer: redraw every frame for text scroll
+- Reduces pixels cleared/painted per frame
+
+**Text rendering optimization:**
+- Pre-render text to offscreen canvas, then blit to main canvas
+- Avoids font rasterization every frame
+- Shade use case: Text content doesn't change during scroll, perfect for caching
+
+**Sources:**
+- [Buttery-Smooth Scroll Animations: Building a High-Performance Canvas Parallax Effect - DEV Community](https://dev.to/nidal_tahir_cde5660ddbe04/buttery-smooth-scroll-animations-building-a-high-performance-canvas-parallax-effect-2m8l)
+- [HTML5 Canvas Optimize Animation Performance - Konva.js](https://konvajs.org/docs/performance/Optimize_Animation.html)
+- [60fps on the mobile web - Flipboard Engineering](https://engineering.flipboard.com/2015/02/mobile-web)
+
+### Shade Implementation Recommendations
+
+1. **Multi-layer canvas approach:**
+   - Layer 1 (background): Semi-transparent curtains (redraw only on phase changes)
+   - Layer 2 (foreground): Scrolling text (redraw every frame)
+
+2. **Offscreen text caching:**
+   - Pre-render text to offscreen canvas during initialization
+   - Blit cached text to foreground layer each frame (fast)
+   - Existing cache system (LRU, maxSize=50) already handles this
+
+3. **Dirty rectangle optimization:**
+   - Text scroll: dirty region = previous text bounding box + current text bounding box
+   - Curtains: dirty region = full canvas on phase change, nothing during hold
+   - Config flag: `config.performance.dirtyRectangles.enabled` (defer to post-MVP)
+
+4. **Delta time normalization:**
+   - Already implemented (DeltaTimer class, deltaTime in seconds)
+   - Scroll speed: pixels per second, multiply by deltaTime
+   - Frame-rate independent (60fps, 120fps, tab-switch recovery)
 
 ---
-*Feature research for: OBS Stream Graphics & Animations (Canvas-based Browser Sources)*
-*Researched: 2026-01-17*
-*Confidence: MEDIUM - Findings based on professional tools analysis, community best practices, and performance optimization research. Needs validation with actual user testing of canvas-based approach vs template-based competitors.*
+
+## Research Summary
+
+**High confidence findings:**
+- Semi-transparent curtains with top/bottom entry are table stakes (validated in stinger)
+- Three-phase animation pattern is proven (stinger: in/pause/out)
+- One-shot OBS page load trigger is reliable (sidebar validates this)
+- Canvas measureText() provides accurate text width for scroll timing
+- Performance optimization patterns are well-documented (multi-layer, offscreen cache, requestAnimationFrame)
+
+**Medium confidence findings:**
+- Dynamic hold duration based on text length is a differentiator (no competitor does this well)
+- Reading speed benchmarks (150 WPM) are general-purpose, not stream-specific (requires validation)
+- Common overlay mistakes are documented, mitigations are sound
+
+**Low confidence findings:**
+- Optimal scroll speed requires empirical testing in production streams
+- Text truncation strategy (where to truncate, how to preserve key info) needs real-world use cases
+
+**Research gaps:**
+- No specific research on raid/gift sub notification patterns in 2026 (generic alert systems documented)
+- Limited information on long-duration performance with scrolling text (existing 8-hour background validation should apply)
+- No stream-specific readability research (extrapolating from general reading speed studies)
+
+**Next steps:**
+- Implement MVP with conservative timing defaults (3000ms minimum hold, 150 WPM scroll speed)
+- Validate in production streams (5+ real raids/gift subs)
+- Adjust timing based on empirical readability feedback
+- Measure performance impact during gameplay encoding (FPS, memory)
+
+---
+
+*Feature research for: Shade component with scrolling text for major stream events*
+*Researched: 2026-01-18*

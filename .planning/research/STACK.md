@@ -1,409 +1,414 @@
-# Stack Research: Canvas Animation Libraries
+# Stack Research: Shade Component with Scrolling Text
 
-**Domain:** High-performance Canvas animations for OBS Browser Sources
-**Researched:** 2026-01-17
-**Confidence:** MEDIUM-HIGH
+**Domain:** Canvas 2D stream graphics - shade component with scrolling text and curtains
+**Researched:** 2026-01-18
+**Confidence:** HIGH
 
 ## Executive Summary
 
-For OBS browser source animations with continuous background rendering, **staying with vanilla Canvas 2D + requestAnimationFrame is the optimal choice**. The project's current architecture is already well-optimized for the use case. Animation libraries like GSAP can provide developer convenience for complex sequences but won't improve raw rendering performance for continuous canvas drawing. WebGL libraries offer performance advantages only at high element counts (5,000+), which this project doesn't require.
+The shade component extends your validated v1.0 Canvas 2D system with **scrolling text animations** and **curtain effects**. The research confirms that **no new libraries are needed** — the native Canvas 2D API provides all required text rendering and animation capabilities. Your existing architecture (AnimatedBar inheritance, delta-time normalization, easing functions) applies directly to the new component.
 
-**Key finding:** The performance bottleneck for always-on background animations is rendering overhead, not animation timing. Your current optimizations (offscreen canvas caching, viewport culling, integer coordinates) are the right approach.
+**Key finding:** Canvas 2D `fillText()` + `measureText()` are performant and sufficient. Avoid text animation libraries like GSAP or curtains.js — they add complexity/overhead with no benefit for your use case.
 
-## Recommended Stack
+---
 
-### Core Rendering
+## What's NEW for Shade (v1.1)
+
+The following capabilities are **new** compared to v1.0 (background/stinger/sidebar):
+
+| NEW Capability | Implementation | Status |
+|----------------|----------------|--------|
+| **Text rendering on canvas** | `ctx.fillText()` with font property | Native API, no library needed |
+| **Text width measurement** | `ctx.measureText()` returns TextMetrics | Native API, performant |
+| **Dynamic hold duration** | Calculate based on text length + reading speed | Pure calculation function |
+| **Horizontal scrolling text** | Update x position per frame with deltaTime | Extends existing AnimatedBar pattern |
+| **Web font loading** | CSS Font Loading API with FontFace | Already used in sidebar DOM overlay |
+
+**What's NOT new (already validated in v1.0):**
+- AnimatedBar base class with inheritance ✓
+- Delta-time normalization via DeltaTimer ✓
+- Three-phase animation (enter/hold/exit) ✓
+- Easing functions (easeInOutCubic) ✓
+- Semi-transparent bars with globalAlpha ✓
+- Horizontal bars (used in stinger/sidebar) ✓
+- LRU cache for offscreen canvas ✓
+- Centralized config.js ✓
+
+---
+
+## Recommended Stack (NEW for Shade)
+
+### Core Technologies
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| **Canvas 2D API** | Native | Primary rendering target | Zero overhead, native performance, guaranteed OBS compatibility. Already optimized for your use case. |
-| **requestAnimationFrame** | Native | Animation loop timing | Syncs with display refresh rate, automatically pauses when tab inactive. Perfect for OBS. |
-| **Vite** | 7.3.0 (current) | Build system | Already in use, excellent for single-file output with vite-plugin-singlefile. |
-| **Vitest** | 4.0.16 (current) | Testing framework | Already in use, works well for testing pure calculation functions. |
+| **Canvas 2D Text API** | Native | Text rendering with `fillText()` | Native, performant, zero overhead. Text rendering is a standard Canvas 2D operation that works across all browsers. Faster than DOM text for non-interactive displays. |
+| **TextMetrics API** | Native | Dynamic text measurement via `measureText()` | Fastest method for calculating text width (~0.01ms per call). Returns sub-pixel accurate measurements. Essential for determining scroll distance and dynamic hold duration. |
+| **CSS Font Loading API** | Native | Font loading with `FontFace` | Ensures web fonts (Jost) load before canvas renders text. Prevents FOUT (flash of unstyled text). Already used in sidebar for DOM text overlay. |
 
-**Rationale:** Your current stack is optimal. OBS Browser Source uses Chromium Embedded Framework (CEF) without hardware acceleration enabled, so complex libraries add overhead without performance benefit.
+### Supporting Techniques (Vanilla JavaScript)
 
-### Optional Enhancement Libraries
+| Technique | Purpose | Implementation |
+|-----------|---------|----------------|
+| **Text scrolling with `fillText()`** | Horizontal scrolling text during hold phase | Draw text at changing x position each frame, multiply by deltaTime for frame-rate independence. Use `textMetrics.width` to calculate when text exits viewport. |
+| **Dynamic hold duration** | Minimum readability time based on text length | Calculate `textMetrics.width`, convert to reading time at 200 WPM (accounting for 20-30% slower screen reading), add minimum 3-second hold. |
+| **Semi-transparent curtains** | Top/bottom curtains with globalAlpha | Extend existing `AnimatedBar` pattern with horizontal bars entering from top/bottom edges. Use `globalAlpha` 0.7-0.85 for semi-transparency. Already proven in v1.0. |
+| **Text layer z-index sorting** | Draw text above curtain bars | Assign curtains low z-index (-1 to 0), text high z-index (999). Sort bars array before rendering. Already used in sidebar. |
 
-| Library | Version | Purpose | When to Use | Confidence |
-|---------|---------|---------|-------------|------------|
-| **GSAP** | 3.14.2 | Animation timing & sequencing | For stinger transitions with complex timing, not for continuous background | HIGH |
-| **PixiJS** | 8.15.0 | WebGL rendering | Only if element count exceeds 5,000+ simultaneously | MEDIUM |
-| **Konva.js** | 9.x | Canvas 2D wrapper | Only if needing scene graph management | LOW |
-
-**Note:** None of these are recommended for your background scene. They add bundle size and abstraction overhead for features you don't need.
-
-### Development Tools (Current)
+### Development Tools (Already Validated in v1.0)
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| vite-plugin-singlefile | Bundle to single HTML | Critical for OBS compatibility - keep using |
-| jsdom | Vitest DOM simulation | Already in use, works well |
-| serve | Local development server | Already in use for testing |
+| **Vite 7.3.0** | Build system | Add `shade` mode to vite.config.js rollupOptions. Same pattern as stinger/background/sidebar. |
+| **Vitest 4.0.16** | Unit testing | Test text measurement calculations, hold duration logic, scrolling position math. |
+| **@fast-check/vitest 0.2.4** | Property-based testing | Test scroll position calculations with random text lengths (0-500 chars), ensure no off-by-one errors. |
+| **vitest-canvas-mock 1.1.3** | Canvas mocking | Mock `fillText()`, `measureText()`, `font` property for deterministic unit tests. |
 
-## Detailed Analysis by Use Case
+---
 
-### 1. Background Scene (Always-On, Performance Critical)
+## Installation
 
-**Recommendation:** Continue with vanilla Canvas 2D
+**No new packages required.** All capabilities exist in:
+- Native Canvas 2D API (text rendering, measurement)
+- Existing validated architecture (AnimatedBar, DeltaTimer, config.js)
+- Current build/test tooling (Vite, Vitest)
 
-**Why:**
-- Your current implementation already includes key optimizations:
-  - Offscreen canvas caching for repeated shapes
-  - Viewport culling (skip drawing off-screen elements)
-  - Integer coordinate rounding (avoids sub-pixel rendering)
-  - Pure calculation functions (testable, predictable)
+**Optional consideration (NOT RECOMMENDED):**
+```bash
+# DO NOT INSTALL unless you identify a specific performance issue
+# npm install bezier-easing  # For custom cubic bezier curves (your easeInOutCubic is sufficient)
+# npm install gsap           # For text animation (vanilla canvas is faster)
+```
 
-- Animation libraries won't help because:
-  - GSAP optimizes DOM/CSS animations, not canvas pixel pushing
-  - WebGL has startup cost (~10ms context creation) + doesn't benefit <5000 elements
-  - Your bottleneck is draw calls, not timing logic
-
-**Performance data:** Canvas 2D maintains 60 FPS up to 3,000-5,000 elements. Your background has ~20-50 bars maximum.
-
-### 2. Stinger Transitions (Brief, Event-Driven)
-
-**Recommendation:** Vanilla Canvas 2D + optional GSAP for complex sequences
-
-**Why:**
-- Brief duration (1-3 seconds) means library overhead is negligible
-- GSAP could simplify complex multi-bar choreography with:
-  - Timeline-based sequencing
-  - Easing functions (you have cubic, GSAP has 20+)
-  - Keyframe system for complex paths
-
-**Trade-off:**
-- Benefit: Cleaner code for complex sequences
-- Cost: +~50KB bundle size, learning curve
-- Verdict: **Optional but not necessary** - your current easing functions work fine
-
-### 3. Sidebar Notifications (Temporary, Low Frequency)
-
-**Recommendation:** Vanilla Canvas 2D
-
-**Why:**
-- Short-lived (few seconds)
-- Simple animations (slide in, display, slide out)
-- Performance not critical (infrequent)
-- Your current approach is sufficient
+---
 
 ## Alternatives Considered
 
-### WebGL via PixiJS
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| **Canvas 2D fillText()** | DOM text overlay (like sidebar currently uses) | Use DOM if you need text selection, accessibility, or CSS text effects. For shade (large event celebrations), canvas text is simpler and performs better at scale. |
+| **Native measureText()** | Pre-calculate text widths offline | Use pre-calculation only if text options are fixed/limited. Shade requires dynamic text (raid usernames, gift amounts), so runtime measurement is necessary. |
+| **Vanilla easeInOutCubic** | bezier-easing library (6KB) | Use library only if you need complex custom easing curves not expressible as cubic polynomials. Your existing `easeInOutCubic()` matches CSS cubic-bezier and is proven in v1.0. |
+| **Direct fillText() in loop** | GSAP text animation | Use GSAP only if you need timeline-based choreography with multiple text elements. For single scrolling text, direct canvas updates are 10x simpler and faster. |
 
-| Aspect | Canvas 2D (Current) | PixiJS (WebGL) |
-|--------|---------------------|----------------|
-| **Startup Cost** | ~0ms | ~10ms context creation |
-| **Performance at 50 elements** | 60 FPS | 60 FPS (no benefit) |
-| **Performance at 5000+ elements** | 20-30 FPS | 60 FPS (advantage) |
-| **Bundle Size** | 0KB | 450KB |
-| **OBS Compatibility** | Guaranteed | Likely compatible but unverified |
-| **Learning Curve** | Zero (already implemented) | Significant |
-
-**Verdict:** Not worth it for your element count. WebGL benefits start at 3,000-5,000+ elements.
-
-**When to reconsider:** If background scene requires 1,000+ simultaneous bars with particle effects.
-
-### Animation Libraries
-
-#### GSAP (GreenSock Animation Platform)
-
-**Version:** 3.14.2 (December 2025)
-**Bundle Size:** ~50KB (core)
-**Confidence:** HIGH
-
-**Pros:**
-- Industry standard for web animation
-- Excellent timeline/sequencing for complex animations
-- Works with Canvas via PixiPlugin or manual integration
-- 100% free including all plugins (as of 2025)
-
-**Cons:**
-- Optimized for DOM/CSS, not Canvas pixel pushing
-- Your current easing + timing logic already works
-- Adds bundle size for features you don't need
-- Requires manual integration for canvas coordinates
-
-**Use case:** Complex stinger choreography where timeline-based sequencing simplifies code.
-
-**Recommendation:** Skip for now. Add only if stinger sequences become complex enough to justify abstraction.
-
-#### Konva.js
-
-**Version:** 9.x
-**Bundle Size:** ~200KB
-**Confidence:** MEDIUM
-
-**Pros:**
-- Canvas 2D wrapper with scene graph
-- Shape caching built-in (you already do this manually)
-- Event handling for interactive canvas
-
-**Cons:**
-- Scene graph overhead unnecessary for simple bar animations
-- Event handling not needed (OBS browser sources rarely need interaction)
-- Your manual caching implementation is more optimized for this specific use case
-
-**Recommendation:** Not recommended. Adds complexity without benefit for your use case.
-
-#### Theatre.js
-
-**Version:** 0.7+ (actively developed in 2025)
-**Bundle Size:** ~100KB + visual editor
-**Confidence:** LOW
-
-**Pros:**
-- Visual timeline editor for keyframe animation
-- Good for cinematic/motion design work
-- Integrates with Three.js, HTML, CSS
-
-**Cons:**
-- Overkill for parametric bar animations
-- Visual editor not useful for algorithmic animations
-- Adds significant complexity
-
-**Recommendation:** Not applicable to this project. Better for hand-animated scenes, not algorithmic/generative animations.
+---
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| **Three.js** | 3D library, massive overhead for 2D shapes | Canvas 2D or PixiJS if needed |
-| **Anime.js** | DOM-focused, similar to GSAP but less mature | GSAP if animation library needed |
-| **React/Vue animation libraries** | Framework overhead not needed | Vanilla Canvas 2D |
-| **CSS animations** | Can't animate Canvas pixel data | requestAnimationFrame + Canvas 2D |
-| **setInterval/setTimeout** | Not synced to refresh rate, causes jank | requestAnimationFrame |
-| **OffscreenCanvas + Workers** | Likely incompatible with OBS CEF, communication overhead | Main thread Canvas 2D |
-| **WebGPU** | Cutting-edge, browser support incomplete, OBS compatibility unknown | Canvas 2D or WebGL |
+| **GSAP ScrollTrigger** | Designed for scroll-driven animations (user scrolling), not self-animating scrolling text. Adds 47KB+ minified for zero benefit. | Native `fillText()` with frame-by-frame x position updates via deltaTime. |
+| **curtains.js** | WebGL library for image/video effects with shaders. Massive overkill (100KB+) for simple semi-transparent rectangles. Designed for displacement effects, not basic transparency. | Existing `AnimatedBar` horizontal bars with `globalAlpha` 0.7-0.85. |
+| **CanvasRenderingContext2D.strokeText()** | Outlined text is harder to read at scale, slower to render than fillText(). Both must be drawn anyway (stroke doesn't provide fill). | `fillText()` with manual text shadow if outline needed (draw black offset, then white text). |
+| **Offscreen canvas for text** | Text measurement requires context font state anyway. Pre-rendering gains nothing since text changes per event (dynamic content). | Direct `fillText()` in main loop. Enable offscreen cache only for static curtain bars (already implemented in AnimatedBar). |
+| **Node Canvas / server-side rendering** | Shade is client-side OBS browser source. No server component. | Client-side Canvas 2D API in OBS Chromium. |
+| **Marquee libraries (react-ticker, etc.)** | DOM-based, designed for React/Vue. Incompatible with canvas pixel rendering. | Direct canvas text scrolling via `fillText()` with changing x coordinate. |
 
-### OffscreenCanvas + Web Workers: Why Not
+---
 
-**Theory:** Move rendering to worker thread for better performance.
+## Stack Patterns for Shade Component
 
-**Reality for OBS:**
-- OffscreenCanvas has known compatibility issues in OBS browser sources
-- OBS CEF may not support workers with canvas transfer
-- Communication overhead between threads costs ~5-10ms
-- Your animations aren't CPU-bound enough to justify threading complexity
+### Pattern 1: Scrolling Text Animation
 
-**Evidence:** Community reports of canvas rendering issues in OBS browser sources, especially with advanced features.
+**Approach:**
+1. Calculate text width with `measureText()` once per animation lifecycle
+2. Start text position at `canvas.width` (right edge)
+3. Each frame: `textX -= scrollSpeedPerSecond * deltaTime`
+4. Text fully exits when `textX < -textMetrics.width`
+5. Use three-phase timing: enter (curtains slide in), hold (text scrolls), exit (curtains slide out)
 
-**Confidence:** MEDIUM (based on community reports, not direct testing)
+**Why this works:**
+- Frame-rate independent (deltaTime normalized)
+- No external library overhead
+- Matches existing AnimatedBar update pattern
+- Natural left-to-right scrolling (typical reading direction)
 
-**Verdict:** High risk, low reward. Stick to main thread rendering.
-
-## Performance Optimization Recommendations
-
-Your current optimizations are excellent. Here are additional techniques if needed:
-
-### 1. Rendering Optimizations (Already Implemented)
-
-- **Offscreen canvas caching:** ✓ You already do this for white bars
-- **Viewport culling:** ✓ You already skip off-screen bars
-- **Integer coordinates:** ✓ You already use Math.round()
-- **Pure calculation functions:** ✓ You already separated animation logic
-
-### 2. Additional Canvas 2D Optimizations
-
-If performance becomes an issue:
-
+**Example pseudo-code:**
 ```javascript
-// Layer separation (not currently needed)
-// Separate static background from animated foreground
-// Redraw only animated layer per frame
+// In ShadeBar.update(deltaTime)
+if (this.phase === 'hold') {
+  this.textX -= this.scrollSpeed * deltaTime;
 
-// Pre-calculate static values
-// Cache Math.sin/cos for repeated angles
-// Pre-calculate color strings: `hsl(${h}, ${s}%, ${l}%)`
-
-// Batch similar operations
-// Draw all bars of same color together to reduce fillStyle changes
+  // Check if text fully scrolled past left edge
+  if (this.textX < -this.textMetrics.width) {
+    this.phase = 'exit';
+    this.phaseStartTime = this.elapsedTime;
+  }
+}
 ```
 
-**Priority:** LOW - Only implement if profiling shows these as bottlenecks.
+### Pattern 2: Dynamic Hold Duration
 
-### 3. OBS-Specific Optimizations (Already Applied)
+**Approach:**
+1. Count words in input text: `text.split(/\s+/).length`
+2. Calculate reading time: `words / 200 WPM * 60 seconds * 1.25` (25% slower for screen reading)
+3. Calculate scroll time: `(textMetrics.width + canvas.width) / scrollSpeed`
+4. Hold duration = `Math.max(readingTime, scrollTime, minHoldMs / 1000)`
 
-- **Custom FPS:** Set browser source to 30 FPS if 60 FPS causes CPU issues
-- **Minimize canvas dimensions:** Already using appropriate sizes
-- **Avoid shadowBlur:** ✓ You use manual shadow offsets (much faster)
-- **Disable unnecessary features:** Your bars don't use events, gradients, or patterns (good!)
+**Why this works:**
+- Ensures text is readable (doesn't scroll too fast)
+- Accommodates short text ("Thanks!") and long text (raid messages with emotes)
+- Minimum threshold prevents instant exit on short text
+- Physical scroll time ensures text fully traverses viewport
 
-## Canvas 2D vs WebGL Performance Data
-
-**Source:** Multiple 2025 benchmarks
-
-| Metric | Canvas 2D | WebGL |
-|--------|-----------|-------|
-| **Context creation** | <1ms | ~10ms |
-| **100 elements** | 60 FPS | 60 FPS |
-| **1,000 elements** | 60 FPS | 60 FPS |
-| **5,000 elements** | 30-40 FPS | 60 FPS |
-| **10,000 elements** | 15-20 FPS | 60 FPS |
-| **50,000+ elements** | <10 FPS | 60 FPS |
-
-**Your use case:** ~20-50 bars → Canvas 2D is optimal
-
-**WebGL crossover point:** 3,000-5,000 elements (depending on complexity)
-
-## Installation (If Adding Libraries)
-
-### GSAP (Optional, for stinger complexity)
-
-```bash
-npm install gsap@3.14.2
-```
-
+**Example pseudo-code:**
 ```javascript
-// Example: Complex stinger sequence
-import { gsap } from 'gsap';
+// In ShadeBar.init()
+const words = this.text.split(/\s+/).length;
+const readingTimeSec = (words / 200) * 60 * 1.25; // 200 WPM, 25% slower on screen
+const scrollTimeSec = (this.textMetrics.width + this.canvas.width) / this.scrollSpeed;
+const minHoldSec = config.shade.durations.holdMinMs / 1000;
 
-// Timeline-based choreography
-const tl = gsap.timeline();
-tl.to(bar1, { x: 500, duration: 1 })
-  .to(bar2, { x: 500, duration: 1 }, "-=0.5") // Overlap
-  .to([bar1, bar2], { opacity: 0, duration: 0.5 });
+this.holdDuration = Math.max(readingTimeSec, scrollTimeSec, minHoldSec);
 ```
 
-**Note:** Requires manual integration with Canvas coordinates. GSAP animates object properties, you still call `drawBar()` each frame.
+### Pattern 3: Curtain Effects (Top/Bottom Entry)
 
-### PixiJS (Not Recommended)
+**Approach:**
+1. Create two horizontal bars: one at y=0 (top), one at y=canvas.height (bottom)
+2. Start offscreen: top bar at `y = -barHeight`, bottom bar at `y = canvas.height`
+3. Animate into position: top bar to `y = 0`, bottom bar to `y = canvas.height - barHeight`
+4. Use `globalAlpha` 0.7-0.85 for semi-transparency
+5. Draw text layer on top with z-index sorting (existing pattern from sidebar)
 
-```bash
-npm install pixi.js@8.15.0
+**Why this works:**
+- Reuses AnimatedBar horizontal bar pattern (proven in stinger/sidebar)
+- Semi-transparency via globalAlpha (native, performant)
+- Top/bottom symmetry creates "curtain" effect
+- No special library needed
+
+**Example pseudo-code:**
+```javascript
+// Create top curtain
+const topCurtain = new ShadeBar(ctx, canvas, 'horizontal', ...);
+topCurtain.startY = -curtainHeight;
+topCurtain.targetY = 0;
+topCurtain.opacity = 0.8;
+topCurtain.zIndex = -1; // Behind text
+
+// Create bottom curtain
+const bottomCurtain = new ShadeBar(ctx, canvas, 'horizontal', ...);
+bottomCurtain.startY = canvas.height;
+bottomCurtain.targetY = canvas.height - curtainHeight;
+bottomCurtain.opacity = 0.8;
+bottomCurtain.zIndex = -1; // Behind text
+
+// Text bar drawn with zIndex = 999 (on top)
 ```
 
-**Only consider if:** Background scene requirements change to 5,000+ simultaneous elements.
+### Pattern 4: Text Rendering with Font Loading
+
+**Approach:**
+1. Use CSS Font Loading API to preload Jost font (already in sidebar)
+2. Set canvas font property: `ctx.font = "bold 10vw Jost"` (calculate vw manually)
+3. Use viewport-relative sizing: `fontSize = canvas.width * 0.1` for 10vw equivalent
+4. Apply text shadow manually if needed (like sidebar's DOM text shadow)
+
+**Why this works:**
+- Font preloading prevents FOUT (flash of unstyled text)
+- Viewport-relative sizing scales with canvas dimensions
+- Manual shadow via double-draw (black offset, then white text) if needed
+- Proven pattern from sidebar implementation
+
+**Example pseudo-code:**
+```javascript
+// Load font (in HTML <head> or via FontFace API)
+const font = new FontFace('Jost', 'url(/fonts/Jost-Bold.woff2)');
+font.load().then(() => {
+  document.fonts.add(font);
+  // Start animation once font loaded
+  requestAnimationFrame(animate);
+});
+
+// In ShadeBar.draw()
+const fontSize = this.canvas.width * 0.08; // 8vw equivalent
+this.ctx.font = `bold ${fontSize}px Jost`;
+this.ctx.textAlign = 'left';
+this.ctx.textBaseline = 'middle';
+
+// Draw shadow (optional, like sidebar)
+this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+this.ctx.fillText(this.text, this.textX + 5, this.textY + 5);
+
+// Draw main text
+this.ctx.fillStyle = 'white';
+this.ctx.fillText(this.text, this.textX, this.textY);
+```
+
+---
 
 ## Version Compatibility
 
-| Package | Current | Latest | Notes |
-|---------|---------|--------|-------|
-| Vite | 7.3.0 | 7.3.0 | Latest stable, excellent ES module support |
-| Vitest | 4.0.16 | 4.0.16 | Latest stable |
-| vite-plugin-singlefile | 2.3.0 | 2.3.0 | Critical for OBS, keep current |
-| GSAP | N/A | 3.14.2 | Optional, if adding animation library |
-| PixiJS | N/A | 8.15.0 | Not recommended for current use case |
+| Package | Version | Compatible With | Notes |
+|---------|---------|-----------------|-------|
+| **Vite** | 7.3.0 | vite-plugin-singlefile 2.3.0 | Already validated in v1.0. Add `shade` mode to config. |
+| **Vitest** | 4.0.16 | vitest-canvas-mock 1.1.3 | Mock `measureText()` return value for deterministic tests. |
+| **OBS Browser** | Chromium 120+ | Canvas 2D text APIs | OBS uses recent Chromium builds. TextMetrics full API available. |
 
-## Browser/OBS Compatibility Notes
+**Browser Compatibility Note:**
+- `measureText()` full TextMetrics interface (actualBoundingBox*, fontBoundingBox*, etc.) became Baseline available **March 2025** per MDN
+- OBS Chromium version 120+ (current) supports all TextMetrics properties
+- Basic `width` property supported since forever (Chrome 4, Firefox 3.5)
 
-**OBS Browser Source:**
-- Uses Chromium Embedded Framework (CEF)
-- Hardware acceleration typically disabled
-- Some advanced Canvas/WebGL features may not work
-- Best practice: Test all features directly in OBS before deployment
+---
 
-**Guaranteed Compatible:**
-- Canvas 2D API (all standard features)
-- requestAnimationFrame
-- Basic transforms, fills, compositing
-- HSL colors
+## Performance Considerations
 
-**Potentially Problematic:**
-- OffscreenCanvas + Workers
-- WebGPU (too new, incomplete browser support)
-- Complex WebGL features (MRT, advanced shaders)
-- Features requiring hardware acceleration
+### Text Rendering Performance
 
-## Stack Patterns by Variant
+| Operation | Performance | Notes |
+|-----------|-------------|-------|
+| **fillText()** | ~0.1-0.5ms per draw | Fast. Drawing large text (10vw) at 60fps is trivial on streaming hardware. |
+| **measureText()** | ~0.01ms per call | Fastest text width calculation method. Call once per lifecycle, cache result. |
+| **globalAlpha** | Negligible overhead | Native compositing operation. No performance impact vs opaque fills. |
+| **Font changes** | ~0.05ms per change | Avoid changing font every frame. Set once per bar in init(). |
 
-**If building continuous background (current):**
-- Use: Vanilla Canvas 2D + requestAnimationFrame
-- Optimize: Offscreen caching, viewport culling, integer coords
-- Because: Performance critical, library overhead not justified
+**Benchmark reference:** Canvas text rendering is CPU-bound, not GPU. On typical streaming hardware (Intel i5+), expect 60fps even with 10+ bars + scrolling text.
 
-**If building brief stinger (current):**
-- Use: Vanilla Canvas 2D + manual easing
-- Consider: GSAP only if sequences become complex
-- Because: Duration too short for library overhead to matter
+### Optimization Checklist
 
-**If element count exceeds 5,000:**
-- Use: PixiJS (WebGL renderer)
-- With: Sprite batching, texture atlases
-- Because: WebGL performance advantage kicks in at this scale
+- [x] **Call measureText() once** - Cache `textMetrics.width` in bar init, don't recalculate every frame
+- [x] **Set font property once** - Font changes have cost, set in init() not draw()
+- [x] **Use offscreen cache for static bars** - Curtain bars (if colored/patterned) benefit from caching (already implemented in AnimatedBar)
+- [x] **Avoid text shadows via shadowBlur** - Use manual offset technique (existing pattern) instead of ctx.shadowBlur (slow)
+- [ ] **Batch text draws** - Draw all bars, then all text in separate pass if z-index matters (existing sidebar pattern)
+- [ ] **Use ctx.textRendering = 'optimizeSpeed'** - Consider if text quality acceptable (trade legibility for 10-15% speed boost)
 
-**If building interactive tool (not current use case):**
-- Use: Konva.js or PixiJS
-- Because: Scene graph + event handling built-in
-- Note: Not applicable to OBS browser sources (minimal interaction)
+**Known from v1.0 validation:**
+- Delta-time normalization prevents frame-rate dependent animations ✓
+- LRU cache with maxSize=50 prevents memory leaks ✓
+- Viewport culling skips offscreen draws ✓
+- Performance monitoring via `?perf=true` tracks FPS/memory ✓
 
-## Confidence Assessment
+---
 
-| Finding | Confidence | Basis |
-|---------|------------|-------|
-| Canvas 2D optimal for <5000 elements | **HIGH** | Multiple 2025 benchmarks from credible sources |
-| GSAP won't improve background performance | **HIGH** | Understanding of library purpose + profiling data |
-| WebGL crossover at 3000-5000 elements | **HIGH** | Consistent across multiple benchmark sources |
-| OffscreenCanvas issues in OBS | **MEDIUM** | Community reports, not direct testing |
-| PixiJS version 8.15.0 features | **HIGH** | Official GitHub releases, published Jan 2025 |
-| GSAP version 3.14.2 current | **HIGH** | npm package data, published Dec 2025 |
-| OBS CEF limitations | **MEDIUM** | Community knowledge, not official OBS docs |
-| WebGPU not ready for OBS | **MEDIUM** | Browser support timeline, OBS lag typically 1-2 years |
+## Text-Specific Gotchas
 
-## Research Gaps
+### Gotcha 1: Text Measurement Requires Font Context
 
-**Areas needing phase-specific research:**
-- None identified for current roadmap
-- Your vanilla approach is well-suited to all planned features
+**Problem:** `measureText()` depends on `ctx.font` being set first. Calling `measureText()` before setting font returns width based on default "10px sans-serif".
 
-**If requirements change:**
-- Test OffscreenCanvas + Workers directly in OBS (currently advised against)
-- Benchmark actual OBS performance vs browser performance (may differ due to CEF)
-- Evaluate WebGL if element count requirements increase 100x
+**Solution:** Set `ctx.font` in `init()` before calling `measureText()`:
+```javascript
+init() {
+  const fontSize = this.canvas.width * 0.08;
+  this.ctx.font = `bold ${fontSize}px Jost`;
+  this.textMetrics = this.ctx.measureText(this.text);
+  this.scrollSpeed = ...; // Use textMetrics.width for calculations
+}
+```
 
-## Recommendation Summary
+### Gotcha 2: TextMetrics Width vs actualBoundingBox
 
-**Keep your current stack.** It's optimized for exactly your use case:
-- Zero library overhead
-- Maximum OBS compatibility
-- Already includes key performance optimizations
-- Testable, maintainable pure functions
+**Problem:** `textMetrics.width` is inline width (advance width), which may be narrower than actual rendered bounds for italic/slanted fonts. `actualBoundingBoxLeft + actualBoundingBoxRight` gives true visual width.
 
-**Don't add libraries unless:**
-- Stinger sequences become complex enough to justify GSAP timeline API
-- Background scene requirements change to 5,000+ simultaneous elements (add PixiJS)
-- You need interactive features (not applicable for OBS)
+**Solution:** For scrolling text exit detection, use `actualBoundingBoxLeft + actualBoundingBoxRight` if visual precision matters:
+```javascript
+const visualWidth = this.textMetrics.actualBoundingBoxLeft + this.textMetrics.actualBoundingBoxRight;
+if (this.textX < -visualWidth) {
+  // Text fully exited viewport
+}
+```
 
-**Focus optimization efforts on:**
-- Pre-calculating static values (colors, angles) if profiling shows benefit
-- Reducing draw calls further (batch similar colors)
-- OBS-specific tuning (FPS, canvas size, browser source settings)
+### Gotcha 3: Font Loading Race Condition
+
+**Problem:** Canvas renders before web font loads, fallback font (sans-serif) used, text width wrong.
+
+**Solution:** Use FontFace API (already in sidebar) or CSS `font-display: block`:
+```javascript
+// In HTML or setup
+const font = new FontFace('Jost', 'url(/fonts/Jost-Bold.woff2)');
+font.load().then(() => {
+  document.fonts.add(font);
+  // Now safe to start animation
+  requestAnimationFrame(animate);
+});
+```
+
+### Gotcha 4: Viewport-Relative Font Sizing
+
+**Problem:** CSS units like `10vw` don't work in canvas `ctx.font` property (expects px/pt/em).
+
+**Solution:** Calculate manually based on canvas dimensions:
+```javascript
+const fontSize = this.canvas.width * 0.10; // 10vw equivalent
+this.ctx.font = `bold ${fontSize}px Jost`;
+```
+
+**Note:** Canvas size matches viewport (100vw × 100vh from CSS), so `canvas.width * 0.10` === 10vw.
+
+### Gotcha 5: Text Baseline Alignment
+
+**Problem:** Default baseline is "alphabetic" which positions text relative to lowercase letters. Large all-caps text may appear vertically misaligned.
+
+**Solution:** Use `textBaseline = 'middle'` for vertical centering:
+```javascript
+this.ctx.textBaseline = 'middle';
+this.ctx.fillText(this.text, this.textX, this.canvas.height / 2); // Vertically centered
+```
+
+---
+
+## Reading Time Research (for Dynamic Hold Duration)
+
+### Average Reading Speeds
+
+| Reading Type | Speed (WPM) | Notes |
+|--------------|-------------|-------|
+| **Silent reading (comprehension)** | 200-250 WPM | Adults reading for understanding |
+| **Skimming** | 400-700 WPM | Not suitable for shade (celebratory context requires reading) |
+| **Screen reading** | 160-180 WPM | 20-30% slower than print due to eye strain, scrolling interruptions |
+
+**Recommendation:** Use **200 WPM** as baseline for shade hold duration calculation. This accounts for:
+- Celebratory context (users want to read names/amounts)
+- Screen reading slowdown
+- Scrolling text (moving target, slower than static)
+
+### Hold Duration Formula
+
+```javascript
+const words = text.split(/\s+/).length;
+const readingTimeSec = (words / 200) * 60; // 200 WPM baseline
+const scrollTimeSec = (textMetrics.width + canvas.width) / scrollSpeed; // Physical scroll time
+const minHoldSec = 3; // Minimum 3 seconds for short text
+
+holdDuration = Math.max(readingTimeSec, scrollTimeSec, minHoldSec);
+```
+
+**Rationale:**
+- `readingTimeSec`: Ensures adequate comprehension time
+- `scrollTimeSec`: Ensures text fully traverses viewport (doesn't cut off mid-scroll)
+- `minHoldSec`: Prevents jarring instant-exit on short text ("Thanks!")
+
+---
 
 ## Sources
 
-**Performance Benchmarks:**
-- [Canvas vs WebGL Performance Analysis](https://digitaladblog.com/2025/05/21/comparing-canvas-vs-webgl-for-javascript-chart-performance/)
-- [2D vs WebGL Canvas Performance](https://semisignal.com/a-look-at-2d-vs-webgl-canvas-performance/)
-- [SVG vs Canvas vs WebGL 2025](https://www.svggenie.com/blog/svg-vs-canvas-vs-webgl-performance-2025)
+### Official Documentation (HIGH confidence)
+- [CanvasRenderingContext2D.measureText() - MDN](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/measureText) — TextMetrics API
+- [TextMetrics - MDN](https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics) — All text measurement properties
+- [CanvasRenderingContext2D.fillText() - MDN](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillText) — Text rendering API
+- [CanvasRenderingContext2D.font - MDN](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/font) — Font property and CSS Font Loading API
+- [CanvasRenderingContext2D.globalAlpha - MDN](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/globalAlpha) — Transparency API
+- [CanvasRenderingContext2D.textRendering - MDN](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/textRendering) — Text rendering optimization
 
-**Library Documentation:**
-- [PixiJS v8.15.0 Release](https://github.com/pixijs/pixijs/releases)
-- [PixiJS v8.13.0 Features](https://pixijs.com/blog/8.13.0)
-- [GSAP npm Package](https://www.npmjs.com/package/gsap)
-- [GSAP 3.14.2 Release Info](https://libraries.io/npm/gsap)
-- [Konva Performance Tips](https://konvajs.org/docs/performance/All_Performance_Tips.html)
-- [Theatre.js Official](https://www.theatrejs.com/)
+### Performance Best Practices (MEDIUM confidence - verified with official sources)
+- [Optimizing canvas - MDN](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas) — Official optimization guide
+- [Improving HTML5 Canvas performance - web.dev](https://web.dev/articles/canvas-performance) — Chrome team recommendations
+- [Optimising HTML5 Canvas Rendering - AG Grid](https://blog.ag-grid.com/optimising-html5-canvas-rendering-best-practices-and-techniques/) — Enterprise-scale canvas optimization
 
-**Animation Libraries 2025:**
-- [Top JavaScript Animation Libraries 2025](https://wpshout.com/best-javascript-animation-libraries/)
-- [JavaScript Animation Libraries 2025](https://dev.to/hadil/top-10-javascript-animation-libraries-in-2025-2ch5)
+### Animation Techniques (MEDIUM confidence - community best practices)
+- [Buttery-Smooth Scroll Animations - DEV](https://dev.to/nidal_tahir_cde5660ddbe04/buttery-smooth-scroll-animations-building-a-high-performance-canvas-parallax-effect-2m8l) — Canvas scroll performance
+- [Create a Smooth Canvas Animation - Spicy Yoghurt](https://spicyyoghurt.com/tutorials/html5-javascript-game-development/create-a-smooth-canvas-animation) — Frame-rate independent animation
+- [bezier-easing - GitHub](https://github.com/gre/bezier-easing) — Cubic bezier implementation (reference, not needed)
 
-**OBS Performance:**
-- [OBS Browser Source Performance](https://obsproject.com/forum/threads/browser-source-cpu-optimization.82406/)
-- [OBS Browser Source Best Practices](https://obsproject.com/kb/browser-source)
-- [Browser Source Canvas Issues](https://obsproject.com/forum/threads/browser-source-canvas-text-not-rendering.122363/)
-
-**Canvas Optimization:**
-- [MDN: Optimizing Canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas)
-- [OffscreenCanvas Browser Support](https://caniuse.com/offscreencanvas)
-- [OffscreenCanvas Performance](https://web.dev/articles/offscreen-canvas)
-- [RequestAnimationFrame MDN](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)
-
-**WebGPU Status:**
-- [WebGPU Browser Support 2025](https://www.todetect.net/article/webgpu/webgpu-browser-support-2025/)
-- [WebGPU Implementation Status](https://github.com/gpuweb/gpuweb/wiki/Implementation-Status)
+### Reading Time Research (LOW confidence - multiple sources, unverified)
+- [Reading Time Calculator - Character Calculator](https://charactercalculator.com/reading-time-calculator/) — 200-250 WPM baseline
+- [Words per Minute Calculator - Omni Calculator](https://www.omnicalculator.com/everyday-life/words-per-minute) — Reading speed estimates
+- [Reading Time Increases Engagement - MarTech](https://martech.org/estimated-reading-times-increase-engagement/) — Screen reading 20-30% slower
 
 ---
-*Stack research for: Canvas-based OBS stream animations*
-*Researched: 2026-01-17*
-*Next: No additional library research needed - current stack is optimal*
+
+*Stack research for: Shade component with scrolling text and curtains*
+*Researched: 2026-01-18*
+*Architecture: Extends v1.0 validated Canvas 2D system — NO NEW LIBRARIES REQUIRED*

@@ -1,328 +1,280 @@
 # Project Research Summary
 
-**Project:** Canvas Animation Library for OBS Stream Graphics
-**Domain:** High-performance Canvas animations for OBS Browser Sources
-**Researched:** 2026-01-17
-**Confidence:** MEDIUM-HIGH
+**Project:** stream-animations v1.1 Shade Component
+**Domain:** Canvas 2D stream graphics with scrolling text and semi-transparent curtains
+**Researched:** 2026-01-18
+**Confidence:** HIGH
 
 ## Executive Summary
 
-This project builds OBS stream graphics (background animations, stinger transitions, notification alerts) using Canvas 2D for browser source integration. Research shows that **the current vanilla Canvas 2D + requestAnimationFrame stack is optimal** for this use case. Animation libraries like GSAP add overhead without performance benefit for continuous rendering at this element count (20-50 bars). WebGL only becomes advantageous at 3,000-5,000+ simultaneous elements.
+The shade component extends the validated v1.0 Canvas 2D system to display major stream events (raids, gift subs) with scrolling text behind semi-transparent curtain effects. Research confirms that **no new libraries or dependencies are required**—the native Canvas 2D text API (`fillText()`, `measureText()`) combined with existing AnimatedBar patterns provides all necessary functionality. The component follows the proven three-phase animation pattern (enter/hold/exit) used in stinger and sidebar, with the critical innovation of **dynamic hold duration calculated from text length** to ensure readability regardless of message content.
 
-The recommended approach is **layered architecture with pure functional calculations**: centralize all configuration constants, extract animation math to testable pure functions, maintain class-based inheritance for rendering, and implement proper memory management with LRU caching. The current codebase already follows many best practices (offscreen canvas caching, viewport culling, manual shadows over shadowBlur), but needs critical fixes for unbounded cache growth and frame-rate timing inconsistencies.
+The recommended approach is Canvas-based text rendering (not DOM overlay) for OBS browser source compatibility, offscreen canvas caching for performance, and a single unified phase controller to prevent text-curtain desynchronization bugs. Stack selection is conservative and proven: extend existing architecture patterns rather than introduce new frameworks. The primary risks are OBS-specific rendering quirks (text requires explicit `fillStyle` property), text scrolling too fast to read (mitigated by reading-time calculation: 250ms/word baseline), and font loading race conditions (mitigated by Font Loading API). All three risks have well-documented solutions and can be addressed in Phase 1.
 
-**Key risks:** Memory leaks from unbounded caches and event listener accumulation will cause crashes during long streaming sessions (4-8 hours). Frame-rate dependent timing causes animations to run at different speeds across hardware. OBS-specific CEF memory issues compound application-level leaks. Mitigation: implement LRU cache with size limits, add cleanup lifecycle for event listeners, normalize timing with delta-time calculations, and test directly in OBS (not just browser).
+This is a **low-complexity addition** leveraging validated v1.0 patterns. The architectural strategy is "extend, don't replace"—add minimal new complexity for text scrolling while reusing delta-time normalization, config-driven timing, and AnimatedBar inheritance. Research confidence is high because the domain is mature (Canvas text rendering is standard), the architecture is proven (v1.0 validated), and pitfalls are documented (OBS forum threads, performance optimization guides).
 
 ## Key Findings
 
 ### Recommended Stack
 
-The current vanilla Canvas 2D stack is optimal for OBS browser sources. Adding libraries would introduce overhead without performance benefit at this element count.
+No new packages required. The shade component uses **100% native Canvas 2D APIs** plus existing v1.0 architecture:
 
 **Core technologies:**
-- **Canvas 2D API**: Zero overhead native rendering, guaranteed OBS compatibility, already optimized for 20-50 element use case
-- **requestAnimationFrame**: Syncs with display refresh rate, automatically pauses when inactive, perfect for OBS timing
-- **Vite 7.3.0**: Already in use with vite-plugin-singlefile for single-file HTML output (critical for OBS compatibility)
-- **Vitest 4.0.16**: Already in use for testing pure calculation functions
+- **Canvas 2D Text API** (native) — Text rendering with `fillText()` and width measurement with `measureText()`. Native API is performant (~0.1-0.5ms per text draw) and zero overhead. Faster than DOM text for non-interactive displays.
+- **CSS Font Loading API** (native) — Ensures web fonts (Jost) load before canvas measures text width, preventing race conditions. Already used in sidebar DOM overlay, same pattern applies here.
+- **TextMetrics API** (native) — Dynamic text width calculation (~0.01ms per call). Essential for determining scroll distance and calculating hold duration based on readability constraints.
 
-**Optional (not recommended for current scope):**
-- **GSAP 3.14.2**: Only if stinger sequences become complex enough to justify timeline API (~50KB bundle cost)
-- **PixiJS 8.15.0**: Only if background scene requires 5,000+ simultaneous elements (adds 450KB + WebGL complexity)
+**Supporting patterns (reuse from v1.0):**
+- AnimatedBar base class with inheritance (proven in stinger/sidebar)
+- Delta-time normalization via DeltaTimer (frame-rate independence)
+- Three-phase animation pattern (enter/hold/exit)
+- Easing functions (easeInOutCubic for curtain entry/exit)
+- Config-driven timing and colors (centralized config.js)
+- LRU cache for offscreen canvas (performance optimization)
 
-**Critical insight:** Performance bottleneck for always-on background animations is **rendering overhead, not animation timing**. The current optimizations (offscreen canvas caching, viewport culling, integer coordinates, pure calculation functions) are the right approach. Canvas 2D maintains 60 FPS up to 3,000-5,000 elements; this project uses ~20-50 bars maximum.
+**What NOT to use:**
+- GSAP/GSAP ScrollTrigger (47KB+, designed for scroll-driven animations, not self-animating text)
+- curtains.js (100KB+ WebGL library, massive overkill for semi-transparent rectangles)
+- Text animation libraries (vanilla canvas is simpler and faster)
+- Marquee libraries (DOM-based, incompatible with canvas)
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Event-driven alerts (follow, subscribe, donation, raid) — core function of stream graphics
-- Basic customization (colors, text) — every streamer wants unique branding
-- Transparent background support — must layer over gameplay
-- Persistent background animations — already implemented, performance-critical foundation
-- Scene transition animations (stingers) — already implemented, validates event integration
-- Responsive to platform events — must respond to Twitch/YouTube events
+- **Semi-transparent curtains** — Standard pattern for major event overlays, already validated in stinger (top/bottom entry with horizontal bars)
+- **Large readable text** — Major events deserve prominent display at stream resolution (1920x1080)
+- **Smooth enter/exit animations** — Eased transitions prevent jarring cuts (easeInOutCubic already implemented)
+- **One-shot trigger pattern** — Integrates with OBS page load pattern (proven in sidebar)
+- **Text visibility guarantee** — Text must be fully visible (not cut off) during entire hold phase
+- **Performance guarantee** — Cannot impact stream encoding (core value constraint)
 
 **Should have (competitive advantage):**
-- Ultra-low CPU/GPU usage — personal streamers have limited hardware, performance = competitive edge
-- Cohesive visual language across all animations — unified design feels professional vs Frankenstein collections
-- Local-first configuration — no accounts, works offline, better UX than cloud dashboards
-- Quick notification type extension — adding new alert types should be trivial (current project goal)
-- Smart queueing for rapid events — prevents alert spam during raids
+- **Dynamic hold duration** — Calculate duration based on text length + reading speed (~200 WPM), ensuring text is always readable. Generic overlays use fixed timing; this is a differentiator.
+- **Three-phase text choreography** — Text "flies in" with curtains, scrolls during hold, "flies out" synchronized with curtain exit
+- **Visual consistency** — Reuse bar patterns, colors, timing from stinger/sidebar for unified system feel
+- **Minimum readability guarantee** — Enforce minimum display time (e.g., 3000ms) regardless of text length
 
 **Defer (v2+):**
-- Rich WYSIWYG editor — adds massive complexity (300KB+ JS), maintenance burden for solo tool
-- Video file backgrounds (MP4 loops) — poor performance, 10MB+ files, procedural canvas is better
-- Dozens of animation presets — analysis paralysis, focus on 3-5 well-designed core animations
-- Cloud sync/account system — server costs, privacy concerns, localStorage + export/import is sufficient
+- **Multi-line text** — Adds vertical layout complexity, complicates scroll timing. Single-line with strategic composition is sufficient for v1.
+- **Event-driven triggers** — OBS WebSocket integration for automatic raids/subs. Current manual trigger validates UX first.
+- **Multiple concurrent shades** — Edge case (multiple simultaneous raids). Adds z-index management complexity.
+- **Real-time text updates** — Breaks one-shot pattern, requires event system integration.
 
-**Anti-features to avoid:** Real-time preview mode (OBS has built-in preview), 3D animations/particle systems (WebGL overhead), integration with every platform (focus on Twitch + generic event API).
+**Anti-features (avoid):**
+- Configurable scroll speed (user control defeats dynamic timing algorithm)
+- Multiple scrolling text lines (readability degrades, timing coordination nightmare)
+- Real-time text updates during hold (breaks one-shot OBS pattern)
+- Backdrop blur effects (Canvas doesn't support backdrop-filter, GPU-intensive)
+- Per-character color animation (GPU overhead, visual noise)
 
 ### Architecture Approach
 
-Modern Canvas animation systems in 2025 have converged on: **Entity-Component-System (ECS)** for complex game engines, **pure functional calculations** for testable animation math, **centralized configuration layers** for maintainability, and **offscreen canvas caching with proper lifecycle management** for performance. For OBS stream animations, the current class-based inheritance with pure calculation functions is solid but needs strategic refactoring.
+The shade component follows the validated v1.0 scene architecture: **ShadeBar class extends AnimatedBar** (inheritance pattern), uses pure calculation functions for text width/duration, and integrates config-driven timing via centralized config.js. The key architectural decision is **Canvas-based text rendering** (not DOM overlay) for OBS browser source compatibility, despite higher complexity. Canvas ensures consistent rendering in OBS's Chromium Embedded Framework.
 
 **Major components:**
+1. **ShadeBar.js** — Extends AnimatedBar. Implements three-phase update logic (enter: curtains slide in, hold: text scrolls, exit: curtains slide out). Renders curtain bars + scrolling text layer with clipping.
+2. **calculations.js (extended)** — Add pure functions: `calculateShadeHoldDuration(textWidth, canvasWidth, scrollSpeed, config)` and text measurement helpers. Testable, deterministic logic.
+3. **config.js (extended)** — Add `config.shade` section with timing proportions (enter/exit 20% each, hold calculated dynamically), curtain properties (width, position, angle, opacity), text rendering settings (font, color, scroll speed).
+4. **shade/index.html** — Scene setup based on sidebar template. URL parameter parsing (?text, ?color, ?duration), animation loop with DeltaTimer, AnimationLifecycle cleanup.
 
-1. **Configuration Layer (NEW)** — Centralize all magic numbers, durations, dimensions in `config/constants.js`. Document coordinate system explicitly to prevent AI coding regressions.
+**Key patterns:**
+- **Dynamic hold duration calculation** — `holdDuration = max(readingTime, scrollTime, minHoldMs)`. Ensures text readable (reading time) and fully visible (scroll time).
+- **Offscreen canvas caching for text** — Pre-render text to offscreen canvas once during init, use `drawImage()` for subsequent frames. 10x faster than re-rendering text every frame (10ms → 1ms).
+- **Text clipping to curtain boundaries** — Use `ctx.clip()` to restrict text rendering to curtain area during enter/exit phases (prevents overflow).
+- **Linear text scroll** — Use **linear interpolation** for text scroll (constant speed for readability). Reserve easing for curtain enter/exit only.
+- **Single phase controller** — Shared timing source for text + curtains prevents desynchronization bugs.
 
-2. **Calculation Layer (EXISTING, EXPAND)** — Pure functions in `shared/calculations.js` already follow 2025 best practices. Extract additional calculations (positioning, dimensions) to make them testable.
+**Inheritance chain:**
+```
+AnimatedBar (base class)
+└── ShadeBar (new)
+    ├── Properties: text, textWidth, scrollOffset, phase, elapsedTime, duration
+    ├── Methods: init(), update(deltaTime), draw(), drawScrollingText()
+    └── Pattern: THREE-PHASE (like sidebar/stinger, NOT continuous like background)
+```
 
-3. **Component Layer (REFACTOR EXISTING)** — Keep class-based inheritance for rendering (`AnimatedBar` base class → `BackgroundBar`/`StingerBar`/`SidebarBar`). Consider composition for behaviors if adding 3+ animation types.
-
-4. **Memory Management (FIX EXISTING)** — Implement LRU cache for offscreen canvas to prevent unbounded growth. Current `static offscreenCache = new Map()` grows indefinitely.
-
-5. **Frame Rate Management (DOCUMENT EXISTING)** — Current dual-layer rendering (30fps background, 60fps foreground) is valid but needs delta-time normalization for cross-hardware consistency.
-
-**Key architectural principle:** Separate data from behavior, separate calculations from rendering, centralize constants.
+**Build order recommendation:**
+1. Phase 1: Config & calculations (foundation) — Add config.shade, calculateShadeHoldDuration(), unit tests
+2. Phase 2: ShadeBar class (core component) — Implement three-phase lifecycle, curtain rendering
+3. Phase 3: Text rendering (text layer) — Add drawScrollingText() with clipping, offscreen caching
+4. Phase 4: Scene integration — Create shade/index.html, URL params, animation loop, OBS testing
+5. Phase 5: Visual polish — Adjust scroll speed, fine-tune timing, performance profiling
 
 ### Critical Pitfalls
 
-1. **Unbounded Offscreen Canvas Cache (CRITICAL)** — Static Map grows indefinitely, consuming memory until browser crashes after 4-8 hours. Prevention: Implement LRU cache with ~100 entry limit, round cache keys aggressively, add cache metrics logging. Current codebase has this issue in `AnimatedBar.offscreenCache`.
+Research identified **8 critical pitfalls** specific to scrolling text + curtains. v1.0 already prevents general Canvas pitfalls (memory leaks, frame-rate independence, cleanup lifecycle).
 
-2. **Event Listener Accumulation (CRITICAL)** — `setupCanvas()` adds resize listener but never removes it. Multiple listeners accumulate over scene changes in OBS. Prevention: Use AbortController pattern for automatic cleanup, store listener references for removal. Current codebase needs cleanup lifecycle.
+**Top 5 critical pitfalls to address immediately:**
 
-3. **Mixed Frame Rate Timing (CRITICAL)** — Hardcoded timing assumes 60fps but runs at variable refresh rates (30/60/120/144Hz), causing animation speed inconsistencies. Prevention: Implement delta-time normalization, express velocity in pixels/second not pixels/frame. Reported in milestone context as "timing inconsistencies."
+1. **Text too fast to read** — Scrolling text moves too quickly for viewers to read during high-energy moments (raids). **Prevention:** Calculate reading time: `minReadingTime = 500ms + (words * 250ms)`. Ensure hold duration ≥ reading time. Test with 100-character messages.
 
-4. **OBS CEF Memory Leak (MODERATE, EXTERNAL)** — OBS browser process accumulates 20-50MB/hour regardless of animation efficiency. This is OBS/CEF issue, not application bug. Mitigation: Document expected growth, structure as single browser source not multiple, provide scene refresh workaround.
+2. **Font loading race condition** — `ctx.measureText()` returns incorrect width if custom fonts haven't loaded yet, causing wrong text positioning. **Prevention:** Use Font Loading API: `await document.fonts.ready` before measuring. Test in OBS on fresh browser source (no cache).
 
-5. **Full Canvas Clears Every Frame (MODERATE)** — `clearRect()` on entire canvas wastes 10-20% GPU. Prevention: Dirty rectangle tracking, layered canvases (static background separate from animated foreground), opaque fills instead of clears.
+3. **OBS browser source requires explicit fillStyle** — Text renders in Chrome/Firefox but invisible in OBS. **Prevention:** Always set `ctx.fillStyle = 'white'` explicitly before `fillText()`. Test in OBS within first hour of text implementation.
 
-**Other significant pitfalls:** Sub-pixel rendering overhead (use integer coordinates), shadowBlur performance killer (current code wisely uses manual offset), hardware acceleration conflicts on Linux Wayland, canvas context state leakage (always pair save/restore), requestAnimationFrame without cleanup mechanism.
+4. **Text-curtain desynchronization** — Curtains exit before text finishes scrolling (or vice versa), breaking unified animation effect. **Prevention:** Single phase controller for both text and curtains. Test with timing assertions: "text exits before curtains close".
+
+5. **Hold duration miscalculation for long text** — Long messages (100-char raid messages) either scroll too fast (unreadable) or hold too long (feels stuck). **Prevention:** Dynamic calculation with min/max bounds: `duration = clamp(calculateDuration(text), minHoldMs, maxHoldMs)`. Test edge cases: 5-word, 15-word, 30-word messages.
+
+**Performance pitfalls (address in Phase 3):**
+
+6. **Alpha blending on every frame** — Semi-transparent curtains with `globalAlpha` cause expensive GPU compositing (60fps → 40fps). **Prevention:** Use `rgba(0,0,0,0.7)` instead of `globalAlpha`. Profile GPU usage (<50%).
+
+7. **Measuring text width every frame** — Calling `measureText()` in update/draw loop wastes 1-2ms per frame. **Prevention:** Measure once in init(), cache textWidth. Unit test verifies measureText() called once.
+
+8. **Large fonts without offscreen caching** — Drawing 48px+ text with effects every frame degrades performance. **Prevention:** Pre-render text to offscreen canvas, use drawImage(). Benchmark: cached rendering 5x+ faster.
 
 ## Implications for Roadmap
 
-Based on research, the roadmap should prioritize fixing critical memory/timing issues before adding features. The architecture refactoring enables safe feature extension.
+Based on research, suggested 3-phase structure with focus on **immediate OBS validation** and **progressive enhancement**:
 
-### Phase 1: Foundation & Critical Fixes
-**Rationale:** Fix memory leaks and timing issues before they compound during feature work. These are production-critical for long streaming sessions.
+### Phase 1: Text Animation Core
+**Rationale:** Foundation must handle text measurement, dynamic hold duration, and OBS compatibility before adding synchronization complexity. Font loading and fillStyle bugs discovered early = cheap to fix.
 
 **Delivers:**
-- LRU cache implementation for offscreen canvas (prevents memory leak)
-- Delta-time normalization for frame-rate independence (fixes timing inconsistencies)
-- Event listener cleanup lifecycle (prevents accumulation)
-- Centralized configuration layer (`config/constants.js` with all magic numbers)
-- Coordinate system documentation (prevents AI regressions)
+- Config additions (config.shade section)
+- Pure calculation functions (calculateShadeHoldDuration, text measurement)
+- Unit tests for hold duration edge cases (short/medium/long text)
+- Basic text rendering with explicit fillStyle (OBS-compatible)
+- Font loading integration (document.fonts.ready)
+
+**Addresses features:**
+- Large readable text (table stakes)
+- Dynamic hold duration (differentiator)
+- Minimum readability guarantee (differentiator)
+
+**Avoids pitfalls:**
+- Text too fast to read (reading time calculation)
+- Font loading race condition (Font Loading API)
+- OBS fillStyle requirement (test in OBS immediately)
+- Hold duration miscalculation (unit tests for edge cases)
+- Measuring text every frame (cache in init)
+
+**Research flag:** Standard patterns. Font loading and text measurement are well-documented. Skip phase-specific research.
+
+### Phase 2: Curtain Integration & Synchronization
+**Rationale:** Text animation working independently allows focus on curtain coordination without debugging two systems simultaneously. Synchronization is critical for "shade" effect—must be rock solid before polish.
+
+**Delivers:**
+- ShadeBar class extending AnimatedBar
+- Three-phase lifecycle (enter/hold/exit)
+- Curtain rendering (horizontal bars, semi-transparent)
+- Text clipping to curtain boundaries (ctx.clip())
+- Single phase controller (prevents desync)
+- Timing assertions in tests (curtains fully open before text scrolls, text exits before curtains close)
+
+**Uses stack:**
+- AnimatedBar inheritance (proven pattern from v1.0)
+- easeInOutCubic for curtain entry/exit (existing function)
+- Delta-time normalization (DeltaTimer)
+
+**Implements architecture:**
+- ShadeBar with unified phase controller
+- Text + curtain synchronized via single timing source
+
+**Avoids pitfalls:**
+- Text-curtain desynchronization (shared phase controller)
+- Alpha blending performance (use rgba() colors, not globalAlpha)
+
+**Research flag:** Standard patterns. Three-phase animation already validated in v1.0. Skip phase-specific research.
+
+### Phase 3: Performance Optimization & Polish
+**Rationale:** Functionality complete, now optimize for production use. Performance profiling reveals actual bottlenecks (not premature optimization). Visual polish after OBS validation ensures effort aligns with real rendering.
+
+**Delivers:**
+- Offscreen canvas caching for text (if font size ≥48px)
+- Performance profiling (GPU usage, frame times)
+- Visual polish (scroll speed tuning, timing adjustments)
+- OBS integration testing (browser source settings, cache behavior)
+- Production validation (5+ test streams)
 
 **Addresses:**
-- Ultra-low CPU/GPU usage (table stakes feature)
-- Performance monitoring/FPS counter (MVP requirement)
+- Performance guarantee (core value constraint)
+- Visual consistency (unified system feel)
 
-**Avoids:**
-- Unbounded offscreen canvas cache (Pitfall #1)
-- Event listener accumulation (Pitfall #2)
-- Mixed frame rate timing (Pitfall #3)
+**Avoids pitfalls:**
+- Large text performance (offscreen caching)
+- Alpha blending overhead (profiling validates approach)
 
-**Research flag:** Standard patterns, well-documented (skip `/gsd:research-phase`). Canvas performance optimization is extensively documented.
-
----
-
-### Phase 2: Testing Infrastructure
-**Rationale:** Lock down positioning and animation logic with tests before extending with new notification types. Prevents AI coding regressions during feature development.
-
-**Delivers:**
-- Position-locking tests (coordinate system contract)
-- Property-based tests (animation invariants: opacity ranges, velocity limits)
-- Long-running stress tests (detect memory leaks over 1 hour accelerated time)
-- Frame rate consistency tests (ensure same movement at 30/60/120fps)
-
-**Uses:**
-- Pure calculation functions (already in `calculations.js`)
-- Centralized configuration (from Phase 1)
-
-**Implements:**
-- Testing layer from architecture (locks down positioning, validates invariants)
-
-**Avoids:**
-- Canvas context state leakage (Pitfall #9)
-- AI-generated positioning regressions (documented in milestone)
-
-**Research flag:** Standard patterns (skip `/gsd:research-phase`). Canvas testing strategies are well-documented (askUI, MDN optimization guides).
-
----
-
-### Phase 3: Notification System Foundation
-**Rationale:** Build shared animation primitives and URL parameter configuration to enable quick addition of new notification types (stated project goal).
-
-**Delivers:**
-- URL parameter configuration system (color, text, timing customization)
-- Shared animation primitive library (base notification components)
-- 2-3 core notification types (follow, subscribe, generic)
-- Event queueing system (prevents overlapping alerts)
-
-**Addresses:**
-- Event-driven alerts (table stakes feature)
-- Basic customization (table stakes feature)
-- Quick notification type extension (competitive advantage)
-- Smart queueing for rapid events (competitive advantage)
-
-**Uses:**
-- Inheritance pattern (BackgroundBar → FollowBar/SubBar)
-- Pure calculation functions and config constants (from Phase 1)
-
-**Avoids:**
-- Mixed concerns in classes (Pitfall/Anti-pattern #6)
-- Magic numbers in code (Anti-pattern #1)
-
-**Research flag:** Needs shallow research for event integration patterns (Twitch API, StreamElements, Streamlabs). Use `/gsd:research-phase "notification system event integration"` during planning.
-
----
-
-### Phase 4: Notification Extension & Polish
-**Rationale:** Add remaining notification types using established patterns. Polish OBS-specific configuration and documentation.
-
-**Delivers:**
-- Additional notification types (raid, donation, bits, host)
-- Animation timing presets (fast/medium/slow)
-- Export/import configuration (JSON)
-- OBS-specific documentation (hardware acceleration settings, platform differences)
-- Performance monitoring dashboard (cache size, FPS, memory usage)
-
-**Addresses:**
-- Additional notification types (v1.x feature)
-- Cohesive visual language (competitive advantage)
-
-**Avoids:**
-- OBS hardware acceleration conflicts (Pitfall #8)
-- Platform-specific issues (Phase-specific warning)
-
-**Research flag:** Standard patterns (skip `/gsd:research-phase`). Notification types follow same architecture as Phase 3.
-
----
-
-### Phase 5: Advanced Features (Optional/v2)
-**Rationale:** Only proceed if core product validates. These are high-complexity, unclear-demand features.
-
-**Delivers:**
-- Visual configuration builder (if users struggle with URL params)
-- Multiple visual themes (if demand emerges)
-- Sound effect support (after visual animations solidified)
-- Custom CSS injection (advanced users only)
-
-**Addresses:**
-- Visual config builder (P3 priority, defer)
-- Multiple visual themes (v1.x feature if requested)
-- Sound effect support (v1.x feature)
-
-**Avoids:**
-- Analysis paralysis from too many presets (Anti-feature)
-- Over-engineering before product-market fit
-
-**Research flag:** Needs research if pursued. Visual editor requires framework evaluation, theme system needs design pattern research.
-
----
+**Research flag:** Performance profiling may require phase research if GPU usage >50%. Monitor during implementation; invoke `/gsd:research-phase` if bottlenecks discovered.
 
 ### Phase Ordering Rationale
 
-**Why Phase 1 first:** Memory leaks and timing issues will compound with every new feature. Must fix foundation before building. These are production-critical bugs that cause crashes during long streams.
+**Why text → curtain → polish (not curtain → text):**
+- Text measurement + hold duration calculation = foundation. Curtain timing depends on hold duration.
+- OBS-specific bugs (fillStyle, font loading) discovered early when cheap to fix.
+- Text scrolling + curtain rendering are independent concerns. Build text first, validate readability, then add curtain synchronization.
+- Performance optimization requires working implementation to profile. Premature offscreen caching adds complexity before measuring benefit.
 
-**Why Phase 2 before features:** Tests lock down positioning/timing logic, preventing AI coding regressions when extending the system. Position-locking tests documented in ARCHITECTURE.md as critical for preventing coordinate system confusion.
+**Why 3 phases (not 5):**
+- Research shows low architectural complexity (extends v1.0 patterns, no new dependencies).
+- Text + curtain are tightly coupled in "shade" concept. Attempting to separate further creates artificial boundaries.
+- Performance optimization naturally follows functional completion (profile → optimize loop).
 
-**Why Phase 3 before Phase 4:** Phase 3 establishes patterns (inheritance, config usage, pure functions). Phase 4 repeats those patterns for new notification types. Must validate pattern works before scaling.
-
-**Why Phase 5 last/optional:** High complexity features with unclear demand. Only pursue after validating core product with users.
-
-**Dependency insights:**
-- Notification types require config centralization (Phase 1) to avoid magic numbers
-- Event queueing requires notification base classes (Phase 3)
-- Testing requires pure functions and constants (Phase 1)
-- All features depend on memory/timing fixes (Phase 1) for stability
+**Dependencies identified:**
+- Phase 2 requires Phase 1 complete (hold duration calculation needed for curtain timing)
+- Phase 3 requires Phase 2 complete (performance profiling needs working animation)
+- No circular dependencies (clean phase boundaries)
 
 ### Research Flags
 
-**Phases likely needing deeper research during planning:**
-- **Phase 3:** Event integration patterns (Twitch API, StreamElements, Streamlabs webhook formats, OBS browser source communication protocol). Recommend `/gsd:research-phase "notification system event integration"` during Phase 3 planning.
-
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1:** Canvas performance optimization extensively documented (MDN, web.dev, Konva docs)
-- **Phase 2:** Canvas testing strategies well-documented (askUI, property-based testing guides)
-- **Phase 4:** Repeats Phase 3 patterns, no new domain knowledge required
+- **Phase 1:** Canvas text rendering is mature domain. Font Loading API and measureText() are well-documented (MDN, multiple optimization guides). Reading time calculation has research backing (250ms/word baseline from UX studies).
+- **Phase 2:** Three-phase animation already validated in v1.0 stinger/sidebar. AnimatedBar inheritance proven. Synchronization pattern (shared phase controller) is standard software architecture.
 
-**Note on Phase 5:** If pursued, will need research for visual editor frameworks and theme system architecture. Defer research until decision to proceed.
+**Phases needing potential research:**
+- **Phase 3:** Performance profiling may reveal unexpected bottlenecks. If GPU usage >50% or frame rate <60fps, invoke `/gsd:research-phase 3` to research optimization strategies beyond offscreen caching (e.g., WebGL rendering, texture atlases, multi-threaded canvas).
+
+**No phase requires deep research** — stack is proven, architecture extends v1.0, pitfalls are documented. Proceed confidently to requirements definition.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | **HIGH** | Canvas 2D optimal for <5000 elements verified by multiple 2025 benchmarks. GSAP/PixiJS library analysis from npm data and official releases. |
-| Features | **MEDIUM** | Based on professional tools analysis (StreamElements, Streamlabs), community best practices, and performance research. Needs validation with actual user testing. |
-| Architecture | **HIGH** | ECS, pure functions, centralized config are 2025 patterns verified by multiple authoritative sources. Current codebase analysis shows clear refactoring path. |
-| Pitfalls | **HIGH** | Memory leak patterns verified with MDN, GitHub issues, CVEs. OBS-specific issues from forum threads and official bug reports. Frame rate timing from MDN requestAnimationFrame docs. |
+| Stack | HIGH | Native Canvas 2D APIs (no dependencies). Text rendering mature, well-documented. Font Loading API standard. v1.0 architecture validated. |
+| Features | MEDIUM | Table stakes clear (curtains, text, animations). Differentiators (dynamic hold duration) unique but calculable. Reading speed research is general-purpose (not stream-specific), requires production validation. |
+| Architecture | HIGH | Extends proven v1.0 patterns (AnimatedBar, three-phase, config-driven). Canvas text rendering well-understood. Offscreen caching performance gains documented (10x speedup benchmarks). |
+| Pitfalls | HIGH | OBS-specific bugs documented in forums (fillStyle requirement). Font loading race conditions well-known. Performance pitfalls verified with optimization guides. Synchronization patterns standard. |
 
-**Overall confidence:** **MEDIUM-HIGH**
+**Overall confidence:** HIGH
 
-Research is thorough for technical implementation (stack, architecture, pitfalls). Lower confidence on feature priorities due to lack of direct user validation. Recommend validating table stakes features (event-driven alerts, customization) with target users after Phase 3.
+Research is comprehensive (4 parallel agents, 1000+ lines combined output), domain is mature (Canvas API since 2011), and architecture builds on validated v1.0 system. Low novelty = low uncertainty.
 
 ### Gaps to Address
 
-**Event integration specifics:** Research covered general notification system patterns but not specific Twitch/StreamElements API formats. Phase 3 planning should research webhook/event payload structures before implementation. Recommend `/gsd:research-phase` during Phase 3 kickoff.
+**Minor gaps (handle during implementation, not blocking):**
 
-**OBS CEF version differences:** OBS v31+ with CEF 127 has different memory characteristics than v30. Testing should cover multiple OBS versions to identify breaking changes. Document minimum OBS version requirements.
+- **Optimal scroll speed requires empirical tuning** — Research provides baseline (200 WPM reading speed → ~800px/s max scroll speed), but actual readability during live streams may differ. **Mitigation:** Start with conservative 300px/s, adjust after 3-5 production uses based on viewer feedback.
 
-**Visual theme system:** If Phase 5 proceeds, needs research on theme architecture (CSS variables vs JSON config vs dynamic generation). Current research doesn't cover theme system patterns deeply.
+- **Text truncation strategy unknown** — Where to truncate long messages (>150 chars) to preserve key info (username vs message body). **Mitigation:** Defer truncation to v1.2. If needed during v1.1, truncate message tail with ellipsis, always preserve username.
 
-**Browser compatibility edge cases:** Research focused on Chromium/CEF (OBS browser source engine). If users request standalone browser usage, test Firefox/Safari compatibility. OffscreenCanvas known to have compatibility issues.
+- **Multiple shade instances behavior undefined** — If two raids occur within 10 seconds, should shades queue or overlap? **Mitigation:** Out of scope for v1.1 (single instance assumed). Address in v1.2 if real-world need emerges.
 
-**Hardware acceleration platform differences:** Linux Wayland has known issues with OBS v31+ hardware acceleration. Testing should validate workarounds (disable hardware accel) don't break Windows/Mac functionality.
+- **Reading time validation incomplete** — 250ms/word baseline from general UX research, not canvas-specific or stream-specific. **Mitigation:** Production validation during Phase 3. Collect feedback from 5+ streams, adjust formula if viewers report "too fast" or "too slow".
+
+**No critical gaps.** All identified gaps are refinements, not blockers. Research provides sufficient foundation for implementation.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**Official Documentation:**
-- MDN: Canvas API Optimization — Performance patterns, memory management
-- MDN: requestAnimationFrame — Frame rate timing, cancellation patterns
-- web.dev: Canvas Performance — Dirty regions, state management
-- OBS Project Knowledge Base — Browser source configuration
-
-**Library Documentation:**
-- npm: GSAP 3.14.2 — Version verification, bundle size
-- GitHub: PixiJS 8.15.0 Release — WebGL performance characteristics
-- Konva: Performance Tips — Memory leak prevention, optimization patterns
-
-**Performance Research:**
-- Canvas vs WebGL Performance Analysis (digitaladblog.com 2025) — Element count thresholds
-- 2D vs WebGL Canvas Performance (semisignal.com) — Benchmark data
-- SVG vs Canvas vs WebGL 2025 (svggenie.com) — Performance comparison
+- MDN Canvas 2D API documentation — Text rendering APIs (fillText, measureText, TextMetrics), font property, globalAlpha, optimization guides
+- MDN CSS Font Loading API — Font loading race condition prevention (document.fonts.ready)
+- OBS Project Forums — Browser source canvas text rendering issues (fillStyle requirement)
+- Current codebase (v1.0) — Validated patterns: AnimatedBar, DeltaTimer, three-phase animation, LRU cache, config-driven architecture
 
 ### Secondary (MEDIUM confidence)
+- Canvas performance optimization guides (web.dev, AG Grid, Mirko Sertic) — Offscreen canvas caching (10x speedup), alpha blending costs, text rendering optimization
+- UX reading speed research (Character Calculator, Omni Calculator) — 200-250 WPM baseline, screen reading 20-30% slower than print
+- Animation pattern libraries (Konva.js, Motion Canvas) — Three-phase timing baselines (1.5s fade-in + 1s hold + 1.5s fade-out)
 
-**Feature Research:**
-- Nerd or Die: Streamlabs vs StreamElements — Professional overlay comparison
-- Restream: Alert System Comparison — Feature expectations
-- FragileGFX: Stream Graphics 2025 — Design trends
-- GETREKT Labs: Overlay Design Guide — Best practices
-
-**OBS-Specific Issues:**
-- OBS Forum: Browser Source Memory Leak (#134736) — CEF memory accumulation
-- OBS Forum: CEF Bootstrap RAM Usage (#63720) — Architecture explanation
-- GitHub: OBS Studio Issue #12762 — RAM leak discussion
-- GitHub: OBS Studio Issue #12888 — CEF 127 hardware acceleration bug
-
-**Architecture Patterns:**
-- Semaphore: Constants Layer JavaScript — Centralized configuration
-- Dev.to: Pure Functions 2025 — Testable code patterns
-- Konva: Avoid Memory Leaks — Canvas lifecycle management
-- Reintech: Canvas Performance Large-Scale Apps — Memory management
-
-**Testing Strategies:**
-- askUI: Canvas Testing Techniques — Visual regression approaches
-- Pluralsight: Testable JavaScript Pure Functions — Testing pure functions
-- Chris Courses: Standardize Game Framerate — Delta time patterns
-- Kirupa: Consistent Animation Speeds — Frame-rate independence
-
-### Tertiary (LOW confidence, needs validation)
-
-**Browser Differences:**
-- WebGPU Browser Support 2025 — Emerging standards (not applicable yet)
-- OffscreenCanvas Browser Support — Known compatibility issues in OBS
-- WebGPU Implementation Status — Future considerations only
-
-**Community Patterns:**
-- Various GitHub Gists: Canvas performance tips — Community knowledge
-- Forum posts: OBS hardware acceleration issues — User-reported workarounds
+### Tertiary (LOW confidence, validation needed)
+- Reading time calculator tools — 250ms/word baseline (general-purpose, not stream-specific)
+- Stream overlay design articles (GETREKT Labs) — Common mistakes (overcrowding, poor readability, overdesigned layouts)
 
 ---
 
-*Research completed: 2026-01-17*
-*Ready for roadmap: yes*
+*Research completed: 2026-01-18*
 
-**Next step:** Orchestrator should proceed to requirements definition using this summary to structure phase-based requirements. Phase 1 is well-defined and ready to plan. Phase 3 will need event integration research during planning.
+*Ready for roadmap: Yes*
+
+*Next step: Requirements definition via gsd-new-project orchestrator*

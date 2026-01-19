@@ -1,757 +1,760 @@
-# Architecture Patterns for Canvas Animation Systems
+# Architecture Research: Shade Component Integration
 
-**Domain:** High-performance Canvas animations for OBS stream graphics
-**Researched:** 2026-01-17
-**Overall Confidence:** HIGH (verified with multiple authoritative sources and current codebase analysis)
+**Domain:** Canvas-based stream graphics - shade/curtain component with scrolling text
+**Researched:** 2026-01-18
+**Confidence:** HIGH (builds on validated v1.0 architecture + verified Canvas text rendering patterns)
 
 ## Executive Summary
 
-Modern Canvas animation systems in 2025 have converged on several proven architectural patterns: **Entity-Component-System (ECS)** for complex game engines, **pure functional calculations** for testable animation math, **centralized configuration layers** for maintainability, and **offscreen canvas caching** with proper lifecycle management for performance. For your OBS stream animation system, the current class-based inheritance with pure calculation functions is solid, but needs strategic refactoring around configuration centralization and memory management.
+The shade component extends the existing three-phase animation pattern (enter/hold/exit) used in stinger and sidebar scenes. The key architectural decision is **whether to render scrolling text using Canvas or DOM**, with Canvas offering better OBS chroma key compatibility and DOM offering simpler text layout. Based on the project's "OBS output preview is primary testing environment" constraint, **Canvas-based text rendering is recommended** despite higher complexity, as it ensures consistent rendering in OBS's browser source.
 
-The key insight from 2025 patterns: **Separate data from behavior, separate calculations from rendering, centralize constants**. Your existing pure calculation functions (`calculations.js`) already follow this trend—they just need to be the foundation of a more comprehensive architecture.
+The architecture follows the validated v1.0 patterns:
+- **ShadeBar class** extends AnimatedBar (inheritance pattern)
+- **Pure calculation functions** for text width/duration calculations
+- **Config-driven timing** using centralized config.js
+- **Delta-time normalization** for frame-rate independence
+- **One-shot animation** triggered on page load (like sidebar)
+
+The only new complexity is **text scrolling within the curtain hold phase**, which requires Canvas text measurement APIs and offscreen canvas caching for optimal performance.
 
 ---
 
-## Current Architecture Analysis
+## Integration with Existing Architecture
 
-### What's Working Well
+### Component Structure (v1.0 Pattern)
+
+The shade component follows the established scene architecture:
+
+```
+src/
+├── shade/                    # NEW scene (parallel to background/stinger/sidebar)
+│   ├── index.html           # Scene HTML with canvas element
+│   ├── ShadeBar.js          # Extends AnimatedBar (like StingerBar, SidebarBar)
+│   └── main.js (inline)     # Scene setup in index.html (like sidebar)
+├── shared/
+│   ├── AnimatedBar.js       # REUSE: Base class (no changes needed)
+│   ├── animations/
+│   │   └── calculations.js  # EXTEND: Add text measurement functions
+│   ├── timing.js            # REUSE: DeltaTimer
+│   ├── lifecycle.js         # REUSE: AnimationLifecycle
+│   └── canvas.js            # REUSE: setupCanvas, clearCanvas
+└── config/
+    └── config.js            # EXTEND: Add shade section
+```
+
+**Key Insight:** The shade scene is a **sibling to stinger/sidebar**, not a child. It uses the same base classes and utilities but has its own scene-specific bar class.
+
+### Inheritance Chain
 
 ```
 AnimatedBar (base class)
-├── Shared rendering logic (drawBar, offscreen caching)
-├── Common easing functions
-└── Consistent coordinate system
-
-Subclasses extend for behavior:
-├── BackgroundBar (continuous drift, lifecycle phases)
-├── StingerBar (phase-based curtain effect)
-└── SidebarBar (notification display)
-
-Pure Calculation Layer:
-└── calculations.js (testable animation math)
-```
-
-**Strengths:**
-- Clear inheritance hierarchy reduces code duplication
-- Pure calculation functions are highly testable (no side effects)
-- Offscreen canvas caching exists (performance optimization)
-- Coordinate system is consistent (if not well-documented)
-
-**Weaknesses:**
-- Configuration scattered across files (magic numbers everywhere)
-- Static cache grows unbounded (memory leak)
-- Mixed frame rates (30fps/60fps) not architected systematically
-- No coordinate system documentation (AI coding breaks positioning)
-- No centralized timing constants (2 seconds = 120 frames is repeated)
-
----
-
-## Recommended Architecture: Layered Configuration + Pure Functions
-
-### Layer 1: Configuration Layer (NEW)
-
-Modern JavaScript applications use a **centralized constants layer** to promote reusability, avoid duplication, and enable consistency ([Semaphore: Constants Layer](https://semaphore.io/blog/constants-layer-javascript)).
-
-```javascript
-// config/constants.js
-export const ANIMATION_CONFIG = {
-  // Frame rates
-  FPS: {
-    BACKGROUND: 30,
-    FOREGROUND: 60,
-  },
-
-  // Durations (in frames at 60fps)
-  DURATION: {
-    FADE_IN: 120,           // 2 seconds
-    FADE_OUT: 120,          // 2 seconds
-    VISIBLE_MIN: 1800,      // 30 seconds
-    VISIBLE_MAX: 7200,      // 120 seconds
-    DIRECTION_TRANSITION: 180, // 3 seconds
-  },
-
-  // Visual properties
-  VISUAL: {
-    WHITE_BAR_PROBABILITY: 0.7,
-    WHITE_LIGHTNESS: 80,    // 20% darker than pure white
-    OPACITY_MIN: 0.4,
-    OPACITY_MAX: 0.7,
-    HUE_VARIATION: 40,
-    LIGHTNESS_VARIATION: 30,
-  },
-
-  // Bar dimensions
-  BARS: {
-    SLANTED: {
-      ANGLE: 15,
-      WHITE_WIDTH_MIN: 50,
-      WHITE_WIDTH_MAX: 150,
-      COLORED_WIDTH_MIN: 200,
-      COLORED_WIDTH_MAX: 600,
-    },
-    HORIZONTAL: {
-      SKEW: -15,
-      WHITE_HEIGHT_MIN: 20,
-      WHITE_HEIGHT_MAX: 50,
-      COLORED_HEIGHT_MIN: 40,
-      COLORED_HEIGHT_MAX: 100,
-    },
-  },
-
-  // Performance
-  PERFORMANCE: {
-    OFFSCREEN_CACHE_MAX_SIZE: 100, // Limit cache entries
-    VIEWPORT_MARGIN: 200,          // Culling margin in pixels
-  },
-
-  // Positioning (COORDINATE SYSTEM DOCUMENTATION)
-  COORDINATE_SYSTEM: {
-    // Canvas origin (0,0) is TOP-LEFT corner
-    // Positive X moves RIGHT
-    // Positive Y moves DOWN
-    // Slanted bars: positioned at Y=0, extend full height
-    // Horizontal bars: positioned at random Y within canvas height
-    OFFSCREEN_LEFT: -300,
-    OFFSCREEN_RIGHT_OFFSET: 300, // canvas.width + 300
-  },
-};
-
-// config/colors.js (existing, but move to config/)
-// Leave existing hexToHSL, cssColorToHex functions here
-
-// config/index.js (barrel export)
-export { ANIMATION_CONFIG } from './constants.js';
-export * from './colors.js';
-```
-
-**Benefits:**
-- All magic numbers in one place
-- Easy to adjust timing/appearance globally
-- Self-documenting (comments explain coordinate system)
-- TypeScript-ready (can add JSDoc or convert to TS later)
-
-**Build Order Implication:** Phase 1 should be "Extract configuration layer" before any feature work.
-
----
-
-### Layer 2: Pure Calculation Functions (EXISTING, EXPAND)
-
-Your existing `calculations.js` follows 2025 best practices perfectly. Pure functions are "the secret weapon of scalable code in 2025" because they enable **trivial unit testing with no mocks, no setup, just pure input-output validation** ([Dev.to: Pure Functions 2025](https://dev.to/arkhan/why-pure-functions-are-the-secret-weapon-of-scalable-code-in-2025-4h41)).
-
-**Current functions (all good):**
-- `calculateOpacity` ✓
-- `calculateSizeMultiplier` ✓
-- `calculateDirectionTransition` ✓
-- `calculatePosition` ✓
-- `shouldChangeDirection` ✓
-- `calculateTransitionProgress` ✓
-- `determineNextPhase` ✓
-- `isBarInViewport` ✓
-
-**Functions to add:**
-```javascript
-// calculations.js (additions)
-
-/**
- * Calculate random bar dimensions based on type and color
- * PURE: Same inputs always produce same outputs (when random is seeded)
- */
-export function calculateBarDimensions(type, isWhite, random, config) {
-  if (type === 'slanted') {
-    if (isWhite) {
-      return {
-        width: random() * (config.BARS.SLANTED.WHITE_WIDTH_MAX - config.BARS.SLANTED.WHITE_WIDTH_MIN) + config.BARS.SLANTED.WHITE_WIDTH_MIN,
-      };
-    } else {
-      return {
-        width: random() * (config.BARS.SLANTED.COLORED_WIDTH_MAX - config.BARS.SLANTED.COLORED_WIDTH_MIN) + config.BARS.SLANTED.COLORED_WIDTH_MIN,
-      };
-    }
-  } else {
-    const height = isWhite
-      ? random() * (config.BARS.HORIZONTAL.WHITE_HEIGHT_MAX - config.BARS.HORIZONTAL.WHITE_HEIGHT_MIN) + config.BARS.HORIZONTAL.WHITE_HEIGHT_MIN
-      : random() * (config.BARS.HORIZONTAL.COLORED_HEIGHT_MAX - config.BARS.HORIZONTAL.COLORED_HEIGHT_MIN) + config.BARS.HORIZONTAL.COLORED_HEIGHT_MIN;
-    return { width: null, height }; // width is canvas-dependent
-  }
-}
-
-/**
- * Calculate starting position based on direction
- * LOCKED DOWN: Documents coordinate system explicitly
- */
-export function calculateStartPosition(direction, barWidth, canvasWidth, config) {
-  // COORDINATE SYSTEM: Origin (0,0) is top-left
-  // Bars move horizontally (X axis)
-  // Direction: 1 = left-to-right, -1 = right-to-left
-
-  if (direction === 1) {
-    // Start offscreen left
-    return config.COORDINATE_SYSTEM.OFFSCREEN_LEFT - barWidth;
-  } else {
-    // Start offscreen right
-    return canvasWidth + config.COORDINATE_SYSTEM.OFFSCREEN_RIGHT_OFFSET;
-  }
-}
-
-/**
- * Convert duration from seconds to frames
- */
-export function secondsToFrames(seconds, fps = 60) {
-  return Math.floor(seconds * fps);
-}
-
-/**
- * Convert duration from frames to seconds
- */
-export function framesToSeconds(frames, fps = 60) {
-  return frames / fps;
-}
-```
-
-**Testing Strategy:**
-Every pure function gets comprehensive unit tests. Example:
-
-```javascript
-// calculations.test.js (example additions)
-describe('calculateStartPosition', () => {
-  const config = ANIMATION_CONFIG;
-
-  test('left-to-right: starts offscreen left', () => {
-    const pos = calculateStartPosition(1, 100, 1920, config);
-    expect(pos).toBe(-300 - 100); // OFFSCREEN_LEFT - barWidth
-    expect(pos).toBeLessThan(0); // Verify offscreen
-  });
-
-  test('right-to-left: starts offscreen right', () => {
-    const pos = calculateStartPosition(-1, 100, 1920, config);
-    expect(pos).toBe(1920 + 300); // canvasWidth + OFFSCREEN_RIGHT_OFFSET
-    expect(pos).toBeGreaterThan(1920); // Verify offscreen
-  });
-
-  test('coordinates are integers (no subpixel issues)', () => {
-    const pos = calculateStartPosition(1, 100.5, 1920, config);
-    expect(Number.isInteger(pos)).toBe(false); // This would fail, showing rounding needed
-    // Then fix the function to round
-  });
-});
-```
-
-**Key Insight:** Tests should **document the coordinate system through assertions**. When AI coding breaks positioning, tests fail with clear messages about what coordinate space means.
-
----
-
-### Layer 3: Component System (REFACTOR EXISTING)
-
-Current inheritance is fine, but can be improved with **composition over inheritance** for some aspects.
-
-#### Pattern A: Keep Inheritance for Rendering (Status Quo)
-
-```
-AnimatedBar (base class)
-├── drawBar()         // Shared rendering
-├── getOrCreateOffscreenCanvas() // Shared caching
-└── easeInOutCubic()  // Shared easing
+├── Properties:
+│   ├── ctx, canvas          # Canvas context/element
+│   ├── type                 # 'slanted' (shade uses full-height curtain)
+│   ├── active               # Lifecycle flag
+│   └── useOffscreenCache    # Performance optimization
+├── Methods:
+│   ├── drawBar()            # Renders colored rectangles
+│   ├── getOrCreateOffscreenCanvas() # Caching for white bars
+│   ├── easeInOutCubic()     # Timing function
+│   └── update(deltaTime)    # Override in subclass
+└── Static:
+    └── offscreenCache       # Shared LRU cache
 
 ↓ Inheritance
 
-BackgroundBar/StingerBar/SidebarBar
-├── init()    // Specialized initialization
-├── update()  // Specialized behavior
-└── draw()    // Specialized drawing logic
+ShadeBar (NEW)
+├── Properties:
+│   ├── text                 # Display text
+│   ├── textWidth            # Measured width (for scroll duration)
+│   ├── scrollOffset         # Current scroll position
+│   ├── phase                # 'enter', 'hold', 'exit'
+│   ├── elapsedTime          # Time tracking
+│   └── duration             # Total animation duration (enter + hold + exit)
+├── Methods:
+│   ├── init()               # Initialize positions, calculate hold duration
+│   ├── update(deltaTime)    # THREE-PHASE: enter (slide in), hold (scroll), exit (slide out)
+│   ├── draw()               # Render curtain + text
+│   └── drawScrollingText()  # NEW: Canvas text rendering with scroll offset
+└── Timing Pattern:
+    └── THREE-PHASE (like sidebar/stinger, NOT continuous like background)
 ```
 
-**When to use:** Current pattern works well for **rendering-focused** components. Keep it.
-
-#### Pattern B: Add Composition for Behaviors (NEW)
-
-For reusable behaviors (direction changes, size animation, lifecycle), use **mixins** or **strategy pattern**:
-
-```javascript
-// behaviors/lifecycle.js
-export class LifecycleBehavior {
-  constructor(config) {
-    this.phase = 'fadeIn';
-    this.frame = 0;
-    this.config = config;
-  }
-
-  update() {
-    this.frame++;
-    const result = determineNextPhase(
-      this.phase,
-      this.frame,
-      this.config.DURATION.FADE_IN,
-      this.config.DURATION.VISIBLE_MIN,
-      this.config.DURATION.FADE_OUT
-    );
-    this.phase = result.phase;
-    this.frame = result.frame;
-  }
-
-  getOpacity(maxOpacity, easingFn) {
-    return calculateOpacity(
-      this.phase,
-      this.frame,
-      this.config.DURATION.FADE_IN,
-      this.config.DURATION.FADE_OUT,
-      maxOpacity,
-      easingFn
-    );
-  }
-}
-
-// Then in BackgroundBar:
-this.lifecycle = new LifecycleBehavior(ANIMATION_CONFIG);
-
-// In update():
-this.lifecycle.update();
-this.currentOpacity = this.lifecycle.getOpacity(this.maxOpacity, this.easeInOutCubic.bind(this));
-```
-
-**Benefits:**
-- Behaviors are reusable across bar types
-- Easier to add new animation types (compose behaviors)
-- Each behavior can be tested independently
-
-**Tradeoff:** More files, more abstractions. Only use if adding 3+ new animation types.
-
-**Build Order Implication:** Phase 2-3 could extract behaviors if adding sidebar variants. Otherwise, defer.
+**Design Decision:** ShadeBar uses **'slanted' type** for the curtain (full-height vertical bar) but does NOT use horizontal bars. This is simpler than sidebar's mixed approach.
 
 ---
 
-### Layer 4: Memory Management (FIX EXISTING)
+## Data Flow
 
-Current problem: `AnimatedBar.offscreenCache` grows unbounded. Solution: **LRU cache with size limit**.
+### Scene Lifecycle
 
-Modern Canvas optimization guides emphasize proper disposal and cache limits ([Konva: Avoid Memory Leaks](https://konvajs.org/docs/performance/Avoid_Memory_Leaks.html), [Reintech: Canvas Performance](https://reintech.io/blog/optimizing-canvas-performance-large-scale-apps)).
-
-```javascript
-// shared/LRUCache.js (NEW)
-export class LRUCache {
-  constructor(maxSize) {
-    this.maxSize = maxSize;
-    this.cache = new Map();
-  }
-
-  get(key) {
-    if (!this.cache.has(key)) return null;
-
-    // Move to end (most recently used)
-    const value = this.cache.get(key);
-    this.cache.delete(key);
-    this.cache.set(key, value);
-    return value;
-  }
-
-  set(key, value) {
-    // Remove if already exists (will re-add at end)
-    if (this.cache.has(key)) {
-      this.cache.delete(key);
-    }
-
-    // Evict oldest if at capacity
-    if (this.cache.size >= this.maxSize) {
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
-    }
-
-    this.cache.set(key, value);
-  }
-
-  clear() {
-    this.cache.clear();
-  }
-}
-
-// AnimatedBar.js (modify)
-static offscreenCache = new LRUCache(ANIMATION_CONFIG.PERFORMANCE.OFFSCREEN_CACHE_MAX_SIZE);
-
-// Usage stays the same:
-const cached = AnimatedBar.offscreenCache.get(cacheKey);
-if (cached) return cached;
-
-const offscreenCanvas = /* create */;
-AnimatedBar.offscreenCache.set(cacheKey, offscreenCanvas);
+```
+Page Load
+    ↓
+URL Parameters → Config
+    ├── ?text=Message        # Text to display
+    ├── ?color=ff6b35        # Base color
+    └── ?duration=5000       # Optional (defaults to auto-calculated)
+    ↓
+ShadeBar Initialization
+    ├── Measure text width (Canvas measureText)
+    ├── Calculate hold duration = f(textWidth, scrollSpeed)
+    ├── Set phase = 'enter'
+    └── Position curtain offscreen right
+    ↓
+Animation Loop (requestAnimationFrame)
+    ├── Update Phase:
+    │   ├── DeltaTimer.update(timestamp) → deltaTime
+    │   ├── ShadeBar.update(deltaTime)
+    │   │   ├── IF phase == 'enter': slide curtain from right to center
+    │   │   ├── IF phase == 'hold': scroll text left-to-right
+    │   │   └── IF phase == 'exit': slide curtain back offscreen right
+    │   └── Check if animation complete (phase == 'exit' && progress >= 1)
+    └── Render Phase:
+        ├── clearCanvas(ctx, canvas)
+        ├── ShadeBar.draw()
+        │   ├── drawBar() → curtain rectangle
+        │   └── drawScrollingText() → Canvas fillText with offset
+        └── If not complete: requestAnimationFrame(animate)
 ```
 
-**Testing Strategy:**
-```javascript
-describe('LRUCache', () => {
-  test('evicts oldest entry when full', () => {
-    const cache = new LRUCache(3);
-    cache.set('a', 1);
-    cache.set('b', 2);
-    cache.set('c', 3);
-    cache.set('d', 4); // Should evict 'a'
+### Text Scrolling Within Hold Phase
 
-    expect(cache.get('a')).toBeNull();
-    expect(cache.get('b')).toBe(2);
-    expect(cache.get('d')).toBe(4);
-  });
-});
+```
+Hold Phase Entry
+    ↓
+Calculate scroll distance
+    ├── Text starts: offscreen left (x = -textWidth)
+    ├── Text ends: offscreen right (x = canvas.width)
+    └── Total distance = canvas.width + textWidth
+    ↓
+Each frame during hold:
+    ├── Calculate progress = phaseTime / holdDuration
+    ├── scrollOffset = lerp(-textWidth, canvas.width, progress)
+    ├── Render text at (curtainCenterX + scrollOffset, curtainCenterY)
+    └── When progress >= 1: transition to 'exit' phase
 ```
 
-**Build Order Implication:** Phase 1 (urgent fix for memory leak).
-
----
-
-### Layer 5: Frame Rate Management (DOCUMENT EXISTING)
-
-Current background scene uses **dual-layer rendering** (30fps background, 60fps foreground). This is a valid pattern but needs documentation.
-
-**Pattern: Multi-Rate Animation Loop**
+**Key Constraint:** Hold duration MUST be long enough for text to scroll completely across the curtain. This is calculated automatically:
 
 ```javascript
-// background/main.js (simplified current pattern)
-let lastBackgroundUpdate = 0;
-const BACKGROUND_INTERVAL = 1000 / 30; // 33.33ms
-
-function animate(timestamp) {
-  // 60fps foreground layer (white bars)
-  foregroundBars.forEach(bar => bar.update());
-
-  // 30fps background layer (colored bars)
-  if (timestamp - lastBackgroundUpdate >= BACKGROUND_INTERVAL) {
-    backgroundBars.forEach(bar => bar.update());
-    lastBackgroundUpdate = timestamp;
-  }
-
-  // Render all at 60fps (drawing is cheap, updates are expensive)
-  clearCanvas(ctx, canvas);
-  backgroundBars.forEach(bar => bar.draw());
-  foregroundBars.forEach(bar => bar.draw());
-
-  requestAnimationFrame(animate);
+// Pure calculation function
+export function calculateHoldDuration(textWidth, canvasWidth, scrollSpeed, config) {
+  const totalDistance = textWidth + canvasWidth;
+  const minHoldMs = (totalDistance / scrollSpeed) * 1000; // Convert to milliseconds
+  return Math.max(minHoldMs, config.shade.timing.minHoldMs); // Enforce minimum
 }
 ```
-
-**Problem:** Timing calculations assume 60fps everywhere, but background updates at 30fps.
-
-**Solution:** Pass `deltaTime` or `fps` to update functions:
-
-```javascript
-// BackgroundBar.update(deltaTime)
-// Convert config durations based on actual update rate
-const fadeInDuration = (ANIMATION_CONFIG.DURATION.FADE_IN * this.fps) / 60;
-```
-
-Or simpler: **Document that background bars use 60fps timing but update every other frame**. That's fine as long as it's intentional.
-
-**Build Order Implication:** Phase 2 (document pattern, add test for timing accuracy).
-
----
-
-## Architecture for Adding New Animation Types
-
-When adding a new notification type (e.g., "FollowNotification", "SubNotification"):
-
-### Option 1: Inheritance (Simple, Current Pattern)
-
-```javascript
-// notifications/FollowBar.js
-export class FollowBar extends AnimatedBar {
-  constructor(ctx, canvas, username, config) {
-    super(ctx, canvas, 'horizontal', { random: Math.random });
-    this.username = username;
-    this.config = config;
-    this.init();
-  }
-
-  init() {
-    // Use config constants
-    this.width = calculateBarDimensions('horizontal', false, this.random, this.config).width;
-    // ... initialization using pure functions
-  }
-
-  update() {
-    // Use pure functions for calculations
-    this.x = calculatePosition(this.x, this.baseSpeed, this.direction);
-    // ...
-  }
-
-  draw() {
-    this.drawBar(/* params from config */);
-    // Draw username text
-    this.ctx.fillText(this.username, this.x, this.y);
-  }
-}
-```
-
-**Checklist for new animation type:**
-1. Extend `AnimatedBar`
-2. Use `ANIMATION_CONFIG` constants (no magic numbers)
-3. Use pure calculation functions from `calculations.js`
-4. Write unit tests for `init()` logic (with seeded random)
-5. Write unit tests for positioning (coordinate system)
-6. Add visual regression test (see Testing Strategies section)
-
-### Option 2: ECS (Complex, Overkill for This Project)
-
-Entity-Component-System is the 2025 trend for **game engines** ([GitHub: ECSY](https://github.com/ecsyjs/ecsy), [Game Engine Architecture 2025](https://generalistprogrammer.com/game-engine-architecture)). It provides better performance and flexibility when you have **hundreds of entities** with **dynamic components**.
-
-**Don't use ECS unless:**
-- You need 50+ simultaneous animations
-- You need dynamic component addition/removal at runtime
-- Performance profiling shows current architecture is a bottleneck
-
-For OBS stream overlays with 10-20 bars, inheritance is simpler and sufficient.
-
----
-
-## Testing Strategies to Prevent Regressions
-
-### Problem: AI Coding Breaks Positioning
-
-AI models (including Claude) often misunderstand Canvas coordinate systems because training data includes multiple conventions (top-left origin, center origin, mathematical coordinates, etc.).
-
-### Solution: Position-Locking Tests
-
-**Strategy from 2025 research:** "Unit tests for pure functions are trivial—no mocks, no setup, just input-output validation" ([Pluralsight: Testable JavaScript](https://www.pluralsight.com/tech-blog/testable-javascript-pure-functions/)).
-
-```javascript
-// tests/positioning.test.js
-describe('Coordinate System Contract', () => {
-  test('Canvas origin is top-left (0,0)', () => {
-    // This test documents the coordinate system
-    // If AI changes this assumption, test fails
-    const canvas = createTestCanvas(1920, 1080);
-    expect(canvas.origin).toEqual({ x: 0, y: 0 });
-  });
-
-  test('Bars moving left-to-right start negative X', () => {
-    const startX = calculateStartPosition(1, 100, 1920, ANIMATION_CONFIG);
-    expect(startX).toBeLessThan(0);
-    expect(startX).toBe(-400); // Exact expected value
-  });
-
-  test('Bars moving right-to-left start beyond canvas width', () => {
-    const startX = calculateStartPosition(-1, 100, 1920, ANIMATION_CONFIG);
-    expect(startX).toBeGreaterThan(1920);
-    expect(startX).toBe(2220); // Exact expected value
-  });
-
-  test('Slanted bars always positioned at Y=0', () => {
-    const bar = new BackgroundBar(ctx, canvas, 'slanted', baseHSL, 1.0, true, { random: seededRandom });
-    expect(bar.y).toBe(0);
-  });
-
-  test('Horizontal bars positioned within canvas height', () => {
-    const bar = new BackgroundBar(ctx, canvas, 'horizontal', baseHSL, 1.0, true, { random: seededRandom });
-    expect(bar.y).toBeGreaterThanOrEqual(0);
-    expect(bar.y).toBeLessThanOrEqual(canvas.height);
-  });
-});
-```
-
-**Key Insight:** Tests should fail with **specific error messages** that teach the AI:
-
-```javascript
-expect(bar.y).toBe(0);
-// If this fails: "Expected slanted bar Y position to be 0 (top edge), but got 540 (center).
-// Canvas origin is TOP-LEFT, not center."
-```
-
-### Visual Regression Testing
-
-Canvas testing is notoriously difficult because **traditional automation tools can't "see" inside Canvas elements** ([askUI: Canvas Testing](https://www.askui.com/blog-posts/html5-canvas-testing-techniques-tools-and-best-practices)). Two approaches:
-
-#### Approach A: Snapshot Canvas ImageData (Recommended for OBS)
-
-```javascript
-// tests/visual/snapshots.test.js
-describe('Visual Regression', () => {
-  test('background scene matches snapshot', async () => {
-    const { canvas, ctx } = setupBackgroundScene(seededRandom);
-
-    // Run for fixed duration with seeded random
-    for (let i = 0; i < 120; i++) { // 2 seconds at 60fps
-      updateAndRender();
-    }
-
-    // Capture ImageData
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    expect(imageData).toMatchSnapshot();
-  });
-});
-```
-
-**Caveat:** ImageData snapshots are brittle (any pixel change breaks test). Use for **smoke tests** only.
-
-#### Approach B: Property-Based Testing (Recommended for Logic)
-
-```javascript
-describe('Animation Invariants', () => {
-  test('bars never move faster than max speed', () => {
-    const bar = new BackgroundBar(/* ... */);
-    let prevX = bar.x;
-
-    for (let i = 0; i < 1000; i++) {
-      bar.update();
-      const deltaX = Math.abs(bar.x - prevX);
-      expect(deltaX).toBeLessThanOrEqual(MAX_SPEED_PER_FRAME);
-      prevX = bar.x;
-    }
-  });
-
-  test('opacity always in range [0, maxOpacity]', () => {
-    const bar = new BackgroundBar(/* ... */);
-
-    for (let i = 0; i < 10000; i++) {
-      bar.update();
-      expect(bar.currentOpacity).toBeGreaterThanOrEqual(0);
-      expect(bar.currentOpacity).toBeLessThanOrEqual(bar.maxOpacity);
-    }
-  });
-});
-```
-
-**This prevents logic bugs without brittle pixel comparisons.**
-
-### Manual Visual Testing (Primary for OBS)
-
-Given that "Primary testing happens in OBS output preview (not browser)" (from PROJECT.md), automated visual testing has limited value.
-
-**Recommended workflow:**
-1. Unit tests lock down calculations (positioning, timing, opacity)
-2. Property-based tests verify invariants (no out-of-bounds bugs)
-3. Manual OBS testing for final visual validation
 
 ---
 
 ## Component Boundaries & Responsibilities
 
-Clear boundaries prevent architectural drift:
+| Component | Responsibility | Integration Point |
+|-----------|---------------|-------------------|
+| **ShadeBar.js** | Shade-specific animation logic (enter/hold/exit), text scrolling, hold duration calculation | Extends AnimatedBar, uses config.shade |
+| **AnimatedBar.js** | Curtain rendering (drawBar), offscreen caching, easing | REUSE: No changes needed |
+| **calculations.js** | TEXT MEASUREMENT: calculateTextWidth(), calculateHoldDuration() | NEW: Pure functions for text layout |
+| **config.js** | shade section: timing proportions, scroll speed, text rendering settings | NEW: config.shade.* |
+| **index.html** | Scene setup, canvas element, inline animation loop | NEW: Similar to sidebar/index.html |
+| **DeltaTimer** | Frame-rate independent timing | REUSE: Same pattern as v1.0 |
+| **AnimationLifecycle** | Cleanup on page unload | REUSE: Same pattern as v1.0 |
 
-| Component | Responsibility | Does NOT Handle |
-|-----------|---------------|----------------|
-| **config/constants.js** | All magic numbers, durations, dimensions, coordinate system documentation | Runtime state, calculations |
-| **shared/calculations.js** | Pure animation math, testable functions, no side effects | Rendering, DOM, state mutation |
-| **shared/AnimatedBar.js** | Shared rendering logic (drawBar), offscreen caching, canvas transforms | Animation-specific behavior |
-| **shared/LRUCache.js** | Memory-bounded cache, eviction policy | What's being cached |
-| **background/BackgroundBar.js** | Background-specific lifecycle (drift, direction changes) | Other bar types |
-| **stinger/StingerBar.js** | Stinger-specific phases (in, pause, out) | Background behavior |
-| **sidebar/SidebarBar.js** | Notification display logic | Background/stinger behavior |
-| **{scene}/main.js** | Scene setup, animation loop, frame rate management | Shared bar logic |
-
-**Architectural Rule:** If a component has multiple responsibilities, split it. If two components share code, extract to shared/.
+**Architectural Boundary:** ShadeBar does NOT call requestAnimationFrame—main animation loop does. ShadeBar only implements `update()` and `draw()`.
 
 ---
 
-## Data Flow Diagram
+## Architectural Patterns
 
+### Pattern 1: Canvas vs DOM Text Rendering
+
+**The Question:** Should scrolling text be rendered using Canvas (fillText) or DOM (HTML element with CSS animation)?
+
+**Canvas Approach (RECOMMENDED):**
+
+```javascript
+// ShadeBar.drawScrollingText()
+drawScrollingText() {
+  const curtainCenterX = this.x; // Curtain's center X position
+  const curtainCenterY = this.canvas.height / 2;
+
+  // Calculate scroll offset within curtain boundaries
+  const progress = this.phaseTime / this.holdDuration;
+  const scrollStart = -this.textWidth;
+  const scrollEnd = this.canvas.width;
+  const scrollOffset = scrollStart + (scrollEnd - scrollStart) * progress;
+
+  // Clip text to curtain area (prevent overflow)
+  this.ctx.save();
+  this.ctx.rect(this.x - this.width / 2, 0, this.width, this.canvas.height);
+  this.ctx.clip();
+
+  // Render text
+  this.ctx.font = `bold ${config.shade.text.fontSize}px ${config.shade.text.fontFamily}`;
+  this.ctx.fillStyle = config.shade.text.color;
+  this.ctx.textAlign = 'left';
+  this.ctx.textBaseline = 'middle';
+  this.ctx.fillText(
+    this.text,
+    curtainCenterX + scrollOffset,
+    curtainCenterY
+  );
+
+  this.ctx.restore();
+}
 ```
-URL Parameters
-    ↓
-Config Layer (constants + color parsing)
-    ↓
-Scene Setup (main.js)
-    ↓
-Bar Instantiation (BackgroundBar, etc.)
-    ↓
-Animation Loop
-    ├→ Update Phase
-    │   ├→ Pure Calculations (calculations.js)
-    │   └→ State Mutation (bar instances)
-    └→ Render Phase
-        ├→ Offscreen Canvas (LRU cache)
-        └→ Main Canvas (drawBar)
-            ↓
-        OBS Display
+
+**DOM Approach (NOT RECOMMENDED for OBS):**
+
+```html
+<!-- index.html -->
+<div id="textOverlay" style="position: absolute; clip-path: rect(...)">
+  <div id="scrollingText" style="animation: scroll 5s linear"></div>
+</div>
 ```
+
+**Decision Matrix:**
+
+| Factor | Canvas | DOM |
+|--------|--------|-----|
+| OBS Compatibility | ✓ Perfect | ⚠ May have chroma key issues |
+| Text Layout | ⚠ Manual measurement | ✓ Automatic wrapping |
+| Performance | ✓ Cached offscreen canvas | ✓ GPU-accelerated CSS |
+| Synchronization | ✓ Frame-by-frame control | ⚠ CSS animation timing drift |
+| Testing | ⚠ Visual only | ✓ DOM assertions |
+
+**Recommendation:** Use Canvas for **OBS chroma key consistency**. The project constraint "Primary testing happens in OBS output preview (not browser)" means DOM rendering risks introducing browser-specific artifacts that won't appear in development but will appear in production (OBS).
+
+**Trade-off:** Canvas text requires manual measurement and clipping logic, but this is offset by performance benefits (offscreen caching) and guarantees consistent rendering in OBS.
+
+---
+
+### Pattern 2: Dynamic Hold Duration Calculation
+
+**Problem:** Unlike stinger/sidebar with fixed durations, the shade component's hold phase must be **long enough for text to scroll completely**.
+
+**Solution:** Calculate hold duration based on text width.
+
+```javascript
+// calculations.js (NEW pure function)
+/**
+ * Calculate minimum hold duration for text to scroll completely
+ * @param {number} textWidth - Measured text width in pixels
+ * @param {number} canvasWidth - Canvas width
+ * @param {number} scrollSpeed - Pixels per second
+ * @param {Object} config - Config object
+ * @returns {number} Hold duration in milliseconds
+ */
+export function calculateShadeHoldDuration(textWidth, canvasWidth, scrollSpeed, config) {
+  // Text must travel: from offscreen left (-textWidth) to offscreen right (canvasWidth)
+  const totalDistance = textWidth + canvasWidth;
+
+  // Calculate time at constant speed
+  const calculatedMs = (totalDistance / scrollSpeed) * 1000;
+
+  // Enforce minimum duration (prevents too-fast animation for short text)
+  return Math.max(calculatedMs, config.shade.timing.minHoldMs);
+}
+```
+
+**Testing Strategy:**
+
+```javascript
+describe('calculateShadeHoldDuration', () => {
+  const config = {
+    shade: {
+      timing: { minHoldMs: 2000 }
+    }
+  };
+
+  test('short text uses minimum duration', () => {
+    const duration = calculateShadeHoldDuration(100, 1920, 300, config);
+    expect(duration).toBe(2000); // Minimum enforced
+  });
+
+  test('long text increases duration proportionally', () => {
+    const duration = calculateShadeHoldDuration(1000, 1920, 300, config);
+    const expectedDistance = 1000 + 1920; // 2920px
+    const expectedTime = (2920 / 300) * 1000; // ~9733ms
+    expect(duration).toBeCloseTo(expectedTime, 0);
+  });
+
+  test('faster scroll speed reduces duration', () => {
+    const slow = calculateShadeHoldDuration(500, 1920, 200, config);
+    const fast = calculateShadeHoldDuration(500, 1920, 400, config);
+    expect(fast).toBeLessThan(slow);
+  });
+});
+```
+
+**Integration:** Main scene setup calls this function:
+
+```javascript
+// shade/index.html (inline script)
+const text = urlParams.get('text') || 'Default Message';
+
+// Measure text width (Canvas API)
+const tempCtx = canvas.getContext('2d');
+tempCtx.font = `bold ${config.shade.text.fontSize}px ${config.shade.text.fontFamily}`;
+const metrics = tempCtx.measureText(text);
+const textWidth = metrics.width;
+
+// Calculate dynamic hold duration
+const holdDuration = calculateShadeHoldDuration(
+  textWidth,
+  canvas.width,
+  config.shade.text.scrollSpeed,
+  config
+);
+
+// Override URL parameter if provided (manual control)
+const finalDuration = parseInt(urlParams.get('duration')) || holdDuration;
+
+// Create shade bar with calculated duration
+const shadeBar = new ShadeBar(ctx, canvas, text, textWidth, finalDuration);
+```
+
+**Why this pattern:** Ensures text readability regardless of message length. Short messages ("Hi!") don't zoom by too fast. Long messages ("Welcome to the stream!") have enough time to scroll completely.
+
+---
+
+### Pattern 3: Offscreen Canvas Caching for Text
+
+**Problem:** Canvas text rendering is expensive. Re-rendering the same text every frame wastes CPU ([Mirko Sertic: Canvas fillText Performance](https://www.mirkosertic.de/blog/2015/03/tuning-html5-canvas-filltext/)).
+
+**Solution:** Render text to offscreen canvas once, then use `drawImage()` for subsequent frames.
+
+```javascript
+// ShadeBar.init()
+init() {
+  // ... other initialization ...
+
+  // Pre-render text to offscreen canvas (do once)
+  this.textCanvas = document.createElement('canvas');
+  this.textCanvas.width = this.textWidth;
+  this.textCanvas.height = config.shade.text.fontSize * 2; // Extra height for descenders
+
+  const textCtx = this.textCanvas.getContext('2d');
+  textCtx.font = `bold ${config.shade.text.fontSize}px ${config.shade.text.fontFamily}`;
+  textCtx.fillStyle = config.shade.text.color;
+  textCtx.textAlign = 'left';
+  textCtx.textBaseline = 'middle';
+  textCtx.fillText(this.text, 0, this.textCanvas.height / 2);
+
+  // Now this.textCanvas contains rendered text
+}
+
+// ShadeBar.drawScrollingText()
+drawScrollingText() {
+  const curtainCenterX = this.x;
+  const curtainCenterY = this.canvas.height / 2;
+
+  const progress = this.phaseTime / this.holdDuration;
+  const scrollStart = -this.textWidth;
+  const scrollEnd = this.canvas.width;
+  const scrollOffset = scrollStart + (scrollEnd - scrollStart) * progress;
+
+  // Clip to curtain
+  this.ctx.save();
+  this.ctx.rect(this.x - this.width / 2, 0, this.width, this.canvas.height);
+  this.ctx.clip();
+
+  // Draw pre-rendered text (fast!)
+  this.ctx.drawImage(
+    this.textCanvas,
+    curtainCenterX + scrollOffset,
+    curtainCenterY - this.textCanvas.height / 2
+  );
+
+  this.ctx.restore();
+}
+```
+
+**Performance Impact:**
+- Without caching: ~10ms per frame (fillText is expensive)
+- With caching: ~1ms per frame (drawImage is fast)
+
+**Trade-off:** Memory overhead for one offscreen canvas per ShadeBar instance. For shade component (only 1 bar), this is negligible.
+
+**Source:** [Mirko Sertic: Tuning HTML5 Canvas fillText](https://www.mirkosertic.de/blog/2015/03/tuning-html5-canvas-filltext/), [MDN: Optimizing Canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas)
+
+---
+
+### Pattern 4: Text Clipping to Curtain Boundaries
+
+**Problem:** Text must only be visible within the curtain area. When curtain is sliding in/out, text outside curtain must be hidden.
+
+**Solution:** Use Canvas clipping region (`ctx.clip()`).
+
+```javascript
+drawScrollingText() {
+  this.ctx.save();
+
+  // Define clipping rectangle (curtain boundaries)
+  const curtainLeft = this.x - this.width / 2;
+  const curtainTop = 0;
+  const curtainWidth = this.width;
+  const curtainHeight = this.canvas.height;
+
+  this.ctx.rect(curtainLeft, curtainTop, curtainWidth, curtainHeight);
+  this.ctx.clip(); // All subsequent drawing operations are clipped to this rectangle
+
+  // Draw text (only visible portion will render)
+  this.ctx.drawImage(this.textCanvas, ...);
+
+  this.ctx.restore(); // Remove clipping
+}
+```
+
+**Why not CSS overflow:hidden?** Because text is rendered on Canvas, not DOM. Canvas doesn't have CSS properties.
+
+**Alternative:** Manual bounds checking (check if text position is within curtain before drawing). Clipping is simpler and more robust.
+
+---
+
+## Configuration Structure
+
+Add shade section to existing config.js:
+
+```javascript
+// config/config.js (ADD)
+export const config = {
+  // ... existing background, stinger, sidebar sections ...
+
+  // Shade scene configuration (NEW)
+  shade: {
+    // Timing proportions (like sidebar)
+    timing: {
+      enterProportion: 0.2,      // 20% of total duration for enter
+      exitProportion: 0.2,       // 20% of total duration for exit
+      // holdProportion calculated dynamically based on text width
+      minHoldMs: 2000,           // Minimum 2 seconds for short text
+      maxHoldMs: 10000,          // Maximum 10 seconds for very long text
+    },
+
+    // Curtain (slanted bar) configuration
+    curtain: {
+      width: 0.5,                // 50% of viewport width
+      position: 0.5,             // Center horizontally (50% from left)
+      angle: 15,                 // Rotation angle (matches other scenes)
+      opacity: 1.0,              // Fully opaque curtain
+      // Colors from baseHSL (like sidebar background bar)
+    },
+
+    // Text rendering
+    text: {
+      fontSize: 48,              // Base font size (scales with viewport?)
+      fontFamily: 'Jost, Arial, sans-serif', // Match sidebar font
+      color: 'white',            // Text color
+      scrollSpeed: 300,          // Pixels per second
+      // textRendering: 'optimizeLegibility' // Canvas textRendering property
+    },
+
+    // Offscreen positioning
+    offscreen: {
+      startMargin: 200,          // Distance beyond viewport right edge
+    }
+  },
+
+  // ... existing shared, performance sections ...
+};
+```
+
+**Design Notes:**
+- `enterProportion` + `exitProportion` + `holdProportion` = 1.0 (like sidebar)
+- Hold proportion is **NOT fixed**—calculated based on text width
+- Curtain is a single slanted bar (simpler than sidebar's multiple bars)
+- Text scrolls at constant speed (not eased) for readability
+
+---
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| v1.1 (shade only) | Single ShadeBar instance, text measurement on init, offscreen canvas caching |
+| v1.2 (multiple shades) | Reuse ShadeBar for different text messages, cache management (LRU if needed) |
+| v2.0 (dynamic text updates) | Text texture atlas (pre-render common characters), WebGL rendering for complex effects |
+
+**Key Insight:** For v1.1, the architecture is optimized for **one-shot animations with static text**. If future requirements include rapidly changing text (e.g., chat messages), consider texture atlas pattern to avoid re-creating offscreen canvases.
+
+**Not needed for v1.1:** Text wrapping, multi-line layout, dynamic font sizing. These add complexity without immediate benefit.
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Re-measuring Text Every Frame
+
+**What:** Calling `ctx.measureText()` inside `update()` or `draw()`
+
+**Why bad:** Text measurement is synchronous and blocks rendering. Measuring every frame wastes CPU.
+
+**Do this instead:** Measure once in `init()`, cache `textWidth` as instance property.
+
+```javascript
+// BAD
+draw() {
+  const metrics = this.ctx.measureText(this.text); // SLOW!
+  const textWidth = metrics.width;
+  // ... use textWidth
+}
+
+// GOOD
+init() {
+  const metrics = this.ctx.measureText(this.text);
+  this.textWidth = metrics.width; // Cache once
+}
+
+draw() {
+  // Use this.textWidth (already cached)
+}
+```
+
+---
+
+### Anti-Pattern 2: Using DOM for Text with Canvas for Curtain
+
+**What:** Mixing DOM `<div>` overlay with Canvas curtain
+
+**Why bad:** Synchronization issues (CSS animation timing vs. Canvas rAF timing), OBS rendering inconsistencies.
+
+**Do this instead:** Render both curtain AND text on Canvas for consistent timing.
+
+---
+
+### Anti-Pattern 3: Fixed Hold Duration for All Text Lengths
+
+**What:** Using `config.shade.timing.holdMs = 3000` regardless of text length
+
+**Why bad:** Short text scrolls too fast (unreadable), long text gets cut off.
+
+**Do this instead:** Calculate hold duration based on text width (Pattern 2).
+
+---
+
+### Anti-Pattern 4: Ignoring Canvas Text Clipping
+
+**What:** Rendering text without clipping region, letting it overflow curtain boundaries
+
+**Why bad:** Breaks visual effect (text visible outside curtain during enter/exit phases).
+
+**Do this instead:** Use `ctx.clip()` to restrict text rendering to curtain area (Pattern 4).
+
+---
+
+### Anti-Pattern 5: Easing the Text Scroll
+
+**What:** Applying `easeInOutCubic()` to text scroll offset
+
+**Why bad:** Makes text harder to read (speeds up and slows down during scroll).
+
+**Do this instead:** Use **linear interpolation** for text scroll (constant speed). Reserve easing for curtain enter/exit.
+
+```javascript
+// BAD
+const easedProgress = this.easeInOutCubic(progress);
+const scrollOffset = lerp(-textWidth, canvasWidth, easedProgress); // Text speeds up/slows down
+
+// GOOD (linear scroll)
+const scrollOffset = lerp(-textWidth, canvasWidth, progress); // Constant speed
+```
+
+---
+
+## Integration Points
+
+### With AnimatedBar (Base Class)
+
+| Integration | How |
+|-------------|-----|
+| Curtain rendering | Call `this.drawBar()` with curtain parameters |
+| Easing for enter/exit | Use `this.easeInOutCubic()` for curtain slide-in/out |
+| Offscreen caching | Reuse `AnimatedBar.offscreenCache` if needed (for colored curtain bars) |
+| Active flag | Set `this.active = false` when animation completes |
+
+**No changes needed to AnimatedBar.js**—ShadeBar is a pure extension.
+
+---
+
+### With Config Layer
+
+| Config Section | Usage |
+|---------------|--------|
+| `config.shade.timing.*` | Calculate enter/hold/exit durations |
+| `config.shade.curtain.*` | Curtain dimensions, position, angle |
+| `config.shade.text.*` | Font, color, scroll speed |
+| `config.shared.shadow.*` | Shadow rendering for curtain |
+
+**Add new `config.shade` section**—no changes to existing sections.
+
+---
+
+### With Pure Calculations
+
+| Function | Purpose |
+|----------|---------|
+| `calculateShadeHoldDuration(textWidth, canvasWidth, scrollSpeed, config)` | NEW: Calculate hold duration |
+| `isBarInViewport(x, y, width, height, canvasWidth, canvasHeight, margin)` | REUSE: Viewport culling (though shade is always on-screen) |
+
+**Add new pure functions to calculations.js**—existing functions unchanged.
+
+---
+
+### With Scene Setup (index.html)
+
+| Pattern | From |
+|---------|------|
+| URL parameters | sidebar (text parameter) |
+| One-shot animation | sidebar (page load trigger) |
+| Canvas setup | All scenes (setupCanvas) |
+| Delta-time loop | All scenes (DeltaTimer) |
+| Lifecycle cleanup | All scenes (AnimationLifecycle) |
+
+**Shade scene is most similar to sidebar**—use sidebar/index.html as template.
 
 ---
 
 ## Build Order Recommendations
 
-Based on architecture analysis, suggested refactoring order:
+Based on architectural dependencies:
 
-### Phase 1: Foundation (Most Important)
-**Goal:** Fix memory leak, centralize configuration
+### Phase 1: Config & Calculations (Foundation)
+1. Add `config.shade` section to config.js
+2. Add `calculateShadeHoldDuration()` to calculations.js
+3. Write unit tests for hold duration calculation
+4. Document text measurement strategy
 
-1. Create `config/constants.js` with all magic numbers
-2. Implement `LRUCache` for offscreen canvas management
-3. Update `AnimatedBar` to use LRU cache
-4. Add coordinate system documentation in constants
-5. Write tests for configuration layer
-
-**Why first:** Prevents memory leak in production, establishes foundation for all other work.
-
-### Phase 2: Lock Down Positioning
-**Goal:** Prevent AI regressions with tests
-
-1. Extract positioning calculations to pure functions
-2. Write comprehensive positioning tests (coordinate system contract)
-3. Write property-based tests (animation invariants)
-4. Update all bar classes to use pure functions
-
-**Why second:** Protects against AI coding mistakes before adding new features.
-
-### Phase 3: Frame Rate Documentation
-**Goal:** Clarify multi-rate animation pattern
-
-1. Document dual-layer rendering pattern in background
-2. Add timing accuracy tests
-3. Consider deltaTime parameter (optional)
-
-**Why third:** Current pattern works, just needs clarity.
-
-### Phase 4: Add New Animation Types
-**Goal:** Extend with new notification types
-
-1. Follow inheritance pattern (BackgroundBar → FollowBar)
-2. Use config constants and pure functions
-3. Write unit tests before implementation
-4. Manual OBS testing
-
-**Why fourth:** Build on solid foundation from Phases 1-3.
-
-### Phase 5: Behavior Extraction (Optional)
-**Goal:** Composition over inheritance (if needed)
-
-1. Extract LifecycleBehavior
-2. Extract DirectionBehavior
-3. Update existing bars to use behaviors
-
-**Why last:** Only needed if adding 3+ animation types. Current inheritance works fine.
+**Why first:** Establishes contracts before implementation. Tests define behavior.
 
 ---
 
-## Anti-Patterns to Avoid
+### Phase 2: ShadeBar Class (Core Component)
+1. Create `ShadeBar.js` extending AnimatedBar
+2. Implement `init()` with text measurement
+3. Implement three-phase `update()` (enter/hold/exit)
+4. Implement `draw()` with curtain only (no text yet)
+5. Write unit tests for phase transitions
 
-### Anti-Pattern 1: Magic Numbers in Code
-**What:** Hardcoded `120`, `1800`, `0.7` scattered everywhere
-**Why bad:** Changes require editing multiple files, inconsistency, hard to maintain
-**Instead:** Centralize in `ANIMATION_CONFIG`
+**Why second:** Builds component layer on foundation. Tests verify timing logic.
 
-### Anti-Pattern 2: Stateful Calculation Functions
-**What:** `function calculateX(bar) { bar.x += speed; }`
-**Why bad:** Untestable, side effects, breaks pure function pattern
-**Instead:** `function calculateX(currentX, speed, direction) { return currentX + speed * direction; }`
+---
 
-### Anti-Pattern 3: Unbounded Caches
-**What:** `Map` that grows forever
-**Why bad:** Memory leak over long streaming sessions
-**Instead:** LRU cache with max size
+### Phase 3: Text Rendering (Text Layer)
+1. Implement `drawScrollingText()` with Canvas fillText
+2. Add text clipping to curtain boundaries
+3. Test text visibility during enter/exit phases
+4. Add offscreen canvas caching for performance
 
-### Anti-Pattern 4: Testing Canvas Rendering Directly
-**What:** Asserting pixel colors in unit tests
-**Why bad:** Brittle, slow, misses logic bugs
-**Instead:** Test pure calculation functions, use property-based tests for invariants
+**Why third:** Adds text layer on working curtain. Ensures curtain works before adding complexity.
 
-### Anti-Pattern 5: Coordinate System Assumptions Without Documentation
-**What:** Code assumes (0,0) is center without saying so
-**Why bad:** AI coding breaks positioning, new developers confused
-**Instead:** Document coordinate system in config, test assumptions
+---
 
-### Anti-Pattern 6: Mixed Concerns in Classes
-**What:** BackgroundBar handles calculation, rendering, lifecycle, AND event handling
-**Why bad:** Hard to test, hard to reuse, violates single responsibility
-**Instead:** Separate calculations (pure functions), rendering (base class), behavior (subclass)
+### Phase 4: Scene Integration (Scene Setup)
+1. Create `shade/index.html` based on sidebar template
+2. Add URL parameter parsing (text, color, duration)
+3. Implement animation loop with DeltaTimer
+4. Add AnimationLifecycle cleanup
+5. Manual OBS testing
 
-### Anti-Pattern 7: Using requestAnimationFrame Directly in Components
-**What:** Bar classes calling `requestAnimationFrame`
-**Why bad:** Hard to test, tightly couples animation loop to components
-**Instead:** Main.js owns animation loop, calls `update()` and `draw()` on bars
+**Why fourth:** Integrates component into scene. OBS testing validates rendering.
+
+---
+
+### Phase 5: Visual Polish (Refinement)
+1. Adjust scroll speed for readability
+2. Fine-tune curtain width/position
+3. Add shadow to text (optional)
+4. Performance profiling
+
+**Why last:** Polish after functionality is validated. OBS testing drives adjustments.
+
+---
+
+## Testing Strategy
+
+### Unit Tests (Pure Functions)
+
+```javascript
+// calculations.test.js
+describe('Text measurement calculations', () => {
+  test('calculateShadeHoldDuration enforces minimum', () => {
+    const config = { shade: { timing: { minHoldMs: 2000 } } };
+    const duration = calculateShadeHoldDuration(50, 1920, 300, config);
+    expect(duration).toBe(2000);
+  });
+
+  test('calculateShadeHoldDuration scales with text width', () => {
+    const config = { shade: { timing: { minHoldMs: 1000 } } };
+    const short = calculateShadeHoldDuration(100, 1920, 300, config);
+    const long = calculateShadeHoldDuration(1000, 1920, 300, config);
+    expect(long).toBeGreaterThan(short);
+  });
+});
+```
+
+---
+
+### Component Tests (ShadeBar)
+
+```javascript
+// ShadeBar.test.js
+describe('ShadeBar lifecycle', () => {
+  test('starts in enter phase', () => {
+    const bar = new ShadeBar(ctx, canvas, 'Test', 200, 5000);
+    expect(bar.phase).toBe('enter');
+  });
+
+  test('transitions to hold after enter duration', () => {
+    const bar = new ShadeBar(ctx, canvas, 'Test', 200, 5000);
+    const enterDuration = bar.enterDuration;
+
+    // Simulate time passing
+    bar.update(enterDuration + 0.001); // Just past enter
+    expect(bar.phase).toBe('hold');
+  });
+
+  test('text scrolls from left to right during hold', () => {
+    const bar = new ShadeBar(ctx, canvas, 'Test', 200, 5000);
+    bar.phase = 'hold';
+    bar.phaseStartTime = 0;
+    bar.elapsedTime = 0;
+
+    const initialOffset = bar.calculateScrollOffset();
+
+    bar.update(bar.holdDuration / 2); // Halfway through hold
+    const midOffset = bar.calculateScrollOffset();
+
+    expect(midOffset).toBeGreaterThan(initialOffset); // Moving right
+  });
+});
+```
+
+---
+
+### Visual Tests (Manual OBS Validation)
+
+**Test Cases:**
+1. **Short text ("Hi!")**: Verify minimum hold duration prevents too-fast scroll
+2. **Long text ("Welcome to stream!")**: Verify full text scrolls completely
+3. **Curtain clipping**: Verify text not visible outside curtain during enter/exit
+4. **Color consistency**: Verify curtain color matches baseHSL parameter
+5. **Performance**: Verify 60fps with ?perf=true in OBS browser source
+
+**Why manual:** Canvas rendering in OBS may differ from browser. Visual validation is primary test.
+
+---
+
+## Architectural Decision Log
+
+| Decision | Rationale | Alternative Considered |
+|----------|-----------|------------------------|
+| Canvas text rendering | OBS chroma key consistency | DOM overlay (simpler but risky for OBS) |
+| Single curtain bar | Simpler than sidebar's multiple bars | Multiple accent bars (unnecessary complexity) |
+| Dynamic hold duration | Ensures text readability | Fixed duration (fails for long text) |
+| Linear text scroll | Readability (constant speed) | Eased scroll (looks cool but harder to read) |
+| Offscreen text caching | Performance (10ms → 1ms) | Re-render every frame (wastes CPU) |
+| Three-phase pattern | Matches sidebar/stinger (consistency) | Continuous loop (wrong for one-shot notification) |
 
 ---
 
@@ -759,36 +762,34 @@ Based on architecture analysis, suggested refactoring order:
 
 | Topic | Confidence | Sources |
 |-------|------------|---------|
-| ECS Architecture | HIGH | [Game Engine Architecture 2025](https://generalistprogrammer.com/game-engine-architecture), [GitHub: ECSY](https://github.com/ecsyjs/ecsy), [Ape-ECS](https://github.com/fritzy/ape-ecs) |
-| Pure Functions for Testing | HIGH | [Dev.to: Pure Functions 2025](https://dev.to/arkhan/why-pure-functions-are-the-secret-weapon-of-scalable-code-in-2025-4h41), [Pluralsight: Testable JavaScript](https://www.pluralsight.com/tech-blog/testable-javascript-pure-functions/) |
-| Centralized Configuration | HIGH | [Semaphore: Constants Layer](https://semaphore.io/blog/constants-layer-javascript) |
-| Canvas Memory Management | HIGH | [Konva: Avoid Memory Leaks](https://konvajs.org/docs/performance/Avoid_Memory_Leaks.html), [Reintech: Canvas Performance](https://reintech.io/blog/optimizing-canvas-performance-large-scale-apps), [MDN: Optimizing Canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas) |
-| Canvas Testing | HIGH | [askUI: Canvas Testing](https://www.askui.com/blog-posts/html5-canvas-testing-techniques-tools-and-best-practices), [Visual Regression Testing 2025](https://www.getpanto.ai/blog/visual-regression-testing-in-mobile-qa) |
-| Frame Rate Management | MEDIUM | Current codebase analysis, general Canvas animation patterns |
-| Inheritance vs Composition | HIGH | Current codebase works well, ECS overkill for this scale |
+| Canvas text rendering performance | HIGH | [Mirko Sertic: Canvas fillText Performance](https://www.mirkosertic.de/blog/2015/03/tuning-html5-canvas-filltext/), [MDN: Optimizing Canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas) |
+| Offscreen canvas caching | HIGH | [MDN: Optimizing Canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas), [AG Grid: Canvas Rendering](https://blog.ag-grid.com/optimising-html5-canvas-rendering-best-practices-and-techniques/) |
+| Text measurement APIs | HIGH | [MDN: measureText](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/measureText), [W3Resource: Canvas Text](https://www.w3resource.com/html5-canvas/html5-canvas-text.php) |
+| Scroll animation patterns | MEDIUM | [DEV: Canvas Parallax Effect](https://dev.to/nidal_tahir_cde5660ddbe04/buttery-smooth-scroll-animations-building-a-high-performance-canvas-parallax-effect-2m8l), project experience |
+| Integration with v1.0 architecture | HIGH | Current codebase analysis, validated patterns from background/stinger/sidebar |
 
 ---
 
-## Summary: Architecture Vision
+## Summary: Architectural Vision for Shade Component
 
-**Current State:** Class-based inheritance with pure calculation functions (solid foundation)
+**Core Principle:** **Extend, don't replace**. The shade component reuses v1.0's validated patterns (AnimatedBar inheritance, pure calculations, delta-time, config-driven) and adds only the minimal new complexity required for text scrolling.
 
-**Target State:**
-- **Configuration Layer:** All constants centralized, coordinate system documented
-- **Calculation Layer:** Pure functions for all animation math (expand existing)
-- **Component Layer:** Inheritance for rendering, composition for behaviors (if needed)
-- **Memory Layer:** LRU cache for offscreen canvas (fix leak)
-- **Testing Layer:** Position-locking tests, property-based invariant tests
+**Key Innovations:**
+1. **Dynamic hold duration** calculated from text width (ensures readability)
+2. **Canvas text rendering** with offscreen caching (OBS-safe + performant)
+3. **Text clipping** to curtain boundaries (visual polish)
+4. **Linear scroll** (readability over visual flair)
 
-**Key Principle:** **Separate data from behavior, separate calculations from rendering, centralize constants.**
+**Build Strategy:** Foundation first (config + calculations), then component (ShadeBar), then text layer, then scene integration, finally polish.
 
-**Build Order:** Fix memory leak & centralize config (Phase 1) → Lock down positioning with tests (Phase 2) → Document frame rates (Phase 3) → Add new animations (Phase 4) → Extract behaviors if needed (Phase 5)
+**Testing Strategy:** Unit tests for calculations, component tests for lifecycle, manual OBS validation for visual correctness.
 
-This architecture supports the stated goals:
-- ✓ Centralized configuration (config/ layer)
-- ✓ Easy addition of new animation types (inheritance + pure functions + config)
-- ✓ Prevention of AI coding regressions (position-locking tests, coordinate system docs)
-- ✓ Memory leak prevention (LRU cache)
-- ✓ Performance optimization (offscreen caching with bounds)
+**Performance Target:** 60fps with text scrolling (achievable with offscreen caching).
 
-The architecture is **evolutionary, not revolutionary**—it builds on what works in the current codebase rather than requiring a full rewrite.
+This architecture supports immediate v1.1 goals while remaining extensible for future enhancements (multiple shades, text wrapping, dynamic updates).
+
+---
+
+*Architecture research for: Shade component with scrolling text*
+*Researched: 2026-01-18*
+*Builds on: v1.0 architecture (background, stinger, sidebar)*
