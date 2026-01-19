@@ -44,7 +44,7 @@
       const text = urlParams.get('text') || 'Default Text';
       const color = getColorFromURL(); // Handles ?color or generates random
       const durationParam = urlParams.get('duration');
-      const holdDurationMs = durationParam ? parseInt(durationParam) : config.shade.timing.minHoldMs;
+      const holdDurationMs = durationParam ? parseInt(durationParam) : null; // null triggers calculation
 
       // Setup canvas
       const canvas = document.getElementById('canvas');

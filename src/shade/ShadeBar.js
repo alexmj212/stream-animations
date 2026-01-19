@@ -18,20 +18,44 @@ import { config } from '../config/config.js';
  */
 export class ShadeBar extends AnimatedBar {
   /**
+   * Calculate hold duration from text length using reading speed baseline
+   * @param {string} text - Text to display
+   * @param {number} msPerWord - Reading speed in ms per word (default from config)
+   * @param {number} minDurationMs - Minimum duration regardless of length (default from config)
+   * @returns {number} Hold duration in milliseconds
+   */
+  static calculateHoldDuration(text, msPerWord = config.shade.timing.readingSpeedMsPerWord, minDurationMs = config.shade.timing.minHoldMs) {
+    // Count words by splitting on whitespace (RESEARCH.md Word Count pattern)
+    // Filter empty strings to handle edge case of empty/whitespace-only text (RESEARCH.md Pitfall 4)
+    const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+    const wordCount = words.length;
+
+    // Calculate duration based on reading speed (TEXT-02 requirement)
+    const calculatedDuration = wordCount * msPerWord;
+
+    // Enforce minimum duration (TEXT-05 requirement - minimum readability guarantee)
+    return Math.max(calculatedDuration, minDurationMs);
+  }
+
+  /**
    * Create a ShadeBar instance
    *
    * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
    * @param {HTMLCanvasElement} canvas - Canvas element
    * @param {string} text - Text to display
    * @param {string} color - Hex color (e.g., '#ff6600')
-   * @param {number} holdDurationMs - Hold phase duration in milliseconds
+   * @param {number} holdDurationMs - Hold phase duration in milliseconds (null to auto-calculate)
    */
-  constructor(ctx, canvas, text, color, holdDurationMs) {
+  constructor(ctx, canvas, text, color, holdDurationMs = null) {
     super(ctx, canvas, 'text', {});
 
     this.text = text;
     this.color = color; // Explicit color for OBS compatibility (avoids default fillStyle issues)
-    this.holdDurationMs = holdDurationMs;
+
+    // Calculate hold duration if not provided via URL parameter
+    this.holdDurationMs = holdDurationMs !== null
+      ? holdDurationMs
+      : ShadeBar.calculateHoldDuration(text);
 
     // Text positioning
     this.x = canvas.width; // Start offscreen right (will fly in from right edge)
