@@ -46,11 +46,13 @@ Progress: [█████████░] 70% (14 plans complete, 6 total remai
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- 05-03: Animation is ONE continuous motion with velocity transitions (not three separate stop-start animations)
+- 05-03: Velocity-first animation architecture eliminates phase boundary discontinuities (< 0.01 px/s at transitions)
+- 05-03: calculateVelocity(totalTime) returns continuous velocity function, position derived by integration
+- 05-03: Position updated each frame: x -= velocity * deltaTime (not position interpolation with easing)
+- 05-03: Cosine interpolation for velocity (not position) provides smooth deceleration/acceleration
 - 05-03: Text color is always white (removed color URL parameter for consistent branding)
 - 05-03: Keyframe positions: Enter (0-25%), Hold (25-75%), Exit (75-100%) of viewport width
-- 05-03: easeInOutCubicDerivative() calculates instantaneous velocity for smooth acceleration/deceleration
-- 05-03: Phase-specific velocities calculated in init() from keyframe positions and durations
+- 05-03: Position-based interpolation with ANY easing creates velocity discontinuities (THREE iterations to solve)
 - 05-02: Word count (not character count) for duration calculation correlates with reading comprehension time
 - 05-02: 3-second minimum hold duration enforced regardless of text length for short message readability
 - 05-02: Scroll speed dynamically calculated from text width and hold duration ensures full text visibility
