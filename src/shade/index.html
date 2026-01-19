@@ -35,14 +35,12 @@
 
     <script type="module">
       import { ShadeBar } from './ShadeBar.js';
-      import { getColorFromURL } from '../shared/colors.js';
       import { config } from '../config/config.js';
       import { DeltaTimer } from '../shared/timing.js';
 
       // Parse URL parameters (CONFIG-01: URL parameter configuration)
       const urlParams = new URLSearchParams(window.location.search);
       const text = urlParams.get('text') || 'Default Text';
-      const color = getColorFromURL(); // Handles ?color or generates random
       const durationParam = urlParams.get('duration');
       const holdDurationMs = durationParam ? parseInt(durationParam) : null; // null triggers calculation
 
@@ -57,14 +55,14 @@
       document.fonts.ready.then(() => {
         console.log('[Shade] Fonts loaded, initializing ShadeBar');
 
-        // Create ShadeBar instance
-        const shadeBar = new ShadeBar(ctx, canvas, text, color, holdDurationMs);
+        // Create ShadeBar instance (text is always white - no color parameter)
+        const shadeBar = new ShadeBar(ctx, canvas, text, holdDurationMs);
 
         // Initialize text metrics after fonts are ready
         shadeBar.init();
 
         console.log('[Shade] Text:', text);
-        console.log('[Shade] Color:', color);
+        console.log('[Shade] Color: white (fixed)');
         console.log('[Shade] Hold Duration:', holdDurationMs, 'ms');
         console.log('[Shade] Text Width:', shadeBar.textWidth, 'px');
 

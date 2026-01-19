@@ -61,14 +61,12 @@ export class ShadeBar extends AnimatedBar {
    * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
    * @param {HTMLCanvasElement} canvas - Canvas element
    * @param {string} text - Text to display
-   * @param {string} color - Hex color (e.g., '#ff6600')
    * @param {number} holdDurationMs - Hold phase duration in milliseconds (null to auto-calculate)
    */
-  constructor(ctx, canvas, text, color, holdDurationMs = null) {
+  constructor(ctx, canvas, text, holdDurationMs = null) {
     super(ctx, canvas, 'text', {});
 
     this.text = text;
-    this.color = color; // Explicit color for OBS compatibility (avoids default fillStyle issues)
 
     // Calculate hold duration if not provided via URL parameter
     this.holdDurationMs = holdDurationMs !== null
@@ -76,15 +74,14 @@ export class ShadeBar extends AnimatedBar {
       : ShadeBar.calculateHoldDuration(text);
 
     // Text positioning
-    this.x = canvas.width; // Start offscreen right (will fly in from right edge)
+    this.x = canvas.width; // Start offscreen right (will rush in from right edge)
     this.y = canvas.height / 2; // Vertical center
 
     // Text metrics (will be measured after font loads in init())
     this.textWidth = 0;
 
-    // Phase tracking (for future Phase 06 curtain integration)
-    this.phase = 'enter'; // 'enter' | 'hold' | 'exit'
-    this.elapsedTime = 0; // Accumulated time in current phase (seconds)
+    // Continuous animation tracking (not discrete phases)
+    this.totalAnimationTime = 0; // Total time elapsed across entire animation (seconds)
   }
 
   /**
@@ -100,67 +97,116 @@ export class ShadeBar extends AnimatedBar {
     const metrics = this.ctx.measureText(this.text);
     this.textWidth = metrics.width;
 
-    // Calculate scroll speed based on text width and hold duration (TEXT-03 requirement)
-    this.scrollSpeed = ShadeBar.calculateScrollSpeed(
-      this.textWidth,
-      this.canvas.width,
-      this.holdDurationMs
-    );
-
-    // Store phase durations (use shared.durations from config - established in Phase 04)
+    // Calculate total animation duration (enter + hold + exit)
     this.enterDurationMs = config.shared.durations.entryMs;
     this.exitDurationMs = config.shared.durations.exitMs;
+    this.totalDurationMs = this.enterDurationMs + this.holdDurationMs + this.exitDurationMs;
+
+    // Calculate keyframe positions (percentage of viewport width)
+    // Enter: 0-25% (rush in from offscreen right, decelerate)
+    // Hold: 25-75% (slow marquee for readability)
+    // Exit: 75-100% (accelerate, rush out to offscreen left)
+    this.enterEndX = this.canvas.width * 0.25;    // Enter ends at 25% mark
+    this.holdEndX = -this.textWidth * 0.25;       // Hold ends at 75% mark (text 25% offscreen left)
+    this.exitEndX = -this.textWidth;              // Exit ends fully offscreen left
+
+    // Calculate velocities for each phase to match timing
+    // These are target velocities - actual velocity will smoothly transition between them
+    this.enterVelocity = (this.canvas.width - this.enterEndX) / (this.enterDurationMs / 1000); // px/s
+    this.holdVelocity = (this.enterEndX - this.holdEndX) / (this.holdDurationMs / 1000);       // px/s
+    this.exitVelocity = (this.holdEndX - this.exitEndX) / (this.exitDurationMs / 1000);       // px/s
   }
 
   /**
-   * Update text position and phase tracking
+   * Update text position with continuous motion and smooth velocity transitions
+   *
+   * Animation is ONE continuous motion with velocity changes (not three separate animations):
+   * - Enter phase (0-25%): Rush in from offscreen, decelerate smoothly into hold
+   * - Hold phase (25-75%): Slow marquee for readability
+   * - Exit phase (75-100%): Accelerate smoothly from hold, rush out offscreen
+   *
+   * Momentum preservation ensures smooth transitions between phases.
    *
    * @param {number} deltaTime - Time elapsed since last frame in seconds
    */
   update(deltaTime) {
-    this.elapsedTime += deltaTime;
+    this.totalAnimationTime += deltaTime;
 
-    // Phase transitions based on time
-    if (this.phase === 'enter' && this.elapsedTime >= this.enterDurationMs / 1000) {
-      this.phase = 'hold';
-      this.elapsedTime = 0; // Reset for hold phase timing
-    } else if (this.phase === 'hold' && this.elapsedTime >= this.holdDurationMs / 1000) {
-      this.phase = 'exit';
-      this.elapsedTime = 0; // Reset for exit phase timing
-    } else if (this.phase === 'exit' && this.elapsedTime >= this.exitDurationMs / 1000) {
-      this.active = false; // Animation complete
+    // Check if animation complete
+    const totalDurationSec = this.totalDurationMs / 1000;
+    if (this.totalAnimationTime >= totalDurationSec) {
+      this.active = false;
+      this.x = this.exitEndX; // Snap to final position
       return;
     }
 
-    // Calculate velocity based on phase
-    let velocity = 0; // pixels per second
+    // Calculate current phase and progress within that phase
+    const enterDurationSec = this.enterDurationMs / 1000;
+    const holdDurationSec = this.holdDurationMs / 1000;
+    const exitDurationSec = this.exitDurationMs / 1000;
 
-    if (this.phase === 'enter') {
-      // Fly in from right edge (offscreen → onscreen)
-      // Use easing for smooth entrance
-      const progress = this.elapsedTime / (this.enterDurationMs / 1000);
-      const eased = this.easeInOutCubic(Math.min(progress, 1));
-      // Start position: canvas.width (offscreen right)
-      // Target position: 0 (left edge of text at screen origin)
+    let currentVelocity;
+    let targetX;
+
+    if (this.totalAnimationTime < enterDurationSec) {
+      // ENTER PHASE (0-25%): Rush in from right, decelerate into hold
+      const progress = this.totalAnimationTime / enterDurationSec;
+      const eased = this.easeInOutCubic(progress);
+
+      // Position transitions from canvas.width (offscreen right) to enterEndX (25% mark)
       const startX = this.canvas.width;
-      const targetX = 0;
-      this.x = startX + (targetX - startX) * eased;
-    } else if (this.phase === 'hold') {
-      // Scroll right-to-left at constant speed (TEXT-03 requirement)
-      velocity = -this.scrollSpeed; // Negative for left movement
-    } else if (this.phase === 'exit') {
-      // Fly out to left edge (onscreen → offscreen)
-      const progress = this.elapsedTime / (this.exitDurationMs / 1000);
-      const eased = this.easeInOutCubic(Math.min(progress, 1));
-      // Current position at end of hold → offscreen left
-      const startX = this.x; // Where hold phase ended
-      const targetX = -this.textWidth; // Fully offscreen left
-      this.x = startX + (targetX - startX) * eased;
-    }
+      targetX = startX + (this.enterEndX - startX) * eased;
 
-    // Apply velocity (hold phase scrolling)
-    if (velocity !== 0) {
-      this.x += velocity * deltaTime; // Delta-time normalized movement (CONFIG-05)
+      // Velocity starts fast, smoothly decelerates into hold velocity
+      // Use derivative of easing function for smooth velocity transition
+      currentVelocity = -this.enterVelocity * this.easeInOutCubicDerivative(progress);
+
+      this.x = targetX;
+    } else if (this.totalAnimationTime < enterDurationSec + holdDurationSec) {
+      // HOLD PHASE (25-75%): Slow constant marquee for readability
+      const progress = (this.totalAnimationTime - enterDurationSec) / holdDurationSec;
+
+      // Position transitions from enterEndX (25%) to holdEndX (75%)
+      const startX = this.enterEndX;
+      targetX = startX + (this.holdEndX - startX) * progress;
+
+      // Constant velocity (linear motion)
+      currentVelocity = -this.holdVelocity;
+
+      this.x = targetX;
+    } else {
+      // EXIT PHASE (75-100%): Accelerate into fast rush out
+      const progress = (this.totalAnimationTime - enterDurationSec - holdDurationSec) / exitDurationSec;
+      const eased = this.easeInOutCubic(progress);
+
+      // Position transitions from holdEndX (75%) to exitEndX (offscreen left)
+      const startX = this.holdEndX;
+      targetX = startX + (this.exitEndX - startX) * eased;
+
+      // Velocity smoothly accelerates from hold velocity to fast exit
+      currentVelocity = -this.exitVelocity * this.easeInOutCubicDerivative(progress);
+
+      this.x = targetX;
+    }
+  }
+
+  /**
+   * Calculate derivative of easeInOutCubic for smooth velocity transitions
+   *
+   * Used to derive instantaneous velocity from position easing function.
+   * Ensures smooth acceleration/deceleration between phases.
+   *
+   * @param {number} t - Progress value (0-1)
+   * @returns {number} Derivative value (rate of change)
+   */
+  easeInOutCubicDerivative(t) {
+    if (t < 0.5) {
+      // Derivative of 4*t^3 is 12*t^2
+      return 12 * t * t;
+    } else {
+      // Derivative of 1 - (-2*t + 2)^3 / 2
+      const u = -2 * t + 2;
+      return 6 * u * u; // Simplified derivative
     }
   }
 
@@ -169,13 +215,14 @@ export class ShadeBar extends AnimatedBar {
    *
    * Uses explicit fillStyle and shadow properties for OBS browser source compatibility.
    * Text is rendered at current (x, y) position with configured font and shadow.
+   * Text is always white for consistent branding.
    */
   draw() {
     this.ctx.save();
 
     // Set text properties
     this.ctx.font = config.shade.text.font;
-    this.ctx.fillStyle = this.color; // Explicit fillStyle for OBS (prevents browser source issues)
+    this.ctx.fillStyle = config.shade.text.color; // Always white (from config)
     this.ctx.textBaseline = 'middle'; // Vertical alignment at y position
 
     // Draw shadow/glow (adds depth and separation from background)

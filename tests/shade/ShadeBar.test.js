@@ -122,21 +122,20 @@ describe('ShadeBar', () => {
   });
 
   describe('ShadeBar instance', () => {
-    it('creates instance with provided text and color', () => {
+    it('creates instance with provided text', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'Test Message', '#ff6600', null);
+      const bar = new ShadeBar(ctx, canvas, 'Test Message', null);
 
       expect(bar.text).toBe('Test Message');
-      expect(bar.color).toBe('#ff6600');
     });
 
     it('auto-calculates hold duration when not provided', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'one two three four five', '#ffffff', null);
+      const bar = new ShadeBar(ctx, canvas, 'one two three four five', null);
 
       // 5 words * 200ms = 1000ms → 3000ms enforced
       expect(bar.holdDurationMs).toBe(3000);
@@ -146,7 +145,7 @@ describe('ShadeBar', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'Test', '#ffffff', 8000);
+      const bar = new ShadeBar(ctx, canvas, 'Test', 8000);
 
       expect(bar.holdDurationMs).toBe(8000);
     });
@@ -155,27 +154,26 @@ describe('ShadeBar', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'Test', '#ffffff', null);
+      const bar = new ShadeBar(ctx, canvas, 'Test', null);
 
       expect(bar.x).toBe(1920); // Offscreen right
       expect(bar.y).toBe(540); // Vertical center
     });
 
-    it('starts in enter phase', () => {
+    it('starts with zero animation time', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'Test', '#ffffff', null);
+      const bar = new ShadeBar(ctx, canvas, 'Test', null);
 
-      expect(bar.phase).toBe('enter');
-      expect(bar.elapsedTime).toBe(0);
+      expect(bar.totalAnimationTime).toBe(0);
     });
 
     it('initializes textWidth to 0 before init()', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'Test', '#ffffff', null);
+      const bar = new ShadeBar(ctx, canvas, 'Test', null);
 
       expect(bar.textWidth).toBe(0);
     });
@@ -186,29 +184,31 @@ describe('ShadeBar', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'Test Message', '#ffffff', null);
+      const bar = new ShadeBar(ctx, canvas, 'Test Message', null);
       bar.init();
 
       // measureText should set textWidth to non-zero value
       expect(bar.textWidth).toBeGreaterThan(0);
     });
 
-    it('calculates scroll speed based on text width', () => {
+    it('calculates velocities for each phase', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'Test', '#ffffff', 5000);
+      const bar = new ShadeBar(ctx, canvas, 'Test', 5000);
       bar.init();
 
-      // scrollSpeed should be calculated from textWidth + canvasWidth / holdDuration
-      expect(bar.scrollSpeed).toBeGreaterThan(0);
+      // Velocities should be calculated for enter, hold, and exit phases
+      expect(bar.enterVelocity).toBeGreaterThan(0);
+      expect(bar.holdVelocity).toBeGreaterThan(0);
+      expect(bar.exitVelocity).toBeGreaterThan(0);
     });
 
     it('stores phase durations from config', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
-      const bar = new ShadeBar(ctx, canvas, 'Test', '#ffffff', null);
+      const bar = new ShadeBar(ctx, canvas, 'Test', null);
       bar.init();
 
       // Phase durations should be set from config.shared.durations
