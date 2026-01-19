@@ -25,8 +25,9 @@ tech-stack:
   added: []
   patterns:
     - "Property-based testing for animation calculations using fast-check"
-    - "Easing derivative functions for smooth velocity transitions"
-    - "Position-based continuous motion animation (not discrete phases)"
+    - "Velocity-first animation architecture (calculate velocity → integrate to position)"
+    - "Cosine interpolation for smooth acceleration/deceleration curves"
+    - "Velocity continuity verification at phase boundaries"
 
 key-files:
   created:
@@ -36,17 +37,20 @@ key-files:
     - src/shade/index.html
 
 key-decisions:
-  - "Animation is ONE continuous motion with velocity transitions (not three separate stop-start animations)"
+  - "Animation is ONE continuous motion with velocity-first design (not position-based interpolation)"
   - "Text color is always white (removed color URL parameter for consistent branding)"
   - "Keyframe positions: Enter (0-25%), Hold (25-75%), Exit (75-100%) of viewport width"
-  - "easeInOutCubicDerivative() calculates instantaneous velocity for smooth acceleration/deceleration"
-  - "Phase-specific velocities calculated in init() from keyframe positions and durations"
+  - "Velocity calculated as continuous function of total elapsed time (eliminates discontinuities)"
+  - "Position updated by integrating velocity: x -= velocity * deltaTime"
+  - "Cosine deceleration/acceleration for smooth velocity transitions between phases"
+  - "Velocity at phase boundaries must be identical (< 0.01 px/s difference verified)"
 
 patterns-established:
   - "Property-based test pattern: duration >= minDuration invariant"
   - "Property-based test pattern: scroll speed always positive"
   - "Property-based test pattern: deterministic calculation verification"
-  - "Continuous motion pattern: position-based animation with smooth velocity transitions"
+  - "Velocity-first continuous motion pattern: calculateVelocity(totalTime) → integrate to position"
+  - "Velocity continuity testing: verify < 10% difference at phase boundaries"
 
 # Metrics
 duration: 134min
@@ -55,7 +59,7 @@ completed: 2026-01-19
 
 # Phase 05 Plan 03: Text Animation Testing & Continuous Motion Summary
 
-**Comprehensive unit test suite with property-based testing, plus continuous motion animation rewrite for smooth velocity transitions (white text only)**
+**Unit test suite with property-based testing, velocity-first continuous motion architecture eliminating phase boundary discontinuities (< 0.01 px/s at transitions)**
 
 ## Performance
 
@@ -68,7 +72,10 @@ completed: 2026-01-19
 ## Accomplishments
 - Complete unit test suite for ShadeBar duration and speed calculations with edge cases
 - Property-based tests validate calculation invariants (duration >= min, speed > 0, deterministic)
-- Rewrote animation from discrete phases to continuous motion with smooth velocity transitions
+- Velocity-first continuous motion architecture with calculateVelocity(totalTime) function
+- Velocity continuity at phase boundaries verified (< 0.01 px/s difference at transitions)
+- Cosine deceleration/acceleration curves for smooth velocity transitions
+- Position integration from velocity: x -= velocity * deltaTime
 - Fixed keyframe positions to 25/50/25 split (0-25%, 25-75%, 75-100%)
 - Removed color URL parameter - text is always white for consistent branding
 
@@ -78,6 +85,7 @@ Each task was committed atomically:
 
 1. **Task 1: Create unit tests** - `43135bc` (test)
 2. **Task 2: User verification with fixes** - `0a22ec8` (fix)
+3. **Velocity continuity fix** - `28f9658` (fix) - Post-plan iteration addressing user feedback
 
 **Plan metadata:** [pending] (docs: complete plan)
 
@@ -88,17 +96,20 @@ Each task was committed atomically:
 
 ## Decisions Made
 
-**Animation architecture:**
-- Animation is ONE continuous motion with velocity changes (not three separate animations)
-- Position calculated from total elapsed time across entire animation
-- Velocity transitions smoothly between phases: fast → slow → fast
-- easeInOutCubicDerivative() provides instantaneous velocity for smooth acceleration/deceleration
+**Animation architecture (velocity-first design):**
+- Animation uses velocity as primary calculation, position derived by integration
+- calculateVelocity(totalTime) returns continuous velocity function across all phases
+- Position updated each frame: x -= velocity * deltaTime
+- Velocity at phase boundaries is mathematically continuous (< 0.01 px/s difference)
+- Cosine interpolation for smooth deceleration (enter) and acceleration (exit)
 
-**Keyframe positions (corrected after user testing):**
+**Why velocity-first, not position-based:**
+After THREE iterations (deviations 1, 5, 6), discovered that position-based interpolation with ANY easing functions creates velocity discontinuities at phase boundaries. The only solution is to calculate velocity as primary function, then integrate to get position.
+
+**Keyframe positions:**
 - Enter phase: Text left edge moves from canvas.width (offscreen right) to canvas.width * 0.25 (25% viewport)
 - Hold phase: Text left edge moves from canvas.width * 0.25 to 0 (left edge of viewport) - slow marquee
 - Exit phase: Text left edge moves from 0 to -textWidth (fully offscreen left) - accelerated exit
-- Uses easeOut for entrance (smooth deceleration), linear for hold (constant velocity), easeIn for exit (smooth acceleration)
 
 **Branding consistency:**
 - Text color is always white (config.shade.text.color)
@@ -150,10 +161,28 @@ Each task was committed atomically:
 - **Verification:** Manual calculation verified all phases move left with correct keyframe positions
 - **Committed in:** 75d64a1 (fix commit 2026-01-19)
 
+**6. [Rule 1 - Bug] Velocity discontinuities at phase boundaries (2026-01-19 continuation)**
+- **Found during:** User feedback after fix #5
+- **Issue:** "the entrance phase shouldn't end with 0 movement, then start the hold phase" - Using separate easing functions per phase (easeOut for enter, linear for hold, easeIn for exit) created velocity DISCONTINUITIES. Enter phase decelerated to ~0 velocity, then hold started with its own velocity calculation.
+- **Root cause:** Calculating position independently per phase with different easings breaks continuous motion. Need velocity-first design, not position-first.
+- **Fix:** Complete rewrite from position-based to velocity-based animation:
+  1. Added calculateVelocity(timeSeconds) - continuous function across all phases
+  2. Velocity curve uses cosine deceleration/acceleration for smooth transitions
+  3. Position updated by integrating velocity: x -= velocity * deltaTime
+  4. Velocities at phase boundaries are identical (< 0.01 px/s difference)
+- **Files modified:** src/shade/ShadeBar.js, tests/shade/ShadeBar.test.js
+- **Verification:** All 27 tests pass, new test validates < 10% velocity difference at boundaries, manual calculation confirms < 0.01 px/s at transitions
+- **Committed in:** 28f9658 (fix commit 2026-01-19)
+
 ---
 
-**Total deviations:** 5 auto-fixed (4 bugs, 1 missing critical)
-**Impact on plan:** All auto-fixes were necessary to match user's animation vision. Original implementation was technically correct but conceptually wrong - treated animation as three separate motions instead of one continuous motion. Second round of fixes (after user testing) corrected keyframe positions and easing functions for proper momentum conservation.
+**Total deviations:** 6 auto-fixed (5 bugs, 1 missing critical)
+**Impact on plan:** All auto-fixes were necessary to achieve true continuous motion. This issue required THREE iterations to solve correctly:
+1. Deviation 1: Rewrote from discrete phases to continuous motion (still position-based)
+2. Deviation 5: Fixed keyframe positions and easing functions (still position-based with separate easings)
+3. Deviation 6: Complete paradigm shift from position-based to velocity-based animation - the only way to eliminate discontinuities
+
+The fundamental lesson: Continuous motion requires velocity-first design. Position-based interpolation with any easing functions (even smooth ones) creates velocity jumps at boundaries.
 
 ## Issues Encountered
 
