@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-18)
 ## Current Position
 
 Phase: 5 of 7 (Text Animation Core)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-01-18 — v1.1 milestone roadmap created
+Plan: 1 of TBD in current phase
+Status: In progress
+Last activity: 2026-01-19 — Completed 05-01-PLAN.md
 
-Progress: [████████░░] 57% (11 plans complete, 11 total remaining in v1.1)
+Progress: [████████░░] 60% (12 plans complete, 8 total remaining in v1.1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20 (v1.0 baseline: 11 plans)
-- Average duration: 34.5 min
-- Total execution time: 11.50 hours
+- Total plans completed: 21 (v1.0 baseline: 11 plans)
+- Average duration: 33.1 min
+- Total execution time: 11.57 hours
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: [████████░░] 57% (11 plans complete, 11 total rema
 | 02 | 8 | 23.1min | 2.9min |
 | 03 | 4 | 636.0min | 159.0min |
 | 04 | 3 | 7.0min | 2.3min |
+| 05 | 1 | 4.0min | 4.0min |
 
 **Recent Trend:**
-- v1.0 completed successfully
-- v1.1 starting with proven patterns from v1.0
+- v1.0 completed successfully (11 plans)
+- v1.1 Phase 5 started: Text animation foundation complete (4min)
 
 *Updated after each plan completion*
 
@@ -45,11 +46,14 @@ Progress: [████████░░] 57% (11 plans complete, 11 total rema
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- v1.1: Canvas-based text rendering (not DOM) for OBS compatibility
-- v1.0: AnimatedBar inheritance pattern proven for component extensibility (ShadeBar will extend this)
-- v1.0: Delta-time normalization via DeltaTimer provides frame-rate independence (text scrolling will use this)
-- v1.0: Brightness multiplier (0.8) established for visual harmony (curtains will match)
-- v1.0: Millisecond-based timing with centralized config defaults (config.shade will follow this)
+- 05-01: Font Loading API integration prevents race condition (document.fonts.ready → init() → measureText)
+- 05-01: Text measurement in init() method (not constructor) ensures fonts loaded before measurement
+- 05-01: Explicit ctx.fillStyle usage (no relying on defaults) for OBS browser source compatibility
+- 05-01: 96px bold Jost font for commanding celebratory presence during stream events
+- 05-01: Reading speed 200ms/word (5 words/sec) calibrated for stream event pacing
+- v1.0: AnimatedBar inheritance pattern proven for component extensibility (ShadeBar extends this)
+- v1.0: Delta-time normalization via DeltaTimer provides frame-rate independence (text scrolling uses this)
+- v1.0: Brightness multiplier (0.8) established for visual harmony (shade matches at 0.8)
 
 ### Pending Todos
 
@@ -61,9 +65,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-18
-Stopped at: Roadmap created for v1.1 Shade Component milestone (Phases 5-7)
-Resume file: None - ready to plan Phase 5
+Last session: 2026-01-19
+Stopped at: Completed 05-01-PLAN.md (text rendering foundation)
+Resume file: None - ready for Phase 05 Plan 02 (text scrolling animation)
 
 ---
-*Last updated: 2026-01-18 after v1.1 roadmap creation*
+*Last updated: 2026-01-19 after 05-01 completion*
