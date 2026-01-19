@@ -35,12 +35,16 @@
 
     <script type="module">
       import { ShadeBar } from './ShadeBar.js';
+      import { CurtainBar } from './CurtainBar.js';
       import { config } from '../config/config.js';
       import { DeltaTimer } from '../shared/timing.js';
+      import { AnimationLifecycle } from '../shared/lifecycle.js';
+      import { hexToHSL } from '../shared/colors.js';
 
       // Parse URL parameters (CONFIG-01: URL parameter configuration)
       const urlParams = new URLSearchParams(window.location.search);
       const text = urlParams.get('text') || 'Default Text';
+      const colorParam = urlParams.get('color') || '7289DA'; // Default Discord blurple
       const durationParam = urlParams.get('duration');
       const holdDurationMs = durationParam ? parseInt(durationParam) : null; // null triggers calculation
 
@@ -50,20 +54,42 @@
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
+      // Convert hex color to HSL for curtains
+      const baseColor = colorParam.startsWith('#') ? colorParam : `#${colorParam}`;
+      const baseHSL = hexToHSL(baseColor);
+
+      // Initialize lifecycle manager (CONFIG-03: AnimationLifecycle cleanup)
+      const lifecycle = new AnimationLifecycle();
+
       // Wait for fonts to load before initializing (RESEARCH.md Pitfall 1: Font Loading)
       // CONFIG-04: Font loading prevents measurement race conditions
       document.fonts.ready.then(() => {
-        console.log('[Shade] Fonts loaded, initializing ShadeBar');
+        console.log('[Shade] Fonts loaded, initializing components');
+
+        // Calculate shared timing (single source of truth - RESEARCH.md Pitfall 3)
+        // Hold duration calculated from text length (ShadeBar pattern)
+        const calculatedHoldMs = holdDurationMs !== null
+          ? holdDurationMs
+          : ShadeBar.calculateHoldDuration(text);
+
+        // Total duration = enter + hold + exit (all components must share this)
+        const totalDurationMs = config.shade.durations.entryMs + calculatedHoldMs + config.shade.durations.exitMs;
+
+        console.log('[Shade] Text:', text);
+        console.log('[Shade] Color:', baseColor);
+        console.log('[Shade] Hold Duration:', calculatedHoldMs, 'ms');
+        console.log('[Shade] Total Duration:', totalDurationMs, 'ms');
+
+        // Create curtains with shared total duration
+        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs);
+        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs);
 
         // Create ShadeBar instance (text is always white - no color parameter)
-        const shadeBar = new ShadeBar(ctx, canvas, text, holdDurationMs);
+        const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);
 
         // Initialize text metrics after fonts are ready
         shadeBar.init();
 
-        console.log('[Shade] Text:', text);
-        console.log('[Shade] Color: white (fixed)');
-        console.log('[Shade] Hold Duration:', holdDurationMs, 'ms');
         console.log('[Shade] Text Width:', shadeBar.textWidth, 'px');
 
         // Initialize delta-time timer (CONFIG-05: Frame-rate independence)
@@ -72,10 +98,14 @@
         /**
          * Animation loop
          *
-         * Three-phase animation:
-         * - Enter phase: fly in from right edge (1 second)
-         * - Hold phase: continuous right-to-left scrolling (dynamic duration)
-         * - Exit phase: fly out left edge (1 second)
+         * Three-phase animation (synchronized across all components):
+         * - Enter phase: curtains enter, text flies in from right (1 second)
+         * - Hold phase: curtains static, text scrolls continuously (dynamic duration)
+         * - Exit phase: curtains exit, text flies out left (1 second)
+         *
+         * RENDERING ORDER CRITICAL (RESEARCH.md Pitfall 1):
+         * - Curtains drawn first (background layer)
+         * - Text drawn last (foreground layer - always visible on top)
          */
         function animate(timestamp) {
           const deltaTime = deltaTimer.update(timestamp);
@@ -83,13 +113,26 @@
           // Clear canvas
           ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          // Update and draw text
+          // Update all components with same deltaTime (synchronized)
+          topCurtain.update(deltaTime);
+          bottomCurtain.update(deltaTime);
           shadeBar.update(deltaTime);
+
+          // RENDERING ORDER CRITICAL
+          // Draw curtains FIRST (background layer)
+          topCurtain.draw();
+          bottomCurtain.draw();
+
+          // Draw text LAST (foreground layer - always visible on top)
           shadeBar.draw();
 
-          // Continue animation if still active
-          if (shadeBar.active) {
+          // Continue until all components inactive (synchronized completion)
+          const anyActive = topCurtain.active || bottomCurtain.active || shadeBar.active;
+          if (anyActive) {
             requestAnimationFrame(animate);
+          } else {
+            console.log('[Shade] Animation complete, cleaning up');
+            lifecycle.cleanup(); // AnimationLifecycle cleanup
           }
         }
 

@@ -283,6 +283,12 @@ export const config = {
     durations: {
       entryMs: 1000,              // Entry animation duration
       exitMs: 1000                // Exit animation duration
+    },
+
+    // Curtain configuration
+    curtains: {
+      opacity: 0.5,               // Semi-transparent overlay (middle of 0.4-0.6 range)
+      barCount: 6                 // Horizontal bars per curtain (balances visual density with performance)
     }
   },
 
