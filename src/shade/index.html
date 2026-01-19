@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shade Text Animation</title>
+    <style>
+      /* Load Jost font for text rendering - @import must be first */
+      @import url('https://fonts.googleapis.com/css2?family=Jost:wght@700&display=swap');
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        position: relative;
+        background: transparent;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import { ShadeBar } from './ShadeBar.js';
+      import { getColorFromURL } from '../shared/colors.js';
+      import { config } from '../config/config.js';
+      import { DeltaTimer } from '../shared/timing.js';
+
+      // Parse URL parameters (CONFIG-01: URL parameter configuration)
+      const urlParams = new URLSearchParams(window.location.search);
+      const text = urlParams.get('text') || 'Default Text';
+      const color = getColorFromURL(); // Handles ?color or generates random
+      const durationParam = urlParams.get('duration');
+      const holdDurationMs = durationParam ? parseInt(durationParam) : config.shade.timing.minHoldMs;
+
+      // Setup canvas
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d', { alpha: config.performance.alpha.background });
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      // Wait for fonts to load before initializing (RESEARCH.md Pitfall 1: Font Loading)
+      // CONFIG-04: Font loading prevents measurement race conditions
+      document.fonts.ready.then(() => {
+        console.log('[Shade] Fonts loaded, initializing ShadeBar');
+
+        // Create ShadeBar instance
+        const shadeBar = new ShadeBar(ctx, canvas, text, color, holdDurationMs);
+
+        // Initialize text metrics after fonts are ready
+        shadeBar.init();
+
+        console.log('[Shade] Text:', text);
+        console.log('[Shade] Color:', color);
+        console.log('[Shade] Hold Duration:', holdDurationMs, 'ms');
+        console.log('[Shade] Text Width:', shadeBar.textWidth, 'px');
+
+        // Initialize delta-time timer (CONFIG-05: Frame-rate independence)
+        const deltaTimer = new DeltaTimer();
+
+        /**
+         * Animation loop
+         *
+         * Note: Currently displays static text at offscreen position (x = canvas.width).
+         * Plan 02 will add scrolling animation logic:
+         * - Enter phase: fly in from right edge
+         * - Hold phase: continuous right-to-left scrolling
+         * - Exit phase: fly out left edge
+         */
+        function animate(timestamp) {
+          const deltaTime = deltaTimer.update(timestamp);
+
+          // Clear canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // Update and draw text
+          shadeBar.update(deltaTime);
+          shadeBar.draw();
+
+          requestAnimationFrame(animate);
+        }
+
+        // Start animation loop
+        requestAnimationFrame(animate);
+      });
+    </script>
+  </body>
+</html>
