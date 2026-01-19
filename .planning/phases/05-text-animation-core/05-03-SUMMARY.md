@@ -94,10 +94,11 @@ Each task was committed atomically:
 - Velocity transitions smoothly between phases: fast → slow → fast
 - easeInOutCubicDerivative() provides instantaneous velocity for smooth acceleration/deceleration
 
-**Keyframe positions (percentage of viewport width):**
-- Enter phase (0-25%): Rush in from offscreen right, decelerate smoothly into hold
-- Hold phase (25-75%): Slow marquee across middle 50% for readability
-- Exit phase (75-100%): Accelerate smoothly from hold, rush out to offscreen left
+**Keyframe positions (corrected after user testing):**
+- Enter phase: Text left edge moves from canvas.width (offscreen right) to canvas.width * 0.25 (25% viewport)
+- Hold phase: Text left edge moves from canvas.width * 0.25 to 0 (left edge of viewport) - slow marquee
+- Exit phase: Text left edge moves from 0 to -textWidth (fully offscreen left) - accelerated exit
+- Uses easeOut for entrance (smooth deceleration), linear for hold (constant velocity), easeIn for exit (smooth acceleration)
 
 **Branding consistency:**
 - Text color is always white (config.shade.text.color)
@@ -140,10 +141,19 @@ Each task was committed atomically:
 - **Verification:** Tests updated to match new constructor signature, all pass
 - **Committed in:** 0a22ec8 (Task 2 fix commit)
 
+**5. [Rule 1 - Bug] Keyframe positions still incorrect after first fix (2026-01-19 user testing)**
+- **Found during:** User browser testing after plan completion
+- **Issue:** Three specific problems found: (1) Momentum not conserved between phases, (2) Entrance ending too late, (3) Exit incomplete
+- **Root cause:** holdEndX was still wrong (canvas.width * 0.75 moved text RIGHT), and easing functions created velocity discontinuities
+- **Fix:** Corrected keyframes to: enterEndX = canvas.width * 0.25, holdEndX = 0 (left edge of viewport), exitEndX = -textWidth. Replaced easeInOutCubic with easeOut (enter) and easeIn (exit) for smoother velocity transitions. Removed derivative function.
+- **Files modified:** src/shade/ShadeBar.js
+- **Verification:** Manual calculation verified all phases move left with correct keyframe positions
+- **Committed in:** 75d64a1 (fix commit 2026-01-19)
+
 ---
 
-**Total deviations:** 4 auto-fixed (3 bugs, 1 missing critical)
-**Impact on plan:** All auto-fixes were necessary to match user's animation vision. Original implementation was technically correct but conceptually wrong - treated animation as three separate motions instead of one continuous motion. Fixes ensure smooth velocity transitions and consistent branding.
+**Total deviations:** 5 auto-fixed (4 bugs, 1 missing critical)
+**Impact on plan:** All auto-fixes were necessary to match user's animation vision. Original implementation was technically correct but conceptually wrong - treated animation as three separate motions instead of one continuous motion. Second round of fixes (after user testing) corrected keyframe positions and easing functions for proper momentum conservation.
 
 ## Issues Encountered
 
