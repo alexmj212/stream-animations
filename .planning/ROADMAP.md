@@ -76,7 +76,7 @@ Plans:
   1. Semi-transparent curtains enter from top and bottom edges with smooth easing
   2. Text "flies in" with curtains during enter phase, "flies out" during exit phase
   3. Text scrolls horizontally during hold phase with constant speed
-  4. Text clipped to curtain boundaries during enter/exit (no overflow)
+  4. Text renders above curtains (always visible, not clipped)
   5. Text and curtains synchronized via single phase controller - no desynchronization
 **Plans**: 2 plans
 

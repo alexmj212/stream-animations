@@ -18,7 +18,7 @@
 - [ ] **TEXT-01**: Large readable text renders on canvas with explicit fillStyle for OBS compatibility
 - [ ] **TEXT-02**: Hold duration calculated dynamically from text length (250ms/word baseline)
 - [ ] **TEXT-03**: Text scrolls horizontally during hold phase with linear interpolation
-- [ ] **TEXT-04**: Text clipped to curtain boundaries during enter/exit phases (no overflow)
+- [ ] **TEXT-04**: Text renders above curtains (always visible, not clipped to curtain boundaries)
 - [ ] **TEXT-05**: Minimum readability guarantee enforced (min/max duration bounds)
 - [ ] **TEXT-06**: Text remains fully visible throughout entire hold phase (no cutoff)
 - [ ] **TEXT-07**: Text "flies in" with curtains during enter, "flies out" during exit
