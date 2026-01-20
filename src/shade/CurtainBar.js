@@ -77,65 +77,113 @@ export class CurtainBar extends AnimatedBar {
   }
 
   /**
-   * Initialize horizontal bars inside curtain boundaries
+   * Initialize mixed slanted and horizontal bars inside curtain boundaries
    *
-   * Creates 6 horizontal bars with randomized properties (direction, speed, color).
-   * Bars are positioned within curtain area and animate continuously throughout
-   * enter/hold/exit phases.
+   * Creates 8 bars (mix of slanted and horizontal) with randomized properties.
+   * Matches stinger/sidebar visual pattern: varying widths, both directions,
+   * shadow rectangles, and mix of vertical (slanted) and horizontal bars.
+   *
+   * Bars animate continuously throughout enter/hold/exit phases.
    */
   initBars() {
-    const barCount = 6; // Balance between visual density and performance
+    const barCount = 8; // Increased from 6 to match stinger density (8 accent bars + 2 background)
 
     for (let i = 0; i < barCount; i++) {
-      // Create horizontal bar (using AnimatedBar type='horizontal' pattern)
-      const bar = {
-        type: 'horizontal',
-        direction: Math.random() > 0.5 ? 1 : -1, // Both L-R and R-L
-      };
+      // Mix of slanted (vertical) and horizontal bars (60% slanted, 40% horizontal like stinger)
+      const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
 
-      // Position within curtain area
-      if (this.position === 'top') {
-        // Top curtain: y from 0 to canvas.height/2 + overshoot
-        bar.y = (i / barCount) * this.targetHeight;
-      } else {
-        // Bottom curtain: y from canvas.height/2 - overshoot to canvas.height
-        bar.y = (this.canvas.height / 2 - this.overshoot) + (i / barCount) * this.targetHeight;
-      }
+      const bar = {
+        type: type,
+        direction: Math.random() > 0.5 ? 1 : -1, // Both L-R and R-L (or up-down for slanted)
+      };
 
       // Visual properties (match stinger/sidebar randomization pattern)
       bar.isWhite = Math.random() > 0.7; // 30% white bars
 
-      if (bar.isWhite) {
-        bar.hue = 0;
-        bar.saturation = 0;
-        bar.lightness = 100 * config.shade.brightness;
-        bar.width = Math.random() * 30 + 20; // 20-50px
-      } else {
-        // Colored bar with randomized hue variation (like stinger/sidebar)
-        const hueVariation = (Math.random() - 0.5) * 40; // ±20 from base
-        const lightnessVariation = (Math.random() - 0.5) * 30; // ±15 from base
+      if (type === 'slanted') {
+        // Slanted bars (vertical bars with rotation)
 
-        bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
-        bar.saturation = this.baseHSL.s;
-        const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
-        bar.lightness = Math.max(10, baseLightness * config.shade.brightness);
-        bar.width = Math.random() * 60 + 40; // 40-100px
+        // Position within curtain area (X position random across curtain width)
+        bar.x = Math.random() * this.canvas.width;
+        bar.y = this.position === 'top' ? 0 : this.canvas.height / 2; // Top or bottom edge
+
+        // Angle matches stinger pattern
+        bar.angle = config.stinger.slanted.angle; // 15 degrees clockwise
+
+        // Width varies by color (white bars smaller, colored bars larger)
+        if (bar.isWhite) {
+          bar.hue = 0;
+          bar.saturation = 0;
+          bar.lightness = 100 * config.shade.brightness;
+          bar.width = Math.random() * (config.stinger.slanted.whiteBarWidthMax - config.stinger.slanted.whiteBarWidthMin)
+                    + config.stinger.slanted.whiteBarWidthMin; // 40-120px
+        } else {
+          // Colored bar with randomized hue variation
+          const hueVariation = (Math.random() - 0.5) * config.stinger.color.hueVariation; // ±20 from base
+          const lightnessVariation = (Math.random() - 0.5) * config.stinger.color.lightnessVariation; // ±15 from base
+
+          bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
+          bar.saturation = this.baseHSL.s;
+          const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
+          bar.lightness = Math.max(10, baseLightness * config.shade.brightness);
+          bar.width = Math.random() * (config.stinger.slanted.coloredBarWidthMax - config.stinger.slanted.coloredBarWidthMin)
+                    + config.stinger.slanted.coloredBarWidthMin; // 150-450px
+        }
+
+        // Height covers curtain area (half screen height + overshoot)
+        bar.height = this.targetHeight;
+
+        // Speed for vertical movement (traverse curtain height in 2-4 seconds)
+        bar.speed = this.targetHeight / (2 + Math.random() * 2);
+
+      } else {
+        // Horizontal bars (original pattern)
+
+        // Position within curtain area
+        if (this.position === 'top') {
+          // Top curtain: y from 0 to canvas.height/2 + overshoot
+          bar.y = (i / barCount) * this.targetHeight;
+        } else {
+          // Bottom curtain: y from canvas.height/2 - overshoot to canvas.height
+          bar.y = (this.canvas.height / 2 - this.overshoot) + (i / barCount) * this.targetHeight;
+        }
+
+        // Skew angle (matches stinger pattern)
+        bar.skew = config.stinger.horizontal.skewAngle; // -15 degrees
+
+        // Height varies by color (white bars smaller, colored bars larger)
+        if (bar.isWhite) {
+          bar.hue = 0;
+          bar.saturation = 0;
+          bar.lightness = 100 * config.shade.brightness;
+          bar.height = Math.random() * (config.stinger.horizontal.whiteBarHeightMax - config.stinger.horizontal.whiteBarHeightMin)
+                     + config.stinger.horizontal.whiteBarHeightMin; // 20-50px
+        } else {
+          // Colored bar with randomized hue variation
+          const hueVariation = (Math.random() - 0.5) * config.stinger.color.hueVariation; // ±20 from base
+          const lightnessVariation = (Math.random() - 0.5) * config.stinger.color.lightnessVariation; // ±15 from base
+
+          bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
+          bar.saturation = this.baseHSL.s;
+          const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
+          bar.lightness = Math.max(10, baseLightness * config.shade.brightness);
+          bar.height = Math.random() * (config.stinger.horizontal.coloredBarHeightMax - config.stinger.horizontal.coloredBarHeightMin)
+                     + config.stinger.horizontal.coloredBarHeightMin; // 40-100px
+        }
+
+        // Width is full canvas width (horizontal bar extends across screen)
+        bar.width = this.canvas.width + 400;
+
+        // Start offscreen (direction determines which side)
+        bar.x = bar.direction === 1 ? -200 : this.canvas.width + 200;
+
+        // Speed to traverse canvas in 2-3 seconds
+        bar.speed = (this.canvas.width + 400) / (2 + Math.random());
       }
 
-      // Height is full canvas width (horizontal bar extends across screen)
-      bar.height = this.canvas.width + 400;
-
-      // Skew angle (matches stinger pattern)
-      bar.skew = config.stinger.horizontal.skewAngle; // -15 degrees
-
       // Opacity variation (match stinger/sidebar pattern)
-      bar.opacity = Math.random() * 0.4 + 0.6; // 0.6-1.0
-
-      // Start offscreen (direction determines which side)
-      bar.x = bar.direction === 1 ? -200 : this.canvas.width + 200;
-
-      // Speed to traverse canvas in 2-3 seconds
-      bar.speed = (this.canvas.width + 400) / (2 + Math.random());
+      bar.opacity = Math.random() * (config.stinger.opacity.max - config.stinger.opacity.min)
+                  + config.stinger.opacity.min; // 0.6-1.0
 
       this.bars.push(bar);
     }
@@ -192,13 +240,40 @@ export class CurtainBar extends AnimatedBar {
 
     // Update bars continuously (animate throughout enter/hold/exit)
     this.bars.forEach(bar => {
-      bar.x += bar.speed * bar.direction * deltaTime;
+      if (bar.type === 'slanted') {
+        // Slanted bars move vertically (up or down depending on position and direction)
+        if (this.position === 'top') {
+          // Top curtain: bars move down (direction 1) or up (direction -1)
+          bar.y += bar.speed * bar.direction * deltaTime;
 
-      // Wrap around when offscreen
-      if (bar.direction === 1 && bar.x > this.canvas.width + 200) {
-        bar.x = -200;
-      } else if (bar.direction === -1 && bar.x < -200) {
-        bar.x = this.canvas.width + 200;
+          // Wrap around when offscreen
+          if (bar.direction === 1 && bar.y > this.targetHeight) {
+            bar.y = -bar.height;
+          } else if (bar.direction === -1 && bar.y < -bar.height) {
+            bar.y = this.targetHeight;
+          }
+        } else {
+          // Bottom curtain: bars move up (direction 1) or down (direction -1)
+          const curtainTop = this.canvas.height / 2 - this.overshoot;
+          bar.y += bar.speed * bar.direction * deltaTime;
+
+          // Wrap around when offscreen
+          if (bar.direction === 1 && bar.y < curtainTop) {
+            bar.y = this.canvas.height + bar.height;
+          } else if (bar.direction === -1 && bar.y > this.canvas.height + bar.height) {
+            bar.y = curtainTop;
+          }
+        }
+      } else {
+        // Horizontal bars move left or right
+        bar.x += bar.speed * bar.direction * deltaTime;
+
+        // Wrap around when offscreen
+        if (bar.direction === 1 && bar.x > this.canvas.width + 200) {
+          bar.x = -200;
+        } else if (bar.direction === -1 && bar.x < -200) {
+          bar.x = this.canvas.width + 200;
+        }
       }
     });
   }
@@ -292,6 +367,14 @@ export class CurtainBar extends AnimatedBar {
 
     // Draw bars using AnimatedBar's drawBar method
     this.bars.forEach(bar => {
+      // Use angle for slanted bars, skew for horizontal bars
+      const angleOrSkew = bar.type === 'slanted' ? bar.angle : bar.skew;
+
+      // AnimatedBar.drawBar checks this.type to determine rotation vs skew
+      // Temporarily set type to match the bar being drawn
+      const savedType = this.type;
+      this.type = bar.type;
+
       this.drawBar(
         bar.x,
         bar.y,
@@ -301,9 +384,12 @@ export class CurtainBar extends AnimatedBar {
         bar.saturation,
         bar.lightness,
         bar.opacity,
-        bar.skew,
+        angleOrSkew,
         true // withShadow
       );
+
+      // Restore original type
+      this.type = savedType;
     });
 
     this.ctx.restore();
