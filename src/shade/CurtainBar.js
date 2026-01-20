@@ -105,7 +105,6 @@ export class CurtainBar extends AnimatedBar {
 
         // Position within curtain area (X position random across curtain width)
         bar.x = Math.random() * this.canvas.width;
-        bar.y = this.position === 'top' ? 0 : this.canvas.height / 2; // Top or bottom edge
 
         // Angle matches stinger pattern
         bar.angle = config.stinger.slanted.angle; // 15 degrees clockwise
@@ -130,11 +129,23 @@ export class CurtainBar extends AnimatedBar {
                     + config.stinger.slanted.coloredBarWidthMin; // 150-450px
         }
 
-        // Height covers curtain area (half screen height + overshoot)
-        bar.height = this.targetHeight;
+        // Make bars much taller than curtain area to prevent ends from showing
+        // Use 1.5x full canvas height (matches AnimatedBar pattern) with extra buffer
+        bar.height = this.canvas.height * 1.8; // 80% taller than screen for safety margin
 
-        // Speed for vertical movement (traverse curtain height in 2-4 seconds)
-        bar.speed = this.targetHeight / (2 + Math.random() * 2);
+        // Position bars with buffer above/below visible curtain area to hide ends
+        // For top curtain: position bars so they extend well above viewport
+        // For bottom curtain: position bars so they extend well below viewport
+        const bufferZone = this.canvas.height * 0.3; // 30% of screen height as buffer
+        if (this.position === 'top') {
+          bar.y = -bufferZone; // Start above curtain area
+        } else {
+          bar.y = this.canvas.height / 2 + bufferZone; // Start below curtain middle
+        }
+
+        // Speed for vertical movement (traverse curtain height + buffers in 2-4 seconds)
+        const totalTraversalDistance = this.targetHeight + bufferZone * 2;
+        bar.speed = totalTraversalDistance / (2 + Math.random() * 2);
 
       } else {
         // Horizontal bars (original pattern)
@@ -242,26 +253,35 @@ export class CurtainBar extends AnimatedBar {
     this.bars.forEach(bar => {
       if (bar.type === 'slanted') {
         // Slanted bars move vertically (up or down depending on position and direction)
+        // Buffer zone ensures bar ends stay offscreen during wrapping
+        const bufferZone = this.canvas.height * 0.3;
+
         if (this.position === 'top') {
           // Top curtain: bars move down (direction 1) or up (direction -1)
           bar.y += bar.speed * bar.direction * deltaTime;
 
-          // Wrap around when offscreen
-          if (bar.direction === 1 && bar.y > this.targetHeight) {
-            bar.y = -bar.height;
-          } else if (bar.direction === -1 && bar.y < -bar.height) {
-            bar.y = this.targetHeight;
+          // Wrap around when bar completely exits visible curtain area (with buffer)
+          // Moving down: when top edge exceeds curtain bottom + buffer
+          if (bar.direction === 1 && bar.y > this.targetHeight + bufferZone) {
+            bar.y = -bufferZone - bar.height; // Reset to above curtain (with bar height offset)
+          }
+          // Moving up: when bottom edge goes above curtain top - buffer
+          else if (bar.direction === -1 && bar.y + bar.height < -bufferZone) {
+            bar.y = this.targetHeight + bufferZone; // Reset to below curtain
           }
         } else {
           // Bottom curtain: bars move up (direction 1) or down (direction -1)
           const curtainTop = this.canvas.height / 2 - this.overshoot;
           bar.y += bar.speed * bar.direction * deltaTime;
 
-          // Wrap around when offscreen
-          if (bar.direction === 1 && bar.y < curtainTop) {
-            bar.y = this.canvas.height + bar.height;
-          } else if (bar.direction === -1 && bar.y > this.canvas.height + bar.height) {
-            bar.y = curtainTop;
+          // Wrap around when bar completely exits visible curtain area (with buffer)
+          // Moving up: when bottom edge goes above curtain top - buffer
+          if (bar.direction === 1 && bar.y + bar.height < curtainTop - bufferZone) {
+            bar.y = this.canvas.height + bufferZone; // Reset to below viewport
+          }
+          // Moving down: when top edge exceeds viewport bottom + buffer
+          else if (bar.direction === -1 && bar.y > this.canvas.height + bufferZone) {
+            bar.y = curtainTop - bufferZone - bar.height; // Reset to above curtain
           }
         }
       } else {
