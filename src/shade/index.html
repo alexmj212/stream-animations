@@ -119,7 +119,7 @@
       });
 
       // Wait for fonts to load before initializing (RESEARCH.md Pitfall 1: Font Loading)
-      document.fonts.ready.then(() => {
+      document.fonts.ready.then(async () => {
         console.log('[Shade] Fonts loaded, initializing components');
 
         // Calculate shared timing (single source of truth - RESEARCH.md Pitfall 3)
