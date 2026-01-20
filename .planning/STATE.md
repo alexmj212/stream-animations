@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-18)
 ## Current Position
 
 Phase: 7 of 7 (Performance Optimization & Polish)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-01-19 — Phase 6 complete (Curtain Integration & Synchronization)
+Plan: 1 of TBD in current phase
+Status: In progress
+Last activity: 2026-01-20 — Completed 07-01-PLAN.md (Performance Optimization Core)
 
-Progress: [██████████] 100% (16 plans complete, all core features done, ready for final optimization)
+Progress: [██████████] 100% (17 plans complete, performance optimizations implemented)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16 (v1.1 in progress, v1.0 baseline: 11 plans)
-- Average duration: 80.0 min
-- Total execution time: 17.34 hours
+- Total plans completed: 17 (v1.1 in progress, v1.0 baseline: 11 plans)
+- Average duration: 74.2 min
+- Total execution time: 17.40 hours
 
 **By Phase:**
 
@@ -33,11 +33,13 @@ Progress: [██████████] 100% (16 plans complete, all core fea
 | 04 | 3 | 7.0min | 2.3min |
 | 05 | 3 | 140.0min | 46.7min |
 | 06 | 2 | 348.0min | 174.0min |
+| 07 | 1 | 2.0min | 2.0min |
 
 **Recent Trend:**
 - v1.0 completed successfully (11 plans, 11.60 hours total)
 - v1.1 Phase 5 complete: Text rendering (4min) + scrolling animation (2min) + testing & continuous motion (134min)
 - v1.1 Phase 6 complete: CurtainBar component (3min) + synchronization & integration (345min)
+- v1.1 Phase 7 in progress: Performance optimization core (2min)
 
 *Updated after each plan completion*
 
@@ -48,6 +50,11 @@ Progress: [██████████] 100% (16 plans complete, all core fea
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- 07-01: Offscreen canvas with { alpha: true } ensures transparent background for proper text compositing
+- 07-01: Shadow padding 40px total (20px each side) prevents blur clipping at canvas edges
+- 07-01: drawImage() replaces fillText() in draw loop for 10-20x speedup (PERF-01)
+- 07-01: hsla() gradient colors with opacity parameter instead of globalAlpha for GPU efficiency (PERF-03)
+- 07-01: save/restore kept for clipping isolation, not for opacity management
 - 06-02: Critical rendering order (curtains first, text last) ensures text always visible above curtains
 - 06-02: Shared totalDurationMs calculated once from text length prevents desynchronization
 - 06-02: Optical text centering using actualBoundingBox metrics for font-specific visual alignment
@@ -90,8 +97,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 06-02-PLAN.md (Curtain integration and synchronization)
-Resume file: None - Phase 6 complete, ready for Phase 7 (Performance optimization)
+Stopped at: Completed 07-01-PLAN.md (Performance Optimization Core)
+Resume file: None - ready for Plan 07-02 (Performance measurement and validation)
 
 ---
-*Last updated: 2026-01-20 after 06-02 completion*
+*Last updated: 2026-01-20 after 07-01 completion*
