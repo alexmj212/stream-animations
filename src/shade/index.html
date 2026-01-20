@@ -136,9 +136,12 @@
         console.log('[Shade] Hold Duration:', calculatedHoldMs, 'ms');
         console.log('[Shade] Total Duration:', totalDurationMs, 'ms');
 
-        // Create curtains with shared total duration
-        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs);
-        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs);
+        // Extract font size for curtain tip sizing (96px from config)
+        const fontSize = 96; // From config.shade.text.font: 'bold 96px Jost'
+
+        // Create curtains with shared total duration and text height for tip sizing
+        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight: fontSize });
+        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight: fontSize });
 
         // Create ShadeBar instance (text is always white - no color parameter)
         const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);

@@ -25,6 +25,7 @@ export class CurtainBar extends AnimatedBar {
    * @param {Object} baseHSL - Base HSL color {h, s, l}
    * @param {number} totalDurationMs - Total animation duration (enter + hold + exit)
    * @param {Object} options - Optional configuration
+   * @param {number} options.textHeight - Height of text (for tip sizing)
    */
   constructor(ctx, canvas, position, baseHSL, totalDurationMs, options = {}) {
     super(ctx, canvas, 'curtain', options);
@@ -36,6 +37,11 @@ export class CurtainBar extends AnimatedBar {
     // Curtain visual properties (CONTEXT: 0.4-0.6 range, choose middle)
     this.opacity = 0.5;
     this.targetHeight = canvas.height / 2; // Covers 50% of viewport
+
+    // Tip properties (solid color background for text readability)
+    // Tips are slightly more than 50% of text height so they overlap when curtains meet
+    this.textHeight = options.textHeight || 96; // Default to font size if not provided
+    this.tipHeight = this.textHeight * 0.55; // 55% of text height
 
     // Animation state (three phases like stinger pattern)
     this.phase = 'enter'; // 'enter' | 'hold' | 'exit'
@@ -195,11 +201,45 @@ export class CurtainBar extends AnimatedBar {
   }
 
   /**
+   * Draw solid color tip for text readability
+   *
+   * Tips are solid color rectangles at the edge of each curtain that create
+   * a solid background for the text when curtains meet at center.
+   *
+   * Top curtain: tip at bottom edge
+   * Bottom curtain: tip at top edge
+   */
+  drawTip() {
+    this.ctx.save();
+
+    // Solid color (no transparency - opacity 1.0)
+    this.ctx.globalAlpha = 1.0;
+
+    // Use base color with brightness adjustment (same as curtain gradient start)
+    const tipLightness = this.baseHSL.l * config.shade.brightness;
+    this.ctx.fillStyle = `hsl(${this.baseHSL.h}, ${this.baseHSL.s}%, ${tipLightness}%)`;
+
+    // Calculate tip position based on curtain position
+    if (this.position === 'top') {
+      // Top curtain: tip at bottom edge of curtain
+      const tipY = this.y + this.targetHeight - this.tipHeight;
+      this.ctx.fillRect(0, tipY, this.canvas.width, this.tipHeight);
+    } else {
+      // Bottom curtain: tip at top edge of curtain
+      const tipY = this.y;
+      this.ctx.fillRect(0, tipY, this.canvas.width, this.tipHeight);
+    }
+
+    this.ctx.restore();
+  }
+
+  /**
    * Draw curtain with semi-transparent gradient fill and clipped bars
    *
    * Drawing order:
    * 1. Semi-transparent gradient rectangle (curtain background)
    * 2. Horizontal bars clipped to curtain's current visible area
+   * 3. Solid color tip for text readability (drawn last, on top)
    *
    * Uses ctx.save/restore to prevent globalAlpha persistence (RESEARCH Pitfall 5).
    */
@@ -263,5 +303,8 @@ export class CurtainBar extends AnimatedBar {
     });
 
     this.ctx.restore();
+
+    // Draw solid color tip (on top of everything - for text readability)
+    this.drawTip();
   }
 }
