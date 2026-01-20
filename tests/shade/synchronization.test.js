@@ -215,7 +215,7 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
   });
 
   describe('Centerline Meeting', () => {
-    it('should have curtains meet exactly at centerline during hold phase', () => {
+    it('should have curtains overlap slightly at centerline during hold phase', () => {
       const holdDurationMs = 3000;
       const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
 
@@ -232,16 +232,18 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
       expect(topCurtain.phase).toBe('hold');
       expect(bottomCurtain.phase).toBe('hold');
 
-      // Check positions
+      // Check positions - curtains intentionally overlap by 2 * overshoot (8px total)
+      // to prevent gaps during animation
       const topBottom = topCurtain.y + topCurtain.targetHeight;
       const bottomTop = bottomCurtain.y;
 
-      // Curtains should meet exactly at centerline (no gap or overlap)
-      expect(topBottom).toBe(bottomTop);
-      expect(bottomTop).toBe(canvas.height / 2); // Centerline
+      // Top curtain extends 4px past center, bottom curtain starts 4px before center
+      // This creates 8px overlap to guarantee no gaps
+      expect(topBottom).toBe(canvas.height / 2 + 4); // 4px past centerline
+      expect(bottomTop).toBe(canvas.height / 2 - 4); // 4px before centerline
     });
 
-    it('should have correct target heights covering full viewport', () => {
+    it('should have correct target heights with intentional overlap', () => {
       const holdDurationMs = 3000;
       const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
 
@@ -250,12 +252,13 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
       const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs);
       const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs);
 
-      // Each curtain should cover exactly half the viewport
-      expect(topCurtain.targetHeight).toBe(canvas.height / 2);
-      expect(bottomCurtain.targetHeight).toBe(canvas.height / 2);
+      // Each curtain covers half the viewport PLUS 4px overshoot
+      // This ensures no gaps appear during animation
+      expect(topCurtain.targetHeight).toBe(canvas.height / 2 + 4); // 544px (540 + 4)
+      expect(bottomCurtain.targetHeight).toBe(canvas.height / 2 + 4); // 544px (540 + 4)
 
-      // Together they should cover the full viewport
-      expect(topCurtain.targetHeight + bottomCurtain.targetHeight).toBe(canvas.height);
+      // Together they cover MORE than the full viewport (intentional 8px overlap)
+      expect(topCurtain.targetHeight + bottomCurtain.targetHeight).toBe(canvas.height + 8); // 1088px (1080 + 8)
     });
   });
 });
