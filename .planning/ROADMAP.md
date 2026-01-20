@@ -93,11 +93,10 @@ Plans:
   2. Offscreen canvas caching provides 5x+ performance gain for text rendering
   3. GPU usage remains under 50% during animation
   4. Shade component validated in OBS browser source across 5+ test streams
-**Plans**: TBD
-
+**Plans:** 2 plans
 Plans:
-- [ ] 07-01: [TBD during phase planning]
-
+- [ ] 07-01-PLAN.md — Offscreen canvas caching + hsla() migration
+- [ ] 07-02-PLAN.md — OBS validation protocol and testing
 ## Progress
 
 **Execution Order:**
