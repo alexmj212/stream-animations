@@ -337,16 +337,14 @@ export class CurtainBar extends AnimatedBar {
    * 2. Horizontal bars clipped to curtain's current visible area
    * 3. Solid color tip for text readability (drawn last, on top)
    *
-   * Uses ctx.save/restore to prevent globalAlpha persistence (RESEARCH Pitfall 5).
+   * Uses hsla() colors with opacity baked in for GPU efficiency (PERF-03).
+   * Uses ctx.save/restore for clipping region isolation.
    */
   draw() {
     if (!this.active) return;
 
     // Draw curtain fill (semi-transparent gradient)
     this.ctx.save();
-
-    // Semi-transparent fill (CONTEXT: medium opacity 0.4-0.6 range)
-    this.ctx.globalAlpha = this.opacity;
 
     // Gradient fill using baseHSL (matches stinger/sidebar pattern)
     const gradient = this.ctx.createLinearGradient(0, this.y, 0, this.y + this.targetHeight);
@@ -355,8 +353,10 @@ export class CurtainBar extends AnimatedBar {
     const baseLightness = this.baseHSL.l * config.shade.brightness;
     const endLightness = Math.max(10, (this.baseHSL.l - 20) * config.shade.brightness);
 
-    gradient.addColorStop(0, `hsl(${this.baseHSL.h}, ${this.baseHSL.s}%, ${baseLightness}%)`);
-    gradient.addColorStop(1, `hsl(${this.baseHSL.h}, ${this.baseHSL.s}%, ${endLightness}%)`);
+    // PERF-03: Use hsla() colors with opacity baked in for GPU efficiency
+    // This allows GPU to optimize premultiplied alpha compositing
+    gradient.addColorStop(0, `hsla(${this.baseHSL.h}, ${this.baseHSL.s}%, ${baseLightness}%, ${this.opacity})`);
+    gradient.addColorStop(1, `hsla(${this.baseHSL.h}, ${this.baseHSL.s}%, ${endLightness}%, ${this.opacity})`);
 
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, this.y, this.canvas.width, this.targetHeight);
