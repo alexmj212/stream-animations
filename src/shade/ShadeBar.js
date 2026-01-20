@@ -79,6 +79,7 @@ export class ShadeBar extends AnimatedBar {
 
     // Text metrics (will be measured after font loads in init())
     this.textWidth = 0;
+    this.actualAscent = 0; // Cached for draw() positioning
 
     // Offscreen canvas for text caching (created in init() after font loads)
     this.textCanvas = null;
@@ -115,6 +116,9 @@ export class ShadeBar extends AnimatedBar {
     // For perfect vertical centering, we need to account for asymmetric ascent/descent
     const actualAscent = metrics.actualBoundingBoxAscent;
     const actualDescent = metrics.actualBoundingBoxDescent;
+
+    // Cache actualAscent for draw() positioning (PERF-02: no per-frame measureText)
+    this.actualAscent = actualAscent;
 
     // Calculate the true visual center of the text
     // When using textBaseline='alphabetic', the baseline is at y
@@ -301,8 +305,13 @@ export class ShadeBar extends AnimatedBar {
 
     // PERF-01: Draw pre-rendered text from offscreen canvas
     // This is 10-20x faster than calling fillText() with shadow every frame
-    const drawX = this.x - 20; // Account for offscreen canvas padding
-    const drawY = this.y - this.visualCenterOffset - 20; // Account for padding and centering
+    const drawX = this.x - 20; // Account for offscreen canvas left padding
+
+    // Position offscreen canvas so text baseline aligns correctly
+    // this.y already has the correct baseline position (canvas.height/2 + visualCenterOffset)
+    // In offscreen canvas, text baseline is at (20px padding + actualAscent)
+    // So we need: drawY + (20 + actualAscent) = this.y
+    const drawY = this.y - 20 - this.actualAscent;
 
     this.ctx.drawImage(this.textCanvas, drawX, drawY);
 
