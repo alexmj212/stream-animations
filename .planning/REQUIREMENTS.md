@@ -101,10 +101,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONFIG-03 | Phase 6 | Complete |
 | PERF-04 | Phase 6 | Complete |
 | TEST-02 | Phase 6 | Complete |
-| PERF-01 | Phase 7 | Pending |
-| PERF-02 | Phase 7 | Pending |
-| PERF-03 | Phase 7 | Pending |
-| TEST-03 | Phase 7 | Pending |
+| PERF-01 | Phase 7 | Complete |
+| PERF-02 | Phase 7 | Complete |
+| PERF-03 | Phase 7 | Complete |
+| TEST-03 | Phase 7 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 22 total
