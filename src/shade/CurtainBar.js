@@ -130,16 +130,24 @@ export class CurtainBar extends AnimatedBar {
         }
 
         // Make bars much taller than curtain area to prevent ends from showing
-        // Use 1.5x full canvas height (matches AnimatedBar pattern) with extra buffer
-        bar.height = this.canvas.height * 1.8; // 80% taller than screen for safety margin
+        // Use 2x full canvas height to ensure ends are never visible
+        bar.height = this.canvas.height * 2.0; // Double canvas height for maximum safety
 
-        // Y position: position within appropriate curtain area
-        // Top curtain bars: center around top half
-        // Bottom curtain bars: center around bottom half
+        // Y position: Position bars so their ends are NEVER visible on screen
+        // DrawBar renders with 30% above y and 70% below y (see AnimatedBar.js line 220)
+        // Top curtain: position y so that the top 30% extends well above screen
+        // Bottom curtain: position y so that the bottom 70% extends well below screen
         if (this.position === 'top') {
-          bar.y = (this.canvas.height / 4) - (bar.height / 2); // Center in top half
+          // Position at canvas top (y=0) so 30% of bar extends above screen (offscreen)
+          // and 70% covers the entire canvas height (2.0 * height * 0.7 = 1.4 * canvas.height)
+          bar.y = 0;
         } else {
-          bar.y = (this.canvas.height * 3 / 4) - (bar.height / 2); // Center in bottom half
+          // Position at canvas bottom so 70% extends below screen (offscreen)
+          // Need y such that y + (0.7 * bar.height) = canvas.height + buffer
+          // For bar.height = 2.0 * canvas.height: y = canvas.height - (0.7 * 2.0 * canvas.height)
+          // Simplifies to: y = canvas.height - 1.4 * canvas.height = -0.4 * canvas.height
+          // But we want bar centered on bottom half, so: y = canvas.height * 0.6
+          bar.y = this.canvas.height;
         }
 
         // Speed for horizontal movement (traverse canvas width in 2-4 seconds like StingerBar)
@@ -182,11 +190,14 @@ export class CurtainBar extends AnimatedBar {
         }
 
         // Width is full canvas width (horizontal bar extends across screen)
+        // Add 400px buffer (200px on each side) to prevent visible edges
         bar.width = this.canvas.width + 400;
 
         // Start offscreen (direction determines which side)
-        // Use wrap threshold values to ensure consistency
-        bar.x = bar.direction === 1 ? -400 : this.canvas.width + 400;
+        // Horizontal bars are drawn with fillRect(0, ..., width, ...) meaning bar extends from x to x+width
+        // Moving right (dir=1): start with right edge at x=0 (fully offscreen left)
+        // Moving left (dir=-1): start with left edge at x=canvas.width (fully offscreen right)
+        bar.x = bar.direction === 1 ? -bar.width : this.canvas.width;
 
         // Speed to traverse canvas in 2-3 seconds
         bar.speed = (this.canvas.width + 400) / (2 + Math.random());
@@ -257,27 +268,30 @@ export class CurtainBar extends AnimatedBar {
         bar.x += bar.speed * bar.direction * deltaTime;
 
         // Wrap around when bar completely exits screen horizontally
-        // Moving right (direction 1): when left edge exceeds right screen edge
-        if (bar.direction === 1 && bar.x > this.canvas.width + 200) {
-          bar.x = -bar.width - 200; // Reset to left of screen
+        // Slanted bars are drawn with rotation, need to account for bar width
+        // Moving right (direction 1): wrap when bar center exceeds right edge + buffer
+        if (bar.direction === 1 && bar.x - bar.width/2 > this.canvas.width + 200) {
+          bar.x = -bar.width/2 - 200; // Reset to fully offscreen left
         }
-        // Moving left (direction -1): when right edge goes past left screen edge
-        else if (bar.direction === -1 && bar.x + bar.width < -200) {
-          bar.x = this.canvas.width + 200; // Reset to right of screen
+        // Moving left (direction -1): wrap when bar center goes past left edge - buffer
+        else if (bar.direction === -1 && bar.x + bar.width/2 < -200) {
+          bar.x = this.canvas.width + bar.width/2 + 200; // Reset to fully offscreen right
         }
       } else {
         // Horizontal bars move left or right
         bar.x += bar.speed * bar.direction * deltaTime;
 
         // Wrap around when bar fully exits screen
-        // Bar width is canvas.width + 400, so we need to account for full bar width
-        // Moving right (direction 1): when left edge exceeds right screen edge
-        if (bar.direction === 1 && bar.x > this.canvas.width + 400) {
-          bar.x = -400; // Reset to left side (bar width extends 200px left of x)
+        // Bar is drawn from x to x+width (fillRect at translate x)
+        // Moving right (direction 1): wrap when LEFT edge (x) exceeds right screen edge
+        // Add buffer (+200px) to ensure bar is completely offscreen before wrapping
+        if (bar.direction === 1 && bar.x > this.canvas.width + 200) {
+          bar.x = -bar.width - 200; // Reset to fully offscreen left (right edge at x=-200)
         }
-        // Moving left (direction -1): when right edge goes past left screen edge
-        else if (bar.direction === -1 && bar.x < -400) {
-          bar.x = this.canvas.width + 400; // Reset to right side
+        // Moving left (direction -1): wrap when RIGHT edge (x+width) goes past left screen edge
+        // Subtract buffer (-200px) to ensure bar is completely offscreen before wrapping
+        else if (bar.direction === -1 && bar.x + bar.width < -200) {
+          bar.x = this.canvas.width + 200; // Reset to fully offscreen right (left edge at canvas.width+200)
         }
       }
     });
