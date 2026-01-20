@@ -102,15 +102,21 @@ export class ShadeBar extends AnimatedBar {
     this.exitDurationMs = config.shared.durations.exitMs;
     this.totalDurationMs = this.enterDurationMs + this.holdDurationMs + this.exitDurationMs;
 
-    // Calculate keyframe positions (viewport-based)
-    // Enter phase: text LEFT EDGE goes from offscreen right to 25% viewport
-    this.enterEndX = this.canvas.width * 0.25;
+    // Calculate keyframe positions (CENTER-BASED for proper alignment)
+    // Key requirement: At 50% of total time (middle of hold phase), text CENTER must be at screen CENTER
 
-    // Hold phase: text scrolls slowly, LEFT EDGE reaches left edge of viewport (0)
-    // This creates a slow marquee across 25% of the screen width
-    this.holdEndX = 0;
+    // Enter phase: text CENTER goes from offscreen right to 75% viewport
+    // (LEFT EDGE starts at canvas.width, CENTER ends at 75% viewport)
+    const enterEndCenter = this.canvas.width * 0.75;
+    this.enterEndX = enterEndCenter - (this.textWidth / 2);
 
-    // Exit phase: text accelerates offscreen, LEFT EDGE ends at -textWidth
+    // Hold phase: text CENTER scrolls from 75% to 25% viewport (across screen center at 50%)
+    // This ensures text center is at screen center (50%) at the midpoint of hold phase
+    const holdEndCenter = this.canvas.width * 0.25;
+    this.holdEndX = holdEndCenter - (this.textWidth / 2);
+
+    // Exit phase: text accelerates offscreen, CENTER ends offscreen left
+    // (LEFT EDGE ends at -textWidth means CENTER is at -textWidth/2)
     this.exitEndX = -this.textWidth;
   }
 
