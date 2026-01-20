@@ -96,7 +96,15 @@ export class ShadeBar extends AnimatedBar {
    * accurate text measurement. Calling before font loads results in incorrect
    * textWidth (race condition).
    */
-  init() {
+  async init() {
+    // Explicitly ensure Jost font is loaded before measuring/rendering
+    // Even after document.fonts.ready, we need to load the specific font for canvas contexts
+    try {
+      await document.fonts.load(config.shade.text.font);
+    } catch (e) {
+      console.warn('[ShadeBar] Font load warning:', e);
+    }
+
     // Measure text width and vertical metrics (requires font to be loaded)
     this.ctx.font = config.shade.text.font;
     const metrics = this.ctx.measureText(this.text);
@@ -134,9 +142,10 @@ export class ShadeBar extends AnimatedBar {
     const offCtx = this.textCanvas.getContext('2d', { alpha: true });
 
     // Pre-render text with shadow to offscreen canvas (done once here, not every frame)
+    // CRITICAL: Set font BEFORE textBaseline to ensure font is fully applied
     offCtx.font = config.shade.text.font;
-    offCtx.fillStyle = config.shade.text.color;
     offCtx.textBaseline = 'alphabetic';
+    offCtx.fillStyle = config.shade.text.color;
 
     // Apply shadow properties
     offCtx.shadowColor = config.shade.text.shadow.color;

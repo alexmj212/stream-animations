@@ -146,8 +146,8 @@
         // Create ShadeBar instance (text is always white - no color parameter)
         const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);
 
-        // Initialize text metrics after fonts are ready
-        shadeBar.init();
+        // Initialize text metrics after fonts are ready (now async)
+        await shadeBar.init();
 
         console.log('[Shade] Text Width:', shadeBar.textWidth, 'px');
 
