@@ -133,18 +133,12 @@ export class CurtainBar extends AnimatedBar {
         // Use 1.5x full canvas height (matches AnimatedBar pattern) with extra buffer
         bar.height = this.canvas.height * 1.8; // 80% taller than screen for safety margin
 
-        // Position bars with buffer above/below visible curtain area to hide ends
-        // For top curtain: position bars so they extend well above viewport
-        // For bottom curtain: position bars so they extend well below viewport
-        const bufferZone = this.canvas.height * 0.3; // 30% of screen height as buffer
-        if (this.position === 'top') {
-          bar.y = -bufferZone; // Start above curtain area
-        } else {
-          bar.y = this.canvas.height / 2 + bufferZone; // Start below curtain middle
-        }
+        // Y position: center bar vertically to ensure it covers full curtain height
+        // Bar extends from above top curtain to below bottom curtain
+        bar.y = this.canvas.height / 2 - bar.height / 2;
 
-        // Speed for vertical movement (traverse curtain height + buffers in 2-4 seconds)
-        const totalTraversalDistance = this.targetHeight + bufferZone * 2;
+        // Speed for horizontal movement (traverse canvas width in 2-4 seconds like StingerBar)
+        const totalTraversalDistance = this.canvas.width + bar.width + 400; // Full screen + bar width + buffers
         bar.speed = totalTraversalDistance / (2 + Math.random() * 2);
 
       } else {
@@ -252,37 +246,18 @@ export class CurtainBar extends AnimatedBar {
     // Update bars continuously (animate throughout enter/hold/exit)
     this.bars.forEach(bar => {
       if (bar.type === 'slanted') {
-        // Slanted bars move vertically (up or down depending on position and direction)
-        // Buffer zone ensures bar ends stay offscreen during wrapping
-        const bufferZone = this.canvas.height * 0.3;
+        // Slanted bars move horizontally (left or right depending on direction)
+        // Like StingerBar slanted bars, they traverse the canvas width
+        bar.x += bar.speed * bar.direction * deltaTime;
 
-        if (this.position === 'top') {
-          // Top curtain: bars move down (direction 1) or up (direction -1)
-          bar.y += bar.speed * bar.direction * deltaTime;
-
-          // Wrap around when bar completely exits visible curtain area (with buffer)
-          // Moving down: when top edge exceeds curtain bottom + buffer
-          if (bar.direction === 1 && bar.y > this.targetHeight + bufferZone) {
-            bar.y = -bufferZone - bar.height; // Reset to above curtain (with bar height offset)
-          }
-          // Moving up: when bottom edge goes above curtain top - buffer
-          else if (bar.direction === -1 && bar.y + bar.height < -bufferZone) {
-            bar.y = this.targetHeight + bufferZone; // Reset to below curtain
-          }
-        } else {
-          // Bottom curtain: bars move up (direction 1) or down (direction -1)
-          const curtainTop = this.canvas.height / 2 - this.overshoot;
-          bar.y += bar.speed * bar.direction * deltaTime;
-
-          // Wrap around when bar completely exits visible curtain area (with buffer)
-          // Moving up: when bottom edge goes above curtain top - buffer
-          if (bar.direction === 1 && bar.y + bar.height < curtainTop - bufferZone) {
-            bar.y = this.canvas.height + bufferZone; // Reset to below viewport
-          }
-          // Moving down: when top edge exceeds viewport bottom + buffer
-          else if (bar.direction === -1 && bar.y > this.canvas.height + bufferZone) {
-            bar.y = curtainTop - bufferZone - bar.height; // Reset to above curtain
-          }
+        // Wrap around when bar completely exits screen horizontally
+        // Moving right (direction 1): when left edge exceeds right screen edge
+        if (bar.direction === 1 && bar.x > this.canvas.width + 200) {
+          bar.x = -bar.width - 200; // Reset to left of screen
+        }
+        // Moving left (direction -1): when right edge goes past left screen edge
+        else if (bar.direction === -1 && bar.x + bar.width < -200) {
+          bar.x = this.canvas.width + 200; // Reset to right of screen
         }
       } else {
         // Horizontal bars move left or right
