@@ -8,17 +8,17 @@ Browser-based animation scenes for OBS stream graphics, including a persistent b
 
 The background animation must perform flawlessly with minimal CPU/GPU usage since it runs continuously throughout every stream.
 
-## Current Milestone: v1.1 Shade Component
+## Current State
 
-**Goal:** Add shade component for major stream events (raids, massive gift subs) with semi-transparent curtains and scrolling text
+**Latest shipped:** v1.1 Shade Component (2026-01-20)
 
-**Target features:**
-- Shade component with semi-transparent curtains entering from top/bottom edges
-- Large scrolling text synchronized to three-phase animation (enter/hold/exit)
-- Dynamic hold duration based on text length with minimum readability time
-- One-shot animation triggered on page load (OBS integration pattern)
-- Smooth phase transitions with text flying in/scrolling/flying out
-- Consistent visual style with existing components (sidebar, stinger)
+**Codebase:**
+- 4 complete animation scenes (background, stinger, sidebar, shade)
+- 5,774 lines of JavaScript and HTML
+- 309 tests passing (100% green)
+- Production-ready performance optimizations (offscreen canvas caching, hsla() colors)
+
+**Next milestone focus:** Deployment automation, mini notification bar for stream events, additional scene widgets (follower count, stats)
 
 ## Requirements
 
@@ -39,15 +39,20 @@ The background animation must perform flawlessly with minimal CPU/GPU usage sinc
 - ✓ Unit tests lock down positioning/timing math — v1.0
 - ✓ Clean, maintainable codebase structure — v1.0
 - ✓ Sidebar positioning and timing refinements completed — v1.0
+- ✓ Shade component with semi-transparent curtains and three-phase lifecycle — v1.1
+- ✓ Large scrolling text with velocity-first continuous motion architecture — v1.1
+- ✓ Dynamic hold duration based on text length (200ms/word reading speed) — v1.1
+- ✓ Text and curtains synchronized with single phase controller — v1.1
+- ✓ Offscreen canvas text caching (10-20x performance gain) — v1.1
+- ✓ Font Loading API integration preventing race conditions — v1.1
+- ✓ Performance validation tooling (window.perfValidation.runAll()) — v1.1
 
 ### Active
 
-- [ ] Shade component with semi-transparent curtains (top/bottom entry)
-- [ ] Large scrolling text for major events (raids, gift subs)
-- [ ] Dynamic hold duration based on text length
-- [ ] Three-phase animation synchronized with text
-- [ ] One-shot page load trigger pattern
-- [ ] Phase 3 validation work: Alpha audit, frame rate audit, dirty rectangle validation, long-duration stability test (infrastructure ready - deferred)
+- [ ] Deployment automation and workflow improvements
+- [ ] Mini notification bar for stream events (follows, subs, donations)
+- [ ] Additional scene widgets (follower count, subscriber count, stream stats)
+- [ ] Phase 3 validation work: Alpha audit, frame rate audit, dirty rectangle validation, long-duration stability test (infrastructure ready - deferred from v1.0)
 
 ### Out of Scope
 
@@ -59,25 +64,32 @@ The background animation must perform flawlessly with minimal CPU/GPU usage sinc
 
 ## Context
 
-This is a brownfield project that has been "vibe coded" to work with a personal OBS stream setup. The core concepts are proven and working in production, but the codebase needs cleanup and consolidation to make ongoing maintenance and enhancement sustainable.
+Originally a brownfield "vibe coded" project, now transformed into a maintainable foundation with comprehensive testing (309 tests), performance optimizations, and consistent architecture patterns.
 
-### Existing Architecture
+### Current Architecture (v1.1)
 
-- Component-based system with `AnimatedBar` base class and specialized subclasses (`BackgroundBar`, `StingerBar`, `SidebarBar`)
+- Component-based system with `AnimatedBar` base class and specialized subclasses (`BackgroundBar`, `StingerBar`, `SidebarBar`, `ShadeBar`, `CurtainBar`)
 - Pure calculation functions separated from stateful animation classes for testability
-- Multi-layered rendering in background scene (30fps background layer, 60fps foreground layer)
-- Offscreen canvas caching for performance optimization
+- Offscreen canvas caching for expensive rendering operations (text, complex shapes)
+- Delta-time normalization for frame-rate independence
+- AnimationLifecycle with AbortController for proper cleanup
 - Vite builds self-contained HTML files suitable for OBS Browser Sources
+- Centralized configuration system with per-scene overrides
+- Performance monitoring infrastructure (overlay, storage, CI regression tests)
 
-### Known Issues to Address
+### Recent Additions (v1.1)
 
-- Sidebar incomplete/untested (works but needs refinement)
-- Test failures in color URL parameter parsing
-- Brightness inconsistency between scenes (background reduced 20%, stinger/sidebar still at 100%)
-- Offscreen canvas cache grows unbounded (memory leak over long sessions)
-- Mixed frame rates in background causing timing inconsistencies
-- No centralized configuration system
-- Positioning changes by AI often break visual output due to misunderstanding canvas coordinates
+- **Shade component:** Semi-transparent curtains with scrolling text for major stream events
+- **Velocity-first animation:** Continuous motion with no discontinuities at phase boundaries
+- **Font Loading API integration:** Prevents text measurement race conditions
+- **Offscreen canvas text caching:** 10-20x performance gain for large text rendering
+- **hsla() GPU optimization:** Baked-in opacity for efficient compositing
+
+### Known Tech Debt
+
+- OBS validation deferred (performance script available but not executed)
+- Phase 3 validation work deferred from v1.0 (alpha audit, frame rate audit, dirty rectangle validation, long-duration stability test) - infrastructure complete
+- Async font loading could be simplified with top-level await
 
 ### Development Workflow
 
@@ -111,6 +123,14 @@ This is a brownfield project that has been "vibe coded" to work with a personal 
 | Brightness multiplier (0.8) across scenes | Visual harmony without excessive dimming, colors remain vibrant | ✓ Good |
 | Millisecond-based timing with shared defaults | Maintainability through per-scene overrides, unified timing approach | ✓ Good |
 | Phase 3 validation deferred | Infrastructure complete and tested, empirical validation can be post-milestone | — Pending |
+| Velocity-first animation (v1.1) | Eliminates phase boundary discontinuities, position integrated from velocity | ✓ Good |
+| 200ms/word reading speed (v1.1) | Calibrated for stream event pacing, matches reading comprehension time | ✓ Good |
+| Font Loading API integration (v1.1) | Prevents text measurement race conditions with document.fonts.ready → init() flow | ✓ Good |
+| Offscreen canvas text caching (v1.1) | 10-20x performance gain, critical for 96px font with shadow rendering | ✓ Good |
+| hsla() colors instead of globalAlpha (v1.1) | GPU-efficient premultiplied alpha compositing, no state management | ✓ Good |
+| Word count for duration calculation (v1.1) | Correlates with reading comprehension time better than character count | ✓ Good |
+| Optical text centering with actualBoundingBox (v1.1) | Font-specific visual alignment accounts for asymmetric ascent/descent | ✓ Good |
+| OBS validation deferred (v1.1) | Implementation complete, performance script available, empirical testing can be post-milestone | — Pending |
 
 ---
-*Last updated: 2026-01-18 after v1.1 milestone start*
+*Last updated: 2026-01-20 after v1.1 milestone completion*

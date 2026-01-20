@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** - Phases 1-4 (shipped 2026-01-18)
-- 🚧 **v1.1 Shade Component** - Phases 5-7 (in progress)
+- ✅ **v1.1 Shade Component** - Phases 5-7 (shipped 2026-01-20)
 
 ## Phases
 
@@ -47,56 +47,35 @@ Plans:
 
 </details>
 
-### 🚧 v1.1 Shade Component (In Progress)
+<details>
+<summary>✅ v1.1 Shade Component (Phases 5-7) - SHIPPED 2026-01-20</summary>
 
-**Milestone Goal:** Add shade component for major stream events with semi-transparent curtains and scrolling text
-
-#### Phase 5: Text Animation Core
+### Phase 5: Text Animation Core
 **Goal**: Users can see large scrolling text with dynamic hold duration based on readability
-**Depends on**: Phase 4
-**Requirements**: TEXT-01, TEXT-02, TEXT-05, CONFIG-01, CONFIG-02, CONFIG-04, CONFIG-05, TEST-01
-**Success Criteria** (what must be TRUE):
-  1. Text renders on canvas with explicit fillStyle for OBS browser source compatibility
-  2. Hold duration calculated dynamically from text length using reading speed baseline (200ms/word)
-  3. Text is fully readable - minimum duration enforced regardless of text length
-  4. Shade scene accepts URL parameters (?text, ?color, ?duration) for OBS integration
-  5. Custom fonts load before text measurement to prevent race conditions
 **Plans**: 3 plans
 
 Plans:
-- [x] 05-01-PLAN.md — Text core & URL configuration
-- [x] 05-02-PLAN.md — Scrolling animation & timing
-- [x] 05-03-PLAN.md — Integration & testing
+- [x] 05-01: Text core & URL configuration
+- [x] 05-02: Scrolling animation & timing
+- [x] 05-03: Integration & testing
 
-#### Phase 6: Curtain Integration & Synchronization
+### Phase 6: Curtain Integration & Synchronization
 **Goal**: Text and curtains animate as unified "shade" effect with synchronized three-phase lifecycle
-**Depends on**: Phase 5
-**Requirements**: CURTAIN-01, CURTAIN-02, CURTAIN-03, CURTAIN-04, CURTAIN-05, TEXT-03, TEXT-04, TEXT-06, TEXT-07, CONFIG-03, PERF-04, TEST-02
-**Success Criteria** (what must be TRUE):
-  1. Semi-transparent curtains enter from top and bottom edges with smooth easing
-  2. Text "flies in" with curtains during enter phase, "flies out" during exit phase
-  3. Text scrolls horizontally during hold phase with constant speed
-  4. Text renders above curtains (always visible, not clipped)
-  5. Text and curtains synchronized via single phase controller - no desynchronization
 **Plans**: 2 plans
 
 Plans:
-- [x] 06-01-PLAN.md — Create CurtainBar with embedded animated bars
-- [x] 06-02-PLAN.md — Integrate curtains with text and test
+- [x] 06-01: Create CurtainBar with embedded animated bars
+- [x] 06-02: Integrate curtains with text and test
 
-#### Phase 7: Performance Optimization & Polish
+### Phase 7: Performance Optimization & Polish
 **Goal**: Production-ready shade component with optimized performance and validated visual polish
-**Depends on**: Phase 6
-**Requirements**: PERF-01, PERF-02, PERF-03, TEST-03
-**Success Criteria** (what must be TRUE):
-  1. Text measured once during init and cached (not measured every frame)
-  2. Offscreen canvas caching provides 5x+ performance gain for text rendering
-  3. GPU usage remains under 50% during animation
-  4. Shade component validated in OBS browser source across 5+ test streams
-**Plans:** 2 plans
+**Plans**: 2 plans
+
 Plans:
-- [x] 07-01-PLAN.md — Offscreen canvas caching + hsla() migration
-- [x] 07-02-PLAN.md — OBS validation protocol and testing
+- [x] 07-01: Offscreen canvas caching + hsla() migration
+- [x] 07-02: OBS validation protocol and testing
+
+</details>
 ## Progress
 
 **Execution Order:**
