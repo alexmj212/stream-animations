@@ -142,12 +142,11 @@ export class CurtainBar extends AnimatedBar {
           // and 70% covers the entire canvas height (2.0 * height * 0.7 = 1.4 * canvas.height)
           bar.y = 0;
         } else {
-          // Position at canvas bottom so 70% extends below screen (offscreen)
-          // Need y such that y + (0.7 * bar.height) = canvas.height + buffer
-          // For bar.height = 2.0 * canvas.height: y = canvas.height - (0.7 * 2.0 * canvas.height)
-          // Simplifies to: y = canvas.height - 1.4 * canvas.height = -0.4 * canvas.height
-          // But we want bar centered on bottom half, so: y = canvas.height * 0.6
-          bar.y = this.canvas.height;
+          // Apply negative margin to shift bars upward in bottom curtain
+          // This positions the visible 30% portion better within the bottom curtain area
+          // Shift up by 20% of bar height (0.2 * 2.0 * canvas.height = 0.4 * canvas.height)
+          const upwardShift = bar.height * 0.2;
+          bar.y = this.canvas.height - upwardShift;
         }
 
         // Speed for horizontal movement (traverse canvas width in 2-4 seconds like StingerBar)
