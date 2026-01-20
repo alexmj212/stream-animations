@@ -133,9 +133,14 @@ export class CurtainBar extends AnimatedBar {
         // Use 1.5x full canvas height (matches AnimatedBar pattern) with extra buffer
         bar.height = this.canvas.height * 1.8; // 80% taller than screen for safety margin
 
-        // Y position: center bar vertically to ensure it covers full curtain height
-        // Bar extends from above top curtain to below bottom curtain
-        bar.y = this.canvas.height / 2 - bar.height / 2;
+        // Y position: position within appropriate curtain area
+        // Top curtain bars: center around top half
+        // Bottom curtain bars: center around bottom half
+        if (this.position === 'top') {
+          bar.y = (this.canvas.height / 4) - (bar.height / 2); // Center in top half
+        } else {
+          bar.y = (this.canvas.height * 3 / 4) - (bar.height / 2); // Center in bottom half
+        }
 
         // Speed for horizontal movement (traverse canvas width in 2-4 seconds like StingerBar)
         const totalTraversalDistance = this.canvas.width + bar.width + 400; // Full screen + bar width + buffers
@@ -180,7 +185,8 @@ export class CurtainBar extends AnimatedBar {
         bar.width = this.canvas.width + 400;
 
         // Start offscreen (direction determines which side)
-        bar.x = bar.direction === 1 ? -200 : this.canvas.width + 200;
+        // Use wrap threshold values to ensure consistency
+        bar.x = bar.direction === 1 ? -400 : this.canvas.width + 400;
 
         // Speed to traverse canvas in 2-3 seconds
         bar.speed = (this.canvas.width + 400) / (2 + Math.random());
@@ -263,11 +269,15 @@ export class CurtainBar extends AnimatedBar {
         // Horizontal bars move left or right
         bar.x += bar.speed * bar.direction * deltaTime;
 
-        // Wrap around when offscreen
-        if (bar.direction === 1 && bar.x > this.canvas.width + 200) {
-          bar.x = -200;
-        } else if (bar.direction === -1 && bar.x < -200) {
-          bar.x = this.canvas.width + 200;
+        // Wrap around when bar fully exits screen
+        // Bar width is canvas.width + 400, so we need to account for full bar width
+        // Moving right (direction 1): when left edge exceeds right screen edge
+        if (bar.direction === 1 && bar.x > this.canvas.width + 400) {
+          bar.x = -400; // Reset to left side (bar width extends 200px left of x)
+        }
+        // Moving left (direction -1): when right edge goes past left screen edge
+        else if (bar.direction === -1 && bar.x < -400) {
+          bar.x = this.canvas.width + 400; // Reset to right side
         }
       }
     });
