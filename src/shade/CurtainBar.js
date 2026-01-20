@@ -41,7 +41,7 @@ export class CurtainBar extends AnimatedBar {
     // Tip properties (solid color background for text readability)
     // Tips are slightly more than 50% of text height so they overlap when curtains meet
     this.textHeight = options.textHeight || 96; // Default to font size if not provided
-    this.tipHeight = this.textHeight * 0.55; // 55% of text height
+    this.tipHeight = this.textHeight * 0.60; // 60% of text height (creates ~10px overlap at center)
 
     // Animation state (three phases like stinger pattern)
     this.phase = 'enter'; // 'enter' | 'hold' | 'exit'

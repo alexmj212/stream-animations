@@ -48,7 +48,7 @@
 
       // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
-      const text = urlParams.get('text') || 'Default Text';
+      const text = (urlParams.get('text') || 'Default Text').toUpperCase();
       const durationParam = urlParams.get('duration');
       const holdDurationMs = durationParam ? parseInt(durationParam) : null; // null triggers calculation
       const showPerf = urlParams.get('perf') === 'true';
