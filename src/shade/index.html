@@ -201,6 +201,70 @@
 
         // Start animation loop
         requestAnimationFrame(animate);
+
+        // PERF-01 validation: Measure baseline vs optimized text rendering
+        window.perfValidation = {
+          // Run full validation suite
+          runAll() {
+            console.log('=== Performance Validation (PERF-01) ===\n');
+
+            const baseline = this.measureBaseline();
+            const optimized = this.measureOptimized();
+            const speedup = baseline / optimized;
+
+            console.log(`\nSpeedup: ${speedup.toFixed(1)}x`);
+
+            if (speedup >= 5.0) {
+              console.log('✓ PERF-01 requirement MET (≥5x gain)');
+            } else {
+              console.warn(`⚠ PERF-01 requirement NOT met (need ≥5x, got ${speedup.toFixed(1)}x)`);
+            }
+
+            return { baseline, optimized, speedup };
+          },
+
+          // Measure baseline (fillText every frame)
+          measureBaseline() {
+            const iterations = 1000;
+            const testText = shadeBar.text;
+
+            ctx.font = config.shade.text.font;
+            ctx.fillStyle = config.shade.text.color;
+            ctx.shadowColor = config.shade.text.shadow.color;
+            ctx.shadowBlur = config.shade.text.shadow.blur;
+            ctx.shadowOffsetX = config.shade.text.shadow.offsetX;
+            ctx.shadowOffsetY = config.shade.text.shadow.offsetY;
+
+            const start = performance.now();
+            for (let i = 0; i < iterations; i++) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.fillText(testText, 100, 500);
+            }
+            const duration = performance.now() - start;
+            const avg = duration / iterations;
+
+            console.log(`Baseline (fillText): ${avg.toFixed(3)}ms per render`);
+            return avg;
+          },
+
+          // Measure optimized (drawImage cached canvas)
+          measureOptimized() {
+            const iterations = 1000;
+
+            const start = performance.now();
+            for (let i = 0; i < iterations; i++) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(shadeBar.textCanvas, 100, 450);
+            }
+            const duration = performance.now() - start;
+            const avg = duration / iterations;
+
+            console.log(`Optimized (drawImage): ${avg.toFixed(3)}ms per render`);
+            return avg;
+          }
+        };
+
+        console.log('[Shade] Performance validation available: window.perfValidation.runAll()');
       });
     </script>
   </body>
