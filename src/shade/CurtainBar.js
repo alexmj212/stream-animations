@@ -36,7 +36,10 @@ export class CurtainBar extends AnimatedBar {
 
     // Curtain visual properties (CONTEXT: 0.4-0.6 range, choose middle)
     this.opacity = 0.5;
-    this.targetHeight = canvas.height / 2; // Covers 50% of viewport
+
+    // Overshoot: curtains extend slightly past center to guarantee no gap between tips
+    this.overshoot = 4; // 4 pixels past center (8px total overlap between curtains)
+    this.targetHeight = canvas.height / 2 + this.overshoot; // Covers 50% + overshoot
 
     // Tip properties (solid color background for text readability)
     // Tips are slightly more than 50% of text height so they overlap when curtains meet
@@ -59,10 +62,10 @@ export class CurtainBar extends AnimatedBar {
     // Initial position (offscreen)
     if (position === 'top') {
       this.startY = -this.targetHeight; // Start above viewport
-      this.targetY = 0; // End at top edge
+      this.targetY = 0; // End at top edge (curtain extends down past center)
     } else {
       this.startY = canvas.height; // Start below viewport
-      this.targetY = canvas.height / 2; // End at centerline
+      this.targetY = canvas.height / 2 - this.overshoot; // End before centerline (overlap with top)
     }
 
     this.y = this.startY; // Current Y position
@@ -92,11 +95,11 @@ export class CurtainBar extends AnimatedBar {
 
       // Position within curtain area
       if (this.position === 'top') {
-        // Top curtain: y from 0 to canvas.height/2
-        bar.y = (i / barCount) * (this.canvas.height / 2);
+        // Top curtain: y from 0 to canvas.height/2 + overshoot
+        bar.y = (i / barCount) * this.targetHeight;
       } else {
-        // Bottom curtain: y from canvas.height/2 to canvas.height
-        bar.y = this.canvas.height / 2 + (i / barCount) * (this.canvas.height / 2);
+        // Bottom curtain: y from canvas.height/2 - overshoot to canvas.height
+        bar.y = (this.canvas.height / 2 - this.overshoot) + (i / barCount) * this.targetHeight;
       }
 
       // Visual properties (match stinger/sidebar randomization pattern)
@@ -279,7 +282,8 @@ export class CurtainBar extends AnimatedBar {
       this.ctx.rect(0, 0, this.canvas.width, visibleHeight);
     } else {
       // Bottom curtain: clip from current top edge to bottom of viewport
-      const clipY = Math.max(this.y, this.canvas.height / 2);
+      // Note: this.y already accounts for overshoot (canvas.height/2 - overshoot)
+      const clipY = Math.max(this.y, this.canvas.height / 2 - this.overshoot);
       const clipHeight = this.canvas.height - clipY;
       this.ctx.rect(0, clipY, this.canvas.width, clipHeight);
     }
