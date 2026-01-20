@@ -75,7 +75,7 @@ export class ShadeBar extends AnimatedBar {
 
     // Text positioning
     this.x = canvas.width; // Start offscreen right (will rush in from right edge)
-    this.y = canvas.height / 2; // Vertical center
+    this.y = canvas.height / 2; // Vertical center (will be adjusted in init() for optical alignment)
 
     // Text metrics (will be measured after font loads in init())
     this.textWidth = 0;
@@ -92,10 +92,27 @@ export class ShadeBar extends AnimatedBar {
    * textWidth (race condition).
    */
   init() {
-    // Measure text width (requires font to be loaded)
+    // Measure text width and vertical metrics (requires font to be loaded)
     this.ctx.font = config.shade.text.font;
     const metrics = this.ctx.measureText(this.text);
     this.textWidth = metrics.width;
+
+    // Calculate visual center offset for optical alignment
+    // TextMetrics provides actual bounding box of rendered text relative to baseline
+    // For perfect vertical centering, we need to account for asymmetric ascent/descent
+    const actualAscent = metrics.actualBoundingBoxAscent;
+    const actualDescent = metrics.actualBoundingBoxDescent;
+
+    // Calculate the true visual center of the text
+    // When using textBaseline='alphabetic', the baseline is at y
+    // The visual center is at: baseline - (actualAscent - actualDescent) / 2
+    // So to place visual center at canvas.height/2, we need:
+    // y = canvas.height/2 + (actualAscent - actualDescent) / 2
+    this.visualCenterOffset = (actualAscent - actualDescent) / 2;
+
+    // Adjust y position for true optical centering
+    // This ensures the visual bounds of the text are centered, not just the em square
+    this.y = this.canvas.height / 2 + this.visualCenterOffset;
 
     // Calculate total animation duration (enter + hold + exit)
     this.enterDurationMs = config.shared.durations.entryMs;
@@ -225,6 +242,11 @@ export class ShadeBar extends AnimatedBar {
    * Uses explicit fillStyle and shadow properties for OBS browser source compatibility.
    * Text is rendered at current (x, y) position with configured font and shadow.
    * Text is always white for consistent branding.
+   *
+   * Text positioning uses alphabetic baseline with calculated offset for true optical centering.
+   * The y position is pre-adjusted in init() based on actualBoundingBox metrics to ensure
+   * the visual center of the text aligns with the canvas center, accounting for asymmetric
+   * ascenders/descenders in the font.
    */
   draw() {
     this.ctx.save();
@@ -232,7 +254,7 @@ export class ShadeBar extends AnimatedBar {
     // Set text properties
     this.ctx.font = config.shade.text.font;
     this.ctx.fillStyle = config.shade.text.color; // Always white (from config)
-    this.ctx.textBaseline = 'middle'; // Vertical alignment at y position
+    this.ctx.textBaseline = 'alphabetic'; // Use baseline positioning with pre-calculated offset
 
     // Draw shadow/glow (adds depth and separation from background)
     this.ctx.shadowColor = config.shade.text.shadow.color;
