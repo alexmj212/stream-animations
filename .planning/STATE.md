@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-18)
 ## Current Position
 
 Phase: 6 of 7 (Curtain Integration & Synchronization)
-Plan: 1 of TBD in current phase
-Status: In progress
-Last activity: 2026-01-19 — Completed 06-01-PLAN.md (CurtainBar component)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-01-20 — Completed 06-02-PLAN.md (Curtain integration and synchronization)
 
-Progress: [█████████░] 75% (15 plans complete, 5 total remaining in v1.1)
+Progress: [█████████░] 80% (16 plans complete, 4 total remaining in v1.1)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15 (v1.1 in progress, v1.0 baseline: 11 plans)
-- Average duration: 45.9 min
-- Total execution time: 11.49 hours
+- Total plans completed: 16 (v1.1 in progress, v1.0 baseline: 11 plans)
+- Average duration: 80.0 min
+- Total execution time: 17.34 hours
 
 **By Phase:**
 
@@ -32,12 +32,12 @@ Progress: [█████████░] 75% (15 plans complete, 5 total remai
 | 03 | 4 | 636.0min | 159.0min |
 | 04 | 3 | 7.0min | 2.3min |
 | 05 | 3 | 140.0min | 46.7min |
-| 06 | 1 | 3.0min | 3.0min |
+| 06 | 2 | 348.0min | 174.0min |
 
 **Recent Trend:**
 - v1.0 completed successfully (11 plans, 11.60 hours total)
 - v1.1 Phase 5 complete: Text rendering (4min) + scrolling animation (2min) + testing & continuous motion (134min)
-- v1.1 Phase 6 started: CurtainBar component (3min)
+- v1.1 Phase 6 complete: CurtainBar component (3min) + synchronization & integration (345min)
 
 *Updated after each plan completion*
 
@@ -48,6 +48,12 @@ Progress: [█████████░] 75% (15 plans complete, 5 total remai
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- 06-02: Critical rendering order (curtains first, text last) ensures text always visible above curtains
+- 06-02: Shared totalDurationMs calculated once from text length prevents desynchronization
+- 06-02: Optical text centering using actualBoundingBox metrics for font-specific visual alignment
+- 06-02: Curtain tips 60% of text height with 8px overshoot eliminate gaps and ensure readability
+- 06-02: Mixed bar types (60% slanted, 40% horizontal) match stinger/sidebar visual patterns
+- 06-02: Architecture aligned across all scenes (setupCanvas, PerformanceMonitor, DirtyRectTracker)
 - 06-01: Canvas clipping (ctx.clip()) prevents bars from rendering outside curtain boundaries during enter/exit
 - 06-01: Opacity 0.5 (middle of 0.4-0.6 range) provides balanced semi-transparency for curtains
 - 06-01: 6 horizontal bars per curtain balances visual density with performance
@@ -83,9 +89,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-19
-Stopped at: Completed 06-01-PLAN.md (CurtainBar component with embedded bars)
-Resume file: None - ready for 06-02 (curtain + text synchronization)
+Last session: 2026-01-20
+Stopped at: Completed 06-02-PLAN.md (Curtain integration and synchronization)
+Resume file: None - Phase 6 complete, ready for Phase 7 (Performance optimization)
 
 ---
-*Last updated: 2026-01-19 after 06-01 completion*
+*Last updated: 2026-01-20 after 06-02 completion*
