@@ -41,10 +41,12 @@ export class CurtainBar extends AnimatedBar {
     this.overshoot = 4; // 4 pixels past center (8px total overlap between curtains)
     this.targetHeight = canvas.height / 2 + this.overshoot; // Covers 50% + overshoot
 
-    // Tip properties (solid color background for text readability)
-    // Tips are slightly more than 50% of text height so they overlap when curtains meet
-    this.textHeight = options.textHeight || 96; // Default to font size if not provided
-    this.tipHeight = this.textHeight * 0.60; // 60% of text height (creates ~10px overlap at center)
+    // Tip properties: dedicated solid-color band behind the text. Sized so the
+    // combined band (top tip + bottom tip) gives the 96px text ~80px of vertical
+    // breathing room, room for the 8px shadow blur, and clear separation from
+    // the animated bars in the curtain body above/below.
+    this.textHeight = options.textHeight || 96;
+    this.tipHeight = this.textHeight * 0.95;
 
     // Animation state (three phases like stinger pattern)
     this.phase = 'enter'; // 'enter' | 'hold' | 'exit'
@@ -311,8 +313,10 @@ export class CurtainBar extends AnimatedBar {
     // Solid color (no transparency - opacity 1.0)
     this.ctx.globalAlpha = 1.0;
 
-    // Use base color with brightness adjustment (same as curtain gradient start)
-    const tipLightness = this.baseHSL.l * config.shade.brightness;
+    // Tip is darkened relative to the curtain body so it reads as a dedicated
+    // text band rather than a continuation of the curtain. Floor at 12 so it
+    // doesn't go fully black on already-dark base colors.
+    const tipLightness = Math.max(12, (this.baseHSL.l - 18) * config.shade.brightness);
     this.ctx.fillStyle = `hsl(${this.baseHSL.h}, ${this.baseHSL.s}%, ${tipLightness}%)`;
 
     // Calculate tip position based on curtain position

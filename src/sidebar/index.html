@@ -47,26 +47,28 @@
         color: white;
         text-shadow: -0.15625vw -0.15625vw 0 #000, 0 -0.15625vw 0 #000, 0.15625vw -0.15625vw 0 #000, -0.15625vw 0 0 #000, 0.15625vw 0 0 #000, -0.15625vw 0.15625vw 0 #000, 0 0.15625vw 0 #000, 0.15625vw 0.15625vw 0 #000,
           0.208vw 0.208vw 0 rgba(0, 0, 0, 0.6), 0.26vw 0.26vw 0 rgba(0, 0, 0, 0.4), 0.3125vw 0.3125vw 0 rgba(0, 0, 0, 0.2);
-        max-width: 50vw; /* Maximum width of 50% viewport width */
-        word-wrap: break-word;
-        overflow-wrap: break-word;
+        max-width: 38vw; /* Cap width so long strings can't bleed past the safe area */
         text-align: right;
-        padding: 0 2.08vw; /* 40px at 1920px */
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
         animation: slideText var(--duration) cubic-bezier(0.65, 0, 0.35, 1) forwards;
       }
 
+      /* Hold position: text-shadow needs ~10px breathing room past the rightmost
+         glyph, so we anchor 2.6vw (~50px @ 1920) inside the canvas right edge. */
       @keyframes slideText {
         0% {
-          right: -125%; /* Start off-screen right */
+          right: -125%;
         }
         25% {
-          right: 0; /* Slide in to right edge */
+          right: 2.6vw;
         }
         75% {
-          right: 0; /* Hold at right edge */
+          right: 2.6vw;
         }
         100% {
-          right: -125%; /* Slide back off-screen right */
+          right: -125%;
         }
       }
     </style>

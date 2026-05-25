@@ -34,15 +34,18 @@ export class BackgroundBar extends AnimatedBar {
             this.saturation = 0;
             this.lightness = 100 * brightness; // 100 * 0.8 = 80 (preserves current value)
         } else {
-            // Vary the hue slightly from base color
-            const hueVariation = (this.random() - 0.5) * 40;
-            const lightnessVariation = (this.random() - 0.5) * 30;
+            // Narrow upward-biased variation: lightness range is ±10 with a +5
+            // bias, keeping bars in the lively zone instead of letting them dip
+            // into muddy/shadow territory against typical dark stream backdrops.
+            const hueVariation = (this.random() - 0.5) * 30;
+            const lightnessVariation = (this.random() - 0.5) * 20 + 5;
 
             this.hue = (this.baseHSL.h + hueVariation + 360) % 360;
             this.saturation = this.baseHSL.s;
-            // Apply brightness multiplier from config
-            const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
-            this.lightness = Math.max(10, baseLightness * brightness);
+            // Hard floor at 35 (post-brightness) so colored bars stay above
+            // typical backdrop values and don't read as shadow patches.
+            const baseLightness = Math.max(35, Math.min(80, this.baseHSL.l + lightnessVariation));
+            this.lightness = Math.max(35, baseLightness * brightness);
         }
 
         // Opacity range (0.4-0.7 = 40%-70%)

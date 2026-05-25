@@ -34,14 +34,17 @@ export class StingerBar extends AnimatedBar {
             this.saturation = 0;
             this.lightness = 100 * brightness; // 100 * 0.8 = 80 (matches background)
         } else {
-            // Vary the hue slightly from base color
-            const hueVariation = (this.random() - 0.5) * 40;
-            const lightnessVariation = (this.random() - 0.5) * 30;
+            // Tighter hue range (±12) and lightness range (±10, biased −5 toward
+            // the curtain lightness) so no accent bar punches brighter than the
+            // two background curtains. Saturation is also damped on accents so
+            // a single bar can't read as the "hero stripe."
+            const hueVariation = (this.random() - 0.5) * 24;
+            const lightnessVariation = (this.random() - 0.5) * 20 - 5;
 
             this.hue = (this.baseHSL.h + hueVariation + 360) % 360;
-            this.saturation = this.baseHSL.s;
-            const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
-            this.lightness = Math.max(10, baseLightness * brightness); // Apply brightness multiplier
+            this.saturation = Math.max(0, this.baseHSL.s - 15);
+            const baseLightness = Math.max(25, Math.min(65, this.baseHSL.l + lightnessVariation));
+            this.lightness = Math.max(15, baseLightness * brightness);
         }
 
         this.opacity = this.random() * 0.4 + 0.6;
