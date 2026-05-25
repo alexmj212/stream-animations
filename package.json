@@ -22,7 +22,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "bench": "node tools/benchmark/run.js"
   },
   "keywords": [
     "obs",
@@ -39,6 +40,7 @@
     "@vitest/ui": "^4.0.16",
     "fast-check": "^4.5.3",
     "jsdom": "^27.4.0",
+    "puppeteer-core": "^25.0.4",
     "serve": "^14.2.4",
     "vite": "^7.3.0",
     "vite-plugin-singlefile": "^2.3.0",

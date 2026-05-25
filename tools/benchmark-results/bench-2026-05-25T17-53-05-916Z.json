@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-05-25T17:53:05.916Z",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "chromePath": "/usr/bin/google-chrome",
+  "results": [
+    {
+      "scene": "background",
+      "sampleDurationMs": 5003,
+      "perf": {
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "minFrameTime": 16.2,
+        "maxFrameTime": 17,
+        "p99FrameTime": 17,
+        "droppedFrames": 2,
+        "memoryMB": "2.93"
+      },
+      "cdp": {
+        "taskDurationMs": 1890.354,
+        "scriptDurationMs": 358.181,
+        "layoutDurationMs": 46.46499999999999,
+        "recalcStyleMs": 23.836999999999996,
+        "jsHeapUsedMB": 2.2996597290039062,
+        "nodes": 2207,
+        "frames": 1
+      },
+      "canvasCalls": {
+        "save": {
+          "calls": 5151,
+          "totalMs": 167.39999999955762,
+          "meanUs": 32.49854397195838
+        },
+        "drawImage": {
+          "calls": 897,
+          "totalMs": 27.500000001047738,
+          "meanUs": 30.657748050220444
+        },
+        "fillRect": {
+          "calls": 4254,
+          "totalMs": 6.199999999953434,
+          "meanUs": 1.4574518100501725
+        },
+        "clearRect": {
+          "calls": 598,
+          "totalMs": 3.9000000002561137,
+          "meanUs": 6.521739130863066
+        },
+        "translate": {
+          "calls": 4254,
+          "totalMs": 3.000000000349246,
+          "meanUs": 0.7052186178536074
+        },
+        "transform": {
+          "calls": 3342,
+          "totalMs": 2.4000000002561137,
+          "meanUs": 0.7181328546547318
+        },
+        "restore": {
+          "calls": 5151,
+          "totalMs": 2.3999999995576218,
+          "meanUs": 0.46592894574987803
+        },
+        "createLinearGradient": {
+          "calls": 1357,
+          "totalMs": 1.6000000002095476,
+          "meanUs": 1.179071481362968
+        },
+        "rotate": {
+          "calls": 912,
+          "totalMs": 1.5000000001164153,
+          "meanUs": 1.6447368422329116
+        }
+      },
+      "canvasTotals": {
+        "fillStyleSets": 4254,
+        "globalAlphaSets": 4508,
+        "gradientObjectsCreated": 1357,
+        "canvasGetContextCalls": 643,
+        "drawImageMB": 233.68959426879883
+      },
+      "navMs": 2275
+    }
+  ]
+}

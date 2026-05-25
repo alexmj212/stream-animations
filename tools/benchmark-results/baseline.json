@@ -1,0 +1,328 @@
+{
+  "timestamp": "2026-05-25T17:54:24.304Z",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "chromePath": "/usr/bin/google-chrome",
+  "results": [
+    {
+      "scene": "background",
+      "sampleDurationMs": 10006,
+      "perf": {
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "minFrameTime": 16.2,
+        "maxFrameTime": 17.1,
+        "p99FrameTime": 17.1,
+        "droppedFrames": 4,
+        "memoryMB": "2.93"
+      },
+      "cdp": {
+        "taskDurationMs": 3617.48,
+        "scriptDurationMs": 695.418,
+        "layoutDurationMs": 103.713,
+        "recalcStyleMs": 45.493,
+        "jsHeapUsedMB": 2.319866180419922,
+        "nodes": 3447,
+        "frames": 1
+      },
+      "canvasCalls": {
+        "save": {
+          "calls": 14693,
+          "totalMs": 319.19999999995343,
+          "meanUs": 21.7246307765571
+        },
+        "drawImage": {
+          "calls": 1202,
+          "totalMs": 51.1000000013737,
+          "meanUs": 42.51247920247396
+        },
+        "fillRect": {
+          "calls": 13491,
+          "totalMs": 16.100000000209548,
+          "meanUs": 1.1933881847312688
+        },
+        "clearRect": {
+          "calls": 1202,
+          "totalMs": 10.599999999627471,
+          "meanUs": 8.818635607011206
+        },
+        "transform": {
+          "calls": 11087,
+          "totalMs": 6.6000000005587935,
+          "meanUs": 0.5952917832198785
+        },
+        "createLinearGradient": {
+          "calls": 4497,
+          "totalMs": 6.200000000069849,
+          "meanUs": 1.3786969090660104
+        },
+        "restore": {
+          "calls": 14693,
+          "totalMs": 5.599999999743886,
+          "meanUs": 0.38113387325555614
+        },
+        "translate": {
+          "calls": 13491,
+          "totalMs": 5.2999999998137355,
+          "meanUs": 0.39285449557584573
+        },
+        "rotate": {
+          "calls": 2404,
+          "totalMs": 2.599999999976717,
+          "meanUs": 1.081530782020265
+        }
+      },
+      "canvasTotals": {
+        "fillStyleSets": 13491,
+        "globalAlphaSets": 13802,
+        "gradientObjectsCreated": 4497,
+        "canvasGetContextCalls": 891,
+        "drawImageMB": 419.06128311157227
+      },
+      "navMs": 2296
+    },
+    {
+      "scene": "sidebar",
+      "sampleDurationMs": 11459,
+      "perf": {
+        "fps": 60,
+        "avgFrameTime": 16.66,
+        "minFrameTime": 16.2,
+        "maxFrameTime": 17.2,
+        "p99FrameTime": 17.2,
+        "droppedFrames": 1,
+        "memoryMB": "2.88"
+      },
+      "cdp": {
+        "taskDurationMs": 2189.009,
+        "scriptDurationMs": 172.351,
+        "layoutDurationMs": 87.31099999999999,
+        "recalcStyleMs": 45.192,
+        "jsHeapUsedMB": 2.2824745178222656,
+        "nodes": 4530,
+        "frames": 1
+      },
+      "canvasCalls": {
+        "fillRect": {
+          "calls": 4292,
+          "totalMs": 7.300000000628643,
+          "meanUs": 1.7008387699507557
+        },
+        "save": {
+          "calls": 4292,
+          "totalMs": 6.7999999998137355,
+          "meanUs": 1.5843429636099104
+        },
+        "clearRect": {
+          "calls": 278,
+          "totalMs": 3.600000000325963,
+          "meanUs": 12.949640288942312
+        },
+        "createLinearGradient": {
+          "calls": 1751,
+          "totalMs": 2.3000000001629815,
+          "meanUs": 1.313535122880058
+        },
+        "translate": {
+          "calls": 4292,
+          "totalMs": 1.7999999998137355,
+          "meanUs": 0.41938490210012475
+        },
+        "transform": {
+          "calls": 1612,
+          "totalMs": 1.7000000001862645,
+          "meanUs": 1.0545905708351517
+        },
+        "restore": {
+          "calls": 4292,
+          "totalMs": 1.5000000001164153,
+          "meanUs": 0.3494874184800595
+        },
+        "rotate": {
+          "calls": 2680,
+          "totalMs": 1,
+          "meanUs": 0.373134328358209
+        }
+      },
+      "canvasTotals": {
+        "fillStyleSets": 4292,
+        "globalAlphaSets": 4292,
+        "gradientObjectsCreated": 1751,
+        "canvasGetContextCalls": 0,
+        "drawImageMB": 0
+      },
+      "navMs": 1111
+    },
+    {
+      "scene": "shade",
+      "sampleDurationMs": 10002,
+      "perf": {
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "minFrameTime": 16,
+        "maxFrameTime": 17.2,
+        "p99FrameTime": 17.2,
+        "droppedFrames": 3,
+        "memoryMB": "3.16"
+      },
+      "cdp": {
+        "taskDurationMs": 2422.1330000000003,
+        "scriptDurationMs": 183.597,
+        "layoutDurationMs": 79.475,
+        "recalcStyleMs": 37.611999999999995,
+        "jsHeapUsedMB": 2.4601478576660156,
+        "nodes": 4768,
+        "frames": 1
+      },
+      "canvasCalls": {
+        "fillRect": {
+          "calls": 6660,
+          "totalMs": 8.499999999650754,
+          "meanUs": 1.276276276223837
+        },
+        "save": {
+          "calls": 7216,
+          "totalMs": 8.199999999953434,
+          "meanUs": 1.1363636363571832
+        },
+        "drawImage": {
+          "calls": 186,
+          "totalMs": 6.099999999860302,
+          "meanUs": 32.79569892398011
+        },
+        "createLinearGradient": {
+          "calls": 2405,
+          "totalMs": 3.3000000001629815,
+          "meanUs": 1.37214137220914
+        },
+        "clearRect": {
+          "calls": 186,
+          "totalMs": 2.900000000023283,
+          "meanUs": 15.591397849587542
+        },
+        "transform": {
+          "calls": 3330,
+          "totalMs": 2.8000000008614734,
+          "meanUs": 0.8408408410995415
+        },
+        "restore": {
+          "calls": 7216,
+          "totalMs": 2.79999999969732,
+          "meanUs": 0.38802660749685697
+        },
+        "translate": {
+          "calls": 5920,
+          "totalMs": 2.099999999976717,
+          "meanUs": 0.3547297297257968
+        },
+        "rotate": {
+          "calls": 2590,
+          "totalMs": 1.1000000000931323,
+          "meanUs": 0.4247104247463831
+        },
+        "rect": {
+          "calls": 370,
+          "totalMs": 0.6999999999534339,
+          "meanUs": 1.8918918917660374
+        },
+        "clip": {
+          "calls": 370,
+          "totalMs": 0.6000000000931323,
+          "meanUs": 1.6216216218733304
+        },
+        "beginPath": {
+          "calls": 370,
+          "totalMs": 0,
+          "meanUs": 0
+        }
+      },
+      "canvasTotals": {
+        "fillStyleSets": 6660,
+        "globalAlphaSets": 6290,
+        "gradientObjectsCreated": 2405,
+        "canvasGetContextCalls": 0,
+        "drawImageMB": 76.46218872070312
+      },
+      "navMs": 2173
+    },
+    {
+      "scene": "stinger",
+      "sampleDurationMs": 12011,
+      "perf": {
+        "fps": 60,
+        "avgFrameTime": 16.67,
+        "minFrameTime": 16.4,
+        "maxFrameTime": 16.9,
+        "p99FrameTime": 16.9,
+        "droppedFrames": 4,
+        "memoryMB": "2.41"
+      },
+      "cdp": {
+        "taskDurationMs": 4245.275,
+        "scriptDurationMs": 298.02,
+        "layoutDurationMs": 119.3,
+        "recalcStyleMs": 50.249,
+        "jsHeapUsedMB": 1.7892265319824219,
+        "nodes": 2716,
+        "frames": 1
+      },
+      "canvasCalls": {
+        "clearRect": {
+          "calls": 721,
+          "totalMs": 17.000000000814907,
+          "meanUs": 23.578363385318873
+        },
+        "fillRect": {
+          "calls": 9277,
+          "totalMs": 16.399999999674037,
+          "meanUs": 1.7678128705049085
+        },
+        "save": {
+          "calls": 9533,
+          "totalMs": 8.199999999953434,
+          "meanUs": 0.860169936006864
+        },
+        "drawImage": {
+          "calls": 256,
+          "totalMs": 7.599999999976717,
+          "meanUs": 29.68749999990905
+        },
+        "createLinearGradient": {
+          "calls": 4152,
+          "totalMs": 6.300000000279397,
+          "meanUs": 1.5173410405297199
+        },
+        "transform": {
+          "calls": 5663,
+          "totalMs": 3.8999999997904524,
+          "meanUs": 0.6886809111408181
+        },
+        "rotate": {
+          "calls": 3614,
+          "totalMs": 3.20000000030268,
+          "meanUs": 0.8854454898457885
+        },
+        "translate": {
+          "calls": 9277,
+          "totalMs": 3.200000000069849,
+          "meanUs": 0.34493909669826983
+        },
+        "restore": {
+          "calls": 9533,
+          "totalMs": 3.0999999997438863,
+          "meanUs": 0.3251861952946487
+        }
+      },
+      "canvasTotals": {
+        "fillStyleSets": 9277,
+        "globalAlphaSets": 9532,
+        "gradientObjectsCreated": 4152,
+        "canvasGetContextCalls": 1,
+        "drawImageMB": 88.7783203125
+      },
+      "navMs": 548
+    }
+  ]
+}
