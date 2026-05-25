@@ -116,7 +116,19 @@ export class AnimatedBar {
 
         // Draw main bar
         offCtx.save();
-        offCtx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+        // Apply gradient for colored bars, solid for white bars
+        if (saturation > 0) {
+            // Create left-to-right gradient (darker to lighter)
+            const gradient = offCtx.createLinearGradient(-width / 2, 0, width / 2, 0);
+            const darkerLightness = Math.max(0, lightness - 15);
+            const lighterLightness = Math.min(100, lightness + 15);
+            gradient.addColorStop(0, `hsl(${hue}, ${saturation}%, ${darkerLightness}%)`);
+            gradient.addColorStop(1, `hsl(${hue}, ${saturation}%, ${lighterLightness}%)`);
+            offCtx.fillStyle = gradient;
+        } else {
+            offCtx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        }
 
         if (this.type === 'slanted') {
             offCtx.translate(centerX, centerY);
@@ -153,79 +165,133 @@ export class AnimatedBar {
         x = Math.round(x);
         y = Math.round(y);
 
+        const ctx = this.ctx;
+
         // Use offscreen canvas cache for better performance (typically for white bars)
         if (this.useOffscreenCache) {
-            this.ctx.save();
+            ctx.save();
 
-            // Draw shadow separately (not cached) to support varying opacity
+            // Draw shadow separately (not cached) to support varying opacity.
+            // Single save/restore around both passes; resetTransform between to
+            // avoid the second translate/transform compounding on the first.
             if (withShadow) {
-                this.ctx.globalAlpha = opacity * 0.2;
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                this.ctx.translate(x + 5, y + 5);
-                this.ctx.transform(1, 0, Math.tan(angle * Math.PI / 180), 1, 0, 0);
-                this.ctx.fillRect(0, -height / 2, width, height);
-                this.ctx.restore();
-                this.ctx.save();
+                ctx.globalAlpha = opacity * 0.2;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.translate(x + 5, y + 5);
+                ctx.transform(1, 0, Math.tan(angle * Math.PI / 180), 1, 0, 0);
+                ctx.fillRect(0, -height / 2, width, height);
+                ctx.resetTransform();
             }
 
             // Get cached bar shape (without shadow)
             const offscreenCanvas = this.getOrCreateOffscreenCanvas(width, height, hue, saturation, lightness, angle, false);
 
-            this.ctx.globalAlpha = opacity;
-
-            // Draw the pre-rendered canvas at the target position
-            // Center the offscreen canvas at x, y
-            this.ctx.drawImage(
+            ctx.globalAlpha = opacity;
+            ctx.drawImage(
                 offscreenCanvas,
                 x - offscreenCanvas.width / 2,
                 y - offscreenCanvas.height / 2
             );
 
-            this.ctx.restore();
+            ctx.restore();
             return;
         }
 
-        // Original drawing code for non-cached bars
-        this.ctx.save();
+        // Non-cached path: shadow + gradient bar in a single save/restore.
+        ctx.save();
 
-        // Draw shadow first (if enabled) using simple offset technique instead of shadowBlur
         if (withShadow) {
-            this.ctx.globalAlpha = opacity * 0.2; // Shadow opacity
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.globalAlpha = opacity * 0.2;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
 
             if (this.type === 'slanted') {
-                this.ctx.translate(x + 5, y + 5); // Shadow offset
-                this.ctx.rotate((angle * Math.PI) / 180);
+                ctx.translate(x + 5, y + 5);
+                ctx.rotate((angle * Math.PI) / 180);
                 const minHeight = this.canvas.height * 1.5;
-                this.ctx.fillRect(0, -minHeight * 0.3, width, minHeight);
+                ctx.fillRect(0, -minHeight * 0.3, width, minHeight);
             } else {
-                this.ctx.translate(x + 5, y + 5); // Shadow offset
-                this.ctx.transform(1, 0, Math.tan(angle * Math.PI / 180), 1, 0, 0);
-                this.ctx.fillRect(0, -height / 2, width, height);
+                ctx.translate(x + 5, y + 5);
+                ctx.transform(1, 0, Math.tan(angle * Math.PI / 180), 1, 0, 0);
+                ctx.fillRect(0, -height / 2, width, height);
             }
 
-            this.ctx.restore();
-            this.ctx.save();
+            // Drop the shadow's transform before drawing the main bar (cheaper
+            // than save/restore pair).
+            ctx.resetTransform();
         }
 
         // Draw main bar
-        this.ctx.globalAlpha = opacity;
-        this.ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        ctx.globalAlpha = opacity;
 
-        if (this.type === 'slanted') {
-            this.ctx.translate(x, y);
-            this.ctx.rotate((angle * Math.PI) / 180);
-            // Always extend well beyond screen height
-            const minHeight = this.canvas.height * 1.5;
-            this.ctx.fillRect(0, -minHeight * 0.3, width, minHeight);
+        if (saturation > 0) {
+            ctx.fillStyle = this._getGradient(width, hue, saturation, lightness);
         } else {
-            // Horizontal bar with skew
-            this.ctx.translate(x, y);
-            this.ctx.transform(1, 0, Math.tan(angle * Math.PI / 180), 1, 0, 0);
-            this.ctx.fillRect(0, -height / 2, width, height);
+            ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         }
 
-        this.ctx.restore();
+        if (this.type === 'slanted') {
+            ctx.translate(x, y);
+            ctx.rotate((angle * Math.PI) / 180);
+            const minHeight = this.canvas.height * 1.5;
+            ctx.fillRect(0, -minHeight * 0.3, width, minHeight);
+        } else {
+            ctx.translate(x, y);
+            ctx.transform(1, 0, Math.tan(angle * Math.PI / 180), 1, 0, 0);
+            ctx.fillRect(0, -height / 2, width, height);
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Cache the bar's linear gradient. Hue/saturation/lightness are constant
+     * per bar; width may animate (BackgroundBar.animateSize), so we rebuild
+     * when the rounded width changes. Other scenes hit this cache 100%.
+     *
+     * Gradient runs along the bar's long axis (slanted: vertical in local
+     * space — becomes diagonal after rotation; horizontal-skewed: along the
+     * canvas-width axis), so each bar reads as if directionally lit. Per-bar
+     * `_gradientFlip` swaps the dark/light ends so overlapping bars don't
+     * all share a lighting direction. Sheen narrowed to ±8 (biased up by 2)
+     * so colored bars never dip into muddy lightness territory.
+     */
+    _getGradient(width, hue, saturation, lightness) {
+        const w = Math.round(width);
+        if (this._gradient && this._gradientKey === w) {
+            return this._gradient;
+        }
+
+        // Lazy-init the flip on first draw so the constructor doesn't consume
+        // RNG (preserves deterministic test sequences that seed update-loop
+        // values without expecting a gradient-flip read).
+        if (this._gradientFlip === undefined) {
+            this._gradientFlip = this.random() < 0.5;
+        }
+
+        let gradient;
+        if (this.type === 'slanted') {
+            // For slanted bars, width is the short axis and the long axis is
+            // ~canvas.height * 1.5 (see drawBar fillRect call). Gradient runs
+            // along the long axis so the sheen reads as directional light
+            // travelling down the stripe.
+            const minHeight = this.canvas.height * 1.5;
+            const y0 = -minHeight * 0.3;
+            const y1 = minHeight * 0.7;
+            gradient = this.ctx.createLinearGradient(0, y0, 0, y1);
+        } else {
+            // Horizontal bars: long axis is the canvas-spanning width.
+            gradient = this.ctx.createLinearGradient(0, 0, w, 0);
+        }
+
+        const darker = Math.max(0, lightness - 6);
+        const lighter = Math.min(100, lightness + 10);
+        const stop0 = this._gradientFlip ? lighter : darker;
+        const stop1 = this._gradientFlip ? darker : lighter;
+        gradient.addColorStop(0, `hsl(${hue}, ${saturation}%, ${stop0}%)`);
+        gradient.addColorStop(1, `hsl(${hue}, ${saturation}%, ${stop1}%)`);
+        this._gradient = gradient;
+        this._gradientKey = w;
+        return gradient;
     }
 
     /**
