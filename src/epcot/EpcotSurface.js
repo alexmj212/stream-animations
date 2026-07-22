@@ -1546,11 +1546,20 @@ export class EpcotSurface {
             const dirNames = config.epcot.bulbs.meteorDirectionOptions;
             const fixedDir = dirNames.indexOf(this.meteorDirection) - 1; // 'random' -> -1
 
-            // Staggered tracks so a new streak can start while the
-            // previous one finishes.
+            // A streak's derived life (full canvas traversal) can exceed
+            // the spawn interval, so each track must keep EVERY meteor
+            // whose flight is still in progress alive - not just the most
+            // recent spawn (which silently killed streaks mid-canvas the
+            // moment the next one was due). Look back over enough spawn
+            // slots to cover the longest possible traversal, capped for
+            // sanity at extreme slow-speed/short-interval settings.
+            const maxLife = (width + height + 2 * tail) / speed;
+            const lookback = Math.min(8, Math.ceil(maxLife / interval));
+
             for (let j = 0; j < tracks; j++) {
                 const tj = t + (j * interval) / tracks;
-                const m = Math.floor(tj / interval);
+                const mNow = Math.floor(tj / interval);
+                for (let m = mNow; m > mNow - lookback && m >= 0; m--) {
                 const tau = tj - m * interval;
 
                 // Deterministic per-meteor parameters
@@ -1611,6 +1620,7 @@ export class EpcotSurface {
                     if (perp > corridor) continue;
                     const I = (1 - (head - along) / tail) * window;
                     if (I > out[v]) out[v] = I;
+                }
                 }
             }
         }
