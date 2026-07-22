@@ -292,6 +292,62 @@ export const config = {
     }
   },
 
+  // Epcot scene configuration (flattened tetrahedron grid, real-3D shading)
+  epcot: {
+    // Base triangle side length in pixels
+    size: {
+      default: 90,   // Default triangle side length (?size= URL param)
+      // Perf floor, measured in headless Chrome @ 1920x1080 (post
+      // seam-stroke removal, tools/benchmark-style rAF sampling): frame
+      // time holds at the 60Hz vsync cap with low drop counts from
+      // size=70 upward, but falls off a cliff at size=65 (~18.5ms avg,
+      // p99 ~25ms) and further at size=60 (~22-25ms avg, ~25fps).
+      // 70 is the smallest size confirmed clear of that cliff.
+      min: 70,
+      max: 300        // Maximum allowed (sparser grid)
+    },
+
+    // Tetrahedral spike height as a ratio of triangle side length
+    spikeHeightRatio: 0.35,   // spikeHeight = size * spikeHeightRatio
+
+    // Per-triangle random variation applied to spike height (+/- fraction)
+    spikeVariation: 0.15,     // +/-15%, seeded via options.random
+
+    // Distance (px) each facet's Path2D is expanded outward from its own 2D
+    // centroid so adjacent facets slightly overlap instead of abutting -
+    // hides hairline anti-aliasing seams without a per-facet stroke() pass.
+    seamInflatePx: 0.6,
+
+    // Full light pattern cycle duration in seconds (slow, so the sweep reads clearly)
+    cycleDuration: 24,
+
+    // Point light configuration (one per canvas corner)
+    lighting: {
+      zHeightRatio: 0.35,     // Light height z = zHeightRatio * canvas width
+      falloffRatio: 0.45,     // Attenuation falloff = falloffRatio * canvas diagonal
+      cornerMargin: 0.05,     // Lights sit 5% beyond each corner
+      shininess: 24,          // Blinn-Phong specular exponent
+      ambient: 0.08,          // Ambient floor (keeps unlit facets a dark base color, never black)
+      // Peak per-light intensity multiplier. Tuned (headless Chrome,
+      // getImageData) so a fully-lit corner's brightest facets land around
+      // 140-200/255 while unlit regions stay near the ambient floor - the
+      // ?brightness= URL param further multiplies this at runtime (default 1.0).
+      intensity: 3.2,
+      hueOffsets: [-20, 0, 20, 40] // Per-corner hue offset in degrees (TL, TR, BR, BL)
+    },
+
+    // Light cycling pattern
+    pattern: {
+      default: 'chase',       // 'chase' | 'pulse' | 'diagonal' (?pattern= URL param)
+      options: ['chase', 'pulse', 'diagonal']
+    },
+
+    // Default base color when no ?color= URL param is provided
+    color: {
+      defaultHex: '#1c6f8c'   // Cool blue/teal, EPCOT Spaceship Earth inspired
+    }
+  },
+
   /**
    * Performance optimization configuration
    *

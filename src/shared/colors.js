@@ -63,6 +63,33 @@ export function hexToHSL(hex) {
 }
 
 /**
+ * Convert HSL to RGB float components
+ * @param {number} h - Hue in degrees (any range, wrapped to 0-360)
+ * @param {number} s - Saturation percentage (0-100)
+ * @param {number} l - Lightness percentage (0-100)
+ * @returns {{r: number, g: number, b: number}} RGB values as floats in 0-1
+ */
+export function hslToRgb(h, s, l) {
+    const hue = ((h % 360) + 360) % 360;
+    const sat = s / 100;
+    const light = l / 100;
+
+    const c = (1 - Math.abs(2 * light - 1)) * sat;
+    const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+    const m = light - c / 2;
+
+    let r1, g1, b1;
+    if (hue < 60) { r1 = c; g1 = x; b1 = 0; }
+    else if (hue < 120) { r1 = x; g1 = c; b1 = 0; }
+    else if (hue < 180) { r1 = 0; g1 = c; b1 = x; }
+    else if (hue < 240) { r1 = 0; g1 = x; b1 = c; }
+    else if (hue < 300) { r1 = x; g1 = 0; b1 = c; }
+    else { r1 = c; g1 = 0; b1 = x; }
+
+    return { r: r1 + m, g: g1 + m, b: b1 + m };
+}
+
+/**
  * Generate random hex color
  * @returns {string} Random hex color
  */

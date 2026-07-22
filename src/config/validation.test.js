@@ -13,10 +13,14 @@ import {
   validateEasingFunction,
   validateSidebarPositioning,
   validateShadeConfig,
+  validateEpcotConfig,
   isDevMode,
   getSpeedFromURL,
   getDensityFromURL,
-  getDurationFromURL
+  getDurationFromURL,
+  getSizeFromURL,
+  getPatternFromURL,
+  getBrightnessFromURL
 } from './validation.js';
 
 describe('validateConfig', () => {
@@ -206,6 +210,105 @@ describe('getSpeedFromURL', () => {
     };
 
     expect(getSpeedFromURL(1.0)).toBe(1.0);
+    expect(consoleWarnSpy).toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+    delete global.window;
+  });
+});
+
+describe('getBrightnessFromURL', () => {
+  it('should return default in Node environment', () => {
+    expect(getBrightnessFromURL(1.0)).toBe(1.0);
+  });
+
+  it('should parse valid brightness parameter', () => {
+    global.window = {
+      location: {
+        search: '?brightness=1.8'
+      }
+    };
+
+    expect(getBrightnessFromURL(1.0)).toBe(1.8);
+
+    delete global.window;
+  });
+
+  it('should use default for invalid brightness', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    global.window = {
+      location: {
+        search: '?brightness=-2'
+      }
+    };
+
+    expect(getBrightnessFromURL(1.0)).toBe(1.0);
+    expect(consoleWarnSpy).toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+    delete global.window;
+  });
+});
+
+describe('getSizeFromURL', () => {
+  it('should return default in Node environment', () => {
+    expect(getSizeFromURL(90, 20, 300)).toBe(90);
+  });
+
+  it('should parse valid size parameter', () => {
+    global.window = {
+      location: {
+        search: '?size=120'
+      }
+    };
+
+    expect(getSizeFromURL(90, 20, 300)).toBe(120);
+
+    delete global.window;
+  });
+
+  it('should use default for out-of-range size', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    global.window = {
+      location: {
+        search: '?size=5000'
+      }
+    };
+
+    expect(getSizeFromURL(90, 20, 300)).toBe(90);
+    expect(consoleWarnSpy).toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+    delete global.window;
+  });
+});
+
+describe('getPatternFromURL', () => {
+  it('should return default in Node environment', () => {
+    expect(getPatternFromURL('chase', ['chase', 'pulse', 'diagonal'])).toBe('chase');
+  });
+
+  it('should parse a valid pattern parameter', () => {
+    global.window = {
+      location: {
+        search: '?pattern=pulse'
+      }
+    };
+
+    expect(getPatternFromURL('chase', ['chase', 'pulse', 'diagonal'])).toBe('pulse');
+
+    delete global.window;
+  });
+
+  it('should use default for an unknown pattern name', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    global.window = {
+      location: {
+        search: '?pattern=nonexistent'
+      }
+    };
+
+    expect(getPatternFromURL('chase', ['chase', 'pulse', 'diagonal'])).toBe('chase');
     expect(consoleWarnSpy).toHaveBeenCalled();
 
     consoleWarnSpy.mockRestore();
@@ -590,6 +693,82 @@ describe('shade config validation', () => {
     const result = validateShadeConfig(config);
     expect(result).toBe(false);
     expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    consoleWarnSpy.mockRestore();
+  });
+});
+
+describe('epcot config validation', () => {
+  const validEpcotConfig = {
+    size: { default: 90, min: 20, max: 300 },
+    spikeHeightRatio: 0.35,
+    spikeVariation: 0.15,
+    cycleDuration: 24,
+    lighting: {
+      zHeightRatio: 0.35,
+      falloffRatio: 0.45,
+      cornerMargin: 0.05,
+      shininess: 24,
+      ambient: 0.08,
+      intensity: 1.0,
+      hueOffsets: [-20, 0, 20, 40]
+    },
+    pattern: { default: 'chase', options: ['chase', 'pulse', 'diagonal'] },
+    color: { defaultHex: '#1c6f8c' }
+  };
+
+  it('validateEpcotConfig accepts valid config', () => {
+    const result = validateEpcotConfig(validEpcotConfig);
+    expect(result).toBe(true);
+  });
+
+  it('validateEpcotConfig returns false for missing config', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(validateEpcotConfig(null)).toBe(false);
+    expect(validateEpcotConfig(undefined)).toBe(false);
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateEpcotConfig validates spikeHeightRatio range', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = { ...validEpcotConfig, spikeHeightRatio: 1.5 };
+    const result = validateEpcotConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('spikeHeightRatio must be between 0 and 1')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateEpcotConfig validates cycleDuration is positive', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = { ...validEpcotConfig, cycleDuration: -5 };
+    const result = validateEpcotConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('cycleDuration must be > 0')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateEpcotConfig validates lighting.ambient range', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = { ...validEpcotConfig, lighting: { ...validEpcotConfig.lighting, ambient: 2 } };
+    const result = validateEpcotConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('ambient must be between 0 and 1')
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('validateEpcotConfig validates pattern.default is one of pattern.options', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = { ...validEpcotConfig, pattern: { default: 'spiral', options: ['chase', 'pulse', 'diagonal'] } };
+    const result = validateEpcotConfig(config);
+    expect(result).toBe(false);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('pattern.default must be one of')
+    );
     consoleWarnSpy.mockRestore();
   });
 });

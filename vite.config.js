@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => {
     ? resolve(__dirname, 'src/sidebar/index.html')
     : mode === 'shade'
     ? resolve(__dirname, 'src/shade/index.html')
+    : mode === 'epcot'
+    ? resolve(__dirname, 'src/epcot/index.html')
     : resolve(__dirname, 'src/stinger/index.html'); // default
 
   return {

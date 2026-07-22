@@ -1,5 +1,65 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { hexToHSL, generateRandomColor, getColorFromURL } from '../../src/shared/colors.js';
+import { hexToHSL, generateRandomColor, getColorFromURL, hslToRgb } from '../../src/shared/colors.js';
+
+describe('hslToRgb', () => {
+    it('should convert pure red', () => {
+        const { r, g, b } = hslToRgb(0, 100, 50);
+        expect(r).toBeCloseTo(1, 5);
+        expect(g).toBeCloseTo(0, 5);
+        expect(b).toBeCloseTo(0, 5);
+    });
+
+    it('should convert pure green', () => {
+        const { r, g, b } = hslToRgb(120, 100, 50);
+        expect(r).toBeCloseTo(0, 5);
+        expect(g).toBeCloseTo(1, 5);
+        expect(b).toBeCloseTo(0, 5);
+    });
+
+    it('should convert pure blue', () => {
+        const { r, g, b } = hslToRgb(240, 100, 50);
+        expect(r).toBeCloseTo(0, 5);
+        expect(g).toBeCloseTo(0, 5);
+        expect(b).toBeCloseTo(1, 5);
+    });
+
+    it('should convert white', () => {
+        const { r, g, b } = hslToRgb(0, 0, 100);
+        expect(r).toBeCloseTo(1, 5);
+        expect(g).toBeCloseTo(1, 5);
+        expect(b).toBeCloseTo(1, 5);
+    });
+
+    it('should convert black', () => {
+        const { r, g, b } = hslToRgb(0, 0, 0);
+        expect(r).toBeCloseTo(0, 5);
+        expect(g).toBeCloseTo(0, 5);
+        expect(b).toBeCloseTo(0, 5);
+    });
+
+    it('should convert mid-gray regardless of hue/saturation', () => {
+        const { r, g, b } = hslToRgb(180, 0, 50);
+        expect(r).toBeCloseTo(0.5, 5);
+        expect(g).toBeCloseTo(0.5, 5);
+        expect(b).toBeCloseTo(0.5, 5);
+    });
+
+    it('should wrap hue values outside 0-360', () => {
+        const a = hslToRgb(370, 100, 50);
+        const b = hslToRgb(10, 100, 50);
+        expect(a.r).toBeCloseTo(b.r, 5);
+        expect(a.g).toBeCloseTo(b.g, 5);
+        expect(a.b).toBeCloseTo(b.b, 5);
+    });
+
+    it('should round-trip with hexToHSL for arbitrary colors', () => {
+        const hsl = hexToHSL('#3399cc');
+        const { r, g, b } = hslToRgb(hsl.h, hsl.s, hsl.l);
+        expect(Math.round(r * 255)).toBe(0x33);
+        expect(Math.round(g * 255)).toBe(0x99);
+        expect(Math.round(b * 255)).toBe(0xcc);
+    });
+});
 
 describe('hexToHSL', () => {
     it('should convert pure red to HSL', () => {

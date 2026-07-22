@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epcot Animation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="epcotCanvas"></canvas>
+
+    <script type="module">
+        import { cssColorToHex, hexToHSL } from '../shared/colors.js';
+        import { setupCanvas, clearCanvas } from '../shared/canvas.js';
+        import { EpcotSurface } from './EpcotSurface.js';
+        import { PerformanceMonitor } from '../shared/performance.js';
+        import { PerformanceStorage } from '../shared/perfStorage.js';
+        import { PerformanceOverlay } from '../shared/perfOverlay.js';
+        import { DeltaTimer } from '../shared/timing.js';
+        import { AnimationLifecycle } from '../shared/lifecycle.js';
+        import { getSpeedFromURL, getSizeFromURL, getPatternFromURL, getBrightnessFromURL } from '../config/validation.js';
+        import { config } from '../config/config.js';
+
+        // Get parameters from URL with config defaults
+        const urlParams = new URLSearchParams(window.location.search);
+        const speedMultiplier = getSpeedFromURL(1.0);
+        const triangleSize = getSizeFromURL(config.epcot.size.default, config.epcot.size.min, config.epcot.size.max);
+        const pattern = getPatternFromURL(config.epcot.pattern.default, config.epcot.pattern.options);
+        const brightness = getBrightnessFromURL(1.0);
+        const showPerf = urlParams.get('perf') === 'true';
+
+        // Epcot uses its own default color (cool blue/teal) instead of the
+        // shared random-color fallback other scenes use, since a random hue
+        // doesn't fit the Spaceship Earth look.
+        const colorParam = urlParams.get('color');
+        const baseColor = colorParam ? cssColorToHex(colorParam) : config.epcot.color.defaultHex;
+        const baseHSL = hexToHSL(baseColor);
+
+        // Setup performance monitoring
+        const perfMonitor = new PerformanceMonitor(60, 60);
+        let perfOverlay = null;
+
+        if (showPerf) {
+            const perfStorage = new PerformanceStorage(50);
+            perfOverlay = new PerformanceOverlay(perfMonitor, perfStorage, {
+                position: 'top-right',
+                opacity: 0.9,
+                scene: 'epcot'
+            });
+
+            perfMonitor.enable();
+            perfOverlay.setupHotkey();
+            perfOverlay.startSession();
+            perfOverlay.show();
+            perfOverlay.exposeAPI();
+        }
+
+        // Canvas setup
+        const canvas = document.getElementById('epcotCanvas');
+        const ctx = setupCanvas(canvas, { alpha: false });
+
+        // Initialize delta-time system and lifecycle management
+        const deltaTimer = new DeltaTimer();
+        const lifecycle = new AnimationLifecycle();
+
+        // Build the surface (grid + facets + lights)
+        const surface = new EpcotSurface(ctx, canvas, {
+            size: triangleSize,
+            baseHSL,
+            pattern,
+            speed: speedMultiplier,
+            brightness
+        });
+
+        // Expose the surface instance for debugging/measurement when in perf
+        // mode (mirrors the perfOverlay.exposeAPI() convention above).
+        if (showPerf) {
+            window.__epcotSurface = surface;
+        }
+
+        // Rebuild geometry whenever the canvas resizes (setupCanvas already
+        // resizes canvas.width/height on 'resize'; this listener runs after
+        // it since it's registered later, so it always sees the new size).
+        // Debounced 150ms since rebuild() re-generates the full grid/facet
+        // set and drag-resizing an OBS/browser window can fire many times.
+        let resizeTimer = null;
+        lifecycle.addEventListener(window, 'resize', () => {
+            if (resizeTimer) clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                resizeTimer = null;
+                surface.rebuild();
+            }, 150);
+        });
+        lifecycle.onCleanup(() => {
+            if (resizeTimer) {
+                clearTimeout(resizeTimer);
+                resizeTimer = null;
+            }
+        });
+
+        // Save session on page unload
+        window.addEventListener('beforeunload', () => {
+            if (showPerf && perfOverlay) {
+                perfOverlay.endSession();
+            }
+        });
+
+        // Animation loop with delta-time
+        function animate(timestamp) {
+            if (showPerf) perfMonitor.recordFrame();
+
+            const deltaTime = deltaTimer.update(timestamp);
+
+            clearCanvas(ctx, canvas);
+            surface.update(deltaTime);
+            surface.draw();
+
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

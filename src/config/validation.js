@@ -187,6 +187,66 @@ export function getDurationFromURL(defaultValue = 1000) {
 }
 
 /**
+ * Parse and validate triangle side length from URL parameter
+ * @param {number} defaultValue - Default size in pixels
+ * @param {number} min - Minimum allowed size
+ * @param {number} max - Maximum allowed size
+ * @returns {number} Validated size
+ */
+export function getSizeFromURL(defaultValue = 90, min = 70, max = 300) {
+  if (typeof window === 'undefined') return defaultValue;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const sizeParam = urlParams.get('size');
+
+  if (sizeParam === null) return defaultValue;
+
+  const size = parseFloat(sizeParam);
+  return validateNumberInRange(size, defaultValue, min, max, 'URL parameter size');
+}
+
+/**
+ * Parse and validate a brightness multiplier from URL parameter
+ * @param {number} defaultValue - Default brightness multiplier
+ * @returns {number} Validated brightness multiplier
+ */
+export function getBrightnessFromURL(defaultValue = 1.0) {
+  if (typeof window === 'undefined') return defaultValue;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const brightnessParam = urlParams.get('brightness');
+
+  if (brightnessParam === null) return defaultValue;
+
+  const brightness = parseFloat(brightnessParam);
+  return validatePositiveNumber(brightness, defaultValue, 'URL parameter brightness');
+}
+
+/**
+ * Parse and validate a light pattern name from URL parameter
+ * @param {string} defaultValue - Default pattern name
+ * @param {string[]} validPatterns - Allowed pattern names
+ * @returns {string} Validated pattern name
+ */
+export function getPatternFromURL(defaultValue = 'chase', validPatterns = ['chase', 'pulse', 'diagonal']) {
+  if (typeof window === 'undefined') return defaultValue;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const patternParam = urlParams.get('pattern');
+
+  if (patternParam === null) return defaultValue;
+
+  if (!validPatterns.includes(patternParam)) {
+    console.warn(
+      `Config validation: URL parameter pattern must be one of ${validPatterns.join(', ')}, got "${patternParam}". Using default: ${defaultValue}`
+    );
+    return defaultValue;
+  }
+
+  return patternParam;
+}
+
+/**
  * Validate duration values (milliseconds)
  * @param {object} durations - Duration config object
  * @param {object} defaults - Default values
@@ -385,6 +445,81 @@ export function validateShadeConfig(shade) {
 
     if (typeof durations.exitMs !== 'number' || durations.exitMs < 100 || durations.exitMs > 10000) {
       console.warn(`Config validation: config.shade.durations.exitMs must be between 100 and 10000, got ${durations.exitMs}. Using default: 1000`);
+      allValid = false;
+    }
+  }
+
+  return allValid;
+}
+
+/**
+ * Validate epcot scene configuration
+ * @param {object} epcot - Epcot config section
+ * @returns {boolean} True if all validations pass, false if any warnings logged
+ */
+export function validateEpcotConfig(epcot) {
+  if (!epcot || typeof epcot !== 'object') {
+    console.warn('Config validation: config.epcot section missing or invalid. Epcot scene may not work correctly.');
+    return false;
+  }
+
+  let allValid = true;
+
+  if (epcot.size) {
+    const size = epcot.size;
+    if (typeof size.default !== 'number' || size.default <= 0) {
+      console.warn(`Config validation: config.epcot.size.default must be > 0, got ${size.default}. Using default: 90`);
+      allValid = false;
+    }
+    if (typeof size.min !== 'number' || typeof size.max !== 'number' || size.min >= size.max) {
+      console.warn(`Config validation: config.epcot.size.min (${size.min}) must be less than size.max (${size.max}).`);
+      allValid = false;
+    }
+  }
+
+  if (typeof epcot.spikeHeightRatio !== 'number' || epcot.spikeHeightRatio <= 0 || epcot.spikeHeightRatio > 1) {
+    console.warn(`Config validation: config.epcot.spikeHeightRatio must be between 0 and 1, got ${epcot.spikeHeightRatio}. Using default: 0.35`);
+    allValid = false;
+  }
+
+  if (typeof epcot.spikeVariation !== 'number' || epcot.spikeVariation < 0 || epcot.spikeVariation > 1) {
+    console.warn(`Config validation: config.epcot.spikeVariation must be between 0 and 1, got ${epcot.spikeVariation}. Using default: 0.15`);
+    allValid = false;
+  }
+
+  if (typeof epcot.cycleDuration !== 'number' || epcot.cycleDuration <= 0) {
+    console.warn(`Config validation: config.epcot.cycleDuration must be > 0, got ${epcot.cycleDuration}. Using default: 24`);
+    allValid = false;
+  }
+
+  if (epcot.lighting) {
+    const lighting = epcot.lighting;
+
+    if (typeof lighting.shininess !== 'number' || lighting.shininess <= 0) {
+      console.warn(`Config validation: config.epcot.lighting.shininess must be > 0, got ${lighting.shininess}. Using default: 24`);
+      allValid = false;
+    }
+
+    if (typeof lighting.ambient !== 'number' || lighting.ambient < 0 || lighting.ambient > 1) {
+      console.warn(`Config validation: config.epcot.lighting.ambient must be between 0 and 1, got ${lighting.ambient}. Using default: 0.08`);
+      allValid = false;
+    }
+
+    if (typeof lighting.falloffRatio !== 'number' || lighting.falloffRatio <= 0) {
+      console.warn(`Config validation: config.epcot.lighting.falloffRatio must be > 0, got ${lighting.falloffRatio}. Using default: 0.45`);
+      allValid = false;
+    }
+
+    if (!Array.isArray(lighting.hueOffsets) || lighting.hueOffsets.length !== 4) {
+      console.warn('Config validation: config.epcot.lighting.hueOffsets must be an array of 4 numbers. Using default: [-20, 0, 20, 40]');
+      allValid = false;
+    }
+  }
+
+  if (epcot.pattern) {
+    const validPatterns = Array.isArray(epcot.pattern.options) ? epcot.pattern.options : ['chase', 'pulse', 'diagonal'];
+    if (typeof epcot.pattern.default !== 'string' || !validPatterns.includes(epcot.pattern.default)) {
+      console.warn(`Config validation: config.epcot.pattern.default must be one of ${validPatterns.join(', ')}, got "${epcot.pattern.default}". Using default: "chase"`);
       allValid = false;
     }
   }
