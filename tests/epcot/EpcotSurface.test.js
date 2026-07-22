@@ -1,9 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EpcotSurface } from '../../src/epcot/EpcotSurface.js';
-import { buildTriangleGrid } from '../../src/epcot/geometry.js';
-import { cornerLightPositions } from '../../src/epcot/lighting.js';
+import { buildTriangleGrid, buildLatticeVertices } from '../../src/epcot/geometry.js';
+import { computeCornerWeights } from '../../src/epcot/lighting.js';
 import { config } from '../../src/config/config.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
+
+const cfg = config.epcot;
 
 function seededRandom(seed = 1) {
   let s = seed;
@@ -13,124 +15,638 @@ function seededRandom(seed = 1) {
   };
 }
 
+function makeSurface(overrides = {}) {
+  const canvas = createMockCanvas(overrides.width ?? 300, overrides.height ?? 220);
+  const ctx = createMockContext(canvas);
+  const surface = new EpcotSurface(ctx, canvas, { size: 90, random: seededRandom(), ...overrides });
+  return { canvas, ctx, surface };
+}
+
 describe('EpcotSurface', () => {
-  it('builds a facet for every sub-triangle of the base grid on construction', () => {
-    const canvas = createMockCanvas(400, 300);
-    const ctx = createMockContext(canvas);
-    const size = 90;
-
-    const surface = new EpcotSurface(ctx, canvas, { size, random: seededRandom() });
-    const { triCount } = buildTriangleGrid(400, 300, size);
-
-    expect(surface.facetCount).toBe(triCount * 3);
-    expect(surface.paths).toHaveLength(surface.facetCount);
-    expect(surface.normals.length).toBe(surface.facetCount * 3);
-  });
-
-  it('is deterministic given the same seeded random function', () => {
-    const canvasA = createMockCanvas(400, 300);
-    const canvasB = createMockCanvas(400, 300);
-    const a = new EpcotSurface(createMockContext(canvasA), canvasA, { size: 90, random: seededRandom(7) });
-    const b = new EpcotSurface(createMockContext(canvasB), canvasB, { size: 90, random: seededRandom(7) });
-
-    expect(Array.from(a.centroids3D)).toEqual(Array.from(b.centroids3D));
-    expect(Array.from(a.normals)).toEqual(Array.from(b.normals));
-  });
-
-  it('rebuild() regenerates geometry for the current canvas size', () => {
-    const canvas = createMockCanvas(400, 300);
-    const ctx = createMockContext(canvas);
-    const surface = new EpcotSurface(ctx, canvas, { size: 90, random: seededRandom() });
-    const initialFacetCount = surface.facetCount;
-
-    canvas.width = 1200;
-    canvas.height = 900;
-    surface.rebuild();
-
-    expect(surface.facetCount).toBeGreaterThan(initialFacetCount);
-    expect(surface.paths).toHaveLength(surface.facetCount);
-  });
-
-  it('update() advances the pattern clock by deltaTime * speed', () => {
-    const canvas = createMockCanvas(200, 200);
-    const ctx = createMockContext(canvas);
-    const surface = new EpcotSurface(ctx, canvas, { size: 90, random: seededRandom(), speed: 2 });
-
-    expect(surface.clock).toBe(0);
-    surface.update(0.5);
-    expect(surface.clock).toBeCloseTo(1.0, 5);
-    surface.update(0.25);
-    expect(surface.clock).toBeCloseTo(1.5, 5);
-  });
-
-  it('draw() fills every facet without throwing, and does not stroke (seams are hidden via geometric inflation, not stroke())', () => {
-    const canvas = createMockCanvas(200, 200);
-    const ctx = createMockContext(canvas);
-    const surface = new EpcotSurface(ctx, canvas, { size: 90, random: seededRandom() });
-
-    const fillSpy = vi.spyOn(ctx, 'fill');
-    const strokeSpy = vi.spyOn(ctx, 'stroke');
-
-    surface.update(0.016);
-    expect(() => surface.draw()).not.toThrow();
-
-    expect(fillSpy).toHaveBeenCalledTimes(surface.facetCount);
-    expect(strokeSpy).not.toHaveBeenCalled();
-  });
-
-  it('inflates each facet outward from its own centroid so adjacent triangles overlap slightly', () => {
-    const canvas = createMockCanvas(200, 200);
-    const ctx = createMockContext(canvas);
-    const surface = new EpcotSurface(ctx, canvas, { size: 90, random: seededRandom(), seamInflatePx: 5 });
-
-    // First facet's raw (un-inflated) triangle from positions2D
-    const [ax, ay, bx, by, cx0, cy0] = surface.positions2D.slice(0, 6);
-    const centroidX = (ax + bx + cx0) / 3;
-    const centroidY = (ay + by + cy0) / 3;
-    const rawDistA = Math.hypot(ax - centroidX, ay - centroidY);
-
-    // The corresponding Path2D vertex should be strictly farther from the
-    // centroid than the raw vertex once inflated outward.
-    const path = surface.paths[0];
-    expect(path).toBeInstanceOf(Path2D);
-    // vitest-canvas-mock's Path2D stores its recorded operations in _path
-    const moveToOp = path._path.find((op) => op.type === 'moveTo');
-    expect(moveToOp).toBeDefined();
-    const inflatedDist = Math.hypot(moveToOp.props.x - centroidX, moveToOp.props.y - centroidY);
-    expect(inflatedDist).toBeGreaterThan(rawDistA);
-    expect(inflatedDist - rawDistA).toBeCloseTo(5, 1);
-  });
-
-  it('rebuild() repositions the corner lights for new canvas dimensions', () => {
-    const canvas = createMockCanvas(400, 300);
-    const ctx = createMockContext(canvas);
-    const surface = new EpcotSurface(ctx, canvas, { size: 90, random: seededRandom() });
-
-    const before = Array.from(surface._lights.slice(0, 3)); // light 0 (top-left) x,y,z
-
-    canvas.width = 1600;
-    canvas.height = 1000;
-    surface.rebuild();
-
-    const after = Array.from(surface._lights.slice(0, 3));
-    expect(after).not.toEqual(before);
-
-    const expected = cornerLightPositions(1600, 1000, config.epcot.lighting.cornerMargin, config.epcot.lighting.zHeightRatio);
-    for (let i = 0; i < 4; i++) {
-      const o = i * 7;
-      expect(surface._lights[o]).toBeCloseTo(expected[i].x, 3);
-      expect(surface._lights[o + 1]).toBeCloseTo(expected[i].y, 3);
-      expect(surface._lights[o + 2]).toBeCloseTo(expected[i].z, 3);
-    }
-  });
-
-  it('accepts chase, pulse, and diagonal patterns without error', () => {
-    for (const pattern of ['chase', 'pulse', 'diagonal']) {
-      const canvas = createMockCanvas(200, 200);
+  describe('construction / geometry', () => {
+    it('builds a facet for every sub-triangle of the base grid on construction', () => {
+      const canvas = createMockCanvas(400, 300);
       const ctx = createMockContext(canvas);
-      const surface = new EpcotSurface(ctx, canvas, { size: 90, random: seededRandom(), pattern });
-      surface.update(1);
+      const size = 90;
+
+      const surface = new EpcotSurface(ctx, canvas, { size, random: seededRandom() });
+      const { triCount } = buildTriangleGrid(400, 300, size);
+
+      expect(surface.facetCount).toBe(triCount * 3);
+      expect(surface.paths).toHaveLength(surface.facetCount);
+      expect(surface.normals.length).toBe(surface.facetCount * 3);
+      expect(surface.triCount).toBe(triCount);
+    });
+
+    it('builds one vertex light per unique lattice vertex, matching buildLatticeVertices', () => {
+      const canvas = createMockCanvas(400, 300);
+      const ctx = createMockContext(canvas);
+      const size = 90;
+
+      const surface = new EpcotSurface(ctx, canvas, { size, random: seededRandom() });
+      const { triangles, triCount } = buildTriangleGrid(400, 300, size);
+      const { count } = buildLatticeVertices(triangles, triCount, surface.vertexEpsilon);
+
+      expect(surface.vertexCount).toBe(count);
+      expect(surface._vertexLights.length).toBe(count * 7);
+      expect(surface._vertexWeights.length).toBe(count * 4);
+    });
+
+    it('every base triangle\'s 3 facets reference that triangle\'s own 3 vertex indices (_triVertexIndex)', () => {
+      const { surface } = makeSurface();
+
+      for (let t = 0; t < surface.triCount; t++) {
+        const i0 = surface._triVertexIndex[t * 3];
+        const i1 = surface._triVertexIndex[t * 3 + 1];
+        const i2 = surface._triVertexIndex[t * 3 + 2];
+        for (const vi of [i0, i1, i2]) {
+          expect(vi).toBeGreaterThanOrEqual(0);
+          expect(vi).toBeLessThan(surface.vertexCount);
+        }
+      }
+    });
+
+    it('precomputes per-vertex corner weights that sum to 1, matching the pure function', () => {
+      const { surface } = makeSurface();
+
+      for (let v = 0; v < surface.vertexCount; v++) {
+        const o = v * 4;
+        const sum = surface._vertexWeights[o] + surface._vertexWeights[o + 1] + surface._vertexWeights[o + 2] + surface._vertexWeights[o + 3];
+        expect(sum).toBeCloseTo(1, 5);
+      }
+
+      const expected = computeCornerWeights(surface.vertexPositions[0], surface.vertexPositions[1], surface.canvas.width, surface.canvas.height, surface.cornerWeightFalloffRatio);
+      expect(surface._vertexWeights[0]).toBeCloseTo(expected[0], 5);
+      expect(surface._vertexWeights[1]).toBeCloseTo(expected[1], 5);
+      expect(surface._vertexWeights[2]).toBeCloseTo(expected[2], 5);
+      expect(surface._vertexWeights[3]).toBeCloseTo(expected[3], 5);
+    });
+
+    it('places vertex lights at z = vertexHeightRatio * nominal spike height', () => {
+      const { surface } = makeSurface({ vertexHeightRatio: 0.5 });
+
+      const expectedZ = 90 * surface.spikeHeightRatio * 0.5;
+      for (let v = 0; v < surface.vertexCount; v++) {
+        expect(surface._vertexLights[v * 7 + 2]).toBeCloseTo(expectedZ, 4);
+      }
+    });
+
+    it('is deterministic given the same seeded random function', () => {
+      const canvasA = createMockCanvas(400, 300);
+      const canvasB = createMockCanvas(400, 300);
+      const a = new EpcotSurface(createMockContext(canvasA), canvasA, { size: 90, random: seededRandom(7) });
+      const b = new EpcotSurface(createMockContext(canvasB), canvasB, { size: 90, random: seededRandom(7) });
+
+      expect(Array.from(a.centroids3D)).toEqual(Array.from(b.centroids3D));
+      expect(Array.from(a.normals)).toEqual(Array.from(b.normals));
+      expect(Array.from(a._triVertexIndex)).toEqual(Array.from(b._triVertexIndex));
+      expect(Array.from(a.vertexPositions)).toEqual(Array.from(b.vertexPositions));
+    });
+
+    it('rebuild() regenerates geometry for the current canvas size', () => {
+      const { canvas, surface } = makeSurface({ width: 400, height: 300 });
+      const initialFacetCount = surface.facetCount;
+      const initialVertexCount = surface.vertexCount;
+
+      canvas.width = 1200;
+      canvas.height = 900;
+      surface.rebuild();
+
+      expect(surface.facetCount).toBeGreaterThan(initialFacetCount);
+      expect(surface.vertexCount).toBeGreaterThan(initialVertexCount);
+      expect(surface.paths).toHaveLength(surface.facetCount);
+    });
+
+    it('rebuild() repositions vertex lights and recomputes their corner weights for new canvas dimensions', () => {
+      const { canvas, surface } = makeSurface({ width: 400, height: 300 });
+
+      const beforePositions = Array.from(surface.vertexPositions);
+
+      canvas.width = 1600;
+      canvas.height = 1000;
+      surface.rebuild();
+
+      const afterPositions = Array.from(surface.vertexPositions);
+      expect(afterPositions).not.toEqual(beforePositions);
+
+      for (let v = 0; v < surface.vertexCount; v++) {
+        const x = surface.vertexPositions[v * 2], y = surface.vertexPositions[v * 2 + 1];
+        const expected = computeCornerWeights(x, y, 1600, 1000, surface.cornerWeightFalloffRatio);
+        const o = v * 4;
+        expect(surface._vertexWeights[o]).toBeCloseTo(expected[0], 5);
+        expect(surface._vertexWeights[o + 1]).toBeCloseTo(expected[1], 5);
+        expect(surface._vertexWeights[o + 2]).toBeCloseTo(expected[2], 5);
+        expect(surface._vertexWeights[o + 3]).toBeCloseTo(expected[3], 5);
+      }
+    });
+
+    it('inflates each facet outward from its own centroid so adjacent triangles overlap slightly', () => {
+      const { surface } = makeSurface({ width: 200, height: 200, seamInflatePx: 5 });
+
+      const [ax, ay, bx, by, cx0, cy0] = surface.positions2D.slice(0, 6);
+      const centroidX = (ax + bx + cx0) / 3;
+      const centroidY = (ay + by + cy0) / 3;
+      const rawDistA = Math.hypot(ax - centroidX, ay - centroidY);
+
+      const path = surface.paths[0];
+      expect(path).toBeInstanceOf(Path2D);
+      const moveToOp = path._path.find((op) => op.type === 'moveTo');
+      expect(moveToOp).toBeDefined();
+      const inflatedDist = Math.hypot(moveToOp.props.x - centroidX, moveToOp.props.y - centroidY);
+      expect(inflatedDist).toBeGreaterThan(rawDistA);
+      expect(inflatedDist - rawDistA).toBeCloseTo(5, 1);
+    });
+  });
+
+  describe('gathered light lists', () => {
+    it('every triangle gathers at least 3 lights within reach, including all 3 of its own vertices', () => {
+      const { surface } = makeSurface({ width: 400, height: 300 });
+
+      for (let t = 0; t < surface.triCount; t++) {
+        const start = surface._triLightStart[t];
+        const count = surface._triLightCount[t];
+        expect(count).toBeGreaterThanOrEqual(3);
+
+        const gathered = new Set();
+        for (let k = 0; k < count; k++) gathered.add(surface._triLightIdx[start + k]);
+
+        const own = [surface._triVertexIndex[t * 3], surface._triVertexIndex[t * 3 + 1], surface._triVertexIndex[t * 3 + 2]];
+        for (const v of own) {
+          expect(gathered.has(v)).toBe(true);
+        }
+      }
+    });
+
+    it('_triLightIdx entries are always valid vertex indices', () => {
+      const { surface } = makeSurface({ width: 400, height: 300 });
+      for (let i = 0; i < surface._triLightIdx.length; i++) {
+        const vi = surface._triLightIdx[i];
+        expect(vi).toBeGreaterThanOrEqual(0);
+        expect(vi).toBeLessThan(surface.vertexCount);
+      }
+    });
+  });
+
+  describe('shadow occlusion', () => {
+    it('every precomputed shadow factor lies within [shadows.floor, 1]', () => {
+      const { surface } = makeSurface({ width: 500, height: 400, size: 70, shadowsEnabled: true });
+
+      const floor = config.epcot.shadows.floor;
+      expect(surface._triLightShadow.length).toBe(surface._triLightIdx.length);
+      for (const f of surface._triLightShadow) {
+        expect(f).toBeGreaterThanOrEqual(floor - 1e-9);
+        expect(f).toBeLessThanOrEqual(1 + 1e-9);
+      }
+    });
+
+    it('shadows disabled leaves every factor at exactly 1 (no occlusion)', () => {
+      const { surface } = makeSurface({ width: 500, height: 400, size: 70, shadowsEnabled: false });
+      for (const f of surface._triLightShadow) {
+        expect(f).toBe(1);
+      }
+    });
+  });
+
+  describe('update()', () => {
+    it('advances the pattern clock by deltaTime * speed', () => {
+      const { surface } = makeSurface({ width: 200, height: 200, speed: 2 });
+
+      expect(surface.clock).toBe(0);
+      surface.update(0.5);
+      expect(surface.clock).toBeCloseTo(1.0, 5);
+      surface.update(0.25);
+      expect(surface.clock).toBeCloseTo(1.5, 5);
+    });
+  });
+
+  describe('draw()', () => {
+    it('fills exactly the active triangles\' facets (3 per active triangle), and never strokes the main canvas', () => {
+      const { ctx, surface } = makeSurface({ width: 200, height: 200 });
+
+      const fillSpy = vi.spyOn(ctx, 'fill');
+      const strokeSpy = vi.spyOn(ctx, 'stroke');
+
+      surface.update(0.016);
       expect(() => surface.draw()).not.toThrow();
+
+      let activeCount = 0;
+      for (let t = 0; t < surface.triCount; t++) if (surface._triActive[t]) activeCount++;
+
+      expect(fillSpy).toHaveBeenCalledTimes(activeCount * 3);
+      expect(fillSpy.mock.calls.length).toBeLessThanOrEqual(surface.facetCount);
+      expect(strokeSpy).not.toHaveBeenCalled();
+    });
+
+    it('composites the baked floor layer and the gap layer, each with exactly one drawImage() call', () => {
+      // Bulbs disabled here so the only drawImage() calls are the two baked
+      // layers - bulb sprite compositing is covered separately below.
+      const { ctx, surface } = makeSurface({ width: 200, height: 200, showVertexDots: false });
+
+      const drawImageSpy = vi.spyOn(ctx, 'drawImage');
+      surface.update(0.016);
+      surface.draw();
+
+      // Note: two identically-sized-and-attributed <canvas> elements are
+      // structurally equal under vitest's deep-equality matchers, so
+      // toHaveBeenCalledWith(surface._gapCanvas, ...) would pass even for a
+      // call that actually passed _floorCanvas. Assert by object identity
+      // instead to genuinely distinguish which canvas was composited.
+      expect(drawImageSpy).toHaveBeenCalledTimes(2);
+      expect(drawImageSpy.mock.calls[0][0]).toBe(surface._floorCanvas);
+      expect(drawImageSpy.mock.calls[0][1]).toBe(0);
+      expect(drawImageSpy.mock.calls[0][2]).toBe(0);
+      expect(drawImageSpy.mock.calls[1][0]).toBe(surface._gapCanvas);
+      expect(drawImageSpy.mock.calls[1][1]).toBe(0);
+      expect(drawImageSpy.mock.calls[1][2]).toBe(0);
+    });
+
+    it('gap layer is rendered once at rebuild(), not redrawn on every draw() call', () => {
+      const { surface } = makeSurface({ width: 200, height: 200 });
+
+      // gapCtx.stroke is already a persistent vitest-canvas-mock vi.fn() with
+      // calls recorded from rebuild() inside the constructor (perimeter +
+      // internal edges) - vi.spyOn() on an already-mocked function returns it
+      // as-is, carrying that history forward, so clear it explicitly rather
+      // than asserting an absolute zero count.
+      const gapCtx = surface._gapCanvas.getContext('2d');
+      gapCtx.stroke.mockClear();
+
+      surface.update(0.016);
+      surface.draw();
+      surface.update(0.016);
+      surface.draw();
+      surface.update(0.016);
+      surface.draw();
+
+      expect(gapCtx.stroke).not.toHaveBeenCalled();
+    });
+
+    it('gap layer can be disabled entirely (floor layer still composites, but never the gap canvas)', () => {
+      const { ctx, surface } = makeSurface({ width: 200, height: 200, gapEnabled: false, showVertexDots: false });
+
+      const drawImageSpy = vi.spyOn(ctx, 'drawImage');
+      surface.update(0.016);
+      surface.draw();
+
+      // Object-identity check - see note above on why toHaveBeenCalledWith
+      // can't distinguish two structurally-identical <canvas> elements.
+      const canvasArgs = drawImageSpy.mock.calls.map((c) => c[0]);
+      expect(canvasArgs).toContain(surface._floorCanvas);
+      expect(canvasArgs).not.toContain(surface._gapCanvas);
+    });
+
+    it('bulbs: showBulbs draws additional sprites beyond the floor+gap baseline; brightness=0 draws none', () => {
+      const { ctx, surface } = makeSurface({ width: 200, height: 200, pattern: 'chase', showVertexDots: true });
+
+      const drawImageSpy = vi.spyOn(ctx, 'drawImage');
+      surface.update(0); // t=0: chase pattern's corner 0 is at full intensity
+      surface.draw();
+      expect(drawImageSpy.mock.calls.length).toBeGreaterThan(2); // > floor+gap baseline
+
+      const { ctx: ctxDark, surface: surfaceDark } = makeSurface({ width: 200, height: 200, pattern: 'chase', showVertexDots: true, brightness: 0 });
+      const drawImageSpyDark = vi.spyOn(ctxDark, 'drawImage');
+      surfaceDark.update(0);
+      surfaceDark.draw();
+      expect(drawImageSpyDark.mock.calls.length).toBe(2); // only floor+gap; peak=0 skips the whole bulb block
+    });
+
+    it('bulbs are skipped entirely when showBulbs is false', () => {
+      const { ctx, surface } = makeSurface({ width: 200, height: 200, pattern: 'chase', showVertexDots: false });
+
+      const drawImageSpy = vi.spyOn(ctx, 'drawImage');
+      surface.update(0);
+      surface.draw();
+
+      expect(drawImageSpy.mock.calls.length).toBe(2); // only floor+gap
+    });
+  });
+
+  describe('color patterns keep every bulb lit', () => {
+    for (const pattern of ['split', 'sweep', 'bands', 'mix']) {
+      it(`'${pattern}' pattern: every vertex has intensity > 0 after draw()`, () => {
+        const { surface } = makeSurface({ width: 300, height: 220, pattern });
+        surface.update(1.3);
+        surface.draw();
+
+        for (let v = 0; v < surface.vertexCount; v++) {
+          expect(surface._vertexLights[v * 7 + 6]).toBeGreaterThan(0);
+        }
+      });
     }
+
+    it('a non-color intensity pattern (chase) does NOT keep every bulb lit', () => {
+      // Sanity check that the above is a real property of color patterns,
+      // not just true for every pattern (floor lift aside, which is added
+      // after this snapshot would be taken - here we check the pattern's
+      // own field response directly for a sparse-lighting pattern).
+      const { surface } = makeSurface({ width: 300, height: 220, pattern: 'chase', bulbFloor: 0 });
+      surface.applySettings({ bulbFloor: 0 }); // re-bake floor layer with floor 0 -> no idle floor light
+      surface.update(0.5);
+      surface.draw();
+
+      let anyDark = false;
+      for (let v = 0; v < surface.vertexCount; v++) {
+        if (surface._vertexLights[v * 7 + 6] <= 0) { anyDark = true; break; }
+      }
+      expect(anyDark).toBe(true);
+    });
+  });
+
+  describe('floor light layer', () => {
+    it('with bulbFloor=0, the floor layer paints only the flat ambient background (no per-facet fills)', () => {
+      const { surface } = makeSurface({ width: 300, height: 220, bulbFloor: 0.35 });
+      const floorCtx = surface._floorCanvas.getContext('2d');
+      const fillSpy = vi.spyOn(floorCtx, 'fill');
+      const fillRectSpy = vi.spyOn(floorCtx, 'fillRect');
+      // vi.spyOn() on an already-mocked function (getContext returns a
+      // persistent vitest-canvas-mock instance) carries forward its call
+      // history from construction's initial bake - clear it so we only
+      // observe the applySettings() call below.
+      fillSpy.mockClear();
+      fillRectSpy.mockClear();
+
+      surface.applySettings({ bulbFloor: 0 });
+
+      expect(fillRectSpy).toHaveBeenCalled(); // the flat ambient background
+      expect(fillSpy).not.toHaveBeenCalled(); // early-returns before any per-facet fill
+    });
+
+    it('with bulbFloor > 0, the floor layer is non-uniform: some facet is strictly brighter than pure ambient', () => {
+      const { surface } = makeSurface({ width: 300, height: 220, bulbFloor: 0 });
+      const floorCtx = surface._floorCanvas.getContext('2d');
+
+      // Capture fillStyle AT the moment each fill() call happens (reading
+      // ctx.fillStyle only after the loop, once fill() has already been
+      // called many times, would just see the LAST facet's color for every
+      // entry) by wrapping the real mock implementation.
+      // floorCtx.fill is already a persistent vitest-canvas-mock vi.fn();
+      // mockImplementation() here just records, without needing to call
+      // through (the mock's fill() doesn't rasterize pixels either way -
+      // see getImageData's always-blank return - so there's no real
+      // side effect to preserve for this test).
+      const capturedStyles = [];
+      vi.spyOn(floorCtx, 'fill').mockImplementation(() => {
+        capturedStyles.push(floorCtx.fillStyle);
+      });
+
+      surface.applySettings({ bulbFloor: 0.5 });
+
+      expect(capturedStyles.length).toBeGreaterThan(0);
+
+      // The mock's fillStyle setter normalizes to '#rrggbb' hex; parse both
+      // that and 'rgb(...)' defensively.
+      const parseColor = (s) => {
+        const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(s);
+        if (hex) return [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)];
+        const rgb = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(s);
+        if (rgb) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+        return null;
+      };
+
+      const ambient = parseColor(surface._ambientColor);
+      const ambientSum = ambient ? ambient[0] + ambient[1] + ambient[2] : 0;
+
+      let brighterThanAmbientFound = false;
+      for (const s of capturedStyles) {
+        const c = parseColor(s);
+        if (!c) continue;
+        if (c[0] + c[1] + c[2] > ambientSum) { brighterThanAmbientFound = true; break; }
+      }
+      expect(brighterThanAmbientFound).toBe(true);
+    });
+  });
+
+  describe('applySettings()', () => {
+    it('pattern, speed, brightness, colorBlend, coreStyle, overlayPattern, showBulbs: live-updated, no rebuild', () => {
+      const { surface } = makeSurface();
+      const spy = vi.spyOn(surface, 'rebuild');
+
+      surface.applySettings({ pattern: 'wave' });
+      surface.applySettings({ speed: 2.5 });
+      surface.applySettings({ brightness: 1.8 });
+      surface.applySettings({ colorBlend: true });
+      surface.applySettings({ coreStyle: 'white' });
+      surface.applySettings({ overlayPattern: 'twinkle' });
+      surface.applySettings({ showBulbs: false });
+
+      expect(surface.patternName).toBe('wave');
+      expect(surface.speed).toBe(2.5);
+      expect(surface.brightness).toBe(1.8);
+      expect(surface.colorBlend).toBe(true);
+      expect(surface.coreStyle).toBe('white');
+      expect(surface.overlayPattern).toBe('twinkle');
+      expect(surface.showBulbs).toBe(false);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('brightness/specularWeight/bounceStrength re-bake the floor layer without a full rebuild', () => {
+      const { surface } = makeSurface();
+      const rebuildSpy = vi.spyOn(surface, 'rebuild');
+      const floorSpy = vi.spyOn(surface, '_rebuildFloorLayer');
+
+      surface.applySettings({ brightness: 1.5 });
+      expect(floorSpy).toHaveBeenCalledTimes(1);
+      surface.applySettings({ specularWeight: 3 });
+      expect(floorSpy).toHaveBeenCalledTimes(2);
+      surface.applySettings({ bounceStrength: 0.2 });
+      expect(floorSpy).toHaveBeenCalledTimes(3);
+
+      expect(rebuildSpy).not.toHaveBeenCalled();
+    });
+
+    it('bulbFloor change re-bakes the floor layer, not a full rebuild', () => {
+      const { surface } = makeSurface({ bulbFloor: 0.35 });
+      const rebuildSpy = vi.spyOn(surface, 'rebuild');
+      const floorSpy = vi.spyOn(surface, '_rebuildFloorLayer');
+
+      surface.applySettings({ bulbFloor: 0.1 });
+
+      expect(floorSpy).toHaveBeenCalled();
+      expect(rebuildSpy).not.toHaveBeenCalled();
+      expect(surface.bulbFloor).toBe(0.1);
+    });
+
+    it('bulbFloor set to its current value is a no-op (no re-bake)', () => {
+      const { surface } = makeSurface({ bulbFloor: 0.35 });
+      const floorSpy = vi.spyOn(surface, '_rebuildFloorLayer');
+
+      surface.applySettings({ bulbFloor: 0.35 });
+
+      expect(floorSpy).not.toHaveBeenCalled();
+    });
+
+    it('scheme, saturation, size, gapWidth, bulbStyle, beamLengthRatio, glowRadiusRatio, shadowsEnabled changes trigger a full rebuild', () => {
+      const cases = [
+        { scheme: 'rainbow' },
+        { saturation: 2.0 },
+        { size: 120 },
+        { gapWidth: 3 },
+        { bulbStyle: 'burst' },
+        { beamLengthRatio: 1.5 },
+        { glowRadiusRatio: 0.6 },
+        { shadowsEnabled: false }
+      ];
+
+      for (const partial of cases) {
+        const { surface } = makeSurface();
+        const spy = vi.spyOn(surface, 'rebuild');
+        surface.applySettings(partial);
+        expect(spy, `applySettings(${JSON.stringify(partial)}) should rebuild`).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('scheme/saturation/size/gapWidth/bulbStyle/beamLengthRatio set to their current value do NOT rebuild', () => {
+      const { surface } = makeSurface({ scheme: 'mono', saturation: 1.2, gapWidth: 2, bulbStyle: 'star4', beamLengthRatio: 1.0 });
+      const spy = vi.spyOn(surface, 'rebuild');
+
+      surface.applySettings({ scheme: 'mono' });
+      surface.applySettings({ saturation: 1.2 });
+      surface.applySettings({ size: surface.size });
+      surface.applySettings({ gapWidth: 2 });
+      surface.applySettings({ bulbStyle: 'star4' });
+      surface.applySettings({ beamLengthRatio: 1.0 });
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('colorHSL always rebuilds, even when the value is unchanged', () => {
+      const { surface } = makeSurface();
+      const spy = vi.spyOn(surface, 'rebuild');
+
+      surface.applySettings({ colorHSL: { h: surface.baseHSL.h, s: surface.baseHSL.s, l: surface.baseHSL.l } });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('draw() after applySettings() does not throw', () => {
+      const { surface } = makeSurface();
+      surface.applySettings({ pattern: 'radial', scheme: 'duo', brightness: 1.3, saturation: 1.6 });
+      surface.update(0.5);
+      expect(() => surface.draw()).not.toThrow();
+    });
+  });
+
+  describe('constructs and draws without error across schemes and patterns', () => {
+    for (const scheme of cfg.scheme.options) {
+      for (const pattern of ['steady', 'chase', 'wave', 'auto', 'split']) {
+        it(`scheme=${scheme}, pattern=${pattern}`, () => {
+          const canvas = createMockCanvas(220, 160);
+          const ctx = createMockContext(canvas);
+          const surface = new EpcotSurface(ctx, canvas, { size: 90, random: seededRandom(), scheme, pattern });
+
+          surface.update(0.5);
+          expect(() => surface.draw()).not.toThrow();
+        });
+      }
+    }
+  });
+
+  describe('constructs and draws without error across overlays, blend, and shadows', () => {
+    for (const overlay of cfg.bulbs.overlayOptions) {
+      for (const colorBlend of [false, true]) {
+        it(`overlay=${overlay}, blend=${colorBlend}`, () => {
+          const canvas = createMockCanvas(220, 160);
+          const ctx = createMockContext(canvas);
+          const surface = new EpcotSurface(ctx, canvas, {
+            size: 90,
+            random: seededRandom(),
+            overlayPattern: overlay,
+            colorBlend,
+            pattern: 'split',
+            scheme: 'illuminations',
+            shadowsEnabled: true
+          });
+
+          surface.update(1);
+          expect(() => surface.draw()).not.toThrow();
+        });
+      }
+    }
+  });
+
+  describe('auto pattern crossfade', () => {
+    it('runs multiple frames across several segment/crossfade boundaries without throwing', () => {
+      const { surface } = makeSurface({
+        pattern: 'auto',
+        autoSegmentDuration: 1,
+        autoFadeDuration: 0.3
+      });
+
+      for (let i = 0; i < 40; i++) {
+        surface.update(0.1); // 4s total, crosses several 1s segment boundaries
+        expect(() => surface.draw()).not.toThrow();
+      }
+    });
+
+    it('crossfades smoothly: intensity field does not jump discontinuously across a segment boundary', () => {
+      const { surface } = makeSurface({
+        pattern: 'auto',
+        autoSegmentDuration: 1,
+        autoFadeDuration: 0.3,
+        width: 300,
+        height: 220
+      });
+
+      // Sample the pattern field just before and after a segment boundary
+      // (t=1) at fine granularity; consecutive samples should stay close.
+      let prevSum = null;
+      for (let t = 0.85; t <= 1.15; t += 0.01) {
+        surface.clock = t;
+        surface.draw();
+        let sum = 0;
+        for (let v = 0; v < surface.vertexCount; v++) sum += surface._vertexLights[v * 7 + 6];
+        if (prevSum !== null) {
+          // No hard cliff: bounded relative change per 0.01s step.
+          expect(Math.abs(sum - prevSum)).toBeLessThan(Math.max(50, prevSum * 0.6) + 1);
+        }
+        prevSum = sum;
+      }
+    });
+  });
+
+  describe('tone mapping (soft-knee, hue-preserving)', () => {
+    // The tone-map is an inline formula in EpcotSurface.draw()'s pass 3
+    // (not an exported function); this mirrors that exact formula to test
+    // its mathematical properties in isolation. Keep in sync with the
+    // "Hue-preserving soft-knee tone map" block in draw() if that formula
+    // ever changes.
+    function toneMap(dr, dg, db) {
+      const m = Math.max(dr, dg, db);
+      if (m > 191) {
+        const mn = m / 255;
+        const compressed = 0.75 + 0.25 * (1 - Math.exp(-(mn - 0.75) / 0.5));
+        const scale = (compressed * 255) / m;
+        return [dr * scale, dg * scale, db * scale];
+      }
+      return [dr, dg, db];
+    }
+
+    it('leaves channels untouched below the knee (m <= 191)', () => {
+      const [r, g, b] = toneMap(100, 50, 150);
+      expect([r, g, b]).toEqual([100, 50, 150]);
+    });
+
+    it('preserves channel ratios exactly above the knee (uniform per-channel scale)', () => {
+      const [r, g, b] = toneMap(400, 200, 100);
+      // scale is the same factor for all 3 channels, so ratios are exact.
+      expect(r / g).toBeCloseTo(400 / 200, 6);
+      expect(g / b).toBeCloseTo(200 / 100, 6);
+    });
+
+    it('compresses (does not clip) very hot input toward, but not touching, a bright but non-white cap', () => {
+      const [r, g, b] = toneMap(4000, 2000, 1000);
+      const max = Math.max(r, g, b);
+      expect(max).toBeLessThan(4000); // compressed down from the raw input
+      expect(max).toBeGreaterThan(191); // still bright, not crushed to the knee
+      // Ratio still holds even at extreme input.
+      expect(r / g).toBeCloseTo(2, 5);
+      expect(g / b).toBeCloseTo(2, 5);
+    });
+
+    it('is monotonically increasing in the input magnitude (brighter stays brighter)', () => {
+      const a = toneMap(200, 100, 50);
+      const b = toneMap(600, 300, 150);
+      expect(Math.max(...b)).toBeGreaterThan(Math.max(...a));
+    });
   });
 });

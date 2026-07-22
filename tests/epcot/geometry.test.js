@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildTriangleGrid, buildFacets } from '../../src/epcot/geometry.js';
+import { buildTriangleGrid, buildFacets, buildLatticeVertices, expandVertexIndexToFacets, buildTriangleAdjacency, inflatePoint } from '../../src/epcot/geometry.js';
 
 describe('buildTriangleGrid', () => {
   it('covers the full canvas bounds plus a margin on every side', () => {
@@ -136,5 +136,186 @@ describe('buildFacets', () => {
     const a = buildFacets(triangles, triCount, 30, 0.15, () => 0.1);
     const b = buildFacets(triangles, triCount, 30, 0.15, () => 0.9);
     expect(Array.from(a.centroids3D)).not.toEqual(Array.from(b.centroids3D));
+  });
+});
+
+describe('buildLatticeVertices', () => {
+  it('deduplicates coincident vertices: every interior vertex is shared by exactly 6 triangles', () => {
+    const size = 90;
+    const { triangles, triCount } = buildTriangleGrid(1920, 1080, size);
+    const { positions, count, triVertexIndex } = buildLatticeVertices(triangles, triCount, 0.01);
+
+    expect(triVertexIndex.length).toBe(triCount * 3);
+
+    // Count how many triangles reference each unique vertex.
+    const touchCount = new Array(count).fill(0);
+    for (let i = 0; i < triVertexIndex.length; i++) touchCount[triVertexIndex[i]]++;
+
+    // A vertex near the canvas center is guaranteed interior (far from the
+    // grid's margin/boundary), so it must be shared by exactly 6 triangles
+    // (3 up-pointing + 3 down-pointing) in a proper triangular lattice.
+    const cx = 1920 / 2, cy = 1080 / 2;
+    let closest = -1, closestDist = Infinity;
+    for (let v = 0; v < count; v++) {
+      const d = Math.hypot(positions[v * 2] - cx, positions[v * 2 + 1] - cy);
+      if (d < closestDist) { closestDist = d; closest = v; }
+    }
+    expect(touchCount[closest]).toBe(6);
+
+    // Every unique vertex must be touched by at least 1 triangle and at
+    // most 6 (never more - that would indicate a coordinate collision bug).
+    for (const c of touchCount) {
+      expect(c).toBeGreaterThanOrEqual(1);
+      expect(c).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it('dedup ratio matches the theoretical lattice (~2 triangles per interior vertex)', () => {
+    // For a large, boundary-effects-are-small triangular mesh, Euler's
+    // formula gives triCount ~= 2 * uniqueVertexCount (each interior vertex
+    // has degree 6, each triangle has 3 corners: 3*triCount ~= 6*vertexCount).
+    const { triangles, triCount } = buildTriangleGrid(1920, 1080, 90);
+    const { count } = buildLatticeVertices(triangles, triCount, 0.01);
+
+    const ratio = triCount / count;
+    expect(ratio).toBeGreaterThan(1.5);
+    expect(ratio).toBeLessThan(2.2);
+  });
+
+  it('produces far fewer unique vertices than raw (triangle, corner) pairs', () => {
+    const { triangles, triCount } = buildTriangleGrid(400, 300, 90);
+    const { count } = buildLatticeVertices(triangles, triCount, 0.01);
+    expect(count).toBeLessThan(triCount * 3);
+  });
+
+  it('is deterministic given the same inputs', () => {
+    const { triangles, triCount } = buildTriangleGrid(800, 600, 90);
+    const a = buildLatticeVertices(triangles, triCount, 0.01);
+    const b = buildLatticeVertices(triangles, triCount, 0.01);
+    expect(a.count).toBe(b.count);
+    expect(Array.from(a.positions)).toEqual(Array.from(b.positions));
+    expect(Array.from(a.triVertexIndex)).toEqual(Array.from(b.triVertexIndex));
+  });
+});
+
+// NOTE: expandVertexIndexToFacets is no longer imported/used by
+// EpcotSurface.js (it now uses a gathered spatial-hash light list per
+// triangle instead of a static "own 3 vertices, expanded per facet"
+// mapping - see EpcotSurface.rebuild()'s "Light gathering" block). It
+// remains exported and is still a well-defined pure function, so its test
+// is kept as a straightforward unit test of that function in isolation;
+// flagged here as dead-code-from-the-scene's-perspective for visibility.
+describe('expandVertexIndexToFacets', () => {
+  it('gives all 3 facets of a triangle the same 3 vertex-light indices', () => {
+    const { triangles, triCount } = buildTriangleGrid(400, 300, 90);
+    const { triVertexIndex } = buildLatticeVertices(triangles, triCount, 0.01);
+    const facetVertexIndex = expandVertexIndexToFacets(triVertexIndex, triCount);
+
+    expect(facetVertexIndex.length).toBe(triCount * 3 * 3);
+
+    for (let t = 0; t < triCount; t++) {
+      const expected = [triVertexIndex[t * 3], triVertexIndex[t * 3 + 1], triVertexIndex[t * 3 + 2]];
+      for (let e = 0; e < 3; e++) {
+        const f = t * 3 + e;
+        expect(facetVertexIndex[f * 3]).toBe(expected[0]);
+        expect(facetVertexIndex[f * 3 + 1]).toBe(expected[1]);
+        expect(facetVertexIndex[f * 3 + 2]).toBe(expected[2]);
+      }
+    }
+  });
+});
+
+describe('buildTriangleAdjacency', () => {
+  it('every triangle has at most 3 neighbors, -1 padded', () => {
+    const { triangles, triCount } = buildTriangleGrid(400, 300, 90);
+    const { triVertexIndex } = buildLatticeVertices(triangles, triCount, 0.01);
+    const neighbors = buildTriangleAdjacency(triVertexIndex, triCount);
+
+    expect(neighbors.length).toBe(triCount * 3);
+    for (let t = 0; t < triCount; t++) {
+      for (let e = 0; e < 3; e++) {
+        const n = neighbors[t * 3 + e];
+        expect(n).toBeGreaterThanOrEqual(-1);
+        expect(n).toBeLessThan(triCount);
+      }
+    }
+  });
+
+  it('is symmetric: if A lists B as a neighbor, B lists A too', () => {
+    const { triangles, triCount } = buildTriangleGrid(400, 300, 90);
+    const { triVertexIndex } = buildLatticeVertices(triangles, triCount, 0.01);
+    const neighbors = buildTriangleAdjacency(triVertexIndex, triCount);
+
+    for (let t = 0; t < triCount; t++) {
+      for (let e = 0; e < 3; e++) {
+        const n = neighbors[t * 3 + e];
+        if (n < 0) continue;
+        const backRefs = [neighbors[n * 3], neighbors[n * 3 + 1], neighbors[n * 3 + 2]];
+        expect(backRefs).toContain(t);
+      }
+    }
+  });
+
+  it('an interior triangle has exactly 3 neighbors (fully surrounded)', () => {
+    const { triangles, triCount } = buildTriangleGrid(1920, 1080, 90);
+    const { triVertexIndex } = buildLatticeVertices(triangles, triCount, 0.01);
+    const neighbors = buildTriangleAdjacency(triVertexIndex, triCount);
+
+    // Find the triangle closest to canvas center - guaranteed interior.
+    const cx = 1920 / 2, cy = 1080 / 2;
+    let closest = -1, closestDist = Infinity;
+    for (let t = 0; t < triCount; t++) {
+      const o = t * 6;
+      const tx = (triangles[o] + triangles[o + 2] + triangles[o + 4]) / 3;
+      const ty = (triangles[o + 1] + triangles[o + 3] + triangles[o + 5]) / 3;
+      const d = Math.hypot(tx - cx, ty - cy);
+      if (d < closestDist) { closestDist = d; closest = t; }
+    }
+
+    const own = [neighbors[closest * 3], neighbors[closest * 3 + 1], neighbors[closest * 3 + 2]];
+    expect(own.every((n) => n >= 0)).toBe(true);
+    expect(new Set(own).size).toBe(3); // 3 distinct neighbors, no duplicates
+  });
+
+  it('is deterministic given the same inputs', () => {
+    const { triangles, triCount } = buildTriangleGrid(400, 300, 90);
+    const { triVertexIndex } = buildLatticeVertices(triangles, triCount, 0.01);
+    const a = buildTriangleAdjacency(triVertexIndex, triCount);
+    const b = buildTriangleAdjacency(triVertexIndex, triCount);
+    expect(Array.from(a)).toEqual(Array.from(b));
+  });
+});
+
+describe('inflatePoint', () => {
+  it('moves the point directly away from the centroid by exactly `amount` pixels', () => {
+    const [x, y] = inflatePoint(110, 100, 100, 100, 5);
+    // Original point is 10px to the right of centroid (100,100); inflating
+    // pushes it further in the same (+x) direction by exactly `amount`.
+    expect(x).toBeCloseTo(115, 5);
+    expect(y).toBeCloseTo(100, 5);
+  });
+
+  it('preserves direction from the centroid for an arbitrary diagonal offset', () => {
+    const cx = 50, cy = 50;
+    const [x, y] = inflatePoint(80, 90, cx, cy, 10);
+    const originalAngle = Math.atan2(90 - cy, 80 - cx);
+    const inflatedAngle = Math.atan2(y - cy, x - cx);
+    expect(inflatedAngle).toBeCloseTo(originalAngle, 6);
+
+    const inflatedDist = Math.hypot(x - cx, y - cy);
+    const originalDist = Math.hypot(80 - cx, 90 - cy);
+    expect(inflatedDist).toBeCloseTo(originalDist + 10, 5);
+  });
+
+  it('falls back to a stable (non-NaN) result when the point coincides with the centroid', () => {
+    const [x, y] = inflatePoint(50, 50, 50, 50, 5);
+    expect(Number.isFinite(x)).toBe(true);
+    expect(Number.isFinite(y)).toBe(true);
+  });
+
+  it('amount=0 returns the original point unchanged', () => {
+    const [x, y] = inflatePoint(123.4, 56.7, 100, 100, 0);
+    expect(x).toBeCloseTo(123.4, 6);
+    expect(y).toBeCloseTo(56.7, 6);
   });
 });

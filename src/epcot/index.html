@@ -14,6 +14,7 @@
         body {
             overflow: hidden;
             position: relative;
+            background: #000;
         }
 
         canvas {
@@ -24,10 +25,182 @@
             top: 0;
             left: 0;
         }
+
+        /* Settings gear: only appears on mouse movement, so it can never
+           show on stream (OBS browser sources send no mouse events). */
+        #gearBtn {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(10,20,26,0.75);
+            color: #cfe9f2;
+            font-size: 20px;
+            line-height: 38px;
+            text-align: center;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s;
+            z-index: 10;
+            user-select: none;
+        }
+        #gearBtn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #panel {
+            position: fixed;
+            right: 16px;
+            bottom: 68px;
+            width: 300px;
+            max-height: calc(100vh - 90px);
+            overflow-y: auto;
+            background: rgba(8,16,22,0.92);
+            border: 1px solid rgba(120,180,200,0.25);
+            border-radius: 10px;
+            padding: 14px 16px;
+            color: #cfe9f2;
+            font-family: system-ui, sans-serif;
+            font-size: 13px;
+            display: none;
+            z-index: 11;
+        }
+        #panel.open { display: block; }
+        #panel h3 {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            opacity: 0.7;
+            margin-bottom: 10px;
+        }
+        #panel label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 3px;
+            opacity: 0.85;
+        }
+        #panel select, #panel input[type="color"] {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            color: #e6f4fa;
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 6px;
+            padding: 5px 6px;
+            font-size: 13px;
+        }
+        #panel select option { background: #0c1a22; }
+        #panel input[type="range"] {
+            width: 100%;
+            accent-color: #37b6d9;
+        }
+        #panel .row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #panel .row .val {
+            min-width: 38px;
+            text-align: right;
+            opacity: 0.7;
+            font-variant-numeric: tabular-nums;
+        }
+        #panel .check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        #panel .check input { accent-color: #37b6d9; }
+        #panel .check label { margin: 0; }
+        #copyUrl {
+            margin-top: 14px;
+            width: 100%;
+            padding: 7px 0;
+            border-radius: 6px;
+            border: 1px solid rgba(120,220,255,0.4);
+            background: rgba(55,182,217,0.18);
+            color: #d9f4fd;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        #copyUrl:hover { background: rgba(55,182,217,0.3); }
     </style>
 </head>
 <body>
     <canvas id="epcotCanvas"></canvas>
+
+    <div id="gearBtn" title="Scene settings (c)">&#9881;</div>
+    <div id="panel">
+        <h3>Epcot Scene</h3>
+
+        <label for="ctlPattern">Animation</label>
+        <select id="ctlPattern"></select>
+
+        <label for="ctlScheme">Color scheme</label>
+        <select id="ctlScheme"></select>
+
+        <label for="ctlColor">Base color</label>
+        <input type="color" id="ctlColor">
+
+        <label for="ctlStyle">Star effect</label>
+        <select id="ctlStyle"></select>
+
+        <label for="ctlCore">Core light</label>
+        <select id="ctlCore"></select>
+
+        <label for="ctlOverlay">Star overlay</label>
+        <select id="ctlOverlay"></select>
+
+        <label>Brightness <span class="val" id="valBrightness"></span></label>
+        <div class="row"><input type="range" id="ctlBrightness" min="0.2" max="3" step="0.1"></div>
+
+        <label>Saturation <span class="val" id="valSat"></span></label>
+        <div class="row"><input type="range" id="ctlSat" min="0.5" max="2" step="0.05"></div>
+
+        <label>Bulb floor <span class="val" id="valFloor"></span></label>
+        <div class="row"><input type="range" id="ctlFloor" min="0" max="0.8" step="0.05"></div>
+
+        <label>Speed <span class="val" id="valSpeed"></span></label>
+        <div class="row"><input type="range" id="ctlSpeed" min="0.1" max="4" step="0.1"></div>
+
+        <label>Triangle size <span class="val" id="valSize"></span></label>
+        <div class="row"><input type="range" id="ctlSize" min="70" max="300" step="5"></div>
+
+        <label>Panel gap <span class="val" id="valGap"></span></label>
+        <div class="row"><input type="range" id="ctlGap" min="0" max="4" step="0.5"></div>
+
+        <label>Bounce light <span class="val" id="valBounce"></span></label>
+        <div class="row"><input type="range" id="ctlBounce" min="0" max="1" step="0.05"></div>
+
+        <label>Metal glint <span class="val" id="valSpec"></span></label>
+        <div class="row"><input type="range" id="ctlSpec" min="0" max="5" step="0.2"></div>
+
+        <label>Beam length <span class="val" id="valBeam"></span></label>
+        <div class="row"><input type="range" id="ctlBeam" min="0.3" max="2.5" step="0.05"></div>
+
+        <div class="check">
+            <input type="checkbox" id="ctlBulbs">
+            <label for="ctlBulbs">Show bulbs</label>
+        </div>
+
+        <div class="check">
+            <input type="checkbox" id="ctlShadows">
+            <label for="ctlShadows">Cast shadows</label>
+        </div>
+
+        <div class="check">
+            <input type="checkbox" id="ctlBlend">
+            <label for="ctlBlend">Blend colors</label>
+        </div>
+
+        <button id="copyUrl">Copy URL for OBS</button>
+    </div>
 
     <script type="module">
         import { cssColorToHex, hexToHSL } from '../shared/colors.js';
@@ -38,23 +211,56 @@
         import { PerformanceOverlay } from '../shared/perfOverlay.js';
         import { DeltaTimer } from '../shared/timing.js';
         import { AnimationLifecycle } from '../shared/lifecycle.js';
-        import { getSpeedFromURL, getSizeFromURL, getPatternFromURL, getBrightnessFromURL } from '../config/validation.js';
+        import { getSpeedFromURL, getSizeFromURL, getPatternFromURL, getBrightnessFromURL, getGapWidthFromURL } from '../config/validation.js';
         import { config } from '../config/config.js';
 
-        // Get parameters from URL with config defaults
+        const cfg = config.epcot;
         const urlParams = new URLSearchParams(window.location.search);
-        const speedMultiplier = getSpeedFromURL(1.0);
-        const triangleSize = getSizeFromURL(config.epcot.size.default, config.epcot.size.min, config.epcot.size.max);
-        const pattern = getPatternFromURL(config.epcot.pattern.default, config.epcot.pattern.options);
-        const brightness = getBrightnessFromURL(1.0);
-        const showPerf = urlParams.get('perf') === 'true';
 
-        // Epcot uses its own default color (cool blue/teal) instead of the
-        // shared random-color fallback other scenes use, since a random hue
-        // doesn't fit the Spaceship Earth look.
-        const colorParam = urlParams.get('color');
-        const baseColor = colorParam ? cssColorToHex(colorParam) : config.epcot.color.defaultHex;
-        const baseHSL = hexToHSL(baseColor);
+        // --- Read settings from URL (validated where validators exist) ---
+        const numParam = (name, def, min = -Infinity, max = Infinity) => {
+            const raw = urlParams.get(name);
+            if (raw === null) return def;
+            const n = parseFloat(raw);
+            if (!Number.isFinite(n)) return def;
+            // Clamp to the same ranges the panel sliders enforce - an
+            // out-of-range URL value (e.g. ?beam=50000) must never drive
+            // sprite canvas sizes or shading into crash territory.
+            return Math.min(max, Math.max(min, n));
+        };
+        const choiceParam = (name, def, options) => {
+            const raw = urlParams.get(name);
+            return raw !== null && options.includes(raw) ? raw : def;
+        };
+
+        const settings = {
+            pattern: getPatternFromURL(cfg.pattern.default, cfg.pattern.options),
+            scheme: choiceParam('scheme', cfg.scheme.default, cfg.scheme.options),
+            style: choiceParam('star', cfg.bulbs.style, cfg.bulbs.styleOptions),
+            core: choiceParam('core', cfg.bulbs.coreStyle, cfg.bulbs.coreStyleOptions),
+            overlay: choiceParam('overlay', cfg.bulbs.overlay, cfg.bulbs.overlayOptions),
+            shadows: urlParams.get('shadows') === null ? cfg.shadows.enabled : urlParams.get('shadows') === 'true',
+            sat: numParam('sat', cfg.color.saturationBoost, 0.5, 2),
+            blend: urlParams.get('blend') === null ? cfg.colorBlend : urlParams.get('blend') === 'true',
+            floor: numParam('floor', cfg.bulbs.floor, 0, 0.8),
+            speed: getSpeedFromURL(1.0),
+            size: getSizeFromURL(cfg.size.default, cfg.size.min, cfg.size.max),
+            brightness: getBrightnessFromURL(1.0),
+            gap: getGapWidthFromURL(cfg.gap.width),
+            bounce: numParam('bounce', cfg.bounce.strength, 0, 1),
+            spec: numParam('spec', cfg.lighting.specularWeight, 0, 5),
+            beam: numParam('beam', cfg.bulbs.beamLengthRatio, 0.3, 2.5),
+            bulbs: (urlParams.get('bulbs') ?? urlParams.get('dots')) === null
+                ? cfg.bulbs.enabled
+                : (urlParams.get('bulbs') ?? urlParams.get('dots')) === 'true',
+            color: (() => {
+                const colorParam = urlParams.get('color');
+                return colorParam ? cssColorToHex(colorParam) : cfg.color.defaultHex;
+            })()
+        };
+
+        const showPerf = urlParams.get('perf') === 'true';
+        const allowPanel = urlParams.get('panel') !== 'false';
 
         // Setup performance monitoring
         const perfMonitor = new PerformanceMonitor(60, 60);
@@ -85,17 +291,209 @@
 
         // Build the surface (grid + facets + lights)
         const surface = new EpcotSurface(ctx, canvas, {
-            size: triangleSize,
-            baseHSL,
-            pattern,
-            speed: speedMultiplier,
-            brightness
+            size: settings.size,
+            baseHSL: hexToHSL(settings.color),
+            pattern: settings.pattern,
+            scheme: settings.scheme,
+            bulbStyle: settings.style,
+            coreStyle: settings.core,
+            overlayPattern: settings.overlay,
+            shadowsEnabled: settings.shadows,
+            saturation: settings.sat,
+            colorBlend: settings.blend,
+            bulbFloor: settings.floor,
+            speed: settings.speed,
+            brightness: settings.brightness,
+            gapWidth: settings.gap,
+            bounceStrength: settings.bounce,
+            specularWeight: settings.spec,
+            beamLengthRatio: settings.beam,
+            showVertexDots: settings.bulbs
         });
 
-        // Expose the surface instance for debugging/measurement when in perf
-        // mode (mirrors the perfOverlay.exposeAPI() convention above).
+        // Expose the surface instance for debugging/measurement when in
+        // perf mode (mirrors the perfOverlay.exposeAPI() convention).
         if (showPerf) {
             window.__epcotSurface = surface;
+        }
+
+        // --- Settings panel ------------------------------------------------
+        // The gear button only appears on mouse movement; OBS browser
+        // sources never send mouse events, so nothing can show on stream.
+        if (allowPanel) {
+            const gear = document.getElementById('gearBtn');
+            const panel = document.getElementById('panel');
+            let hideTimer = null;
+
+            const showGear = () => {
+                gear.classList.add('visible');
+                if (hideTimer) clearTimeout(hideTimer);
+                hideTimer = setTimeout(() => {
+                    if (!panel.classList.contains('open')) gear.classList.remove('visible');
+                }, 2500);
+            };
+            lifecycle.addEventListener(window, 'mousemove', showGear);
+            gear.addEventListener('click', () => {
+                panel.classList.toggle('open');
+                showGear();
+            });
+            lifecycle.addEventListener(window, 'keydown', (e) => {
+                if (e.key === 'c' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
+                    panel.classList.toggle('open');
+                    gear.classList.add('visible');
+                }
+            });
+
+            // Defaults for URL cleanliness: params matching these are
+            // omitted from the URL, so it stays short.
+            const urlDefaults = {
+                pattern: cfg.pattern.default,
+                scheme: cfg.scheme.default,
+                star: cfg.bulbs.style,
+                core: cfg.bulbs.coreStyle,
+                overlay: cfg.bulbs.overlay,
+                shadows: cfg.shadows.enabled,
+                sat: cfg.color.saturationBoost,
+                blend: cfg.colorBlend,
+                floor: cfg.bulbs.floor,
+                speed: 1.0,
+                size: cfg.size.default,
+                brightness: 1.0,
+                gap: cfg.gap.width,
+                bounce: cfg.bounce.strength,
+                spec: cfg.lighting.specularWeight,
+                beam: cfg.bulbs.beamLengthRatio,
+                bulbs: cfg.bulbs.enabled,
+                color: cfg.color.defaultHex
+            };
+
+            const syncURL = () => {
+                const p = new URLSearchParams();
+                const set = (k, v) => { if (`${v}` !== `${urlDefaults[k]}`) p.set(k, v); };
+                set('pattern', settings.pattern);
+                set('scheme', settings.scheme);
+                set('star', settings.style);
+                set('core', settings.core);
+                set('overlay', settings.overlay);
+                set('shadows', settings.shadows);
+                set('sat', settings.sat);
+                set('blend', settings.blend);
+                set('floor', settings.floor);
+                set('speed', settings.speed);
+                set('size', settings.size);
+                set('brightness', settings.brightness);
+                set('gap', settings.gap);
+                set('bounce', settings.bounce);
+                set('spec', settings.spec);
+                set('beam', settings.beam);
+                set('bulbs', settings.bulbs);
+                if (settings.color.toLowerCase() !== urlDefaults.color.toLowerCase()) {
+                    p.set('color', settings.color);
+                }
+                if (showPerf) p.set('perf', 'true');
+                const qs = p.toString();
+                history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname);
+            };
+
+            const fillSelect = (el, options, value) => {
+                el.innerHTML = '';
+                for (const o of options) {
+                    const opt = document.createElement('option');
+                    opt.value = o;
+                    opt.textContent = o;
+                    if (o === value) opt.selected = true;
+                    el.appendChild(opt);
+                }
+            };
+
+            const $ = (id) => document.getElementById(id);
+            fillSelect($('ctlPattern'), cfg.pattern.options, settings.pattern);
+            fillSelect($('ctlScheme'), cfg.scheme.options, settings.scheme);
+            fillSelect($('ctlStyle'), cfg.bulbs.styleOptions, settings.style);
+            fillSelect($('ctlCore'), cfg.bulbs.coreStyleOptions, settings.core);
+            fillSelect($('ctlOverlay'), cfg.bulbs.overlayOptions, settings.overlay);
+            $('ctlColor').value = settings.color;
+            $('ctlBulbs').checked = settings.bulbs;
+            $('ctlShadows').checked = settings.shadows;
+            $('ctlBlend').checked = settings.blend;
+
+            const sliders = [
+                ['ctlBrightness', 'valBrightness', 'brightness', (v) => surface.applySettings({ brightness: v })],
+                ['ctlSat', 'valSat', 'sat', (v) => surface.applySettings({ saturation: v })],
+                ['ctlFloor', 'valFloor', 'floor', (v) => surface.applySettings({ bulbFloor: v })],
+                ['ctlSpeed', 'valSpeed', 'speed', (v) => surface.applySettings({ speed: v })],
+                ['ctlSize', 'valSize', 'size', (v) => surface.applySettings({ size: v })],
+                ['ctlGap', 'valGap', 'gap', (v) => surface.applySettings({ gapWidth: v })],
+                ['ctlBounce', 'valBounce', 'bounce', (v) => surface.applySettings({ bounceStrength: v })],
+                ['ctlSpec', 'valSpec', 'spec', (v) => surface.applySettings({ specularWeight: v })],
+                ['ctlBeam', 'valBeam', 'beam', (v) => surface.applySettings({ beamLengthRatio: v })]
+            ];
+            for (const [ctlId, valId, key, apply] of sliders) {
+                const ctl = $(ctlId);
+                const val = $(valId);
+                ctl.value = settings[key];
+                val.textContent = settings[key];
+                ctl.addEventListener('input', () => {
+                    const v = parseFloat(ctl.value);
+                    settings[key] = v;
+                    val.textContent = v;
+                    apply(v);
+                    syncURL();
+                });
+            }
+
+            $('ctlPattern').addEventListener('change', (e) => {
+                settings.pattern = e.target.value;
+                surface.applySettings({ pattern: settings.pattern });
+                syncURL();
+            });
+            $('ctlScheme').addEventListener('change', (e) => {
+                settings.scheme = e.target.value;
+                surface.applySettings({ scheme: settings.scheme });
+                syncURL();
+            });
+            $('ctlStyle').addEventListener('change', (e) => {
+                settings.style = e.target.value;
+                surface.applySettings({ bulbStyle: settings.style });
+                syncURL();
+            });
+            $('ctlColor').addEventListener('input', (e) => {
+                settings.color = e.target.value;
+                surface.applySettings({ colorHSL: hexToHSL(settings.color) });
+                syncURL();
+            });
+            $('ctlBulbs').addEventListener('change', (e) => {
+                settings.bulbs = e.target.checked;
+                surface.applySettings({ showBulbs: settings.bulbs });
+                syncURL();
+            });
+            $('ctlCore').addEventListener('change', (e) => {
+                settings.core = e.target.value;
+                surface.applySettings({ coreStyle: settings.core });
+                syncURL();
+            });
+            $('ctlOverlay').addEventListener('change', (e) => {
+                settings.overlay = e.target.value;
+                surface.applySettings({ overlayPattern: settings.overlay });
+                syncURL();
+            });
+            $('ctlShadows').addEventListener('change', (e) => {
+                settings.shadows = e.target.checked;
+                surface.applySettings({ shadowsEnabled: settings.shadows });
+                syncURL();
+            });
+            $('ctlBlend').addEventListener('change', (e) => {
+                settings.blend = e.target.checked;
+                surface.applySettings({ colorBlend: settings.blend });
+                syncURL();
+            });
+
+            $('copyUrl').addEventListener('click', () => {
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    $('copyUrl').textContent = 'Copied!';
+                    setTimeout(() => { $('copyUrl').textContent = 'Copy URL for OBS'; }, 1200);
+                });
+            });
         }
 
         // Rebuild geometry whenever the canvas resizes (setupCanvas already

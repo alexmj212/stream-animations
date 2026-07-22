@@ -11,15 +11,27 @@
  */
 
 /**
- * Build a grid of equilateral triangles (alternating up/down orientation)
- * that fully covers [0,width] x [0,height] plus one triangle of margin on
- * every side.
+ * Build a proper triangular lattice (alternating up/down equilateral
+ * triangles) that fully covers [0,width] x [0,height] plus roughly one
+ * triangle of margin on every side.
  *
- * Construction: each horizontal strip of height `rowHeight` contains a
- * zig-zag of alternating triangles. "Top" vertices sit on the strip's upper
- * edge at x = c*size; "bottom" vertices sit on the lower edge, offset by
- * half a triangle (x = c*size + size/2). Consecutive top/bottom vertices are
- * exactly `size` apart, so every triangle formed is equilateral.
+ * Construction: vertices live on horizontal rows spaced `rowHeight` apart.
+ * Row `r`'s vertices are offset by `size/2` in X whenever `r` is odd -
+ * this alternating half-triangle offset is what makes it a real triangular
+ * lattice (rather than the earlier per-strip-local offset, which reset
+ * every strip and never let adjacent rows' vertices coincide).
+ *
+ * Each triangle is described purely by (row, halfStep) lattice coordinates,
+ * where halfStep increments of 1 = size/2 in X. A triangle strip between
+ * row r and r+1 is built from column index i (i = 0..numPerStrip-1) via
+ * h = (r&1) + 2*i:
+ *   down-triangle: (r,h), (r,h+2), (r+1,h+1)
+ *   up-triangle:   (r+1,h+1), (r,h+2), (r+1,h+3)
+ * Because h+1 always has the correct parity for row r+1 regardless of r's
+ * parity, the same (row, halfStep) -> (x,y) formula produces bit-identical
+ * coordinates for vertices shared between adjacent strips - i.e. every
+ * interior vertex is generated the same way no matter which triangle(s)
+ * reference it, so they coincide exactly (see buildLatticeVertices).
  *
  * @param {number} width - Canvas width in pixels
  * @param {number} height - Canvas height in pixels
@@ -28,38 +40,46 @@
  */
 export function buildTriangleGrid(width, height, size) {
   const rowHeight = size * (Math.sqrt(3) / 2);
+  const halfSize = size / 2;
 
   // Rows/cols needed to cover the content area from (0,0), rounded up.
   const contentRows = Math.ceil(height / rowHeight);
   const contentCols = Math.ceil(width / size);
 
-  // One triangle-strip margin on every side. A naive "+1 whole row" start
-  // offset (e.g. startRow = -1) gives an exact 1-triangle margin on the
-  // leading edge but dumps all of the ceil() rounding slack onto the
-  // trailing edge, ballooning it toward ~2 triangles. Splitting that slack
-  // evenly between both edges keeps every side within [1, 1.5) triangles.
   const rowSlack = contentRows * rowHeight - height; // in [0, rowHeight)
   const colSlack = contentCols * size - width;       // in [0, size)
 
+  // Vertical margin: split the ceil() rounding slack evenly between top and
+  // bottom, same approach as before - unaffected by the lattice-offset fix.
   const startY = -rowHeight - rowSlack / 2;
-  const startX = -size - colSlack / 2;
 
-  const numRows = contentRows + 2;
-  const numCols = contentCols + 2;
+  // Horizontal margin: rows alternate an extra +halfSize offset, so the
+  // worst case (an odd/shifted row) needs an extra halfSize of buffer on
+  // the left to keep a full triangle of margin; numPerStrip gets a matching
+  // extra column so the same is true on the right.
+  const startX = -size - halfSize - colSlack / 2;
 
-  const triCount = numRows * numCols * 2;
+  const numStrips = contentRows + 2;   // triangle strips (each strip = down+up rows)
+  const numPerStrip = contentCols + 2; // triangle pairs per strip
+
+  const triCount = numStrips * numPerStrip * 2;
   const triangles = new Float32Array(triCount * 6);
 
-  let idx = 0;
-  for (let ri = 0; ri < numRows; ri++) {
-    const y0 = startY + ri * rowHeight;
-    const y1 = y0 + rowHeight;
+  const rowX = (row, halfStep) => startX + halfStep * halfSize;
+  const rowY = (row) => startY + row * rowHeight;
 
-    for (let ci = 0; ci < numCols; ci++) {
-      const xTop0 = startX + ci * size;
-      const xTop1 = xTop0 + size;
-      const xBot0 = xTop0 + size / 2;
-      const xBot1 = xTop1 + size / 2;
+  let idx = 0;
+  for (let r = 0; r < numStrips; r++) {
+    const y0 = rowY(r);
+    const y1 = rowY(r + 1);
+    const base = r & 1;
+
+    for (let i = 0; i < numPerStrip; i++) {
+      const h = base + i * 2;
+      const xTop0 = rowX(r, h);
+      const xTop1 = rowX(r, h + 2);
+      const xBot0 = rowX(r + 1, h + 1);
+      const xBot1 = rowX(r + 1, h + 3);
 
       // Down-pointing triangle (base on top edge, apex on bottom edge)
       let o = idx * 6;
@@ -77,7 +97,79 @@ export function buildTriangleGrid(width, height, size) {
     }
   }
 
-  return { triangles, triCount, numRows, numCols, rowHeight, startX, startY };
+  return { triangles, triCount, numRows: numStrips, numCols: numPerStrip, rowHeight, startX, startY };
+}
+
+/**
+ * Deduplicate the triangle grid's vertices into a unique lattice point list,
+ * matching coincident vertices within `epsilon` pixels. These unique points
+ * are the panel vertices where lights sit (see lighting.js) and also let the
+ * gap-line renderer avoid double-stroking shared edges.
+ *
+ * @param {Float32Array} triangles - Flat [ax,ay,bx,by,cx,cy, ...] per triangle (from buildTriangleGrid)
+ * @param {number} triCount - Number of base triangles
+ * @param {number} epsilon - Coordinate quantization step in pixels for coincidence matching
+ * @returns {{positions: Float32Array, count: number, triVertexIndex: Int32Array}}
+ *   positions: flat [x,y, ...] per unique vertex
+ *   count: number of unique vertices
+ *   triVertexIndex: Int32Array(triCount*3) - unique vertex index for each (triangle, corner)
+ */
+export function buildLatticeVertices(triangles, triCount, epsilon = 0.01) {
+  const map = new Map();
+  const positions = [];
+  const triVertexIndex = new Int32Array(triCount * 3);
+
+  let nextIndex = 0;
+  for (let t = 0; t < triCount; t++) {
+    const o = t * 6;
+    for (let c = 0; c < 3; c++) {
+      const x = triangles[o + c * 2];
+      const y = triangles[o + c * 2 + 1];
+
+      // Quantize to a fine integer grid so bit-identical (or near-identical,
+      // within float rounding) coordinates collide to the same key.
+      const qx = Math.round(x / epsilon);
+      const qy = Math.round(y / epsilon);
+      const key = qx * 1e7 + qy;
+
+      let vi = map.get(key);
+      if (vi === undefined) {
+        vi = nextIndex++;
+        map.set(key, vi);
+        positions.push(x, y);
+      }
+      triVertexIndex[t * 3 + c] = vi;
+    }
+  }
+
+  return {
+    positions: Float32Array.from(positions),
+    count: nextIndex,
+    triVertexIndex
+  };
+}
+
+/**
+ * Expand a per-triangle unique-vertex index into a per-facet one: every
+ * facet is shaded by the lights at its own base triangle's 3 vertices (all
+ * 3, regardless of which 2 of those the facet's own edge touches), so all 3
+ * facets split from a triangle share that triangle's 3 vertex indices.
+ *
+ * @param {Int32Array} triVertexIndex - Int32Array(triCount*3), from buildLatticeVertices
+ * @param {number} triCount - Number of base triangles
+ * @returns {Int32Array} Int32Array(triCount*3*3) = Int32Array(facetCount*3), 3 vertex-light indices per facet
+ */
+export function expandVertexIndexToFacets(triVertexIndex, triCount) {
+  const out = new Int32Array(triCount * 3 * 3);
+  let o = 0;
+  for (let t = 0; t < triCount; t++) {
+    const i0 = triVertexIndex[t * 3], i1 = triVertexIndex[t * 3 + 1], i2 = triVertexIndex[t * 3 + 2];
+    for (let e = 0; e < 3; e++) {
+      out[o] = i0; out[o + 1] = i1; out[o + 2] = i2;
+      o += 3;
+    }
+  }
+  return out;
 }
 
 /**
@@ -166,6 +258,46 @@ export function buildFacets(triangles, triCount, spikeHeight, spikeVariation, ra
   }
 
   return { positions2D, normals, centroids3D, facetCount };
+}
+
+/**
+ * Build edge-adjacency between base triangles: two triangles are neighbors
+ * when they share an edge (i.e. two lattice vertex indices). Used by the
+ * bounce-light pass - a brightly lit panel spills a fraction of its light
+ * onto the panels it borders.
+ *
+ * @param {Int32Array} triVertexIndex - Int32Array(triCount*3), from buildLatticeVertices
+ * @param {number} triCount - Number of base triangles
+ * @returns {Int32Array} Int32Array(triCount*3): up to 3 neighbor triangle
+ *   indices per triangle, -1 padded (border triangles have fewer neighbors)
+ */
+export function buildTriangleAdjacency(triVertexIndex, triCount) {
+  // Map each undirected edge (vertex index pair) to the triangles touching it
+  const edgeMap = new Map();
+  for (let t = 0; t < triCount; t++) {
+    for (let e = 0; e < 3; e++) {
+      const a = triVertexIndex[t * 3 + e];
+      const b = triVertexIndex[t * 3 + ((e + 1) % 3)];
+      const key = a < b ? a * 0x100000 + b : b * 0x100000 + a;
+      const list = edgeMap.get(key);
+      if (list === undefined) {
+        edgeMap.set(key, [t]);
+      } else {
+        list.push(t);
+      }
+    }
+  }
+
+  const neighbors = new Int32Array(triCount * 3).fill(-1);
+  const counts = new Int32Array(triCount);
+  for (const tris of edgeMap.values()) {
+    if (tris.length === 2) {
+      const [t0, t1] = tris;
+      neighbors[t0 * 3 + counts[t0]++] = t1;
+      neighbors[t1 * 3 + counts[t1]++] = t0;
+    }
+  }
+  return neighbors;
 }
 
 /**

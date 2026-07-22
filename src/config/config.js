@@ -318,33 +318,237 @@ export const config = {
     // hides hairline anti-aliasing seams without a per-facet stroke() pass.
     seamInflatePx: 0.6,
 
+    // Coordinate quantization step (px) used to match coincident lattice
+    // vertices across adjacent triangles when deduplicating (see
+    // geometry.buildLatticeVertices). Construction produces bit-identical
+    // floats for shared vertices, so this only needs to absorb ordinary
+    // floating-point rounding - not real geometric slop.
+    vertexEpsilon: 0.01,
+
     // Full light pattern cycle duration in seconds (slow, so the sweep reads clearly)
     cycleDuration: 24,
 
-    // Point light configuration (one per canvas corner)
+    // Point lights sit at every unique lattice vertex (panel corners), like
+    // the LEDs on the real Spaceship Earth ball - see EpcotSurface. There
+    // is deliberately no such thing as a "corner light": the 4 screen
+    // corners are only an abstract timing/spatial reference the pattern
+    // functions sweep between (see cornerWeightFalloffRatio below) - every
+    // photon in this scene originates from a lattice vertex.
     lighting: {
-      zHeightRatio: 0.35,     // Light height z = zHeightRatio * canvas width
-      falloffRatio: 0.45,     // Attenuation falloff = falloffRatio * canvas diagonal
-      cornerMargin: 0.05,     // Lights sit 5% beyond each corner
-      shininess: 24,          // Blinn-Phong specular exponent
-      ambient: 0.08,          // Ambient floor (keeps unlit facets a dark base color, never black)
-      // Peak per-light intensity multiplier. Tuned (headless Chrome,
-      // getImageData) so a fully-lit corner's brightest facets land around
-      // 140-200/255 while unlit regions stay near the ambient floor - the
-      // ?brightness= URL param further multiplies this at runtime (default 1.0).
-      intensity: 3.2,
+      // Vertex light height above the surface plane, as a ratio of the
+      // (nominal, pre-variation) spike height - tuned visually so each
+      // light reads as a local glint on the spikes around it.
+      vertexHeightRatio: 0.5,
+      // Attenuation falloff, as a ratio of triangle `size` - deliberately
+      // SHORT (order of a triangle) so each vertex light only influences
+      // its own neighborhood, but wide enough that the lit panels read as
+      // reflective metal, not isolated pinpricks.
+      falloffSizeRatio: 1.4,
+      // Radius (as a fraction of the canvas diagonal) within which a
+      // vertex's blended intensity/color meaningfully picks up a given
+      // corner's current pattern value - see computeCornerWeights(). Kept
+      // small and deliberately non-linear (Gaussian, not bilinear) so only
+      // vertices genuinely near the sweep's current position light up;
+      // anything larger reads as a single soft gradient wash across the
+      // whole surface (like a distant light shining in), not a cluster of
+      // independent local glints.
+      cornerWeightFalloffRatio: 0.09,
+      shininess: 34,          // Blinn-Phong specular exponent (high = tight metallic glints)
+      ambient: 0.10,          // Ambient floor (keeps unlit facets a dark base color, never black)
+      // Metallic response: metals are specular-dominant. Diffuse is
+      // deliberately suppressed and specular boosted so facets read as
+      // polished panels catching the bulbs, not matte surfaces washed by
+      // them; specular highlights are tinted by the base color in
+      // shadeFacet() (metals color their reflections).
+      diffuseWeight: 0.65,
+      specularWeight: 2.4,
+      // Peak per-light intensity multiplier; the ?brightness= URL param
+      // further multiplies this at runtime (default 1.0). Tuned for the
+      // gathered-light model (each facet sums many bulbs within reach).
+      intensity: 0.75,
       hueOffsets: [-20, 0, 20, 40] // Per-corner hue offset in degrees (TL, TR, BR, BL)
     },
 
-    // Light cycling pattern
-    pattern: {
-      default: 'chase',       // 'chase' | 'pulse' | 'diagonal' (?pattern= URL param)
-      options: ['chase', 'pulse', 'diagonal']
+    // One-bounce indirect light: each frame, a fraction of every panel's
+    // direct light spills onto its edge-adjacent panels, so a brightly lit
+    // panel visibly glows onto its neighbors (real light transport, not
+    // just isolated glints).
+    bounce: {
+      enabled: true,
+      strength: 0.38          // Fraction of neighboring panels' average direct light received
     },
+
+    // Panel gap lines simulating the seams between panels on the real ball.
+    // Rendered once per rebuild (static geometry+color), composited over
+    // the facet fills once per frame - never a per-facet/per-frame stroke.
+    gap: {
+      enabled: true,
+      width: 1.5,            // px, base-triangle perimeter edges (?gap= URL param)
+      // Internal facet edges (vertex-to-apex seams) are thinner than the
+      // base-triangle perimeter so the panel outlines still read as the
+      // dominant structure, matching how the real ball's major panel seams
+      // are more prominent than the subtle facet creases within a panel.
+      internalWidthRatio: 0.6,
+      lightnessRatio: 0.15   // Gap color lightness = baseHSL.l * this ratio (near-black, base-color tinted)
+    },
+
+    // Bulb rendering at each lattice vertex. Every bulb is identical in
+    // configuration - brightness differences come only from the pattern's
+    // current value at that vertex. Each bulb is drawn additively as a
+    // white-hot core inside a colored glow halo, plus six side-firing
+    // beams along the lattice edge directions (0/60/120/180/240/300 deg)
+    // that carry the bulb's color - together forming the 6-point star
+    // across the surrounding triangles, per the real ball's fixtures
+    // ("each bulb also has side-firing beams that can also match the
+    // color").
+    bulbs: {
+      enabled: true,
+      glowRadiusRatio: 0.40,   // Glow halo radius as a ratio of triangle size
+      coreRadiusRatio: 0.09,   // White-hot core radius as a ratio of triangle size
+      beamLengthRatio: 1.05,   // Side-firing beam length as a ratio of triangle size
+      beamWidthPx: 2.2,        // Beam stroke width at the bulb, tapering outward
+      beamAlpha: 0.8,          // Beam opacity multiplier relative to bulb intensity
+      intensityThreshold: 0.06, // Skip bulbs below this normalized intensity (0..1)
+      // Visibility floor (?floor= URL param / panel slider): every bulb
+      // keeps a small crisp LED point at at least this visibility even at
+      // zero pattern drive - like a real LED at its lowest, the point
+      // never goes transparent while the bloom/illumination collapse.
+      // 0 disables the idle points entirely.
+      floor: 0.35,
+      // Star effect: shape of each bulb's side-firing beams. star6 follows
+      // the lattice edge directions (the classic 6-point star); star4 is an
+      // upright 4-point twinkle; burst is 12 short arms; rays is 6 long
+      // thin arms; none disables beams entirely.
+      style: 'star6',
+      styleOptions: ['star6', 'star4', 'burst', 'rays', 'none'],
+      // Forward (camera-facing) core light color: 'match' uses the bulb's
+      // scheme color; 'white' makes every core burn white regardless of
+      // the radial beam color - the layered "shooting star" look.
+      coreStyle: 'match',
+      coreStyleOptions: ['match', 'white'],
+      // Star overlay: per-bulb effects driving ONLY the white forward
+      // cores, layered over the base animation (which keeps driving the
+      // facet lighting and colored beams). Bulbs are individually
+      // addressable here: twinkle = single bulbs flare briefly at
+      // staggered deterministic times; meteor = a streak of bulbs lights
+      // in sequence along a line with a decaying tail; night = both.
+      overlay: 'none',
+      overlayOptions: ['none', 'twinkle', 'meteor', 'night'],
+      // Twinkle: mean seconds between one bulb's flares (each bulb gets a
+      // deterministic +/-35% period jitter) and flare sharpness (higher =
+      // shorter, snappier flares).
+      twinklePeriod: 9,
+      twinkleSharpness: 140,
+      // Meteor: seconds between spawns (two staggered tracks run at half
+      // offset), head speed in triangle-sizes/second, tail length in
+      // triangle-sizes, and streak lifetime in seconds.
+      meteorInterval: 3.6,
+      meteorSpeed: 13,
+      meteorTail: 3.0,
+      meteorLife: 1.5,
+      // Overlay stars lighting the surface, two components:
+      // - overlaySurfaceLight: white light blended into the bulb's normal
+      //   light path (specular/bounce/shadows apply). Kept LOW - the
+      //   normal path's mirror-angle geometry otherwise paints a bright
+      //   ring of facets ~1.5 triangles out instead of lighting the
+      //   star's immediate neighborhood.
+      // - overlayLocalLift: direct white lift on just the facets of the
+      //   triangles touching the star, shaped by facet orientation - the
+      //   concentrated shimmer right around the bulb.
+      overlaySurfaceLight: 0.08,
+      overlayLocalLift: 0.07
+    },
+
+    // Cast shadows: spikes between a bulb and a panel occlude its
+    // low-grazing light. Occlusion is precomputed per (panel, bulb) pair
+    // at rebuild (geometry is static); each intervening spike multiplies
+    // the light by `occluderFactor`, floored at `floor`.
+    shadows: {
+      enabled: true,
+      occluderFactor: 0.5,
+      floor: 0.18
+    },
+
+    // Light cycling pattern - every bulb runs the same formula; its
+    // intensity depends only on its position and the current time.
+    pattern: {
+      default: 'chase',       // ?pattern= URL param
+      // Intensity patterns (chase..radial) move light around; color
+      // patterns (split/sweep/bands/mix) keep every bulb lit and animate
+      // WHICH color each bulb shows - the scheme's colors trade territory
+      // (e.g. illuminations: purple on top, orange below, the boundary
+      // sweeping so the proportions cycle). 'auto' cycles through all of
+      // them with smooth crossfades.
+      // 'steady' is fully lit and motionless - with a gradient scheme
+      // (e.g. illuminations) it renders the flat static gradient.
+      options: ['steady', 'chase', 'orbit', 'pulse', 'diagonal', 'wave', 'cascade', 'scanner', 'spiral', 'radial', 'split', 'sweep', 'bands', 'mix', 'auto'],
+      // Auto mode: seconds each pattern plays before crossfading to the
+      // next, and the crossfade length in seconds.
+      autoSegmentDuration: 20,
+      autoFadeDuration: 3
+    },
+
+    // Color scheme: how bulb colors are distributed across the surface.
+    // Wheel schemes derive hues from the base color: classic = gentle hue
+    // drift toward each screen corner; mono = single hue; duo =
+    // complementary split; rainbow = full hue wheel by angle; cycle =
+    // classic distribution rotating over time. Palette schemes assign
+    // discrete color combinations (below) in patchwork blocks, like the
+    // real ball's panel-region lighting programs.
+    scheme: {
+      default: 'classic',     // ?scheme= URL param
+      options: ['classic', 'mono', 'duo', 'rainbow', 'cycle', 'illuminations', 'earidescent', 'celebration', 'holiday', 'halloween', 'patriot', 'festival']
+    },
+
+    // Discrete palettes modeled on real Spaceship Earth lighting programs.
+    // earidescent = 50th-anniversary EARidescent (lavender/purple/gold/
+    // iridescent blue); celebration = classic gold/royal blue/white;
+    // holiday = red/green/warm white; halloween = orange/purple/green;
+    // patriot = red/white/blue; festival = Festival of the Arts
+    // multicolor patches.
+    palettes: {
+      // The iconic Spaceship Earth night look, color-sampled from a
+      // reference photo of the real ball (allears.net, Beacon of Magic):
+      // violet crown -> purple -> magenta -> crimson -> red -> red-orange
+      // -> orange -> amber base glow. Ordered top -> bottom; rendered as
+      // a STATIC vertical gradient (see gradientSchemes below), idealized
+      // slightly from the camera-washed samples.
+      illuminations: ['#7a14e8', '#a312c9', '#c90f8a', '#d8123c', '#ef5a24', '#ff8c1e', '#ffb85c'],
+      earidescent: ['#b57edc', '#7b52ab', '#ffd77a', '#5ad0f0'],
+      celebration: ['#ffc84a', '#2b5fd9', '#f0f4ff'],
+      holiday: ['#e8443a', '#2ea84f', '#fff4e0'],
+      halloween: ['#ff8c1a', '#8a2be2', '#39d353'],
+      patriot: ['#ff4444', '#f5f7ff', '#3d6dff'],
+      festival: ['#ff5252', '#ff9f40', '#ffe14d', '#4dd97b', '#3fa9f5', '#b06ef2']
+    },
+
+    // Patchwork block size for palette schemes, as a ratio of triangle
+    // size - each block of lattice vertices shares one palette color.
+    paletteCellRatio: 2.6,
+
+    // Palette schemes listed here render as a STATIC top-to-bottom
+    // gradient through all their colors (like the real ball's fixed
+    // night look) instead of animated patchwork blocks.
+    gradientSchemes: ['illuminations'],
+
+    // Color pattern boundary handling: 'sharp' assigns each bulb to one
+    // color group with a dithered edge; 'blend' interpolates smoothly
+    // between the groups across a wide transition zone (?blend=true).
+    colorBlend: false,
+
+    // Light gathering: each facet collects light from every bulb within
+    // this many triangle-sizes of its triangle's centroid (precomputed
+    // spatial lists), so bright bulbs throw glints across facets several
+    // rows away - not just their own triangle's corners.
+    lightReachRatio: 2.2,
 
     // Default base color when no ?color= URL param is provided
     color: {
-      defaultHex: '#1c6f8c'   // Cool blue/teal, EPCOT Spaceship Earth inspired
+      defaultHex: '#1c6f8c',  // Cool blue/teal, EPCOT Spaceship Earth inspired
+      // Saturation multiplier applied to every scheme's light colors
+      // (?sat= URL param / panel slider). >1 deepens colors toward the
+      // rich look the real ball's fixtures produce; 1.0 = palette as-is.
+      saturationBoost: 1.35
     }
   },
 

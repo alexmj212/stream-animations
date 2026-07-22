@@ -223,6 +223,23 @@ export function getBrightnessFromURL(defaultValue = 1.0) {
 }
 
 /**
+ * Parse and validate the panel gap line width from URL parameter
+ * @param {number} defaultValue - Default gap width in pixels
+ * @returns {number} Validated gap width
+ */
+export function getGapWidthFromURL(defaultValue = 1.5) {
+  if (typeof window === 'undefined') return defaultValue;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const gapParam = urlParams.get('gap');
+
+  if (gapParam === null) return defaultValue;
+
+  const gap = parseFloat(gapParam);
+  return validateNumberInRange(gap, defaultValue, 0, 20, 'URL parameter gap');
+}
+
+/**
  * Parse and validate a light pattern name from URL parameter
  * @param {string} defaultValue - Default pattern name
  * @param {string[]} validPatterns - Allowed pattern names
@@ -505,13 +522,66 @@ export function validateEpcotConfig(epcot) {
       allValid = false;
     }
 
-    if (typeof lighting.falloffRatio !== 'number' || lighting.falloffRatio <= 0) {
-      console.warn(`Config validation: config.epcot.lighting.falloffRatio must be > 0, got ${lighting.falloffRatio}. Using default: 0.45`);
+    if (typeof lighting.vertexHeightRatio !== 'number' || lighting.vertexHeightRatio <= 0) {
+      console.warn(`Config validation: config.epcot.lighting.vertexHeightRatio must be > 0, got ${lighting.vertexHeightRatio}. Using default: 0.5`);
+      allValid = false;
+    }
+
+    if (typeof lighting.falloffSizeRatio !== 'number' || lighting.falloffSizeRatio <= 0) {
+      console.warn(`Config validation: config.epcot.lighting.falloffSizeRatio must be > 0, got ${lighting.falloffSizeRatio}. Using default: 1.0`);
+      allValid = false;
+    }
+
+    if (typeof lighting.cornerWeightFalloffRatio !== 'number' || lighting.cornerWeightFalloffRatio <= 0 || lighting.cornerWeightFalloffRatio > 1) {
+      console.warn(`Config validation: config.epcot.lighting.cornerWeightFalloffRatio must be between 0 and 1, got ${lighting.cornerWeightFalloffRatio}. Using default: 0.09`);
       allValid = false;
     }
 
     if (!Array.isArray(lighting.hueOffsets) || lighting.hueOffsets.length !== 4) {
       console.warn('Config validation: config.epcot.lighting.hueOffsets must be an array of 4 numbers. Using default: [-20, 0, 20, 40]');
+      allValid = false;
+    }
+  }
+
+  if (epcot.gap) {
+    const gap = epcot.gap;
+
+    if (typeof gap.enabled !== 'boolean') {
+      console.warn('Config validation: config.epcot.gap.enabled must be boolean. Using default: true');
+      allValid = false;
+    }
+
+    if (typeof gap.width !== 'number' || gap.width < 0) {
+      console.warn(`Config validation: config.epcot.gap.width must be >= 0, got ${gap.width}. Using default: 1.5`);
+      allValid = false;
+    }
+
+    if (typeof gap.internalWidthRatio !== 'number' || gap.internalWidthRatio < 0 || gap.internalWidthRatio > 1) {
+      console.warn(`Config validation: config.epcot.gap.internalWidthRatio must be between 0 and 1, got ${gap.internalWidthRatio}. Using default: 0.6`);
+      allValid = false;
+    }
+
+    if (typeof gap.lightnessRatio !== 'number' || gap.lightnessRatio < 0 || gap.lightnessRatio > 1) {
+      console.warn(`Config validation: config.epcot.gap.lightnessRatio must be between 0 and 1, got ${gap.lightnessRatio}. Using default: 0.15`);
+      allValid = false;
+    }
+  }
+
+  if (epcot.vertexDots) {
+    const dots = epcot.vertexDots;
+
+    if (typeof dots.enabled !== 'boolean') {
+      console.warn('Config validation: config.epcot.vertexDots.enabled must be boolean. Using default: true');
+      allValid = false;
+    }
+
+    if (typeof dots.size !== 'number' || dots.size <= 0) {
+      console.warn(`Config validation: config.epcot.vertexDots.size must be > 0, got ${dots.size}. Using default: 1.5`);
+      allValid = false;
+    }
+
+    if (typeof dots.intensityThreshold !== 'number' || dots.intensityThreshold < 0 || dots.intensityThreshold > 1) {
+      console.warn(`Config validation: config.epcot.vertexDots.intensityThreshold must be between 0 and 1, got ${dots.intensityThreshold}. Using default: 0.05`);
       allValid = false;
     }
   }

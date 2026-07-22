@@ -20,7 +20,8 @@ import {
   getDurationFromURL,
   getSizeFromURL,
   getPatternFromURL,
-  getBrightnessFromURL
+  getBrightnessFromURL,
+  getGapWidthFromURL
 } from './validation.js';
 
 describe('validateConfig', () => {
@@ -243,6 +244,39 @@ describe('getBrightnessFromURL', () => {
     };
 
     expect(getBrightnessFromURL(1.0)).toBe(1.0);
+    expect(consoleWarnSpy).toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+    delete global.window;
+  });
+});
+
+describe('getGapWidthFromURL', () => {
+  it('should return default in Node environment', () => {
+    expect(getGapWidthFromURL(1.5)).toBe(1.5);
+  });
+
+  it('should parse valid gap width parameter', () => {
+    global.window = {
+      location: {
+        search: '?gap=2.5'
+      }
+    };
+
+    expect(getGapWidthFromURL(1.5)).toBe(2.5);
+
+    delete global.window;
+  });
+
+  it('should use default for out-of-range gap width', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    global.window = {
+      location: {
+        search: '?gap=-1'
+      }
+    };
+
+    expect(getGapWidthFromURL(1.5)).toBe(1.5);
     expect(consoleWarnSpy).toHaveBeenCalled();
 
     consoleWarnSpy.mockRestore();
@@ -698,21 +732,45 @@ describe('shade config validation', () => {
 });
 
 describe('epcot config validation', () => {
+  // Mirrors the shape of the real config.epcot section (see
+  // src/config/config.js) closely enough to exercise validateEpcotConfig's
+  // checks meaningfully - pattern.options in particular matches the actual
+  // current pattern list (intensity patterns + color patterns + auto).
   const validEpcotConfig = {
-    size: { default: 90, min: 20, max: 300 },
+    size: { default: 90, min: 70, max: 300 },
     spikeHeightRatio: 0.35,
     spikeVariation: 0.15,
     cycleDuration: 24,
     lighting: {
-      zHeightRatio: 0.35,
-      falloffRatio: 0.45,
-      cornerMargin: 0.05,
-      shininess: 24,
-      ambient: 0.08,
-      intensity: 1.0,
+      vertexHeightRatio: 0.5,
+      falloffSizeRatio: 1.4,
+      cornerWeightFalloffRatio: 0.09,
+      shininess: 34,
+      ambient: 0.10,
+      diffuseWeight: 0.65,
+      specularWeight: 2.4,
+      intensity: 0.75,
       hueOffsets: [-20, 0, 20, 40]
     },
-    pattern: { default: 'chase', options: ['chase', 'pulse', 'diagonal'] },
+    gap: {
+      enabled: true,
+      width: 1.5,
+      internalWidthRatio: 0.6,
+      lightnessRatio: 0.15
+    },
+    vertexDots: {
+      enabled: true,
+      size: 1.5,
+      intensityThreshold: 0.05
+    },
+    pattern: {
+      default: 'chase',
+      options: ['steady', 'chase', 'orbit', 'pulse', 'diagonal', 'wave', 'cascade', 'scanner', 'spiral', 'radial', 'split', 'sweep', 'bands', 'mix', 'auto']
+    },
+    scheme: {
+      default: 'classic',
+      options: ['classic', 'mono', 'duo', 'rainbow', 'cycle', 'illuminations', 'earidescent', 'celebration', 'holiday', 'halloween', 'patriot', 'festival']
+    },
     color: { defaultHex: '#1c6f8c' }
   };
 
