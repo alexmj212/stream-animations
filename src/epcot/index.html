@@ -214,9 +214,6 @@
             <label>Meteor tail <span class="val" id="valMTail"></span></label>
             <div class="row"><input type="range" id="ctlMTail" min="0.5" max="10" step="0.5"></div>
 
-            <label>Meteor life <span class="val" id="valMLife"></span></label>
-            <div class="row"><input type="range" id="ctlMLife" min="0.3" max="5" step="0.1"></div>
-
             <label>Meteor tracks <span class="val" id="valMTrk"></span></label>
             <div class="row"><input type="range" id="ctlMTrk" min="1" max="4" step="1"></div>
         </div>
@@ -318,7 +315,6 @@
             mint: numParam('mint', cfg.bulbs.meteorInterval, 0.5, 15),
             mspd: numParam('mspd', cfg.bulbs.meteorSpeed, 2, 40),
             mtail: numParam('mtail', cfg.bulbs.meteorTail, 0.5, 10),
-            mlife: numParam('mlife', cfg.bulbs.meteorLife, 0.3, 5),
             mtrk: numParam('mtrk', cfg.bulbs.meteorTracks, 1, 4),
             mdir: choiceParam('mdir', cfg.bulbs.meteorDirection, cfg.bulbs.meteorDirectionOptions),
             oslight: numParam('oslight', cfg.bulbs.overlaySurfaceLight, 0, 0.3),
@@ -388,7 +384,6 @@
             meteorInterval: settings.mint,
             meteorSpeed: settings.mspd,
             meteorTail: settings.mtail,
-            meteorLife: settings.mlife,
             meteorTracks: settings.mtrk,
             meteorDirection: settings.mdir,
             overlaySurfaceLight: settings.oslight,
@@ -452,7 +447,6 @@
                 mint: cfg.bulbs.meteorInterval,
                 mspd: cfg.bulbs.meteorSpeed,
                 mtail: cfg.bulbs.meteorTail,
-                mlife: cfg.bulbs.meteorLife,
                 mtrk: cfg.bulbs.meteorTracks,
                 mdir: cfg.bulbs.meteorDirection,
                 oslight: cfg.bulbs.overlaySurfaceLight,
@@ -486,7 +480,6 @@
                 set('mint', settings.mint);
                 set('mspd', settings.mspd);
                 set('mtail', settings.mtail);
-                set('mlife', settings.mlife);
                 set('mtrk', settings.mtrk);
                 set('mdir', settings.mdir);
                 set('oslight', settings.oslight);
@@ -541,7 +534,6 @@
                 ['ctlMInt', 'valMInt', 'mint', (v) => surface.applySettings({ meteorInterval: v })],
                 ['ctlMSpd', 'valMSpd', 'mspd', (v) => surface.applySettings({ meteorSpeed: v })],
                 ['ctlMTail', 'valMTail', 'mtail', (v) => surface.applySettings({ meteorTail: v })],
-                ['ctlMLife', 'valMLife', 'mlife', (v) => surface.applySettings({ meteorLife: v })],
                 ['ctlMTrk', 'valMTrk', 'mtrk', (v) => surface.applySettings({ meteorTracks: v })],
                 ['ctlOSLight', 'valOSLight', 'oslight', (v) => surface.applySettings({ overlaySurfaceLight: v })],
                 ['ctlOLift', 'valOLift', 'olift', (v) => surface.applySettings({ overlayLocalLift: v })],

@@ -180,7 +180,6 @@ export class EpcotSurface {
         this.meteorInterval = options.meteorInterval ?? cfg.bulbs.meteorInterval;
         this.meteorSpeed = options.meteorSpeed ?? cfg.bulbs.meteorSpeed;
         this.meteorTail = options.meteorTail ?? cfg.bulbs.meteorTail;
-        this.meteorLife = options.meteorLife ?? cfg.bulbs.meteorLife;
         this.meteorTracks = options.meteorTracks ?? cfg.bulbs.meteorTracks;
         this.meteorDirection = options.meteorDirection ?? cfg.bulbs.meteorDirection;
         this.overlaySurfaceLight = options.overlaySurfaceLight ?? cfg.bulbs.overlaySurfaceLight;
@@ -255,7 +254,6 @@ export class EpcotSurface {
         if (s.meteorInterval !== undefined) this.meteorInterval = s.meteorInterval;
         if (s.meteorSpeed !== undefined) this.meteorSpeed = s.meteorSpeed;
         if (s.meteorTail !== undefined) this.meteorTail = s.meteorTail;
-        if (s.meteorLife !== undefined) this.meteorLife = s.meteorLife;
         if (s.meteorTracks !== undefined) this.meteorTracks = s.meteorTracks;
         if (s.meteorDirection !== undefined) this.meteorDirection = s.meteorDirection;
         if (s.overlaySurfaceLight !== undefined) this.overlaySurfaceLight = s.overlaySurfaceLight;
@@ -1538,7 +1536,6 @@ export class EpcotSurface {
             const interval = Math.max(0.5, this.meteorInterval);
             const speed = this.meteorSpeed * this.size;
             const tail = this.meteorTail * this.size;
-            const life = this.meteorLife;
             const tracks = Math.max(1, Math.min(4, this.meteorTracks | 0));
             const width = this.canvas.width;
             const height = this.canvas.height;
@@ -1555,7 +1552,6 @@ export class EpcotSurface {
                 const tj = t + (j * interval) / tracks;
                 const m = Math.floor(tj / interval);
                 const tau = tj - m * interval;
-                if (tau > life) continue;
 
                 // Deterministic per-meteor parameters
                 const h1 = hash2(m, 0x27d4eb + j);
@@ -1587,9 +1583,23 @@ export class EpcotSurface {
                     x0 = ((h2 % 10000) / 10000) * width;
                 }
 
+                // No fixed lifetime: each streak travels the ray from its
+                // spawn point until it fully exits the canvas rect on the
+                // far side, plus one tail-length so the trailing tail
+                // clears too - it always crosses the full canvas rather
+                // than expiring mid-flight. An axis the direction is
+                // parallel to (component ~0) never bounds the exit, so it
+                // contributes no constraint (Infinity).
+                const tExitX = dx > 1e-6 ? (width - x0) / dx : dx < -1e-6 ? (0 - x0) / dx : Infinity;
+                const tExitY = dy > 1e-6 ? (height - y0) / dy : dy < -1e-6 ? (0 - y0) / dy : Infinity;
+                const exitDist = Math.min(tExitX, tExitY);
+                const life = (exitDist + tail) / speed;
+                if (tau > life) continue;
+
                 const head = speed * tau;
-                // Fade the whole streak in fast and out at end of life
-                const window = Math.min(1, tau / 0.12, (life - tau) / 0.35);
+                // Fade the streak in fast; no end-of-life fade-out - it
+                // simply exits the visible canvas naturally.
+                const window = Math.min(1, tau / 0.12);
                 if (window <= 0) continue;
 
                 for (let v = 0; v < vertexCount; v++) {

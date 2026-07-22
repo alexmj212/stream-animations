@@ -439,21 +439,19 @@ describe('EpcotSurface', () => {
       expect(spy).not.toHaveBeenCalled();
     });
 
-    it('meteor* settings (interval/speed/tail/life/tracks/direction) are live-updated, no rebuild', () => {
+    it('meteor* settings (interval/speed/tail/tracks/direction) are live-updated, no rebuild', () => {
       const { surface } = makeSurface();
       const spy = vi.spyOn(surface, 'rebuild');
 
       surface.applySettings({ meteorInterval: 5 });
       surface.applySettings({ meteorSpeed: 20 });
       surface.applySettings({ meteorTail: 4 });
-      surface.applySettings({ meteorLife: 2 });
       surface.applySettings({ meteorTracks: 3 });
       surface.applySettings({ meteorDirection: 'down-left' });
 
       expect(surface.meteorInterval).toBe(5);
       expect(surface.meteorSpeed).toBe(20);
       expect(surface.meteorTail).toBe(4);
-      expect(surface.meteorLife).toBe(2);
       expect(surface.meteorTracks).toBe(3);
       expect(surface.meteorDirection).toBe('down-left');
       expect(spy).not.toHaveBeenCalled();
@@ -700,7 +698,7 @@ describe('EpcotSurface', () => {
       expect(typeof b.meteorInterval).toBe('number');
       expect(typeof b.meteorSpeed).toBe('number');
       expect(typeof b.meteorTail).toBe('number');
-      expect(typeof b.meteorLife).toBe('number');
+      expect(b.meteorLife).toBeUndefined(); // lifetime is derived, not configured
       expect(typeof b.meteorTracks).toBe('number');
       expect(b.meteorTracks).toBeGreaterThanOrEqual(1);
       expect(b.meteorTracks).toBeLessThanOrEqual(4);
@@ -731,7 +729,6 @@ describe('EpcotSurface', () => {
       meteorTracks: 1,
       meteorSpeed: 6,
       meteorTail: 3,
-      meteorLife: 1.5,
       meteorInterval: 3.6
     };
 
@@ -787,22 +784,32 @@ describe('EpcotSurface', () => {
     // slides onto the canvas from there - so the very first vertices any
     // given streak lights should sit near a canvas edge, never deep in the
     // interior.
+    //
+    // There is no configured meteorLife any more - each streak's lifetime
+    // is derived from how far its ray must travel to fully exit the
+    // canvas (plus one tail-length). For this test's fixed canvas/speed/
+    // tail, that derived lifetime is bounded well under MAX_LIFE below
+    // (verified empirically: actual max ~2.67s for a 900x700 canvas at
+    // this speed) - used only to (a) cap the ignition-search scan and
+    // (b) space out staggered tracks far enough apart that they never
+    // overlap, so each track's own earliest ignition can be observed in
+    // isolation through the public _fillOverlay API.
     const WIDTH = 900, HEIGHT = 700, SIZE = 90;
     const EDGE_TOLERANCE = 1.5 * SIZE;
-    const LIFE = 1.5;
+    const SPEED = 6, TAIL = 3;
+    const MAX_LIFE = (WIDTH + HEIGHT + TAIL * SIZE) / (SPEED * SIZE); // generous upper bound
 
     function distToEdge(x, y) {
       return Math.min(x, WIDTH - x, y, HEIGHT - y);
     }
 
     // Earliest tau (from a given base time) at which any vertex lights,
-    // and the (x,y) of every vertex lit at that first moment. Scanning
-    // starts just after `base` and stays within one life span, so with
-    // isolated tracks (see below) only the single streak under test can
-    // be contributing.
+    // and the (x,y) of every vertex lit at that first moment. Ignition
+    // always happens quickly relative to a streak's full lifetime, so a
+    // short scan window well under MAX_LIFE is enough to find it.
     function earliestLitPositions(surface, base) {
       const out = new Float32Array(surface.vertexCount);
-      for (let tau = 0.01; tau <= LIFE; tau += 0.02) {
+      for (let tau = 0.01; tau <= 1.5; tau += 0.02) {
         surface._fillOverlay('meteor', base + tau, out);
         const positions = [];
         for (let v = 0; v < surface.vertexCount; v++) {
@@ -824,9 +831,8 @@ describe('EpcotSurface', () => {
           overlayPattern: 'meteor',
           meteorDirection: dir,
           meteorTracks: 1, // single track: no stagger overlap to disentangle
-          meteorSpeed: 6,
-          meteorTail: 3,
-          meteorLife: LIFE,
+          meteorSpeed: SPEED,
+          meteorTail: TAIL,
           meteorInterval: 3.6
         });
         const interval = Math.max(0.5, surface.meteorInterval);
@@ -850,9 +856,8 @@ describe('EpcotSurface', () => {
         overlayPattern: 'meteor',
         meteorDirection: 'random',
         meteorTracks: 1,
-        meteorSpeed: 6,
-        meteorTail: 3,
-        meteorLife: LIFE,
+        meteorSpeed: SPEED,
+        meteorTail: TAIL,
         meteorInterval: 3.6
       });
       const interval = Math.max(0.5, surface.meteorInterval);
@@ -871,22 +876,21 @@ describe('EpcotSurface', () => {
 
     it('multiple tracks (varying j): every staggered track\'s own earliest ignition is still near a canvas edge', () => {
       // Space the stagger interval wide enough that at most one track is
-      // ever mid-life at a time (spacing = interval/tracks > life), so
+      // ever mid-life at a time (spacing = interval/tracks > MAX_LIFE), so
       // each track's own ignition can be observed in isolation via the
       // public _fillOverlay API instead of the internal per-track hash.
-      const interval = 8;
       const tracks = 4;
+      const spacing = MAX_LIFE + 2; // comfortable margin over the derived max life
+      const interval = spacing * tracks;
       const { surface } = makeSurface({
         width: WIDTH, height: HEIGHT, size: SIZE,
         overlayPattern: 'meteor',
         meteorDirection: 'random',
         meteorTracks: tracks,
-        meteorSpeed: 6,
-        meteorTail: 3,
-        meteorLife: LIFE,
+        meteorSpeed: SPEED,
+        meteorTail: TAIL,
         meteorInterval: interval
       });
-      expect(interval / tracks).toBeGreaterThan(LIFE); // sanity: isolation holds
 
       let ignitedAtLeastOnce = false;
       for (let j = 0; j < tracks; j++) {
@@ -905,8 +909,18 @@ describe('EpcotSurface', () => {
   });
 
   describe('meteor overlay: track/interval clamping', () => {
+    // Streak lifetime is now derived from how far a ray must travel to
+    // exit the canvas (there is no configured meteorLife any more), so at
+    // the suite's default small canvas (300x220) and default meteorSpeed
+    // every streak's life is very short - too short for staggered tracks
+    // to ever overlap within T_SAMPLES, which would make the "more tracks
+    // differs from fewer tracks" test vacuously true (identically empty)
+    // by accident rather than by exercising real overlap. A slower default
+    // speed (overridable per-test like every other param) stretches every
+    // streak's derived life comfortably across the sampled window without
+    // inflating canvas/grid size.
     function sampleOverlay(overrides, tSamples) {
-      const { surface } = makeSurface({ overlayPattern: 'meteor', ...overrides });
+      const { surface } = makeSurface({ overlayPattern: 'meteor', meteorSpeed: 2, ...overrides });
       const out = new Float32Array(surface.vertexCount);
       const snapshots = [];
       for (const t of tSamples) {

@@ -441,13 +441,14 @@ export const config = {
       twinkleSharpness: 140,
       // Meteor: seconds between spawns per track (tracks run staggered),
       // head speed in triangle-sizes/second, tail length in
-      // triangle-sizes, streak lifetime in seconds, number of concurrent
-      // tracks, and travel direction - 'random' picks a lattice axis per
-      // meteor; a fixed direction locks every streak to that axis.
+      // triangle-sizes, number of concurrent tracks, and travel direction
+      // - 'random' picks a lattice axis per meteor; a fixed direction
+      // locks every streak to that axis. Each streak's lifetime is
+      // derived (not configured): it always travels the full ray across
+      // the canvas from its spawn edge to its exit edge, tail included.
       meteorInterval: 3.6,
       meteorSpeed: 13,
       meteorTail: 3.0,
-      meteorLife: 1.5,
       meteorTracks: 2,
       meteorDirection: 'random',
       meteorDirectionOptions: ['random', 'right', 'down-right', 'down-left', 'left', 'up-left', 'up-right'],

@@ -54,8 +54,10 @@ The `meteor` and `night` overlays send a streak of light across the
 surface along one of the 6 lattice axes; by default each streak picks a
 random axis, but a fixed direction (`right`, `down-right`, `down-left`,
 `left`, `up-left`, `up-right`) can be locked in so every streak travels the
-same way, with configurable spawn interval, speed, tail length, life, and
-number of concurrent tracks.
+same way, with configurable spawn interval, speed, tail length, and number
+of concurrent tracks. Every streak always spawns just outside its entry
+edge and travels the full canvas to its exit edge (tail included) before
+disappearing - there's no separate lifetime setting.
 
 A **fisheye** toggle curves the flat lattice into the real ball's
 spherical silhouette - center panels magnify, rim panels compress - purely
@@ -100,7 +102,6 @@ Epcot-specific:
 - `mint` - Meteor spawn interval in seconds, per track (default 3.6)
 - `mspd` - Meteor head speed, in triangle-sizes per second (default 13)
 - `mtail` - Meteor tail length, in triangle-sizes (default 3.0)
-- `mlife` - Meteor streak lifetime in seconds (default 1.5)
 - `mtrk` - Number of concurrent meteor tracks, 1-4 (default 2)
 - `mdir` - Meteor travel direction: `random`, `right`, `down-right`, `down-left`, `left`, `up-left`, or `up-right` (default `random`)
 - `fisheye` - `true`/`false` - curve the lattice into the ball's spherical silhouette (default `false`)
