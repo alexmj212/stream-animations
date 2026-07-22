@@ -1648,30 +1648,18 @@ export class EpcotSurface {
         if (hasOverlay) {
             this._fillOverlay(this.overlayPattern, this.clock, fieldC);
 
-            // Overlay stars also cast light on the surface: add their
-            // brightness as WHITE light, blending the bulb's light color
-            // toward white by the overlay's share of total intensity - a
-            // twinkle shimmers on the spikes around it, a meteor drags a
-            // lit trail, without recoloring the base pattern's light.
-            const k = config.epcot.bulbs.overlaySurfaceLight ?? 0.6;
+            // Overlay stars also cast light on the surface - PURELY
+            // ADDITIVELY: extra intensity through the bulb's existing
+            // scheme color, never recoloring the light. (Blending the
+            // light color toward white overwrote the facets' colors,
+            // graying or blowing out everything near a star.)
+            const k = config.epcot.bulbs.overlaySurfaceLight ?? 0;
             if (k > 0) {
-                let touched = false;
                 for (let v = 0; v < vertexCount; v++) {
                     const oNorm = fieldC[v];
                     if (oNorm <= 0.02) continue;
-                    const i6 = v * 7 + 6;
-                    const oI = Math.min(1, oNorm) * peak * k;
-                    const total = vertexLights[i6] + oI;
-                    if (total <= 0) continue; // brightness=0: nothing to blend (guards 0/0 NaN)
-                    const w = oI / total;
-                    const lo = v * 7;
-                    vertexLights[lo + 3] += (1 - vertexLights[lo + 3]) * w;
-                    vertexLights[lo + 4] += (1 - vertexLights[lo + 4]) * w;
-                    vertexLights[lo + 5] += (1 - vertexLights[lo + 5]) * w;
-                    vertexLights[i6] = total;
-                    touched = true;
+                    vertexLights[v * 7 + 6] += Math.min(1, oNorm) * peak * k;
                 }
-                if (touched) this._lightColorsDirty = true;
             }
         }
 
@@ -1776,13 +1764,14 @@ export class EpcotSurface {
             }
         }
 
-        // Overlay local lift: white shimmer directly on the facets of the
-        // triangles touching each overlay star, shaped by facet
-        // orientation (upward-facing facets catch more). Added into
-        // directColors/triSums so it feeds bounce and tone mapping like
-        // any other light.
+        // Overlay local lift: ADDITIVE brightness in each facet's OWN
+        // color - the facet's current lit color is scaled up, never
+        // shifted toward white (flat white addition grayed dark saturated
+        // facets). Physically: a metal facet reflects the star's light
+        // tinted by its own color. Feeds triSums so bounce and tone
+        // mapping see it like any other light.
         if (hasOverlay) {
-            const lift = config.epcot.bulbs.overlayLocalLift ?? 0.55;
+            const lift = config.epcot.bulbs.overlayLocalLift ?? 0;
             if (lift > 0) {
                 const vtStart = this._vertexTriStart;
                 const vtCount = this._vertexTriCount;
@@ -1790,7 +1779,7 @@ export class EpcotSurface {
                 for (let v = 0; v < vertexCount; v++) {
                     const oNorm = fieldC[v];
                     if (oNorm <= 0.02) continue;
-                    const amount = Math.min(1, oNorm) * lift * 255;
+                    const strength = Math.min(1, oNorm) * lift;
                     const s0 = vtStart[v];
                     const s1 = s0 + vtCount[v];
                     for (let i = s0; i < s1; i++) {
@@ -1799,17 +1788,20 @@ export class EpcotSurface {
                         const t3 = t * 3;
                         for (let k2 = 0; k2 < 3; k2++) {
                             const no = (t * 3 + k2) * 3;
-                            // Near-total orientation weighting: only facets
-                            // genuinely facing the camera pick up the
-                            // shimmer, so the lift reads as glints - not a
-                            // uniformly lit hexagon outline.
-                            const a = amount * (0.06 + 0.94 * normals[no + 2]);
-                            directColors[no] += a;
-                            directColors[no + 1] += a;
-                            directColors[no + 2] += a;
-                            triSums[t3] += a;
-                            triSums[t3 + 1] += a;
-                            triSums[t3 + 2] += a;
+                            // Orientation-weighted multiplicative boost:
+                            // camera-facing facets catch the most, and the
+                            // gain is proportional to the facet's existing
+                            // color - hue and saturation are preserved.
+                            const m = strength * (0.06 + 0.94 * normals[no + 2]);
+                            const dr = directColors[no] * m;
+                            const dg = directColors[no + 1] * m;
+                            const db = directColors[no + 2] * m;
+                            directColors[no] += dr;
+                            directColors[no + 1] += dg;
+                            directColors[no + 2] += db;
+                            triSums[t3] += dr;
+                            triSums[t3 + 1] += dg;
+                            triSums[t3 + 2] += db;
                         }
                     }
                 }
@@ -1978,8 +1970,6 @@ export class EpcotSurface {
                         if (curvedBeams) {
                             // Curved arms following the warped lattice,
                             // one stroke through a cached radial gradient
-                            // centered on the bulb - continuous falloff,
-                            // width scaled by local warp magnification
                             let entry = this._beamGradCache[v];
                             if (entry === undefined) entry = this._beamGradCache[v] = {};
                             let g = entry[c];

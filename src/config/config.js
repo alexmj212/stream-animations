@@ -451,17 +451,21 @@ export const config = {
       meteorTracks: 2,
       meteorDirection: 'random',
       meteorDirectionOptions: ['random', 'right', 'down-right', 'down-left', 'left', 'up-left', 'up-right'],
-      // Overlay stars lighting the surface, two components:
-      // - overlaySurfaceLight: white light blended into the bulb's normal
-      //   light path (specular/bounce/shadows apply). Kept LOW - the
-      //   normal path's mirror-angle geometry otherwise paints a bright
-      //   ring of facets ~1.5 triangles out instead of lighting the
-      //   star's immediate neighborhood.
-      // - overlayLocalLift: direct white lift on just the facets of the
-      //   triangles touching the star, shaped by facet orientation - the
-      //   concentrated shimmer right around the bulb.
-      overlaySurfaceLight: 0.04,
-      overlayLocalLift: 0.035
+      // Overlay stars lighting the surface - both PURELY ADDITIVE in the
+      // existing colors (never blending toward white, which overwrote the
+      // facets' scheme colors and grayed/overblew them):
+      // - overlaySurfaceLight: extra intensity through the bulb's normal
+      //   scheme-colored light path (specular/bounce/shadows apply). Kept
+      //   LOW - the mirror-angle geometry otherwise paints a ring of
+      //   facets ~1.5 triangles out.
+      // - overlayLocalLift: multiplicative brightness gain on the facets
+      //   of the triangles touching the star (each facet brightens in its
+      //   OWN color), shaped by facet orientation.
+      // Both default 0: stars are pure forward light with NO halo on the
+      // surrounding facets (any surface response either recolored or
+      // haloed the facets around a lit star). Set >0 to opt back in.
+      overlaySurfaceLight: 0,
+      overlayLocalLift: 0
     },
 
     // Cast shadows: spikes between a bulb and a panel occlude its
