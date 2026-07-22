@@ -1561,10 +1561,31 @@ export class EpcotSurface {
                 const h1 = hash2(m, 0x27d4eb + j);
                 const h2 = hash2(m, 0x165667 + j);
                 const h3 = hash2(m, 0xfd7046 + j);
-                const x0 = ((h1 % 10000) / 10000) * width;
-                const y0 = ((h2 % 10000) / 10000) * height;
                 const angle = ((fixedDir >= 0 ? fixedDir : h3 % 6) * Math.PI) / 3;
                 const dx = Math.cos(angle), dy = Math.sin(angle);
+
+                // Spawn on the canvas edge the meteor travels INTO from,
+                // never mid-canvas: a direction with a positive x-component
+                // enters from the left edge, negative from the right, and
+                // likewise for y/top/bottom. Diagonal lattice directions
+                // (e.g. down-right) are valid from either of two edges - h1
+                // picks between them deterministically; h2 then picks the
+                // position along the chosen edge. The start is offset one
+                // tail-length outside that edge so the head slides IN from
+                // off-canvas rather than igniting mid-air.
+                const enterLeft = dx > 1e-6, enterRight = dx < -1e-6;
+                const enterTop = dy > 1e-6, enterBottom = dy < -1e-6;
+                const xEdge = enterLeft ? 0 : enterRight ? width : null;
+                const yEdge = enterTop ? 0 : enterBottom ? height : null;
+                const useXEdge = xEdge !== null && (yEdge === null || (h1 % 2) === 0);
+                let x0, y0;
+                if (useXEdge) {
+                    x0 = xEdge === 0 ? -tail : width + tail;
+                    y0 = ((h2 % 10000) / 10000) * height;
+                } else {
+                    y0 = yEdge === 0 ? -tail : height + tail;
+                    x0 = ((h2 % 10000) / 10000) * width;
+                }
 
                 const head = speed * tau;
                 // Fade the whole streak in fast and out at end of life
@@ -1671,10 +1692,15 @@ export class EpcotSurface {
         } else if (this.patternName !== 'steady') {
             // Combo mode: intensity patterns also animate color, on an
             // independent clock - almost every animation shifts
-            // brightness AND color, each with its own motion.
+            // brightness AND color, each with its own motion. The drive
+            // mask (fieldA) is essential for correctness, not just taste:
+            // bulbs at zero drive keep their EXACT base scheme colors, so
+            // live-shaded facets at the culling boundary match the baked
+            // floor layer behind them - otherwise facets pop to the baked
+            // base colors the moment their light moves off.
             const combo = COMBO_COLOR[comboBase];
             if (combo) {
-                this._applyColorPattern(combo.c, this.clock * combo.rate);
+                this._applyColorPattern(combo.c, this.clock * combo.rate, fieldA);
                 comboActive = true;
             }
         }
@@ -1972,7 +1998,9 @@ export class EpcotSurface {
             // With the idle layer baked (and colors static this frame),
             // composite it once and draw only per-bulb DELTAS above the
             // floor - undriven bulbs skip entirely.
-            const idleBaked = this._idleBulbValid && bucketShift === 0 && !colorPatternName && !comboActive;
+            // Combo colors are drive-masked (idle bulbs keep base colors),
+            // so the idle bake stays valid during combo animation.
+            const idleBaked = this._idleBulbValid && bucketShift === 0 && !colorPatternName;
             const idleBeamA = this._idleBeamAlpha;
 
             ctx.save();

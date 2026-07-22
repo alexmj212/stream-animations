@@ -780,6 +780,130 @@ describe('EpcotSurface', () => {
     }
   });
 
+  describe('meteor overlay: streaks always originate on a canvas edge (origin invariant)', () => {
+    // Regression test: meteor start points used to be a hash-random point
+    // ANYWHERE on the canvas, so streaks could ignite mid-screen. Now each
+    // meteor spawns just outside the edge its direction travels INTO, and
+    // slides onto the canvas from there - so the very first vertices any
+    // given streak lights should sit near a canvas edge, never deep in the
+    // interior.
+    const WIDTH = 900, HEIGHT = 700, SIZE = 90;
+    const EDGE_TOLERANCE = 1.5 * SIZE;
+    const LIFE = 1.5;
+
+    function distToEdge(x, y) {
+      return Math.min(x, WIDTH - x, y, HEIGHT - y);
+    }
+
+    // Earliest tau (from a given base time) at which any vertex lights,
+    // and the (x,y) of every vertex lit at that first moment. Scanning
+    // starts just after `base` and stays within one life span, so with
+    // isolated tracks (see below) only the single streak under test can
+    // be contributing.
+    function earliestLitPositions(surface, base) {
+      const out = new Float32Array(surface.vertexCount);
+      for (let tau = 0.01; tau <= LIFE; tau += 0.02) {
+        surface._fillOverlay('meteor', base + tau, out);
+        const positions = [];
+        for (let v = 0; v < surface.vertexCount; v++) {
+          if (out[v] > 0.02) {
+            positions.push([surface.vertexPositions[v * 2], surface.vertexPositions[v * 2 + 1]]);
+          }
+        }
+        if (positions.length > 0) return positions;
+      }
+      return null; // never ignited within the sampled window
+    }
+
+    const FIXED_DIRS = ['right', 'down-right', 'down-left', 'left', 'up-left', 'up-right'];
+
+    for (const dir of FIXED_DIRS) {
+      it(`direction='${dir}': earliest-lit vertices across several meteor indices sit within 1.5 triangle-sizes of a canvas edge`, () => {
+        const { surface } = makeSurface({
+          width: WIDTH, height: HEIGHT, size: SIZE,
+          overlayPattern: 'meteor',
+          meteorDirection: dir,
+          meteorTracks: 1, // single track: no stagger overlap to disentangle
+          meteorSpeed: 6,
+          meteorTail: 3,
+          meteorLife: LIFE,
+          meteorInterval: 3.6
+        });
+        const interval = Math.max(0.5, surface.meteorInterval);
+
+        let ignitedAtLeastOnce = false;
+        for (let m = 0; m < 5; m++) {
+          const positions = earliestLitPositions(surface, m * interval);
+          if (!positions) continue;
+          ignitedAtLeastOnce = true;
+          for (const [x, y] of positions) {
+            expect(distToEdge(x, y)).toBeLessThanOrEqual(EDGE_TOLERANCE);
+          }
+        }
+        expect(ignitedAtLeastOnce).toBe(true);
+      });
+    }
+
+    it("direction='random': earliest-lit vertices sit near a canvas edge regardless of which axis each meteor picks", () => {
+      const { surface } = makeSurface({
+        width: WIDTH, height: HEIGHT, size: SIZE,
+        overlayPattern: 'meteor',
+        meteorDirection: 'random',
+        meteorTracks: 1,
+        meteorSpeed: 6,
+        meteorTail: 3,
+        meteorLife: LIFE,
+        meteorInterval: 3.6
+      });
+      const interval = Math.max(0.5, surface.meteorInterval);
+
+      let ignitedAtLeastOnce = false;
+      for (let m = 0; m < 12; m++) {
+        const positions = earliestLitPositions(surface, m * interval);
+        if (!positions) continue;
+        ignitedAtLeastOnce = true;
+        for (const [x, y] of positions) {
+          expect(distToEdge(x, y)).toBeLessThanOrEqual(EDGE_TOLERANCE);
+        }
+      }
+      expect(ignitedAtLeastOnce).toBe(true);
+    });
+
+    it('multiple tracks (varying j): every staggered track\'s own earliest ignition is still near a canvas edge', () => {
+      // Space the stagger interval wide enough that at most one track is
+      // ever mid-life at a time (spacing = interval/tracks > life), so
+      // each track's own ignition can be observed in isolation via the
+      // public _fillOverlay API instead of the internal per-track hash.
+      const interval = 8;
+      const tracks = 4;
+      const { surface } = makeSurface({
+        width: WIDTH, height: HEIGHT, size: SIZE,
+        overlayPattern: 'meteor',
+        meteorDirection: 'random',
+        meteorTracks: tracks,
+        meteorSpeed: 6,
+        meteorTail: 3,
+        meteorLife: LIFE,
+        meteorInterval: interval
+      });
+      expect(interval / tracks).toBeGreaterThan(LIFE); // sanity: isolation holds
+
+      let ignitedAtLeastOnce = false;
+      for (let j = 0; j < tracks; j++) {
+        for (let m = 0; m < 2; m++) {
+          const base = m * interval + (j * interval) / tracks;
+          const positions = earliestLitPositions(surface, base);
+          if (!positions) continue;
+          ignitedAtLeastOnce = true;
+          for (const [x, y] of positions) {
+            expect(distToEdge(x, y)).toBeLessThanOrEqual(EDGE_TOLERANCE);
+          }
+        }
+      }
+      expect(ignitedAtLeastOnce).toBe(true);
+    });
+  });
+
   describe('meteor overlay: track/interval clamping', () => {
     function sampleOverlay(overrides, tSamples) {
       const { surface } = makeSurface({ overlayPattern: 'meteor', ...overrides });
