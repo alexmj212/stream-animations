@@ -50,6 +50,21 @@ palette schemes modeled on real Spaceship Earth lighting programs -
 (orange/purple/green), and `patriot` (red/white/blue), `festival`
 (Festival of the Arts multicolor patches).
 
+The `meteor` and `night` overlays send a streak of light across the
+surface along one of the 6 lattice axes; by default each streak picks a
+random axis, but a fixed direction (`right`, `down-right`, `down-left`,
+`left`, `up-left`, `up-right`) can be locked in so every streak travels the
+same way, with configurable spawn interval, speed, tail length, life, and
+number of concurrent tracks.
+
+A **fisheye** toggle curves the flat lattice into the real ball's
+spherical silhouette - center panels magnify, rim panels compress - purely
+as a display projection: the lighting/shading simulation always runs on
+the original flat lattice (so the look is physically identical either
+way), and only the drawn facet outlines, gap seams, bulb positions, and
+star beams are warped, including bending the beams' arms to follow the
+curved rows they run along.
+
 Dark panel-gap seams trace every base triangle's outline plus its internal
 facet creases. A settings panel (gear icon, bottom-right) lets you tune
 every parameter below live; it only appears on mouse movement, so it never
@@ -82,6 +97,14 @@ Epcot-specific:
 - `beam` - Star beam length as a ratio of triangle size (default 1.05)
 - `bulbs` (alias `dots`) - `true`/`false` - show the bulb glow/core/beam sprites (default `true`)
 - `shadows` - `true`/`false` - spikes cast shadows onto neighboring panels (default `true`)
+- `mint` - Meteor spawn interval in seconds, per track (default 3.6)
+- `mspd` - Meteor head speed, in triangle-sizes per second (default 13)
+- `mtail` - Meteor tail length, in triangle-sizes (default 3.0)
+- `mlife` - Meteor streak lifetime in seconds (default 1.5)
+- `mtrk` - Number of concurrent meteor tracks, 1-4 (default 2)
+- `mdir` - Meteor travel direction: `random`, `right`, `down-right`, `down-left`, `left`, `up-left`, or `up-right` (default `random`)
+- `fisheye` - `true`/`false` - curve the lattice into the ball's spherical silhouette (default `false`)
+- `fstr` - Fisheye amount: 0 flat, 1 full spherical projection, >1 an exaggerated beyond-spherical bulge (default 0.8)
 - `panel` - `false` disables the settings panel/gear entirely (default enabled)
 
 ## Project Structure

@@ -739,6 +739,12 @@ export class EpcotSurface {
         this._beamPathFull = fullPaths;
         this._beamGradRadius = gradRadius;
         this._beamWidthScale = widthScale;
+        // Per-bulb gradient caches: position/radius are static per
+        // rebuild, only the color bucket varies - so each (vertex, bucket)
+        // gradient is created once, not per frame (the visibility floor
+        // makes essentially every bulb stroke every frame).
+        this._beamGradCache = new Array(this.vertexCount);
+        this._beamGradWhite = new Array(this.vertexCount);
     }
 
     /**
@@ -1876,14 +1882,20 @@ export class EpcotSurface {
                     if (bNorm >= 0.03) {
                         if (curvedBeams) {
                             // Curved arms following the warped lattice,
-                            // one stroke through a radial gradient
+                            // one stroke through a cached radial gradient
                             // centered on the bulb - continuous falloff,
                             // width scaled by local warp magnification
-                            const stops = gradStops[c];
-                            const g = ctx.createRadialGradient(x, y, 0, x, y, beamGradR[v]);
-                            g.addColorStop(0, stops[0]);
-                            g.addColorStop(0.35, stops[1]);
-                            g.addColorStop(1, stops[2]);
+                            let entry = this._beamGradCache[v];
+                            if (entry === undefined) entry = this._beamGradCache[v] = {};
+                            let g = entry[c];
+                            if (g === undefined) {
+                                const stops = gradStops[c];
+                                g = ctx.createRadialGradient(x, y, 0, x, y, beamGradR[v]);
+                                g.addColorStop(0, stops[0]);
+                                g.addColorStop(0.35, stops[1]);
+                                g.addColorStop(1, stops[2]);
+                                entry[c] = g;
+                            }
                             ctx.strokeStyle = g;
                             ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha;
                             ctx.lineWidth = beamBaseW * beamWScale[v];
@@ -1913,10 +1925,14 @@ export class EpcotSurface {
                     const oa = Math.sqrt(overlayNorm);
                     if (hasBeams && overlayNorm >= 0.05) {
                         if (curvedBeams) {
-                            const g = ctx.createRadialGradient(x, y, 0, x, y, beamGradR[v]);
-                            g.addColorStop(0, 'rgba(240,248,255,0.95)');
-                            g.addColorStop(0.35, 'rgba(240,248,255,0.45)');
-                            g.addColorStop(1, 'rgba(240,248,255,0)');
+                            let g = this._beamGradWhite[v];
+                            if (g === undefined) {
+                                g = ctx.createRadialGradient(x, y, 0, x, y, beamGradR[v]);
+                                g.addColorStop(0, 'rgba(240,248,255,0.95)');
+                                g.addColorStop(0.35, 'rgba(240,248,255,0.45)');
+                                g.addColorStop(1, 'rgba(240,248,255,0)');
+                                this._beamGradWhite[v] = g;
+                            }
                             ctx.strokeStyle = g;
                             ctx.globalAlpha = oa * beamAlpha;
                             ctx.lineWidth = beamBaseW * beamWScale[v];

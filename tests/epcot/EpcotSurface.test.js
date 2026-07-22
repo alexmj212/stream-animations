@@ -439,6 +439,48 @@ describe('EpcotSurface', () => {
       expect(spy).not.toHaveBeenCalled();
     });
 
+    it('meteor* settings (interval/speed/tail/life/tracks/direction) are live-updated, no rebuild', () => {
+      const { surface } = makeSurface();
+      const spy = vi.spyOn(surface, 'rebuild');
+
+      surface.applySettings({ meteorInterval: 5 });
+      surface.applySettings({ meteorSpeed: 20 });
+      surface.applySettings({ meteorTail: 4 });
+      surface.applySettings({ meteorLife: 2 });
+      surface.applySettings({ meteorTracks: 3 });
+      surface.applySettings({ meteorDirection: 'down-left' });
+
+      expect(surface.meteorInterval).toBe(5);
+      expect(surface.meteorSpeed).toBe(20);
+      expect(surface.meteorTail).toBe(4);
+      expect(surface.meteorLife).toBe(2);
+      expect(surface.meteorTracks).toBe(3);
+      expect(surface.meteorDirection).toBe('down-left');
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('fisheye/fisheyeStrength changes trigger a full rebuild', () => {
+      const { surface } = makeSurface({ fisheye: false });
+      const spy = vi.spyOn(surface, 'rebuild');
+
+      surface.applySettings({ fisheye: true });
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      surface.applySettings({ fisheyeStrength: 1.4 });
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(surface.fisheyeStrength).toBe(1.4);
+    });
+
+    it('fisheye/fisheyeStrength set to their current value do NOT rebuild', () => {
+      const { surface } = makeSurface({ fisheye: true, fisheyeStrength: 0.8 });
+      const spy = vi.spyOn(surface, 'rebuild');
+
+      surface.applySettings({ fisheye: true });
+      surface.applySettings({ fisheyeStrength: 0.8 });
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
     it('brightness/specularWeight/bounceStrength re-bake the floor layer without a full rebuild', () => {
       const { surface } = makeSurface();
       const rebuildSpy = vi.spyOn(surface, 'rebuild');
@@ -484,7 +526,9 @@ describe('EpcotSurface', () => {
         { bulbStyle: 'burst' },
         { beamLengthRatio: 1.5 },
         { glowRadiusRatio: 0.6 },
-        { shadowsEnabled: false }
+        { shadowsEnabled: false },
+        { fisheye: true },
+        { fisheyeStrength: 1.5 }
       ];
 
       for (const partial of cases) {
@@ -647,6 +691,274 @@ describe('EpcotSurface', () => {
       const a = toneMap(200, 100, 50);
       const b = toneMap(600, 300, 150);
       expect(Math.max(...b)).toBeGreaterThan(Math.max(...a));
+    });
+  });
+
+  describe('configurable meteors (config shape)', () => {
+    it('config.epcot.bulbs exposes the meteor* keys with sane defaults', () => {
+      const b = cfg.bulbs;
+      expect(typeof b.meteorInterval).toBe('number');
+      expect(typeof b.meteorSpeed).toBe('number');
+      expect(typeof b.meteorTail).toBe('number');
+      expect(typeof b.meteorLife).toBe('number');
+      expect(typeof b.meteorTracks).toBe('number');
+      expect(b.meteorTracks).toBeGreaterThanOrEqual(1);
+      expect(b.meteorTracks).toBeLessThanOrEqual(4);
+      expect(typeof b.meteorDirection).toBe('string');
+      expect(Array.isArray(b.meteorDirectionOptions)).toBe(true);
+      expect(b.meteorDirectionOptions).toContain(b.meteorDirection);
+      expect(b.meteorDirectionOptions).toEqual(['random', 'right', 'down-right', 'down-left', 'left', 'up-left', 'up-right']);
+    });
+
+    it('constructor accepts every meteorDirection option without throwing', () => {
+      for (const dir of cfg.bulbs.meteorDirectionOptions) {
+        const { surface } = makeSurface({ overlayPattern: 'meteor', meteorDirection: dir });
+        surface.update(0.5);
+        expect(() => surface.draw()).not.toThrow();
+      }
+    });
+  });
+
+  describe('meteor overlay: fixed direction locks streaks to that lattice axis', () => {
+    // Deterministic per-meteor spawn point/direction come from a hash of
+    // the meteor index only (not the seeded RNG), so the same
+    // (direction, canvas size, meteor params) always produces the same
+    // streak - these parameters were chosen empirically to land a
+    // non-trivial, in-bounds streak for every fixed direction.
+    const METEOR_OPTS = {
+      width: 1400, height: 1400,
+      overlayPattern: 'meteor',
+      meteorTracks: 1,
+      meteorSpeed: 6,
+      meteorTail: 3,
+      meteorLife: 1.5,
+      meteorInterval: 3.6
+    };
+
+    function angleFor(dir) {
+      const dirNames = cfg.bulbs.meteorDirectionOptions;
+      const fixedDir = dirNames.indexOf(dir) - 1;
+      return (fixedDir * Math.PI) / 3;
+    }
+
+    function collectLitPositions(surface) {
+      const out = new Float32Array(surface.vertexCount);
+      const lit = new Map();
+      for (let tau = 0.2; tau <= 1.1; tau += 0.1) {
+        surface._fillOverlay('meteor', tau, out);
+        for (let v = 0; v < surface.vertexCount; v++) {
+          if (out[v] > 0.02) lit.set(v, [surface.vertexPositions[v * 2], surface.vertexPositions[v * 2 + 1]]);
+        }
+      }
+      return [...lit.values()];
+    }
+
+    for (const dir of ['right', 'down-right', 'down-left', 'left', 'up-left', 'up-right']) {
+      it(`direction='${dir}': every lit vertex lies on the ${dir} lattice axis`, () => {
+        const { surface } = makeSurface({ ...METEOR_OPTS, meteorDirection: dir });
+        const points = collectLitPositions(surface);
+
+        expect(points.length).toBeGreaterThanOrEqual(3);
+
+        const angle = angleFor(dir);
+        const axisX = Math.cos(angle), axisY = Math.sin(angle);
+
+        // Every pairwise vector between lit points must be (anti-)parallel
+        // to the fixed axis - i.e. all lit bulbs sit on one straight line
+        // running along that direction, not scattered off-axis.
+        for (let i = 0; i < points.length; i++) {
+          for (let j = i + 1; j < points.length; j++) {
+            const dx = points[j][0] - points[i][0];
+            const dy = points[j][1] - points[i][1];
+            const len = Math.hypot(dx, dy);
+            if (len < 1) continue; // skip near-duplicate points
+            const dot = (dx / len) * axisX + (dy / len) * axisY;
+            expect(Math.abs(dot)).toBeGreaterThan(0.99);
+          }
+        }
+      });
+    }
+  });
+
+  describe('meteor overlay: track/interval clamping', () => {
+    function sampleOverlay(overrides, tSamples) {
+      const { surface } = makeSurface({ overlayPattern: 'meteor', ...overrides });
+      const out = new Float32Array(surface.vertexCount);
+      const snapshots = [];
+      for (const t of tSamples) {
+        surface._fillOverlay('meteor', t, out);
+        snapshots.push(Array.from(out));
+      }
+      return snapshots;
+    }
+
+    const T_SAMPLES = [0.3, 0.9, 1.6, 2.4, 3.1];
+
+    it('meteorTracks is clamped to a max of 4: 10 tracks behaves identically to 4', () => {
+      const a = sampleOverlay({ meteorTracks: 4 }, T_SAMPLES);
+      const b = sampleOverlay({ meteorTracks: 10 }, T_SAMPLES);
+      expect(b).toEqual(a);
+    });
+
+    it('meteorTracks is clamped to a min of 1: 0 and -3 tracks both behave like 1', () => {
+      const a = sampleOverlay({ meteorTracks: 1 }, T_SAMPLES);
+      const b = sampleOverlay({ meteorTracks: 0 }, T_SAMPLES);
+      const c = sampleOverlay({ meteorTracks: -3 }, T_SAMPLES);
+      expect(b).toEqual(a);
+      expect(c).toEqual(a);
+    });
+
+    it('meteorTracks=10 differs from meteorTracks=1 (clamping isn\'t just always collapsing to 1)', () => {
+      const a = sampleOverlay({ meteorTracks: 1 }, T_SAMPLES);
+      const b = sampleOverlay({ meteorTracks: 10 }, T_SAMPLES);
+      expect(b).not.toEqual(a);
+    });
+
+    it('meteorInterval is floored at 0.5s: 0.1 behaves identically to 0.5', () => {
+      const a = sampleOverlay({ meteorInterval: 0.5 }, T_SAMPLES);
+      const b = sampleOverlay({ meteorInterval: 0.1 }, T_SAMPLES);
+      expect(b).toEqual(a);
+    });
+
+    it('a larger meteorTail only ever lights a superset of a smaller tail\'s vertices (same head position)', () => {
+      const { surface } = makeSurface({ overlayPattern: 'meteor', meteorTracks: 1, meteorTail: 1 });
+      const outSmall = new Float32Array(surface.vertexCount);
+      surface._fillOverlay('meteor', 0.6, outSmall);
+
+      surface.applySettings({ meteorTail: 6 });
+      const outLarge = new Float32Array(surface.vertexCount);
+      surface._fillOverlay('meteor', 0.6, outLarge);
+
+      let smallCount = 0, largeCount = 0;
+      for (let v = 0; v < surface.vertexCount; v++) {
+        if (outSmall[v] > 0.02) { smallCount++; expect(outLarge[v]).toBeGreaterThan(0.02); }
+        if (outLarge[v] > 0.02) largeCount++;
+      }
+      expect(largeCount).toBeGreaterThanOrEqual(smallCount);
+    });
+  });
+
+  describe('fisheye: pure display projection', () => {
+    it('KEY INVARIANT: simulation geometry (vertex positions, normals, centroids) is IDENTICAL with fisheye on vs off, same seed', () => {
+      const canvasFlat = createMockCanvas(400, 300);
+      const flat = new EpcotSurface(createMockContext(canvasFlat), canvasFlat, { size: 90, random: seededRandom(5), fisheye: false });
+
+      const canvasFish = createMockCanvas(400, 300);
+      const fish = new EpcotSurface(createMockContext(canvasFish), canvasFish, { size: 90, random: seededRandom(5), fisheye: true, fisheyeStrength: 0.8 });
+
+      expect(Array.from(fish.vertexPositions)).toEqual(Array.from(flat.vertexPositions));
+      expect(Array.from(fish.normals)).toEqual(Array.from(flat.normals));
+      expect(Array.from(fish.centroids3D)).toEqual(Array.from(flat.centroids3D));
+
+      // Vertex-light x/y (fed into shading, not drawing) must also match.
+      for (let v = 0; v < flat.vertexCount; v++) {
+        expect(fish._vertexLights[v * 7]).toBeCloseTo(flat._vertexLights[v * 7], 6);
+        expect(fish._vertexLights[v * 7 + 1]).toBeCloseTo(flat._vertexLights[v * 7 + 1], 6);
+      }
+    });
+
+    it('_vertexDrawPos === vertexPositions (same array, not a copy) when fisheye is off', () => {
+      const { surface } = makeSurface({ fisheye: false });
+      expect(surface._vertexDrawPos).toBe(surface.vertexPositions);
+    });
+
+    it('_vertexDrawPos is a distinct, warped copy when fisheye is on', () => {
+      const { surface } = makeSurface({ fisheye: true, fisheyeStrength: 0.8 });
+      expect(surface._vertexDrawPos).not.toBe(surface.vertexPositions);
+      expect(Array.from(surface._vertexDrawPos)).not.toEqual(Array.from(surface.vertexPositions));
+    });
+
+    it('warp is monotonic radially (no folding) for strengths across 0.1..2', () => {
+      const width = 400, height = 300;
+      const cx = width / 2, cy = height / 2;
+
+      for (const strength of [0.1, 0.5, 0.8, 1, 1.2, 1.5, 2]) {
+        const { surface } = makeSurface({ width, height, fisheye: true, fisheyeStrength: strength });
+        const out = [0, 0];
+        let prevR = -Infinity;
+        for (let d = 5; d <= 260; d += 5) {
+          surface._warpPoint(cx + d, cy, out);
+          const r = Math.hypot(out[0] - cx, out[1] - cy);
+          expect(r).toBeGreaterThanOrEqual(prevR - 1e-6);
+          prevR = r;
+        }
+      }
+    });
+
+    it('warps the canvas corners to within the projection\'s bounding radius', () => {
+      const width = 400, height = 300;
+      const cx = width / 2, cy = height / 2;
+      const R = Math.hypot(cx, cy) * 1.18; // matches the internal R = hypot(cx,cy)*1.18
+
+      for (const strength of [0.1, 0.8, 1, 2]) {
+        const { surface } = makeSurface({ width, height, fisheye: true, fisheyeStrength: strength });
+        const out = [0, 0];
+        for (const [x, y] of [[0, 0], [width, 0], [0, height], [width, height]]) {
+          surface._warpPoint(x, y, out);
+          const r = Math.hypot(out[0] - cx, out[1] - cy);
+          expect(r).toBeLessThanOrEqual(R + 1e-6);
+        }
+      }
+    });
+  });
+
+  describe('curved beam paths (fisheye + starred bulb style)', () => {
+    it('populates _beamPathFull/_beamGradRadius/_beamWidthScale with one entry per vertex when fisheye is on and the style has arms', () => {
+      const { surface } = makeSurface({ fisheye: true, fisheyeStrength: 0.8, bulbStyle: 'star6' });
+
+      expect(surface._beamPathFull).not.toBeNull();
+      expect(surface._beamPathFull).toHaveLength(surface.vertexCount);
+      for (const p of surface._beamPathFull) expect(p).toBeInstanceOf(Path2D);
+
+      expect(surface._beamGradRadius).toHaveLength(surface.vertexCount);
+      for (const r of surface._beamGradRadius) expect(r).toBeGreaterThanOrEqual(1);
+
+      expect(surface._beamWidthScale).toHaveLength(surface.vertexCount);
+      for (const w of surface._beamWidthScale) {
+        // Float32Array storage rounds 0.35/2.2 to their nearest float32
+        // representation (e.g. 0.3499999940...), so allow a tiny epsilon.
+        expect(w).toBeGreaterThanOrEqual(0.35 - 1e-5);
+        expect(w).toBeLessThanOrEqual(2.2 + 1e-5);
+      }
+    });
+
+    it('is null when fisheye is off', () => {
+      const { surface } = makeSurface({ fisheye: false, bulbStyle: 'star6' });
+      expect(surface._beamPathFull).toBeNull();
+      expect(surface._beamGradRadius).toBeNull();
+      expect(surface._beamWidthScale).toBeNull();
+    });
+
+    it('is null when the bulb style has no arms (style "none"), even with fisheye on', () => {
+      const { surface } = makeSurface({ fisheye: true, bulbStyle: 'none' });
+      expect(surface._beamPathFull).toBeNull();
+      expect(surface._beamGradRadius).toBeNull();
+      expect(surface._beamWidthScale).toBeNull();
+    });
+
+    it('draw() with fisheye + curved beams does not throw across a few frames', () => {
+      const { surface } = makeSurface({ fisheye: true, fisheyeStrength: 1.1, bulbStyle: 'star6', pattern: 'chase' });
+      for (let i = 0; i < 5; i++) {
+        surface.update(0.1);
+        expect(() => surface.draw()).not.toThrow();
+      }
+    });
+  });
+
+  describe('buildFacets heightScales integration (via fisheye config, currently unused)', () => {
+    it('EpcotSurface does not currently pass heightScales to buildFacets - spike heights are identical with fisheye on vs off', () => {
+      // See geometry.test.js's "buildFacets heightScales" suite for the
+      // pure-function behavior; this just confirms EpcotSurface's own
+      // call site (rebuild()) doesn't wire it up yet, consistent with the
+      // "pure display projection" design (fisheye never touches the
+      // simulation, including spike heights) - flagged in the report as a
+      // fully unused parameter from EpcotSurface's perspective.
+      const canvasFlat = createMockCanvas(300, 220);
+      const flat = new EpcotSurface(createMockContext(canvasFlat), canvasFlat, { size: 90, random: seededRandom(3), fisheye: false });
+      const canvasFish = createMockCanvas(300, 220);
+      const fish = new EpcotSurface(createMockContext(canvasFish), canvasFish, { size: 90, random: seededRandom(3), fisheye: true, fisheyeStrength: 1.5 });
+
+      expect(Array.from(fish.centroids3D)).toEqual(Array.from(flat.centroids3D));
     });
   });
 });

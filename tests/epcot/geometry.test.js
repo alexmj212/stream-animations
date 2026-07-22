@@ -137,6 +137,59 @@ describe('buildFacets', () => {
     const b = buildFacets(triangles, triCount, 30, 0.15, () => 0.9);
     expect(Array.from(a.centroids3D)).not.toEqual(Array.from(b.centroids3D));
   });
+
+  describe('heightScales param', () => {
+    it('omitting heightScales (or passing null) leaves apex height unscaled', () => {
+      const { triangles, triCount } = buildTriangleGrid(200, 200, 90);
+      const noArg = buildFacets(triangles, triCount, 30, 0, () => 0.5);
+      const explicitNull = buildFacets(triangles, triCount, 30, 0, () => 0.5, null);
+      expect(Array.from(explicitNull.centroids3D)).toEqual(Array.from(noArg.centroids3D));
+    });
+
+    it('scales each triangle\'s apex Z (and therefore its facets\' centroid Z) by that triangle\'s heightScales entry', () => {
+      // spikeVariation=0 so every triangle's unscaled apexZ is exactly
+      // spikeHeight, making the scale factor's effect exact and easy to check.
+      const { triangles, triCount } = buildTriangleGrid(200, 200, 90);
+      const spikeHeight = 30;
+      const unscaled = buildFacets(triangles, triCount, spikeHeight, 0, () => 0.5, null);
+
+      const scales = new Float32Array(triCount);
+      for (let t = 0; t < triCount; t++) scales[t] = 1 + (t % 3); // 1, 2, 3, 1, 2, 3, ...
+      const scaled = buildFacets(triangles, triCount, spikeHeight, 0, () => 0.5, scales);
+
+      for (let t = 0; t < triCount; t++) {
+        for (let e = 0; e < 3; e++) {
+          const f = t * 3 + e;
+          // centroids3D.z = (0 + 0 + apexZ) / 3, so apexZ = z * 3.
+          const unscaledApexZ = unscaled.centroids3D[f * 3 + 2] * 3;
+          const scaledApexZ = scaled.centroids3D[f * 3 + 2] * 3;
+          expect(scaledApexZ).toBeCloseTo(unscaledApexZ * scales[t], 4);
+        }
+      }
+    });
+
+    it('a heightScales entry of 1 for every triangle is equivalent to no scaling at all', () => {
+      const { triangles, triCount } = buildTriangleGrid(200, 200, 90);
+      const allOnes = new Float32Array(triCount).fill(1);
+      const unscaled = buildFacets(triangles, triCount, 30, 0.15, seededRandom());
+      const scaledByOnes = buildFacets(triangles, triCount, 30, 0.15, seededRandom(), allOnes);
+      expect(Array.from(scaledByOnes.centroids3D)).toEqual(Array.from(unscaled.centroids3D));
+    });
+
+    it('normals still come out unit length and z>0 with non-trivial heightScales', () => {
+      const { triangles, triCount } = buildTriangleGrid(200, 200, 90);
+      const scales = new Float32Array(triCount);
+      for (let t = 0; t < triCount; t++) scales[t] = 0.3 + (t % 5) * 0.4; // varied, including <1 and >1
+      const { normals, facetCount } = buildFacets(triangles, triCount, 30, 0.15, seededRandom(), scales);
+
+      for (let f = 0; f < facetCount; f++) {
+        const o = f * 3;
+        const len = Math.hypot(normals[o], normals[o + 1], normals[o + 2]);
+        expect(len).toBeCloseTo(1, 5);
+        expect(normals[o + 2]).toBeGreaterThan(0);
+      }
+    });
+  });
 });
 
 describe('buildLatticeVertices', () => {
