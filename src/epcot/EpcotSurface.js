@@ -256,6 +256,7 @@ export class EpcotSurface {
         if (s.bulbStyle !== undefined && s.bulbStyle !== this.bulbStyle) { this.bulbStyle = s.bulbStyle; needsRebuild = true; }
         if (s.beamLengthRatio !== undefined && s.beamLengthRatio !== this.beamLengthRatio) { this.beamLengthRatio = s.beamLengthRatio; needsRebuild = true; }
         if (s.fisheye !== undefined && s.fisheye !== this.fisheye) { this.fisheye = s.fisheye; needsRebuild = true; }
+        if (s.fisheyeStrength !== undefined && s.fisheyeStrength !== this.fisheyeStrength) { this.fisheyeStrength = s.fisheyeStrength; needsRebuild = true; }
         if (s.glowRadiusRatio !== undefined && s.glowRadiusRatio !== this.bulbGlowRadiusRatio) { this.bulbGlowRadiusRatio = s.glowRadiusRatio; needsRebuild = true; }
 
         if (needsRebuild) this.rebuild();
@@ -292,7 +293,14 @@ export class EpcotSurface {
                 const dist = Math.hypot(dx, dy);
                 if (dist < 1e-6) { out[0] = x; out[1] = y; return; }
                 const r = Math.min(1, dist / R);
-                const rw = (1 - s) * r + s * Math.sin(r * Math.PI / 2);
+                // s <= 1: blend flat -> spherical projection.
+                // s > 1: raise the projection to 1/s - a steeper bulge
+                // (center magnified harder, edges crushed further) that
+                // stays monotonic, for the beyond-spherical look.
+                const sphere = Math.sin(r * Math.PI / 2);
+                const rw = s <= 1
+                    ? (1 - s) * r + s * sphere
+                    : Math.pow(sphere, 1 / s);
                 const f = (rw * R) / dist;
                 out[0] = cx + dx * f;
                 out[1] = cy + dy * f;
@@ -649,26 +657,28 @@ export class EpcotSurface {
 
         const near = new Array(this.vertexCount);
         const far = new Array(this.vertexCount);
+        const wEnd = [0, 0];
         for (let v = 0; v < this.vertexCount; v++) {
             const ox = orig[v * 2], oy = orig[v * 2 + 1];
+            warp(ox, oy, w2);
+            const sx = w2[0], sy = w2[1];
             const pn = new Path2D();
             const pf = new Path2D();
             for (let a = 0; a < arms; a++) {
                 const ang = offset + (a * 2 * Math.PI) / arms;
-                const ax = Math.cos(ang), ay = Math.sin(ang);
-                // near segment: 0 -> 0.55L, far: 0.45L -> L (overlap keeps
-                // the joint continuous), 3 samples each - enough curvature
-                // over ~one triangle of length.
-                for (let i = 0; i <= 2; i++) {
-                    const t = (0.55 * L * i) / 2;
-                    warp(ox + ax * t, oy + ay * t, w2);
-                    if (i === 0) pn.moveTo(w2[0], w2[1]); else pn.lineTo(w2[0], w2[1]);
-                }
-                for (let i = 0; i <= 2; i++) {
-                    const t = 0.45 * L + (0.55 * L * i) / 2;
-                    warp(ox + ax * t, oy + ay * t, w2);
-                    if (i === 0) pf.moveTo(w2[0], w2[1]); else pf.lineTo(w2[0], w2[1]);
-                }
+                // The lattice EDGES render as straight chords between
+                // warped vertices - so each arm must be the straight chord
+                // from the warped bulb to the warped arm end (which for
+                // lattice-aligned styles is ~the neighboring bulb), not a
+                // smooth curve through the warp, or the ray bows off the
+                // seam line it runs along.
+                warp(ox + Math.cos(ang) * L, oy + Math.sin(ang) * L, wEnd);
+                const mxN = sx + (wEnd[0] - sx) * 0.55;
+                const myN = sy + (wEnd[1] - sy) * 0.55;
+                pn.moveTo(sx, sy);
+                pn.lineTo(mxN, myN);
+                pf.moveTo(sx + (wEnd[0] - sx) * 0.45, sy + (wEnd[1] - sy) * 0.45);
+                pf.lineTo(wEnd[0], wEnd[1]);
             }
             near[v] = pn;
             far[v] = pf;

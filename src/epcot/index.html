@@ -222,6 +222,9 @@
             <label for="ctlFisheye">Fisheye (ball curve)</label>
         </div>
 
+        <label>Fisheye amount <span class="val" id="valFStr"></span></label>
+        <div class="row"><input type="range" id="ctlFStr" min="0.1" max="2" step="0.05"></div>
+
         <button id="copyUrl">Copy URL for OBS</button>
     </div>
 
@@ -273,6 +276,7 @@
             mtrk: numParam('mtrk', cfg.bulbs.meteorTracks, 1, 4),
             mdir: choiceParam('mdir', cfg.bulbs.meteorDirection, cfg.bulbs.meteorDirectionOptions),
             fisheye: urlParams.get('fisheye') === null ? cfg.fisheye.enabled : urlParams.get('fisheye') === 'true',
+            fstr: numParam('fstr', cfg.fisheye.strength, 0.1, 2),
             speed: getSpeedFromURL(1.0),
             size: getSizeFromURL(cfg.size.default, cfg.size.min, cfg.size.max),
             brightness: getBrightnessFromURL(1.0),
@@ -339,6 +343,7 @@
             meteorTracks: settings.mtrk,
             meteorDirection: settings.mdir,
             fisheye: settings.fisheye,
+            fisheyeStrength: settings.fstr,
             speed: settings.speed,
             brightness: settings.brightness,
             gapWidth: settings.gap,
@@ -400,6 +405,7 @@
                 mtrk: cfg.bulbs.meteorTracks,
                 mdir: cfg.bulbs.meteorDirection,
                 fisheye: cfg.fisheye.enabled,
+                fstr: cfg.fisheye.strength,
                 speed: 1.0,
                 size: cfg.size.default,
                 brightness: 1.0,
@@ -430,6 +436,7 @@
                 set('mtrk', settings.mtrk);
                 set('mdir', settings.mdir);
                 set('fisheye', settings.fisheye);
+                set('fstr', settings.fstr);
                 set('speed', settings.speed);
                 set('size', settings.size);
                 set('brightness', settings.brightness);
@@ -479,6 +486,7 @@
                 ['ctlMTail', 'valMTail', 'mtail', (v) => surface.applySettings({ meteorTail: v })],
                 ['ctlMLife', 'valMLife', 'mlife', (v) => surface.applySettings({ meteorLife: v })],
                 ['ctlMTrk', 'valMTrk', 'mtrk', (v) => surface.applySettings({ meteorTracks: v })],
+                ['ctlFStr', 'valFStr', 'fstr', (v) => surface.applySettings({ fisheyeStrength: v })],
                 ['ctlSpeed', 'valSpeed', 'speed', (v) => surface.applySettings({ speed: v })],
                 ['ctlSize', 'valSize', 'size', (v) => surface.applySettings({ size: v })],
                 ['ctlGap', 'valGap', 'gap', (v) => surface.applySettings({ gapWidth: v })],
