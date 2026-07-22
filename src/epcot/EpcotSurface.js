@@ -639,13 +639,14 @@ export class EpcotSurface {
      * arms can't be straight sprites. Each arm is traced in the ORIGINAL
      * (pre-warp) space along its axis, sampled, and passed point-by-point
      * through the warp, producing arms that bend exactly with the rows
-     * they run along. Split into near/far Path2D segments per bulb so the
-     * per-frame stroke can approximate the sprite gradient's taper.
+     * they run along. Split into three non-overlapping taper segments per
+     * bulb so the per-frame strokes approximate the sprite gradient's
+     * fade in both alpha and width.
      * @private
      */
     _buildCurvedBeamPaths() {
-        this._beamPathsNear = null;
-        this._beamPathsFar = null;
+        this._beamSegs = null;
+        this._beamWidthScale = null;
         if (!this.fisheye || !this._warpPoint || this._starArms === 0) return;
 
         const warp = this._warpPoint;
@@ -686,23 +687,38 @@ export class EpcotSurface {
             path.lineTo(w2[0], w2[1]);
         };
 
-        const near = new Array(this.vertexCount);
-        const far = new Array(this.vertexCount);
+        // Three NON-overlapping taper segments per arm set - alpha and
+        // width step down toward the tip, approximating the sprite
+        // gradient's fade (overlapping segments double up under the
+        // additive blend into a visible bright band; a single segment
+        // ends in an abrupt hard tip).
+        const segs = [new Array(this.vertexCount), new Array(this.vertexCount), new Array(this.vertexCount)];
+        const SEG_BOUNDS = [[0, 0.4], [0.4, 0.75], [0.75, 1]];
+        // Local warp magnification per bulb: scales beam width so rays
+        // thicken with the magnified center triangles and thin toward the
+        // compressed rim, instead of one constant width everywhere.
+        const widthScale = new Float32Array(this.vertexCount);
         for (let v = 0; v < this.vertexCount; v++) {
             const ox = orig[v * 2], oy = orig[v * 2 + 1];
-            const pn = new Path2D();
-            const pf = new Path2D();
+            const paths = [new Path2D(), new Path2D(), new Path2D()];
+            let chordSum = 0;
             for (let a = 0; a < arms; a++) {
                 const ang = offset + (a * 2 * Math.PI) / arms;
                 const ax = Math.cos(ang), ay = Math.sin(ang);
-                traceArm(pn, ox, oy, ax, ay, 0, 0.55 * L);
-                traceArm(pf, ox, oy, ax, ay, 0.45 * L, L);
+                for (let sIdx = 0; sIdx < 3; sIdx++) {
+                    traceArm(paths[sIdx], ox, oy, ax, ay, SEG_BOUNDS[sIdx][0] * L, SEG_BOUNDS[sIdx][1] * L);
+                }
+                warp(ox, oy, wA);
+                warp(ox + ax * step, oy + ay * step, wB);
+                chordSum += Math.hypot(wB[0] - wA[0], wB[1] - wA[1]);
             }
-            near[v] = pn;
-            far[v] = pf;
+            widthScale[v] = Math.max(0.35, Math.min(2.2, chordSum / (arms * step)));
+            segs[0][v] = paths[0];
+            segs[1][v] = paths[1];
+            segs[2][v] = paths[2];
         }
-        this._beamPathsNear = near;
-        this._beamPathsFar = far;
+        this._beamSegs = segs;
+        this._beamWidthScale = widthScale;
     }
 
     /**
@@ -1789,15 +1805,18 @@ export class EpcotSurface {
             const bulbFloor = this.bulbFloor;
             const pointSprites = this._pointSprites;
             const pointR = this._pointRadius;
-            const curvedBeams = this.fisheye && hasBeams && this._beamPathsNear !== null;
+            const curvedBeams = this.fisheye && hasBeams && this._beamSegs !== null;
             const strokeColors = this._spriteStrokeColors;
+            const beamSegs = this._beamSegs;
+            const beamWScale = this._beamWidthScale;
+            const beamBaseW = this.beamWidthPx * this._starWidthScale;
+            // Per-segment taper: alpha and width step down toward the tip
+            const SEG_ALPHA = [0.95, 0.5, 0.2];
+            const SEG_WIDTH = [1, 0.7, 0.45];
 
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            if (curvedBeams) {
-                ctx.lineWidth = this.beamWidthPx * this._starWidthScale;
-                ctx.lineCap = 'round';
-            }
+            if (curvedBeams) ctx.lineCap = 'round';
             for (let v = 0; v < vertexCount; v++) {
                 const o = v * 7;
                 // Pattern drive only - the floor's sprite visibility is
@@ -1829,12 +1848,17 @@ export class EpcotSurface {
                     const bNorm = bulbFloor * 0.45 + (1 - bulbFloor * 0.45) * norm;
                     if (bNorm >= 0.03) {
                         if (curvedBeams) {
-                            // Curved arms that follow the warped lattice
+                            // Curved arms following the warped lattice,
+                            // tapered over three segments, width scaled by
+                            // the local warp magnification
+                            const a0 = Math.sqrt(bNorm) * beamAlpha;
+                            const w0 = beamBaseW * beamWScale[v];
                             ctx.strokeStyle = strokeColors[c];
-                            ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha * 0.85;
-                            ctx.stroke(this._beamPathsNear[v]);
-                            ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha * 0.3;
-                            ctx.stroke(this._beamPathsFar[v]);
+                            for (let sIdx = 0; sIdx < 3; sIdx++) {
+                                ctx.globalAlpha = a0 * SEG_ALPHA[sIdx];
+                                ctx.lineWidth = w0 * SEG_WIDTH[sIdx];
+                                ctx.stroke(beamSegs[sIdx][v]);
+                            }
                         } else {
                             ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha;
                             ctx.drawImage(beamSprites[c], (x - beamL - 1) | 0, (y - beamL - 1) | 0);
@@ -1860,11 +1884,13 @@ export class EpcotSurface {
                     const oa = Math.sqrt(overlayNorm);
                     if (hasBeams && overlayNorm >= 0.05) {
                         if (curvedBeams) {
+                            const w0 = beamBaseW * beamWScale[v];
                             ctx.strokeStyle = 'rgb(240,248,255)';
-                            ctx.globalAlpha = oa * beamAlpha * 0.85;
-                            ctx.stroke(this._beamPathsNear[v]);
-                            ctx.globalAlpha = oa * beamAlpha * 0.3;
-                            ctx.stroke(this._beamPathsFar[v]);
+                            for (let sIdx = 0; sIdx < 3; sIdx++) {
+                                ctx.globalAlpha = oa * beamAlpha * SEG_ALPHA[sIdx];
+                                ctx.lineWidth = w0 * SEG_WIDTH[sIdx];
+                                ctx.stroke(beamSegs[sIdx][v]);
+                            }
                         } else {
                             ctx.globalAlpha = oa * beamAlpha;
                             ctx.drawImage(this._whiteBeamSprite, (x - beamL - 1) | 0, (y - beamL - 1) | 0);
