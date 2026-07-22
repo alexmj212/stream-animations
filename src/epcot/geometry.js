@@ -187,9 +187,10 @@ export function expandVertexIndexToFacets(triVertexIndex, triCount) {
  * @param {number} spikeHeight - Base spike height in pixels (world Z of the apex)
  * @param {number} spikeVariation - Fractional +/- random variation applied per triangle (e.g. 0.15 = +/-15%)
  * @param {Function} random - Deterministic RNG (0..1), matches options.random convention used across the repo
+ * @param {Float32Array|null} [heightScales] - Optional per-triangle spike height multiplier (fisheye: keeps relief proportional to each triangle's warped size, so compressed rim spikes don't become disproportionately steep)
  * @returns {{positions2D: Float32Array, normals: Float32Array, centroids3D: Float32Array, facetCount: number}}
  */
-export function buildFacets(triangles, triCount, spikeHeight, spikeVariation, random) {
+export function buildFacets(triangles, triCount, spikeHeight, spikeVariation, random, heightScales = null) {
   const rand = random || Math.random;
   const facetCount = triCount * 3;
 
@@ -213,7 +214,7 @@ export function buildFacets(triangles, triCount, spikeHeight, spikeVariation, ra
     // Seeded per-triangle variation so the surface reads as organic rather
     // than perfectly uniform, while remaining deterministic under a seeded RNG.
     const variation = 1 + (rand() - 0.5) * 2 * spikeVariation;
-    const apexZ = spikeHeight * variation;
+    const apexZ = spikeHeight * variation * (heightScales ? heightScales[t] : 1);
 
     const edges = [
       [ax, ay, bx, by],

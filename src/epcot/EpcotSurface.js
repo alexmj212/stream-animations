@@ -274,16 +274,18 @@ export class EpcotSurface {
         const grid = buildTriangleGrid(width, height, this.size);
         const lattice = buildLatticeVertices(grid.triangles, grid.triCount, this.vertexEpsilon);
 
-        // Fisheye: warp every coordinate radially around screen center so
-        // the flat pattern reads as the round ball. Dedup ran on the
-        // original grid; the warp (a pure function of (x,y)) is applied
-        // identically to the triangle coords and the deduped vertex
-        // positions, so indices stay consistent and the whole pipeline
-        // (spikes, normals, light positions, shadows, bakes) sees the
-        // curved lattice. Original vertex positions are kept so the beam
-        // arms can be re-traced through the warp as true curves.
+        // Fisheye: a PURE DISPLAY PROJECTION. All lighting, shading,
+        // shadows, and pattern math run on the original flat lattice -
+        // identical to the non-fisheye look - and only the DRAWING
+        // coordinates (facet paths, seams, bulb positions, beam paths)
+        // are warped. Warping the simulation itself makes every triangle
+        // scalene: facet normals, spike slopes, and light distances go
+        // irregular, producing bright sliver facets and broken specular
+        // chains that read as phantom extra beams.
         this._warpPoint = null;
         this._originalPositions = null;
+        let drawTriangles = grid.triangles;
+        this._vertexDrawPos = lattice.positions;
         if (this.fisheye) {
             const cx = width / 2, cy = height / 2;
             const R = Math.hypot(cx, cy) * 1.18; // margin triangles stay inside r=1
@@ -306,21 +308,24 @@ export class EpcotSurface {
                 out[1] = cy + dy * f;
             };
             this._warpPoint = warp;
-            this._originalPositions = Float32Array.from(lattice.positions);
+            // Originals feed the simulation and the beam-path tracer; the
+            // warped copies are used ONLY for drawing.
+            this._originalPositions = lattice.positions;
 
             const w2 = [0, 0];
-            const tri = grid.triangles;
-            for (let i = 0; i < tri.length; i += 2) {
-                warp(tri[i], tri[i + 1], w2);
-                tri[i] = w2[0];
-                tri[i + 1] = w2[1];
+            drawTriangles = Float32Array.from(grid.triangles);
+            for (let i = 0; i < drawTriangles.length; i += 2) {
+                warp(drawTriangles[i], drawTriangles[i + 1], w2);
+                drawTriangles[i] = w2[0];
+                drawTriangles[i + 1] = w2[1];
             }
-            const pos = lattice.positions;
-            for (let i = 0; i < pos.length; i += 2) {
-                warp(pos[i], pos[i + 1], w2);
-                pos[i] = w2[0];
-                pos[i + 1] = w2[1];
+            const drawPos = Float32Array.from(lattice.positions);
+            for (let i = 0; i < drawPos.length; i += 2) {
+                warp(drawPos[i], drawPos[i + 1], w2);
+                drawPos[i] = w2[0];
+                drawPos[i + 1] = w2[1];
             }
+            this._vertexDrawPos = drawPos;
         }
 
         const facets = buildFacets(
@@ -608,12 +613,22 @@ export class EpcotSurface {
         // stroke() pass (measured at ~31% of frame time).
         const inflate = this.seamInflatePx;
         const positions2D = this.positions2D;
+        const warpFn = this._warpPoint;
+        const wp = [0, 0];
         this.paths = new Array(this.facetCount);
         for (let f = 0; f < this.facetCount; f++) {
             const o = f * 6;
-            const ax = positions2D[o], ay = positions2D[o + 1];
-            const bx = positions2D[o + 2], by = positions2D[o + 3];
-            const cxx = positions2D[o + 4], cyy = positions2D[o + 5];
+            let ax = positions2D[o], ay = positions2D[o + 1];
+            let bx = positions2D[o + 2], by = positions2D[o + 3];
+            let cxx = positions2D[o + 4], cyy = positions2D[o + 5];
+
+            // Fisheye: warp only the drawn outline; the shading math keeps
+            // the original coordinates.
+            if (warpFn) {
+                warpFn(ax, ay, wp); ax = wp[0]; ay = wp[1];
+                warpFn(bx, by, wp); bx = wp[0]; by = wp[1];
+                warpFn(cxx, cyy, wp); cxx = wp[0]; cyy = wp[1];
+            }
 
             const cx0 = (ax + bx + cxx) / 3;
             const cy0 = (ay + by + cyy) / 3;
@@ -628,7 +643,7 @@ export class EpcotSurface {
 
         this._colorCache.clear();
 
-        this._rebuildGapLayer(grid, width, height);
+        this._rebuildGapLayer({ triangles: drawTriangles, triCount: grid.triCount }, width, height);
         this._rebuildBulbSprites();
         this._buildCurvedBeamPaths();
         this._rebuildFloorLayer();
@@ -645,7 +660,8 @@ export class EpcotSurface {
      * @private
      */
     _buildCurvedBeamPaths() {
-        this._beamSegs = null;
+        this._beamPathFull = null;
+        this._beamGradRadius = null;
         this._beamWidthScale = null;
         if (!this.fisheye || !this._warpPoint || this._starArms === 0) return;
 
@@ -687,41 +703,41 @@ export class EpcotSurface {
             path.lineTo(w2[0], w2[1]);
         };
 
-        // Six NON-overlapping taper segments per arm set, stroked with
-        // BUTT caps and a smooth falloff profile - it's light, so it must
-        // fade off continuously. (Round caps paint bright semicircular
-        // blobs under the additive blend: the segment joints read as a
-        // second set of shorter beam tips.)
-        const SEG_COUNT = 6;
-        const segs = [];
-        const SEG_BOUNDS = [];
-        for (let i = 0; i < SEG_COUNT; i++) {
-            segs.push(new Array(this.vertexCount));
-            SEG_BOUNDS.push([i / SEG_COUNT, (i + 1) / SEG_COUNT]);
-        }
+        // ONE path per bulb containing all its arms, stroked once per
+        // frame with a radial gradient centered on the bulb - a true
+        // continuous light falloff. (Any segmented-stroke approximation
+        // kinks at joints, gaps at caps, and steps in width - along
+        // shared rows the interleaved segments of opposing arms read as
+        // broken double lines.)
         // Local warp magnification per bulb: scales beam width so rays
         // thicken with the magnified center triangles and thin toward the
         // compressed rim, instead of one constant width everywhere.
         const widthScale = new Float32Array(this.vertexCount);
+        const fullPaths = new Array(this.vertexCount);
+        const gradRadius = new Float32Array(this.vertexCount);
         for (let v = 0; v < this.vertexCount; v++) {
             const ox = orig[v * 2], oy = orig[v * 2 + 1];
-            const paths = [];
-            for (let i = 0; i < SEG_COUNT; i++) paths.push(new Path2D());
+            const path = new Path2D();
             let chordSum = 0;
+            let maxR = 1;
+            warp(ox, oy, wA);
+            const sx = wA[0], sy = wA[1];
             for (let a = 0; a < arms; a++) {
                 const ang = offset + (a * 2 * Math.PI) / arms;
                 const ax = Math.cos(ang), ay = Math.sin(ang);
-                for (let sIdx = 0; sIdx < SEG_COUNT; sIdx++) {
-                    traceArm(paths[sIdx], ox, oy, ax, ay, SEG_BOUNDS[sIdx][0] * L, SEG_BOUNDS[sIdx][1] * L);
-                }
-                warp(ox, oy, wA);
+                traceArm(path, ox, oy, ax, ay, 0, L);
                 warp(ox + ax * step, oy + ay * step, wB);
                 chordSum += Math.hypot(wB[0] - wA[0], wB[1] - wA[1]);
+                warp(ox + ax * L, oy + ay * L, wB);
+                const armR = Math.hypot(wB[0] - sx, wB[1] - sy);
+                if (armR > maxR) maxR = armR;
             }
             widthScale[v] = Math.max(0.35, Math.min(2.2, chordSum / (arms * step)));
-            for (let sIdx = 0; sIdx < SEG_COUNT; sIdx++) segs[sIdx][v] = paths[sIdx];
+            fullPaths[v] = path;
+            gradRadius[v] = maxR;
         }
-        this._beamSegs = segs;
+        this._beamPathFull = fullPaths;
+        this._beamGradRadius = gradRadius;
         this._beamWidthScale = widthScale;
     }
 
@@ -1111,7 +1127,7 @@ export class EpcotSurface {
         this._glowSprites = [];
         this._beamSprites = [];
         this._pointSprites = [];
-        this._spriteStrokeColors = [];
+        this._strokeGradStops = [];
         this._pointRadius = Math.max(2, coreR * 0.55);
 
         // Sprite color list: exact palette colors for palette schemes, or
@@ -1130,8 +1146,14 @@ export class EpcotSurface {
             const g255 = Math.round(col.g * 255);
             const b255 = Math.round(col.b * 255);
 
-            // Solid stroke color for fisheye's curved beam paths
-            this._spriteStrokeColors.push(`rgb(${Math.min(255, r255 + 60)},${Math.min(255, g255 + 60)},${Math.min(255, b255 + 60)})`);
+            // Gradient stop strings for fisheye's curved beam strokes:
+            // bright near the bulb, fading continuously to transparent
+            const br = Math.min(255, r255 + 90), bg = Math.min(255, g255 + 90), bb = Math.min(255, b255 + 90);
+            this._strokeGradStops.push([
+                `rgba(${br},${bg},${bb},0.95)`,
+                `rgba(${r255},${g255},${b255},0.45)`,
+                `rgba(${r255},${g255},${b255},0)`
+            ]);
 
             // Glow: white-hot core -> saturated color -> transparent
             const glowCanvas = document.createElement('canvas');
@@ -1809,26 +1831,17 @@ export class EpcotSurface {
             const bulbFloor = this.bulbFloor;
             const pointSprites = this._pointSprites;
             const pointR = this._pointRadius;
-            const curvedBeams = this.fisheye && hasBeams && this._beamSegs !== null;
-            const strokeColors = this._spriteStrokeColors;
-            const beamSegs = this._beamSegs;
+            const curvedBeams = this.fisheye && hasBeams && this._beamPathFull !== null;
+            const drawPos = this._vertexDrawPos;
+            const beamPaths = this._beamPathFull;
+            const beamGradR = this._beamGradRadius;
             const beamWScale = this._beamWidthScale;
             const beamBaseW = this.beamWidthPx * this._starWidthScale;
-            // Smooth light falloff along the arm: alpha ~ (1-t)^1.7 at
-            // each segment's midpoint, width easing down with it. Butt
-            // caps (set below) keep joints seamless - no cap blobs.
-            const nSegs = beamSegs ? beamSegs.length : 0;
-            const SEG_ALPHA = [];
-            const SEG_WIDTH = [];
-            for (let i = 0; i < nSegs; i++) {
-                const tm = (i + 0.5) / nSegs;
-                SEG_ALPHA.push(Math.pow(1 - tm, 1.7));
-                SEG_WIDTH.push(0.45 + 0.55 * (1 - tm));
-            }
+            const gradStops = this._strokeGradStops;
 
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            if (curvedBeams) ctx.lineCap = 'butt';
+            if (curvedBeams) ctx.lineCap = 'round';
             for (let v = 0; v < vertexCount; v++) {
                 const o = v * 7;
                 // Pattern drive only - the floor's sprite visibility is
@@ -1837,8 +1850,10 @@ export class EpcotSurface {
                 const norm = Math.min(1, Math.max(0, vertexLights[o + 6] - floorI) / peak);
                 const overlayNorm = hasOverlay ? Math.min(1, fieldC[v]) : 0;
 
-                const x = vertexLights[o];
-                const y = vertexLights[o + 1];
+                // Draw at the (possibly warped) display position; shading
+                // used the original coordinates.
+                const x = drawPos[v * 2];
+                const y = drawPos[v * 2 + 1];
                 const c = (buckets[v] + bucketShift) % this._spriteCount;
 
                 // LED point: a bulb at its lowest never goes transparent -
@@ -1861,16 +1876,18 @@ export class EpcotSurface {
                     if (bNorm >= 0.03) {
                         if (curvedBeams) {
                             // Curved arms following the warped lattice,
-                            // tapered over three segments, width scaled by
-                            // the local warp magnification
-                            const a0 = Math.sqrt(bNorm) * beamAlpha;
-                            const w0 = beamBaseW * beamWScale[v];
-                            ctx.strokeStyle = strokeColors[c];
-                            for (let sIdx = 0; sIdx < nSegs; sIdx++) {
-                                ctx.globalAlpha = a0 * SEG_ALPHA[sIdx];
-                                ctx.lineWidth = w0 * SEG_WIDTH[sIdx];
-                                ctx.stroke(beamSegs[sIdx][v]);
-                            }
+                            // one stroke through a radial gradient
+                            // centered on the bulb - continuous falloff,
+                            // width scaled by local warp magnification
+                            const stops = gradStops[c];
+                            const g = ctx.createRadialGradient(x, y, 0, x, y, beamGradR[v]);
+                            g.addColorStop(0, stops[0]);
+                            g.addColorStop(0.35, stops[1]);
+                            g.addColorStop(1, stops[2]);
+                            ctx.strokeStyle = g;
+                            ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha;
+                            ctx.lineWidth = beamBaseW * beamWScale[v];
+                            ctx.stroke(beamPaths[v]);
                         } else {
                             ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha;
                             ctx.drawImage(beamSprites[c], (x - beamL - 1) | 0, (y - beamL - 1) | 0);
@@ -1896,13 +1913,14 @@ export class EpcotSurface {
                     const oa = Math.sqrt(overlayNorm);
                     if (hasBeams && overlayNorm >= 0.05) {
                         if (curvedBeams) {
-                            const w0 = beamBaseW * beamWScale[v];
-                            ctx.strokeStyle = 'rgb(240,248,255)';
-                            for (let sIdx = 0; sIdx < nSegs; sIdx++) {
-                                ctx.globalAlpha = oa * beamAlpha * SEG_ALPHA[sIdx];
-                                ctx.lineWidth = w0 * SEG_WIDTH[sIdx];
-                                ctx.stroke(beamSegs[sIdx][v]);
-                            }
+                            const g = ctx.createRadialGradient(x, y, 0, x, y, beamGradR[v]);
+                            g.addColorStop(0, 'rgba(240,248,255,0.95)');
+                            g.addColorStop(0.35, 'rgba(240,248,255,0.45)');
+                            g.addColorStop(1, 'rgba(240,248,255,0)');
+                            ctx.strokeStyle = g;
+                            ctx.globalAlpha = oa * beamAlpha;
+                            ctx.lineWidth = beamBaseW * beamWScale[v];
+                            ctx.stroke(beamPaths[v]);
                         } else {
                             ctx.globalAlpha = oa * beamAlpha;
                             ctx.drawImage(this._whiteBeamSprite, (x - beamL - 1) | 0, (y - beamL - 1) | 0);
