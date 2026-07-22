@@ -655,30 +655,48 @@ export class EpcotSurface {
         const L = this._beamLength;
         const w2 = [0, 0];
 
+        // The lattice EDGES render as straight chords between warped
+        // vertices, so an arm must follow the polyline of chords through
+        // successive lattice steps (bulb -> neighbor -> next...), with
+        // partial lengths stopping PART-WAY ALONG a chord - never a
+        // direct line to the warped endpoint, which cuts corners across
+        // curved rows whenever the beam length isn't exactly one step.
+        const step = this.size;
+        const wA = [0, 0], wB = [0, 0];
+        // Point at original-space distance t along the arm, ON the chord
+        // polyline (lerp between the bracketing warped lattice points).
+        const chordPoint = (ox, oy, ax, ay, t, out) => {
+            const i = Math.floor(t / step);
+            const f = t / step - i;
+            warp(ox + ax * step * i, oy + ay * step * i, wA);
+            if (f < 1e-6) { out[0] = wA[0]; out[1] = wA[1]; return; }
+            warp(ox + ax * step * (i + 1), oy + ay * step * (i + 1), wB);
+            out[0] = wA[0] + (wB[0] - wA[0]) * f;
+            out[1] = wA[1] + (wB[1] - wA[1]) * f;
+        };
+        const traceArm = (path, ox, oy, ax, ay, t0, t1) => {
+            chordPoint(ox, oy, ax, ay, t0, w2);
+            path.moveTo(w2[0], w2[1]);
+            // interior lattice points between t0 and t1
+            for (let m = Math.floor(t0 / step) + 1; m * step < t1; m++) {
+                warp(ox + ax * step * m, oy + ay * step * m, wA);
+                path.lineTo(wA[0], wA[1]);
+            }
+            chordPoint(ox, oy, ax, ay, t1, w2);
+            path.lineTo(w2[0], w2[1]);
+        };
+
         const near = new Array(this.vertexCount);
         const far = new Array(this.vertexCount);
-        const wEnd = [0, 0];
         for (let v = 0; v < this.vertexCount; v++) {
             const ox = orig[v * 2], oy = orig[v * 2 + 1];
-            warp(ox, oy, w2);
-            const sx = w2[0], sy = w2[1];
             const pn = new Path2D();
             const pf = new Path2D();
             for (let a = 0; a < arms; a++) {
                 const ang = offset + (a * 2 * Math.PI) / arms;
-                // The lattice EDGES render as straight chords between
-                // warped vertices - so each arm must be the straight chord
-                // from the warped bulb to the warped arm end (which for
-                // lattice-aligned styles is ~the neighboring bulb), not a
-                // smooth curve through the warp, or the ray bows off the
-                // seam line it runs along.
-                warp(ox + Math.cos(ang) * L, oy + Math.sin(ang) * L, wEnd);
-                const mxN = sx + (wEnd[0] - sx) * 0.55;
-                const myN = sy + (wEnd[1] - sy) * 0.55;
-                pn.moveTo(sx, sy);
-                pn.lineTo(mxN, myN);
-                pf.moveTo(sx + (wEnd[0] - sx) * 0.45, sy + (wEnd[1] - sy) * 0.45);
-                pf.lineTo(wEnd[0], wEnd[1]);
+                const ax = Math.cos(ang), ay = Math.sin(ang);
+                traceArm(pn, ox, oy, ax, ay, 0, 0.55 * L);
+                traceArm(pf, ox, oy, ax, ay, 0.45 * L, L);
             }
             near[v] = pn;
             far[v] = pf;
