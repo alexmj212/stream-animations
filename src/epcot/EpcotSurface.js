@@ -185,7 +185,14 @@ export class EpcotSurface {
         // once per rebuild and composited with one drawImage per frame).
         this._gapCanvas = document.createElement('canvas');
         this._floorCanvas = document.createElement('canvas');
+        this._idleBulbCanvas = document.createElement('canvas');
+        this._idleBulbValid = false;
         this._floorSurfaceIntensity = 0;
+
+        // Set whenever settings/geometry change; the host loop can skip
+        // redrawing static scenes (steady pattern, no overlay) until the
+        // next change.
+        this.frameDirty = true;
 
         this._recomputeBaseColors();
         this.rebuild();
@@ -260,6 +267,18 @@ export class EpcotSurface {
         if (s.glowRadiusRatio !== undefined && s.glowRadiusRatio !== this.bulbGlowRadiusRatio) { this.bulbGlowRadiusRatio = s.glowRadiusRatio; needsRebuild = true; }
 
         if (needsRebuild) this.rebuild();
+        this.frameDirty = true;
+    }
+
+    /**
+     * True when the current configuration renders an identical frame every
+     * time (steady pattern, no overlay, no time-varying scheme) - the host
+     * loop can render once and stop until settings change.
+     */
+    isStatic() {
+        return this.patternName === 'steady'
+            && (!this.overlayPattern || this.overlayPattern === 'none')
+            && this.scheme !== 'cycle';
     }
 
     /**
@@ -647,6 +666,68 @@ export class EpcotSurface {
         this._rebuildBulbSprites();
         this._buildCurvedBeamPaths();
         this._rebuildFloorLayer();
+        this._rebuildIdleBulbLayer();
+        this.frameDirty = true;
+    }
+
+    /**
+     * Bake the IDLE bulb layer: every bulb's floor-level point and radial
+     * beams are constant, so they render once here and composite as a
+     * single additive drawImage per frame. The per-frame bulb pass then
+     * draws only the DELTA above the floor for driven bulbs - exact under
+     * the additive blend (same sprites/paints, alpha = target - idle) -
+     * and skips undriven bulbs entirely.
+     * @private
+     */
+    _rebuildIdleBulbLayer() {
+        const canvas = this._idleBulbCanvas;
+        canvas.width = this.canvas.width;
+        canvas.height = this.canvas.height;
+        this._idleBulbValid = false;
+        this._idleBeamAlpha = 0;
+        if (!this.showBulbs || this.bulbFloor <= 0) return;
+
+        const ictx = canvas.getContext('2d');
+        ictx.clearRect(0, 0, canvas.width, canvas.height);
+        ictx.globalCompositeOperation = 'lighter';
+
+        const pointA = this.bulbFloor;
+        const beamA = Math.sqrt(this.bulbFloor * 0.45) * this.beamAlpha;
+        this._idleBeamAlpha = beamA;
+        const hasBeams = this._starArms > 0;
+        const curved = this.fisheye && this._beamPathFull !== null;
+        const drawPos = this._vertexDrawPos;
+        const buckets = this._vertexBucket;
+        const pointR = this._pointRadius;
+        const beamL = this._beamLength;
+        const beamBaseW = this.beamWidthPx * this._starWidthScale;
+
+        if (curved) ictx.lineCap = 'round';
+        for (let v = 0; v < this.vertexCount; v++) {
+            const x = drawPos[v * 2];
+            const y = drawPos[v * 2 + 1];
+            const c = buckets[v];
+
+            ictx.globalAlpha = pointA;
+            ictx.drawImage(this._pointSprites[c], (x - pointR - 1) | 0, (y - pointR - 1) | 0);
+
+            if (hasBeams && beamA >= 0.03) {
+                ictx.globalAlpha = beamA;
+                if (curved) {
+                    const stops = this._strokeGradStops[c];
+                    const g = ictx.createRadialGradient(x, y, 0, x, y, this._beamGradRadius[v]);
+                    g.addColorStop(0, stops[0]);
+                    g.addColorStop(0.35, stops[1]);
+                    g.addColorStop(1, stops[2]);
+                    ictx.strokeStyle = g;
+                    ictx.lineWidth = beamBaseW * this._beamWidthScale[v];
+                    ictx.stroke(this._beamPathFull[v]);
+                } else {
+                    ictx.drawImage(this._beamSprites[c], (x - beamL - 1) | 0, (y - beamL - 1) | 0);
+                }
+            }
+        }
+        this._idleBulbValid = true;
     }
 
     /**
@@ -1845,8 +1926,18 @@ export class EpcotSurface {
             const beamBaseW = this.beamWidthPx * this._starWidthScale;
             const gradStops = this._strokeGradStops;
 
+            // With the idle layer baked (and colors static this frame),
+            // composite it once and draw only per-bulb DELTAS above the
+            // floor - undriven bulbs skip entirely.
+            const idleBaked = this._idleBulbValid && bucketShift === 0 && !colorPatternName;
+            const idleBeamA = this._idleBeamAlpha;
+
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
+            if (idleBaked) {
+                ctx.globalAlpha = 1;
+                ctx.drawImage(this._idleBulbCanvas, 0, 0);
+            }
             if (curvedBeams) ctx.lineCap = 'round';
             for (let v = 0; v < vertexCount; v++) {
                 const o = v * 7;
@@ -1855,6 +1946,7 @@ export class EpcotSurface {
                 // surface floor intensity added for facet shading.
                 const norm = Math.min(1, Math.max(0, vertexLights[o + 6] - floorI) / peak);
                 const overlayNorm = hasOverlay ? Math.min(1, fieldC[v]) : 0;
+                if (idleBaked && norm < 0.02 && overlayNorm < 0.02) continue;
 
                 // Draw at the (possibly warped) display position; shading
                 // used the original coordinates.
@@ -1865,7 +1957,9 @@ export class EpcotSurface {
                 // LED point: a bulb at its lowest never goes transparent -
                 // the small point stays at least `bulbFloor` visible while
                 // the bloom below collapses with drive. Floor 0 disables.
-                const pAlpha = bulbFloor + (1 - bulbFloor) * norm;
+                // (When the idle layer is baked, only the delta above the
+                // floor is drawn here.)
+                const pAlpha = bulbFloor + (1 - bulbFloor) * norm - (idleBaked ? bulbFloor : 0);
                 if (pAlpha > 0.01) {
                     ctx.globalAlpha = pAlpha;
                     ctx.drawImage(pointSprites[c], (x - pointR - 1) | 0, (y - pointR - 1) | 0);
@@ -1879,7 +1973,8 @@ export class EpcotSurface {
                 // a faint radial star, not just the bare point.
                 if (hasBeams) {
                     const bNorm = bulbFloor * 0.45 + (1 - bulbFloor * 0.45) * norm;
-                    if (bNorm >= 0.03) {
+                    const beamDelta = Math.sqrt(bNorm) * beamAlpha - (idleBaked ? idleBeamA : 0);
+                    if (bNorm >= 0.03 && beamDelta > 0.01) {
                         if (curvedBeams) {
                             // Curved arms following the warped lattice,
                             // one stroke through a cached radial gradient
@@ -1897,11 +1992,11 @@ export class EpcotSurface {
                                 entry[c] = g;
                             }
                             ctx.strokeStyle = g;
-                            ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha;
+                            ctx.globalAlpha = beamDelta;
                             ctx.lineWidth = beamBaseW * beamWScale[v];
                             ctx.stroke(beamPaths[v]);
                         } else {
-                            ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha;
+                            ctx.globalAlpha = beamDelta;
                             ctx.drawImage(beamSprites[c], (x - beamL - 1) | 0, (y - beamL - 1) | 0);
                         }
                     }

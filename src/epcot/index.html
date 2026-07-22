@@ -187,6 +187,9 @@
         <label>Speed <span class="val" id="valSpeed"></span></label>
         <div class="row"><input type="range" id="ctlSpeed" min="0.1" max="4" step="0.1"></div>
 
+        <label>Max FPS <span class="val" id="valFps"></span></label>
+        <div class="row"><input type="range" id="ctlFps" min="15" max="60" step="5"></div>
+
         <label>Triangle size <span class="val" id="valSize"></span></label>
         <div class="row"><input type="range" id="ctlSize" min="70" max="300" step="5"></div>
 
@@ -230,7 +233,7 @@
 
     <script type="module">
         import { cssColorToHex, hexToHSL } from '../shared/colors.js';
-        import { setupCanvas, clearCanvas } from '../shared/canvas.js';
+        import { setupCanvas } from '../shared/canvas.js';
         import { EpcotSurface } from './EpcotSurface.js';
         import { PerformanceMonitor } from '../shared/performance.js';
         import { PerformanceStorage } from '../shared/perfStorage.js';
@@ -277,6 +280,7 @@
             mdir: choiceParam('mdir', cfg.bulbs.meteorDirection, cfg.bulbs.meteorDirectionOptions),
             fisheye: urlParams.get('fisheye') === null ? cfg.fisheye.enabled : urlParams.get('fisheye') === 'true',
             fstr: numParam('fstr', cfg.fisheye.strength, 0.1, 2),
+            fps: numParam('fps', 60, 15, 60),
             speed: getSpeedFromURL(1.0),
             size: getSizeFromURL(cfg.size.default, cfg.size.min, cfg.size.max),
             brightness: getBrightnessFromURL(1.0),
@@ -406,6 +410,7 @@
                 mdir: cfg.bulbs.meteorDirection,
                 fisheye: cfg.fisheye.enabled,
                 fstr: cfg.fisheye.strength,
+                fps: 60,
                 speed: 1.0,
                 size: cfg.size.default,
                 brightness: 1.0,
@@ -437,6 +442,7 @@
                 set('mdir', settings.mdir);
                 set('fisheye', settings.fisheye);
                 set('fstr', settings.fstr);
+                set('fps', settings.fps);
                 set('speed', settings.speed);
                 set('size', settings.size);
                 set('brightness', settings.brightness);
@@ -487,6 +493,7 @@
                 ['ctlMLife', 'valMLife', 'mlife', (v) => surface.applySettings({ meteorLife: v })],
                 ['ctlMTrk', 'valMTrk', 'mtrk', (v) => surface.applySettings({ meteorTracks: v })],
                 ['ctlFStr', 'valFStr', 'fstr', (v) => surface.applySettings({ fisheyeStrength: v })],
+                ['ctlFps', 'valFps', 'fps', () => { /* read directly by the frame loop */ }],
                 ['ctlSpeed', 'valSpeed', 'speed', (v) => surface.applySettings({ speed: v })],
                 ['ctlSize', 'valSize', 'size', (v) => surface.applySettings({ size: v })],
                 ['ctlGap', 'valGap', 'gap', (v) => surface.applySettings({ gapWidth: v })],
@@ -599,15 +606,34 @@
             }
         });
 
-        // Animation loop with delta-time
+        // Animation loop with delta-time. GPU-friendly:
+        // - Max FPS cap (panel/?fps=): slow light cycles don't need 60fps;
+        //   skipped frames cost nothing.
+        // - Static scenes (steady pattern, no overlay) render one frame
+        //   and stop until a setting changes.
+        // - No clearCanvas: the surface's opaque baked background layer
+        //   covers the full canvas every draw.
+        let lastFrameTs = -Infinity;
         function animate(timestamp) {
+            const minInterval = settings.fps >= 60 ? 0 : 1000 / settings.fps - 1;
+            if (timestamp - lastFrameTs < minInterval) {
+                requestAnimationFrame(animate);
+                return;
+            }
+
+            if (surface.isStatic() && !surface.frameDirty) {
+                requestAnimationFrame(animate);
+                return;
+            }
+
+            lastFrameTs = timestamp;
             if (showPerf) perfMonitor.recordFrame();
 
             const deltaTime = deltaTimer.update(timestamp);
 
-            clearCanvas(ctx, canvas);
             surface.update(deltaTime);
             surface.draw();
+            surface.frameDirty = false;
 
             requestAnimationFrame(animate);
         }

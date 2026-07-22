@@ -105,6 +105,7 @@ Epcot-specific:
 - `mdir` - Meteor travel direction: `random`, `right`, `down-right`, `down-left`, `left`, `up-left`, or `up-right` (default `random`)
 - `fisheye` - `true`/`false` - curve the lattice into the ball's spherical silhouette (default `false`)
 - `fstr` - Fisheye amount: 0 flat, 1 full spherical projection, >1 an exaggerated beyond-spherical bulge (default 0.8)
+- `fps` - Max frames per second, 15-60 (default 60). Slow light cycles look fine at 30, roughly halving GPU load; static scenes (steady pattern, no overlay) stop redrawing entirely regardless of this setting
 - `panel` - `false` disables the settings panel/gear entirely (default enabled)
 
 ## Project Structure
