@@ -461,11 +461,10 @@ export const config = {
       // - overlayLocalLift: multiplicative brightness gain on the facets
       //   of the triangles touching the star (each facet brightens in its
       //   OWN color), shaped by facet orientation.
-      // Both default 0: stars are pure forward light with NO halo on the
-      // surrounding facets (any surface response either recolored or
-      // haloed the facets around a lit star). Set >0 to opt back in.
-      overlaySurfaceLight: 0,
-      overlayLocalLift: 0
+      // Subtle by default, fully controllable (?oslight= / ?olift= and
+      // panel sliders); 0 disables for pure forward-light stars.
+      overlaySurfaceLight: 0.05,
+      overlayLocalLift: 0.15
     },
 
     // Cast shadows: spikes between a bulb and a panel occlude its

@@ -167,6 +167,8 @@ export class EpcotSurface {
         this.meteorLife = options.meteorLife ?? cfg.bulbs.meteorLife;
         this.meteorTracks = options.meteorTracks ?? cfg.bulbs.meteorTracks;
         this.meteorDirection = options.meteorDirection ?? cfg.bulbs.meteorDirection;
+        this.overlaySurfaceLight = options.overlaySurfaceLight ?? cfg.bulbs.overlaySurfaceLight;
+        this.overlayLocalLift = options.overlayLocalLift ?? cfg.bulbs.overlayLocalLift;
 
         this.fisheye = options.fisheye ?? cfg.fisheye.enabled;
         this.fisheyeStrength = options.fisheyeStrength ?? cfg.fisheye.strength;
@@ -240,6 +242,8 @@ export class EpcotSurface {
         if (s.meteorLife !== undefined) this.meteorLife = s.meteorLife;
         if (s.meteorTracks !== undefined) this.meteorTracks = s.meteorTracks;
         if (s.meteorDirection !== undefined) this.meteorDirection = s.meteorDirection;
+        if (s.overlaySurfaceLight !== undefined) this.overlaySurfaceLight = s.overlaySurfaceLight;
+        if (s.overlayLocalLift !== undefined) this.overlayLocalLift = s.overlayLocalLift;
         if (s.shadowsEnabled !== undefined && s.shadowsEnabled !== this.shadowsEnabled) { this.shadowsEnabled = s.shadowsEnabled; needsRebuild = true; }
         if (s.speed !== undefined) this.speed = s.speed;
         if (s.brightness !== undefined) this.brightness = s.brightness;
@@ -1653,7 +1657,7 @@ export class EpcotSurface {
             // scheme color, never recoloring the light. (Blending the
             // light color toward white overwrote the facets' colors,
             // graying or blowing out everything near a star.)
-            const k = config.epcot.bulbs.overlaySurfaceLight ?? 0;
+            const k = this.overlaySurfaceLight;
             if (k > 0) {
                 for (let v = 0; v < vertexCount; v++) {
                     const oNorm = fieldC[v];
@@ -1771,7 +1775,7 @@ export class EpcotSurface {
         // tinted by its own color. Feeds triSums so bounce and tone
         // mapping see it like any other light.
         if (hasOverlay) {
-            const lift = config.epcot.bulbs.overlayLocalLift ?? 0;
+            const lift = this.overlayLocalLift;
             if (lift > 0) {
                 const vtStart = this._vertexTriStart;
                 const vtCount = this._vertexTriCount;
