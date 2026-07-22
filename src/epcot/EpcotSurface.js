@@ -161,6 +161,16 @@ export class EpcotSurface {
         this.bulbThreshold = options.bulbThreshold ?? cfg.bulbs.intensityThreshold;
         this.bulbFloor = options.bulbFloor ?? cfg.bulbs.floor;
 
+        this.meteorInterval = options.meteorInterval ?? cfg.bulbs.meteorInterval;
+        this.meteorSpeed = options.meteorSpeed ?? cfg.bulbs.meteorSpeed;
+        this.meteorTail = options.meteorTail ?? cfg.bulbs.meteorTail;
+        this.meteorLife = options.meteorLife ?? cfg.bulbs.meteorLife;
+        this.meteorTracks = options.meteorTracks ?? cfg.bulbs.meteorTracks;
+        this.meteorDirection = options.meteorDirection ?? cfg.bulbs.meteorDirection;
+
+        this.fisheye = options.fisheye ?? cfg.fisheye.enabled;
+        this.fisheyeStrength = options.fisheyeStrength ?? cfg.fisheye.strength;
+
         this.baseHSL = options.baseHSL ?? { h: 195, s: 55, l: 42 };
         this.saturation = options.saturation ?? cfg.color.saturationBoost;
         this.colorBlend = options.colorBlend ?? cfg.colorBlend;
@@ -217,6 +227,12 @@ export class EpcotSurface {
         if (s.colorBlend !== undefined) this.colorBlend = s.colorBlend;
         if (s.coreStyle !== undefined) this.coreStyle = s.coreStyle;
         if (s.overlayPattern !== undefined) this.overlayPattern = s.overlayPattern;
+        if (s.meteorInterval !== undefined) this.meteorInterval = s.meteorInterval;
+        if (s.meteorSpeed !== undefined) this.meteorSpeed = s.meteorSpeed;
+        if (s.meteorTail !== undefined) this.meteorTail = s.meteorTail;
+        if (s.meteorLife !== undefined) this.meteorLife = s.meteorLife;
+        if (s.meteorTracks !== undefined) this.meteorTracks = s.meteorTracks;
+        if (s.meteorDirection !== undefined) this.meteorDirection = s.meteorDirection;
         if (s.shadowsEnabled !== undefined && s.shadowsEnabled !== this.shadowsEnabled) { this.shadowsEnabled = s.shadowsEnabled; needsRebuild = true; }
         if (s.speed !== undefined) this.speed = s.speed;
         if (s.brightness !== undefined) this.brightness = s.brightness;
@@ -239,6 +255,7 @@ export class EpcotSurface {
         if (s.gapWidth !== undefined && s.gapWidth !== this.gapWidth) { this.gapWidth = s.gapWidth; this.gapEnabled = s.gapWidth > 0; needsRebuild = true; }
         if (s.bulbStyle !== undefined && s.bulbStyle !== this.bulbStyle) { this.bulbStyle = s.bulbStyle; needsRebuild = true; }
         if (s.beamLengthRatio !== undefined && s.beamLengthRatio !== this.beamLengthRatio) { this.beamLengthRatio = s.beamLengthRatio; needsRebuild = true; }
+        if (s.fisheye !== undefined && s.fisheye !== this.fisheye) { this.fisheye = s.fisheye; needsRebuild = true; }
         if (s.glowRadiusRatio !== undefined && s.glowRadiusRatio !== this.bulbGlowRadiusRatio) { this.bulbGlowRadiusRatio = s.glowRadiusRatio; needsRebuild = true; }
 
         if (needsRebuild) this.rebuild();
@@ -254,6 +271,30 @@ export class EpcotSurface {
         const height = this.canvas.height;
 
         const grid = buildTriangleGrid(width, height, this.size);
+
+        // Fisheye: warp every triangle coordinate radially around screen
+        // center BEFORE dedup/facets/lighting, so the entire pipeline
+        // (spikes, normals, light positions, shadows, bakes) sees the
+        // curved lattice. The warp is a pure function of (x,y), so
+        // vertices shared between triangles stay bit-identical and the
+        // lattice dedup still works.
+        if (this.fisheye) {
+            const cx = width / 2, cy = height / 2;
+            const R = Math.hypot(cx, cy) * 1.18; // margin triangles stay inside r=1
+            const s = this.fisheyeStrength;
+            const tri = grid.triangles;
+            for (let i = 0; i < tri.length; i += 2) {
+                const dx = tri[i] - cx, dy = tri[i + 1] - cy;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 1e-6) continue;
+                const r = Math.min(1, dist / R);
+                const rw = (1 - s) * r + s * Math.sin(r * Math.PI / 2);
+                const f = (rw * R) / dist;
+                tri[i] = cx + dx * f;
+                tri[i + 1] = cy + dy * f;
+            }
+        }
+
         const lattice = buildLatticeVertices(grid.triangles, grid.triCount, this.vertexEpsilon);
 
         const facets = buildFacets(
@@ -1222,18 +1263,24 @@ export class EpcotSurface {
         }
 
         if (name === 'meteor' || name === 'night') {
-            const interval = cfg.meteorInterval ?? 3.6;
-            const speed = (cfg.meteorSpeed ?? 13) * this.size;
-            const tail = (cfg.meteorTail ?? 3.0) * this.size;
-            const life = cfg.meteorLife ?? 1.5;
+            const interval = Math.max(0.5, this.meteorInterval);
+            const speed = this.meteorSpeed * this.size;
+            const tail = this.meteorTail * this.size;
+            const life = this.meteorLife;
+            const tracks = Math.max(1, Math.min(4, this.meteorTracks | 0));
             const width = this.canvas.width;
             const height = this.canvas.height;
             const corridor = 0.42 * this.size;
 
-            // Two staggered tracks so a new streak can start while the
+            // Fixed direction, or -1 for random-per-meteor. Directions are
+            // the 6 lattice axes so streaks run along actual bulb rows.
+            const dirNames = config.epcot.bulbs.meteorDirectionOptions;
+            const fixedDir = dirNames.indexOf(this.meteorDirection) - 1; // 'random' -> -1
+
+            // Staggered tracks so a new streak can start while the
             // previous one finishes.
-            for (let j = 0; j < 2; j++) {
-                const tj = t + (j * interval) / 2;
+            for (let j = 0; j < tracks; j++) {
+                const tj = t + (j * interval) / tracks;
                 const m = Math.floor(tj / interval);
                 const tau = tj - m * interval;
                 if (tau > life) continue;
@@ -1244,9 +1291,7 @@ export class EpcotSurface {
                 const h3 = hash2(m, 0xfd7046 + j);
                 const x0 = ((h1 % 10000) / 10000) * width;
                 const y0 = ((h2 % 10000) / 10000) * height;
-                // Direction: one of the 6 lattice axes, so the streak runs
-                // along an actual row of bulbs.
-                const angle = ((h3 % 6) * Math.PI) / 3;
+                const angle = ((fixedDir >= 0 ? fixedDir : h3 % 6) * Math.PI) / 3;
                 const dx = Math.cos(angle), dy = Math.sin(angle);
 
                 const head = speed * tau;

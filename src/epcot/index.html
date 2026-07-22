@@ -157,6 +157,24 @@
         <label for="ctlOverlay">Star overlay</label>
         <select id="ctlOverlay"></select>
 
+        <label for="ctlMDir">Meteor direction</label>
+        <select id="ctlMDir"></select>
+
+        <label>Meteor interval <span class="val" id="valMInt"></span></label>
+        <div class="row"><input type="range" id="ctlMInt" min="0.5" max="15" step="0.5"></div>
+
+        <label>Meteor speed <span class="val" id="valMSpd"></span></label>
+        <div class="row"><input type="range" id="ctlMSpd" min="2" max="40" step="1"></div>
+
+        <label>Meteor tail <span class="val" id="valMTail"></span></label>
+        <div class="row"><input type="range" id="ctlMTail" min="0.5" max="10" step="0.5"></div>
+
+        <label>Meteor life <span class="val" id="valMLife"></span></label>
+        <div class="row"><input type="range" id="ctlMLife" min="0.3" max="5" step="0.1"></div>
+
+        <label>Meteor tracks <span class="val" id="valMTrk"></span></label>
+        <div class="row"><input type="range" id="ctlMTrk" min="1" max="4" step="1"></div>
+
         <label>Brightness <span class="val" id="valBrightness"></span></label>
         <div class="row"><input type="range" id="ctlBrightness" min="0.2" max="3" step="0.1"></div>
 
@@ -197,6 +215,11 @@
         <div class="check">
             <input type="checkbox" id="ctlBlend">
             <label for="ctlBlend">Blend colors</label>
+        </div>
+
+        <div class="check">
+            <input type="checkbox" id="ctlFisheye">
+            <label for="ctlFisheye">Fisheye (ball curve)</label>
         </div>
 
         <button id="copyUrl">Copy URL for OBS</button>
@@ -243,6 +266,13 @@
             sat: numParam('sat', cfg.color.saturationBoost, 0.5, 2),
             blend: urlParams.get('blend') === null ? cfg.colorBlend : urlParams.get('blend') === 'true',
             floor: numParam('floor', cfg.bulbs.floor, 0, 0.8),
+            mint: numParam('mint', cfg.bulbs.meteorInterval, 0.5, 15),
+            mspd: numParam('mspd', cfg.bulbs.meteorSpeed, 2, 40),
+            mtail: numParam('mtail', cfg.bulbs.meteorTail, 0.5, 10),
+            mlife: numParam('mlife', cfg.bulbs.meteorLife, 0.3, 5),
+            mtrk: numParam('mtrk', cfg.bulbs.meteorTracks, 1, 4),
+            mdir: choiceParam('mdir', cfg.bulbs.meteorDirection, cfg.bulbs.meteorDirectionOptions),
+            fisheye: urlParams.get('fisheye') === null ? cfg.fisheye.enabled : urlParams.get('fisheye') === 'true',
             speed: getSpeedFromURL(1.0),
             size: getSizeFromURL(cfg.size.default, cfg.size.min, cfg.size.max),
             brightness: getBrightnessFromURL(1.0),
@@ -302,6 +332,13 @@
             saturation: settings.sat,
             colorBlend: settings.blend,
             bulbFloor: settings.floor,
+            meteorInterval: settings.mint,
+            meteorSpeed: settings.mspd,
+            meteorTail: settings.mtail,
+            meteorLife: settings.mlife,
+            meteorTracks: settings.mtrk,
+            meteorDirection: settings.mdir,
+            fisheye: settings.fisheye,
             speed: settings.speed,
             brightness: settings.brightness,
             gapWidth: settings.gap,
@@ -356,6 +393,13 @@
                 sat: cfg.color.saturationBoost,
                 blend: cfg.colorBlend,
                 floor: cfg.bulbs.floor,
+                mint: cfg.bulbs.meteorInterval,
+                mspd: cfg.bulbs.meteorSpeed,
+                mtail: cfg.bulbs.meteorTail,
+                mlife: cfg.bulbs.meteorLife,
+                mtrk: cfg.bulbs.meteorTracks,
+                mdir: cfg.bulbs.meteorDirection,
+                fisheye: cfg.fisheye.enabled,
                 speed: 1.0,
                 size: cfg.size.default,
                 brightness: 1.0,
@@ -379,6 +423,13 @@
                 set('sat', settings.sat);
                 set('blend', settings.blend);
                 set('floor', settings.floor);
+                set('mint', settings.mint);
+                set('mspd', settings.mspd);
+                set('mtail', settings.mtail);
+                set('mlife', settings.mlife);
+                set('mtrk', settings.mtrk);
+                set('mdir', settings.mdir);
+                set('fisheye', settings.fisheye);
                 set('speed', settings.speed);
                 set('size', settings.size);
                 set('brightness', settings.brightness);
@@ -412,15 +463,22 @@
             fillSelect($('ctlStyle'), cfg.bulbs.styleOptions, settings.style);
             fillSelect($('ctlCore'), cfg.bulbs.coreStyleOptions, settings.core);
             fillSelect($('ctlOverlay'), cfg.bulbs.overlayOptions, settings.overlay);
+            fillSelect($('ctlMDir'), cfg.bulbs.meteorDirectionOptions, settings.mdir);
             $('ctlColor').value = settings.color;
             $('ctlBulbs').checked = settings.bulbs;
             $('ctlShadows').checked = settings.shadows;
             $('ctlBlend').checked = settings.blend;
+            $('ctlFisheye').checked = settings.fisheye;
 
             const sliders = [
                 ['ctlBrightness', 'valBrightness', 'brightness', (v) => surface.applySettings({ brightness: v })],
                 ['ctlSat', 'valSat', 'sat', (v) => surface.applySettings({ saturation: v })],
                 ['ctlFloor', 'valFloor', 'floor', (v) => surface.applySettings({ bulbFloor: v })],
+                ['ctlMInt', 'valMInt', 'mint', (v) => surface.applySettings({ meteorInterval: v })],
+                ['ctlMSpd', 'valMSpd', 'mspd', (v) => surface.applySettings({ meteorSpeed: v })],
+                ['ctlMTail', 'valMTail', 'mtail', (v) => surface.applySettings({ meteorTail: v })],
+                ['ctlMLife', 'valMLife', 'mlife', (v) => surface.applySettings({ meteorLife: v })],
+                ['ctlMTrk', 'valMTrk', 'mtrk', (v) => surface.applySettings({ meteorTracks: v })],
                 ['ctlSpeed', 'valSpeed', 'speed', (v) => surface.applySettings({ speed: v })],
                 ['ctlSize', 'valSize', 'size', (v) => surface.applySettings({ size: v })],
                 ['ctlGap', 'valGap', 'gap', (v) => surface.applySettings({ gapWidth: v })],
@@ -485,6 +543,16 @@
             $('ctlBlend').addEventListener('change', (e) => {
                 settings.blend = e.target.checked;
                 surface.applySettings({ colorBlend: settings.blend });
+                syncURL();
+            });
+            $('ctlMDir').addEventListener('change', (e) => {
+                settings.mdir = e.target.value;
+                surface.applySettings({ meteorDirection: settings.mdir });
+                syncURL();
+            });
+            $('ctlFisheye').addEventListener('change', (e) => {
+                settings.fisheye = e.target.checked;
+                surface.applySettings({ fisheye: settings.fisheye });
                 syncURL();
             });
 

@@ -439,13 +439,18 @@ export const config = {
       // shorter, snappier flares).
       twinklePeriod: 9,
       twinkleSharpness: 140,
-      // Meteor: seconds between spawns (two staggered tracks run at half
-      // offset), head speed in triangle-sizes/second, tail length in
-      // triangle-sizes, and streak lifetime in seconds.
+      // Meteor: seconds between spawns per track (tracks run staggered),
+      // head speed in triangle-sizes/second, tail length in
+      // triangle-sizes, streak lifetime in seconds, number of concurrent
+      // tracks, and travel direction - 'random' picks a lattice axis per
+      // meteor; a fixed direction locks every streak to that axis.
       meteorInterval: 3.6,
       meteorSpeed: 13,
       meteorTail: 3.0,
       meteorLife: 1.5,
+      meteorTracks: 2,
+      meteorDirection: 'random',
+      meteorDirectionOptions: ['random', 'right', 'down-right', 'down-left', 'left', 'up-left', 'up-right'],
       // Overlay stars lighting the surface, two components:
       // - overlaySurfaceLight: white light blended into the bulb's normal
       //   light path (specular/bounce/shadows apply). Kept LOW - the
@@ -530,6 +535,14 @@ export const config = {
     // gradient through all their colors (like the real ball's fixed
     // night look) instead of animated patchwork blocks.
     gradientSchemes: ['illuminations'],
+
+    // Fisheye: barrel-warp the lattice around screen center (magnified
+    // middle, compressed edges) so the flat pattern reads as the round
+    // ball. Applied to the geometry at rebuild - zero per-frame cost.
+    fisheye: {
+      enabled: false,        // ?fisheye=true / panel toggle
+      strength: 0.8          // 0 = flat, 1 = full spherical projection
+    },
 
     // Color pattern boundary handling: 'sharp' assigns each bulb to one
     // color group with a dithered edge; 'blend' interpolates smoothly
