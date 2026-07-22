@@ -271,31 +271,49 @@ export class EpcotSurface {
         const height = this.canvas.height;
 
         const grid = buildTriangleGrid(width, height, this.size);
+        const lattice = buildLatticeVertices(grid.triangles, grid.triCount, this.vertexEpsilon);
 
-        // Fisheye: warp every triangle coordinate radially around screen
-        // center BEFORE dedup/facets/lighting, so the entire pipeline
+        // Fisheye: warp every coordinate radially around screen center so
+        // the flat pattern reads as the round ball. Dedup ran on the
+        // original grid; the warp (a pure function of (x,y)) is applied
+        // identically to the triangle coords and the deduped vertex
+        // positions, so indices stay consistent and the whole pipeline
         // (spikes, normals, light positions, shadows, bakes) sees the
-        // curved lattice. The warp is a pure function of (x,y), so
-        // vertices shared between triangles stay bit-identical and the
-        // lattice dedup still works.
+        // curved lattice. Original vertex positions are kept so the beam
+        // arms can be re-traced through the warp as true curves.
+        this._warpPoint = null;
+        this._originalPositions = null;
         if (this.fisheye) {
             const cx = width / 2, cy = height / 2;
             const R = Math.hypot(cx, cy) * 1.18; // margin triangles stay inside r=1
             const s = this.fisheyeStrength;
-            const tri = grid.triangles;
-            for (let i = 0; i < tri.length; i += 2) {
-                const dx = tri[i] - cx, dy = tri[i + 1] - cy;
+            const warp = (x, y, out) => {
+                const dx = x - cx, dy = y - cy;
                 const dist = Math.hypot(dx, dy);
-                if (dist < 1e-6) continue;
+                if (dist < 1e-6) { out[0] = x; out[1] = y; return; }
                 const r = Math.min(1, dist / R);
                 const rw = (1 - s) * r + s * Math.sin(r * Math.PI / 2);
                 const f = (rw * R) / dist;
-                tri[i] = cx + dx * f;
-                tri[i + 1] = cy + dy * f;
+                out[0] = cx + dx * f;
+                out[1] = cy + dy * f;
+            };
+            this._warpPoint = warp;
+            this._originalPositions = Float32Array.from(lattice.positions);
+
+            const w2 = [0, 0];
+            const tri = grid.triangles;
+            for (let i = 0; i < tri.length; i += 2) {
+                warp(tri[i], tri[i + 1], w2);
+                tri[i] = w2[0];
+                tri[i + 1] = w2[1];
+            }
+            const pos = lattice.positions;
+            for (let i = 0; i < pos.length; i += 2) {
+                warp(pos[i], pos[i + 1], w2);
+                pos[i] = w2[0];
+                pos[i + 1] = w2[1];
             }
         }
-
-        const lattice = buildLatticeVertices(grid.triangles, grid.triCount, this.vertexEpsilon);
 
         const facets = buildFacets(
             grid.triangles,
@@ -604,7 +622,59 @@ export class EpcotSurface {
 
         this._rebuildGapLayer(grid, width, height);
         this._rebuildBulbSprites();
+        this._buildCurvedBeamPaths();
         this._rebuildFloorLayer();
+    }
+
+    /**
+     * Fisheye beam paths: under the warp, lattice rows curve - so beam
+     * arms can't be straight sprites. Each arm is traced in the ORIGINAL
+     * (pre-warp) space along its axis, sampled, and passed point-by-point
+     * through the warp, producing arms that bend exactly with the rows
+     * they run along. Split into near/far Path2D segments per bulb so the
+     * per-frame stroke can approximate the sprite gradient's taper.
+     * @private
+     */
+    _buildCurvedBeamPaths() {
+        this._beamPathsNear = null;
+        this._beamPathsFar = null;
+        if (!this.fisheye || !this._warpPoint || this._starArms === 0) return;
+
+        const warp = this._warpPoint;
+        const orig = this._originalPositions;
+        const arms = this._starArms;
+        const offset = this._starOffset;
+        const L = this._beamLength;
+        const w2 = [0, 0];
+
+        const near = new Array(this.vertexCount);
+        const far = new Array(this.vertexCount);
+        for (let v = 0; v < this.vertexCount; v++) {
+            const ox = orig[v * 2], oy = orig[v * 2 + 1];
+            const pn = new Path2D();
+            const pf = new Path2D();
+            for (let a = 0; a < arms; a++) {
+                const ang = offset + (a * 2 * Math.PI) / arms;
+                const ax = Math.cos(ang), ay = Math.sin(ang);
+                // near segment: 0 -> 0.55L, far: 0.45L -> L (overlap keeps
+                // the joint continuous), 3 samples each - enough curvature
+                // over ~one triangle of length.
+                for (let i = 0; i <= 2; i++) {
+                    const t = (0.55 * L * i) / 2;
+                    warp(ox + ax * t, oy + ay * t, w2);
+                    if (i === 0) pn.moveTo(w2[0], w2[1]); else pn.lineTo(w2[0], w2[1]);
+                }
+                for (let i = 0; i <= 2; i++) {
+                    const t = 0.45 * L + (0.55 * L * i) / 2;
+                    warp(ox + ax * t, oy + ay * t, w2);
+                    if (i === 0) pf.moveTo(w2[0], w2[1]); else pf.lineTo(w2[0], w2[1]);
+                }
+            }
+            near[v] = pn;
+            far[v] = pf;
+        }
+        this._beamPathsNear = near;
+        this._beamPathsFar = far;
     }
 
     /**
@@ -988,9 +1058,12 @@ export class EpcotSurface {
         this._glowRadius = glowR;
         this._beamLength = beamL;
         this._starArms = style.arms;
+        this._starOffset = style.offset;
+        this._starWidthScale = style.widthScale;
         this._glowSprites = [];
         this._beamSprites = [];
         this._pointSprites = [];
+        this._spriteStrokeColors = [];
         this._pointRadius = Math.max(2, coreR * 0.55);
 
         // Sprite color list: exact palette colors for palette schemes, or
@@ -1008,6 +1081,9 @@ export class EpcotSurface {
             const r255 = Math.round(col.r * 255);
             const g255 = Math.round(col.g * 255);
             const b255 = Math.round(col.b * 255);
+
+            // Solid stroke color for fisheye's curved beam paths
+            this._spriteStrokeColors.push(`rgb(${Math.min(255, r255 + 60)},${Math.min(255, g255 + 60)},${Math.min(255, b255 + 60)})`);
 
             // Glow: white-hot core -> saturated color -> transparent
             const glowCanvas = document.createElement('canvas');
@@ -1685,9 +1761,15 @@ export class EpcotSurface {
             const bulbFloor = this.bulbFloor;
             const pointSprites = this._pointSprites;
             const pointR = this._pointRadius;
+            const curvedBeams = this.fisheye && hasBeams && this._beamPathsNear !== null;
+            const strokeColors = this._spriteStrokeColors;
 
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
+            if (curvedBeams) {
+                ctx.lineWidth = this.beamWidthPx * this._starWidthScale;
+                ctx.lineCap = 'round';
+            }
             for (let v = 0; v < vertexCount; v++) {
                 const o = v * 7;
                 // Pattern drive only - the floor's sprite visibility is
@@ -1718,8 +1800,17 @@ export class EpcotSurface {
                 if (hasBeams) {
                     const bNorm = bulbFloor * 0.45 + (1 - bulbFloor * 0.45) * norm;
                     if (bNorm >= 0.03) {
-                        ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha;
-                        ctx.drawImage(beamSprites[c], (x - beamL - 1) | 0, (y - beamL - 1) | 0);
+                        if (curvedBeams) {
+                            // Curved arms that follow the warped lattice
+                            ctx.strokeStyle = strokeColors[c];
+                            ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha * 0.85;
+                            ctx.stroke(this._beamPathsNear[v]);
+                            ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha * 0.3;
+                            ctx.stroke(this._beamPathsFar[v]);
+                        } else {
+                            ctx.globalAlpha = Math.sqrt(bNorm) * beamAlpha;
+                            ctx.drawImage(beamSprites[c], (x - beamL - 1) | 0, (y - beamL - 1) | 0);
+                        }
                     }
                 }
 
@@ -1734,17 +1825,29 @@ export class EpcotSurface {
                 }
 
                 // Star overlay: independent white stars with the full star
-                // effect (beams + core), same perceptual response and
-                // drive-scaled bloom.
+                // effect (beams + core). The forward core runs bigger and
+                // hotter than base bulbs - a star flare should dominate
+                // its bulb - drawn twice (halo + concentrated core).
                 if (overlayNorm >= 0.02) {
                     const oa = Math.sqrt(overlayNorm);
                     if (hasBeams && overlayNorm >= 0.05) {
-                        ctx.globalAlpha = oa * beamAlpha;
-                        ctx.drawImage(this._whiteBeamSprite, (x - beamL - 1) | 0, (y - beamL - 1) | 0);
+                        if (curvedBeams) {
+                            ctx.strokeStyle = 'rgb(240,248,255)';
+                            ctx.globalAlpha = oa * beamAlpha * 0.85;
+                            ctx.stroke(this._beamPathsNear[v]);
+                            ctx.globalAlpha = oa * beamAlpha * 0.3;
+                            ctx.stroke(this._beamPathsFar[v]);
+                        } else {
+                            ctx.globalAlpha = oa * beamAlpha;
+                            ctx.drawImage(this._whiteBeamSprite, (x - beamL - 1) | 0, (y - beamL - 1) | 0);
+                        }
                     }
-                    const os = glowR * (0.35 + 0.65 * overlayNorm);
-                    ctx.globalAlpha = oa;
+                    const os = glowR * 1.35 * (0.4 + 0.6 * overlayNorm);
+                    ctx.globalAlpha = Math.min(1, oa * 1.25);
                     ctx.drawImage(whiteSprite, (x - os) | 0, (y - os) | 0, (os * 2) | 0, (os * 2) | 0);
+                    const oc = os * 0.5;
+                    ctx.globalAlpha = oa;
+                    ctx.drawImage(whiteSprite, (x - oc) | 0, (y - oc) | 0, (oc * 2) | 0, (oc * 2) | 0);
                 }
             }
             ctx.restore();

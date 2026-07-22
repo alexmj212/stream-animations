@@ -460,8 +460,8 @@ export const config = {
       // - overlayLocalLift: direct white lift on just the facets of the
       //   triangles touching the star, shaped by facet orientation - the
       //   concentrated shimmer right around the bulb.
-      overlaySurfaceLight: 0.08,
-      overlayLocalLift: 0.07
+      overlaySurfaceLight: 0.04,
+      overlayLocalLift: 0.035
     },
 
     // Cast shadows: spikes between a bulb and a panel occlude its
