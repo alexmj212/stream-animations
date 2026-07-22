@@ -90,6 +90,22 @@ const AUTO_PATTERNS = ['chase', 'split', 'orbit', 'bands', 'pulse', 'sweep', 'di
 // two color groups each bulb shows; intensity patterns move light around.
 const COLOR_PATTERNS = new Set(['split', 'sweep', 'bands', 'mix']);
 
+// Every intensity pattern pairs with a color animation running on its
+// OWN clock (rate = multiple of the pattern cycle; negative counter-
+// rotates) - brightness and color both animate, independently, per the
+// character of each animation.
+const COMBO_COLOR = {
+    chase: { c: 'sweep', rate: 0.5 },     // bloom orbits; color wheel rotates at half speed
+    orbit: { c: 'sweep', rate: -0.35 },   // twin blooms orbit; colors counter-rotate slowly
+    pulse: { c: 'mix', rate: 0.25 },      // breathing light over a slow color-balance drift
+    diagonal: { c: 'split', rate: 0.5 },
+    wave: { c: 'bands', rate: -0.7 },     // band travels one way, color bands scroll the other
+    cascade: { c: 'split', rate: 0.4 },
+    scanner: { c: 'bands', rate: 0.6 },
+    spiral: { c: 'sweep', rate: 1.6 },    // color wheel spins faster than the beam
+    radial: { c: 'mix', rate: 0.3 }
+};
+
 // Star effect definitions: arms, angular offset, and length/width scale
 // relative to the configured beam length/width.
 const STAR_STYLES = {
@@ -1059,9 +1075,14 @@ export class EpcotSurface {
      * p(t) of group A cycles over time, so the colors trade territory -
      * e.g. illuminations 'split': purple on top, orange below, with the
      * boundary sweeping up and down.
+     *
+     * With a `drive` field (combo mode for intensity patterns), each
+     * bulb blends from its base scheme color toward the pattern's color
+     * proportionally to its current drive - the moving light carries the
+     * color shift with it while idle bulbs keep the scheme.
      * @private
      */
-    _applyColorPattern(name, t) {
+    _applyColorPattern(name, t, drive = null) {
         const phase = (((t / this.cycleDuration) % 1) + 1) % 1;
         const p = 0.5 + 0.42 * Math.sin(2 * Math.PI * phase);
         const A = this._groupA, B = this._groupB;
@@ -1138,6 +1159,20 @@ export class EpcotSurface {
                 vertexLights[lo + 4] = c.g;
                 vertexLights[lo + 5] = c.b;
                 buckets[v] = c.bucket;
+            }
+
+            // Combo mode: pull back toward the base scheme color by how
+            // little this bulb is driven right now.
+            if (drive) {
+                const m = Math.min(1, drive[v] * 1.5);
+                if (m < 1) {
+                    const b3 = v * 3;
+                    const baseCol = this._vertexBaseColor;
+                    vertexLights[lo + 3] = baseCol[b3] + (vertexLights[lo + 3] - baseCol[b3]) * m;
+                    vertexLights[lo + 4] = baseCol[b3 + 1] + (vertexLights[lo + 4] - baseCol[b3 + 1]) * m;
+                    vertexLights[lo + 5] = baseCol[b3 + 2] + (vertexLights[lo + 5] - baseCol[b3 + 2]) * m;
+                    if (m < 0.5) buckets[v] = this._vertexBaseBucket[v];
+                }
             }
         }
         this._lightColorsDirty = true;
@@ -1599,6 +1634,7 @@ export class EpcotSurface {
         // auto mode the dominant side of the crossfade wins the colors.
         const fieldA = this._fieldA;
         let colorPatternName = null;
+        let comboBase = this.patternName;
         if (this.patternName === 'auto') {
             const seg = this.autoSegmentDuration;
             const fade = Math.min(this.autoFadeDuration, seg / 2);
@@ -1623,13 +1659,24 @@ export class EpcotSurface {
             // scheme, if next isn't a color pattern) takes over.
             if (sm >= 0.5 && COLOR_PATTERNS.has(next)) colorPatternName = next;
             else if (sm < 0.5 && COLOR_PATTERNS.has(cur)) colorPatternName = cur;
+            comboBase = sm >= 0.5 ? next : cur;
         } else {
             this._fillField(this.patternName, this.clock, fieldA);
             if (COLOR_PATTERNS.has(this.patternName)) colorPatternName = this.patternName;
         }
 
+        let comboActive = false;
         if (colorPatternName) {
             this._applyColorPattern(colorPatternName, this.clock);
+        } else if (this.patternName !== 'steady') {
+            // Combo mode: intensity patterns also animate color, on an
+            // independent clock - almost every animation shifts
+            // brightness AND color, each with its own motion.
+            const combo = COMBO_COLOR[comboBase];
+            if (combo) {
+                this._applyColorPattern(combo.c, this.clock * combo.rate);
+                comboActive = true;
+            }
         }
 
         // Apply peak scaling plus a soft cutoff: subtract a small floor so
@@ -1925,7 +1972,7 @@ export class EpcotSurface {
             // With the idle layer baked (and colors static this frame),
             // composite it once and draw only per-bulb DELTAS above the
             // floor - undriven bulbs skip entirely.
-            const idleBaked = this._idleBulbValid && bucketShift === 0 && !colorPatternName;
+            const idleBaked = this._idleBulbValid && bucketShift === 0 && !colorPatternName && !comboActive;
             const idleBeamA = this._idleBeamAlpha;
 
             ctx.save();

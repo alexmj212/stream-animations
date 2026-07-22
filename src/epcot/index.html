@@ -118,6 +118,18 @@
         }
         #panel .check input { accent-color: #37b6d9; }
         #panel .check label { margin: 0; }
+        .swatches {
+            display: flex;
+            gap: 4px;
+            margin-top: 5px;
+        }
+        .swatches .sw {
+            flex: 1;
+            height: 14px;
+            border-radius: 3px;
+            border: 1px solid rgba(255,255,255,0.18);
+        }
+
         .subhead {
             margin-top: 14px;
             padding: 5px 8px;
@@ -165,6 +177,7 @@
 
         <label for="ctlScheme">Color scheme</label>
         <select id="ctlScheme"></select>
+        <div class="swatches" id="schemeSwatches"></div>
 
         <label for="ctlColor">Base color</label>
         <input type="color" id="ctlColor">
@@ -523,7 +536,7 @@
 
             const sliders = [
                 ['ctlBrightness', 'valBrightness', 'brightness', (v) => surface.applySettings({ brightness: v })],
-                ['ctlSat', 'valSat', 'sat', (v) => surface.applySettings({ saturation: v })],
+                ['ctlSat', 'valSat', 'sat', (v) => { surface.applySettings({ saturation: v }); refreshSwatches(); }],
                 ['ctlFloor', 'valFloor', 'floor', (v) => surface.applySettings({ bulbFloor: v })],
                 ['ctlMInt', 'valMInt', 'mint', (v) => surface.applySettings({ meteorInterval: v })],
                 ['ctlMSpd', 'valMSpd', 'mspd', (v) => surface.applySettings({ meteorSpeed: v })],
@@ -555,6 +568,57 @@
                 });
             }
 
+            // Swatches under the scheme select: the actual colors the
+            // current scheme + base color + saturation will produce.
+            const refreshSwatches = () => {
+                const el = $('schemeSwatches');
+                el.innerHTML = '';
+                const sat = settings.sat;
+                const boostHex = (hex) => {
+                    const hsl = hexToHSL(hex);
+                    return `hsl(${hsl.h},${Math.min(100, hsl.s * sat)}%,${hsl.l}%)`;
+                };
+                const addSw = (css) => {
+                    const d = document.createElement('div');
+                    d.className = 'sw';
+                    d.style.background = css;
+                    el.appendChild(d);
+                };
+
+                const palette = cfg.palettes[settings.scheme];
+                if (palette) {
+                    if ((cfg.gradientSchemes ?? []).includes(settings.scheme)) {
+                        // Gradient scheme: one continuous strip
+                        addSw(`linear-gradient(to right, ${palette.map(boostHex).join(', ')})`);
+                    } else {
+                        palette.forEach((hex) => addSw(boostHex(hex)));
+                    }
+                    return;
+                }
+
+                const base = hexToHSL(settings.color);
+                const s = Math.min(100, base.s * sat);
+                const hue = (h) => `hsl(${((h % 360) + 360) % 360},${s}%,${base.l}%)`;
+                switch (settings.scheme) {
+                    case 'mono':
+                        addSw(hue(base.h));
+                        break;
+                    case 'duo':
+                        addSw(hue(base.h));
+                        addSw(hue(base.h + 180));
+                        break;
+                    case 'rainbow':
+                        for (let i = 0; i < 6; i++) addSw(hue(base.h + i * 60));
+                        break;
+                    case 'cycle':
+                    case 'classic':
+                    default:
+                        cfg.lighting.hueOffsets.forEach((off) => addSw(hue(base.h + off)));
+                        break;
+                }
+            };
+            refreshSwatches();
+
             $('ctlPattern').addEventListener('change', (e) => {
                 settings.pattern = e.target.value;
                 surface.applySettings({ pattern: settings.pattern });
@@ -563,6 +627,7 @@
             $('ctlScheme').addEventListener('change', (e) => {
                 settings.scheme = e.target.value;
                 surface.applySettings({ scheme: settings.scheme });
+                refreshSwatches();
                 syncURL();
             });
             $('ctlStyle').addEventListener('change', (e) => {
@@ -573,6 +638,7 @@
             $('ctlColor').addEventListener('input', (e) => {
                 settings.color = e.target.value;
                 surface.applySettings({ colorHSL: hexToHSL(settings.color) });
+                refreshSwatches();
                 syncURL();
             });
             $('ctlBulbs').addEventListener('change', (e) => {

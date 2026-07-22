@@ -106,6 +106,10 @@ Epcot-specific:
 - `fisheye` - `true`/`false` - curve the lattice into the ball's spherical silhouette (default `false`)
 - `fstr` - Fisheye amount: 0 flat, 1 full spherical projection, >1 an exaggerated beyond-spherical bulge (default 0.8)
 - `fps` - Max frames per second, 15-60 (default 60). Slow light cycles look fine at 30, roughly halving GPU load; static scenes (steady pattern, no overlay) stop redrawing entirely regardless of this setting
+- `oslight` - Star surface light, 0-0.3 (default 0.05): extra intensity a lit overlay star casts through its bulb's scheme-colored light; 0 for pure forward light
+- `olift` - Star shimmer, 0-1 (default 0.15): brightness gain (in each facet's own color) on the triangles touching a lit star
+
+Every moving animation also runs a paired color animation on an independent clock (e.g. chase's bloom orbits while a color sweep rotates beneath it at half speed; wave's band travels against scrolling color bands) - brightness and color both animate, each with its own motion. `steady` remains fully static.
 - `panel` - `false` disables the settings panel/gear entirely (default enabled)
 
 ## Project Structure
