@@ -687,25 +687,31 @@ export class EpcotSurface {
             path.lineTo(w2[0], w2[1]);
         };
 
-        // Three NON-overlapping taper segments per arm set - alpha and
-        // width step down toward the tip, approximating the sprite
-        // gradient's fade (overlapping segments double up under the
-        // additive blend into a visible bright band; a single segment
-        // ends in an abrupt hard tip).
-        const segs = [new Array(this.vertexCount), new Array(this.vertexCount), new Array(this.vertexCount)];
-        const SEG_BOUNDS = [[0, 0.4], [0.4, 0.75], [0.75, 1]];
+        // Six NON-overlapping taper segments per arm set, stroked with
+        // BUTT caps and a smooth falloff profile - it's light, so it must
+        // fade off continuously. (Round caps paint bright semicircular
+        // blobs under the additive blend: the segment joints read as a
+        // second set of shorter beam tips.)
+        const SEG_COUNT = 6;
+        const segs = [];
+        const SEG_BOUNDS = [];
+        for (let i = 0; i < SEG_COUNT; i++) {
+            segs.push(new Array(this.vertexCount));
+            SEG_BOUNDS.push([i / SEG_COUNT, (i + 1) / SEG_COUNT]);
+        }
         // Local warp magnification per bulb: scales beam width so rays
         // thicken with the magnified center triangles and thin toward the
         // compressed rim, instead of one constant width everywhere.
         const widthScale = new Float32Array(this.vertexCount);
         for (let v = 0; v < this.vertexCount; v++) {
             const ox = orig[v * 2], oy = orig[v * 2 + 1];
-            const paths = [new Path2D(), new Path2D(), new Path2D()];
+            const paths = [];
+            for (let i = 0; i < SEG_COUNT; i++) paths.push(new Path2D());
             let chordSum = 0;
             for (let a = 0; a < arms; a++) {
                 const ang = offset + (a * 2 * Math.PI) / arms;
                 const ax = Math.cos(ang), ay = Math.sin(ang);
-                for (let sIdx = 0; sIdx < 3; sIdx++) {
+                for (let sIdx = 0; sIdx < SEG_COUNT; sIdx++) {
                     traceArm(paths[sIdx], ox, oy, ax, ay, SEG_BOUNDS[sIdx][0] * L, SEG_BOUNDS[sIdx][1] * L);
                 }
                 warp(ox, oy, wA);
@@ -713,9 +719,7 @@ export class EpcotSurface {
                 chordSum += Math.hypot(wB[0] - wA[0], wB[1] - wA[1]);
             }
             widthScale[v] = Math.max(0.35, Math.min(2.2, chordSum / (arms * step)));
-            segs[0][v] = paths[0];
-            segs[1][v] = paths[1];
-            segs[2][v] = paths[2];
+            for (let sIdx = 0; sIdx < SEG_COUNT; sIdx++) segs[sIdx][v] = paths[sIdx];
         }
         this._beamSegs = segs;
         this._beamWidthScale = widthScale;
@@ -1810,13 +1814,21 @@ export class EpcotSurface {
             const beamSegs = this._beamSegs;
             const beamWScale = this._beamWidthScale;
             const beamBaseW = this.beamWidthPx * this._starWidthScale;
-            // Per-segment taper: alpha and width step down toward the tip
-            const SEG_ALPHA = [0.95, 0.5, 0.2];
-            const SEG_WIDTH = [1, 0.7, 0.45];
+            // Smooth light falloff along the arm: alpha ~ (1-t)^1.7 at
+            // each segment's midpoint, width easing down with it. Butt
+            // caps (set below) keep joints seamless - no cap blobs.
+            const nSegs = beamSegs ? beamSegs.length : 0;
+            const SEG_ALPHA = [];
+            const SEG_WIDTH = [];
+            for (let i = 0; i < nSegs; i++) {
+                const tm = (i + 0.5) / nSegs;
+                SEG_ALPHA.push(Math.pow(1 - tm, 1.7));
+                SEG_WIDTH.push(0.45 + 0.55 * (1 - tm));
+            }
 
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            if (curvedBeams) ctx.lineCap = 'round';
+            if (curvedBeams) ctx.lineCap = 'butt';
             for (let v = 0; v < vertexCount; v++) {
                 const o = v * 7;
                 // Pattern drive only - the floor's sprite visibility is
@@ -1854,7 +1866,7 @@ export class EpcotSurface {
                             const a0 = Math.sqrt(bNorm) * beamAlpha;
                             const w0 = beamBaseW * beamWScale[v];
                             ctx.strokeStyle = strokeColors[c];
-                            for (let sIdx = 0; sIdx < 3; sIdx++) {
+                            for (let sIdx = 0; sIdx < nSegs; sIdx++) {
                                 ctx.globalAlpha = a0 * SEG_ALPHA[sIdx];
                                 ctx.lineWidth = w0 * SEG_WIDTH[sIdx];
                                 ctx.stroke(beamSegs[sIdx][v]);
@@ -1886,7 +1898,7 @@ export class EpcotSurface {
                         if (curvedBeams) {
                             const w0 = beamBaseW * beamWScale[v];
                             ctx.strokeStyle = 'rgb(240,248,255)';
-                            for (let sIdx = 0; sIdx < 3; sIdx++) {
+                            for (let sIdx = 0; sIdx < nSegs; sIdx++) {
                                 ctx.globalAlpha = oa * beamAlpha * SEG_ALPHA[sIdx];
                                 ctx.lineWidth = w0 * SEG_WIDTH[sIdx];
                                 ctx.stroke(beamSegs[sIdx][v]);
