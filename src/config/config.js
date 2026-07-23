@@ -558,7 +558,14 @@ export const config = {
     globe: {
       enabled: false,        // ?globe=true / panel toggle
       zoom: 1,               // ?zoom= / panel slider / mouse wheel (0.4-3)
-      latSpan: 2.6           // Radians of latitude the canvas height covers on the sphere
+      latSpan: 2.6,          // Radians of latitude the canvas height covers on the sphere
+      // Authentic scale: the real Spaceship Earth has 11,324 triangular
+      // panels; lights sit at panel intersections (~F/2+2 = ~5,664 total,
+      // ~2,830 on the visible hemisphere). Globe mode derives its
+      // triangle size from this so the on-screen ball carries the real
+      // number of panels/lights. Set to 0 to use the scene's normal
+      // triangle size instead.
+      panels: 11324
     },
 
     // Color pattern boundary handling: 'sharp' assigns each bulb to one

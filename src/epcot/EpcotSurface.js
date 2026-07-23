@@ -312,7 +312,25 @@ export class EpcotSurface {
         const width = this.canvas.width;
         const height = this.canvas.height;
 
-        const grid = buildTriangleGrid(width, height, this.size);
+        // Authentic globe scale: derive the triangle size from the real
+        // ball's panel count (11,324 panels -> ~5,662 visible triangles /
+        // ~2,830 lights on the facing hemisphere) so the on-screen globe
+        // carries the true density. Flat/fisheye modes keep the user's
+        // triangle size.
+        this._renderSize = this.size;
+        if (this.globe) {
+            const panels = config.epcot.globe.panels ?? 0;
+            if (panels > 0) {
+                const latSpan0 = config.epcot.globe.latSpan ?? 2.6;
+                const Rs0 = height / latSpan0;
+                const visW = Math.min(width, Math.PI * Rs0);
+                const visH = Math.min(height, Math.PI * Rs0);
+                const s = Math.sqrt((visW * visH * 4) / (Math.sqrt(3) * (panels / 2)));
+                this._renderSize = Math.max(12, s);
+            }
+        }
+
+        const grid = buildTriangleGrid(width, height, this._renderSize);
         const lattice = buildLatticeVertices(grid.triangles, grid.triCount, this.vertexEpsilon);
 
         // Fisheye: a PURE DISPLAY PROJECTION. All lighting, shading,
@@ -426,7 +444,7 @@ export class EpcotSurface {
         const facets = buildFacets(
             grid.triangles,
             grid.triCount,
-            this.size * this.spikeHeightRatio,
+            this._renderSize * this.spikeHeightRatio,
             this.spikeVariation,
             this.random
         );
@@ -444,7 +462,7 @@ export class EpcotSurface {
         // those bulbs - so a bright bulb throws glints across facets
         // several rows away, not just its own triangle's corners.
         {
-            const reach = (config.epcot.lightReachRatio ?? 2.2) * this.size;
+            const reach = (config.epcot.lightReachRatio ?? 2.2) * this._renderSize;
             const reachSq = reach * reach;
             const buckets = new Map();
             const bkey = (bx, by) => bx * 100000 + by;
@@ -497,7 +515,7 @@ export class EpcotSurface {
             this._triLightShadow = new Float32Array(this._triLightIdx.length).fill(1);
 
             if (this.shadowsEnabled) {
-                const size = this.size;
+                const size = this._renderSize;
                 // Triangle centroid spatial hash (cell = one triangle size)
                 const cellSize = size;
                 const triBuckets = new Map();
@@ -517,7 +535,7 @@ export class EpcotSurface {
                     list.push(t);
                 }
 
-                const vertexZShadow = this.size * this.spikeHeightRatio * this.vertexHeightRatio;
+                const vertexZShadow = this._renderSize * this.spikeHeightRatio * this.vertexHeightRatio;
                 const blockRadius = 0.5 * size;
                 const blockRadiusSq = blockRadius * blockRadius;
                 const step = 0.7 * size;
@@ -575,7 +593,7 @@ export class EpcotSurface {
         // rebuild; rgb (3..5) is set by the color scheme below (per-frame
         // only for the 'cycle' scheme); intensity (6) is recomputed every
         // frame from the pattern.
-        const nominalSpikeHeight = this.size * this.spikeHeightRatio;
+        const nominalSpikeHeight = this._renderSize * this.spikeHeightRatio;
         const vertexZ = nominalSpikeHeight * this.vertexHeightRatio;
         this._vertexLights = new Float32Array(this.vertexCount * 7);
         for (let v = 0; v < this.vertexCount; v++) {
@@ -630,7 +648,7 @@ export class EpcotSurface {
             }
         }
 
-        this.falloff = this.falloffSizeRatio * this.size;
+        this.falloff = this.falloffSizeRatio * this._renderSize;
 
         // Color scheme: static per-vertex hue -> rgb + sprite hue bucket.
         // The 'cycle' scheme re-derives rgb/bucket per frame from these
@@ -842,7 +860,7 @@ export class EpcotSurface {
         // partial lengths stopping PART-WAY ALONG a chord - never a
         // direct line to the warped endpoint, which cuts corners across
         // curved rows whenever the beam length isn't exactly one step.
-        const step = this.size;
+        const step = this._renderSize;
         const wA = [0, 0], wB = [0, 0];
         // Point at original-space distance t along the arm, ON the chord
         // polyline (lerp between the bracketing warped lattice points).
@@ -1047,7 +1065,7 @@ export class EpcotSurface {
             this.effBaseB = 0.78;
 
             const isGradient = (config.epcot.gradientSchemes ?? []).includes(this.scheme);
-            const cell = Math.max(1, this.size * (config.epcot.paletteCellRatio ?? 2.6));
+            const cell = Math.max(1, this._renderSize * (config.epcot.paletteCellRatio ?? 2.6));
             const height = this.canvas.height || 1;
             for (let v = 0; v < this.vertexCount; v++) {
                 const x = this.vertexPositions[v * 2];
@@ -1335,9 +1353,9 @@ export class EpcotSurface {
      */
     _rebuildBulbSprites() {
         const style = STAR_STYLES[this.bulbStyle] || STAR_STYLES.star6;
-        const glowR = Math.max(4, this.size * this.bulbGlowRadiusRatio);
-        const coreR = Math.max(1.5, this.size * this.bulbCoreRadiusRatio);
-        const beamL = Math.max(8, this.size * this.beamLengthRatio * style.lengthScale);
+        const glowR = Math.max(4, this._renderSize * this.bulbGlowRadiusRatio);
+        const coreR = Math.max(1.5, this._renderSize * this.bulbCoreRadiusRatio);
+        const beamL = Math.max(8, this._renderSize * this.beamLengthRatio * style.lengthScale);
 
         this._glowRadius = glowR;
         this._beamLength = beamL;
@@ -1631,12 +1649,12 @@ export class EpcotSurface {
 
         if (name === 'meteor' || name === 'night') {
             const interval = Math.max(0.5, this.meteorInterval);
-            const speed = this.meteorSpeed * this.size;
-            const tail = this.meteorTail * this.size;
+            const speed = this.meteorSpeed * (this._renderSize ?? this.size);
+            const tail = this.meteorTail * (this._renderSize ?? this.size);
             const tracks = Math.max(1, Math.min(4, this.meteorTracks | 0));
             const width = this.canvas.width;
             const height = this.canvas.height;
-            const corridor = 0.42 * this.size;
+            const corridor = 0.42 * (this._renderSize ?? this.size);
 
             // Fixed direction, or -1 for random-per-meteor. Directions are
             // the 6 lattice axes so streaks run along actual bulb rows.
