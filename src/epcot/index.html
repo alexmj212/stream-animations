@@ -268,6 +268,14 @@
         <label>Fisheye amount <span class="val" id="valFStr"></span></label>
         <div class="row"><input type="range" id="ctlFStr" min="0.1" max="2" step="0.05"></div>
 
+        <div class="check">
+            <input type="checkbox" id="ctlGlobe">
+            <label for="ctlGlobe">Globe (full ball)</label>
+        </div>
+
+        <label>Globe zoom <span class="val" id="valZoom"></span></label>
+        <div class="row"><input type="range" id="ctlZoom" min="0.4" max="3" step="0.05"></div>
+
         <button id="copyUrl">Copy URL for OBS</button>
     </div>
 
@@ -321,6 +329,8 @@
             olift: numParam('olift', cfg.bulbs.overlayLocalLift, 0, 1),
             fisheye: urlParams.get('fisheye') === null ? cfg.fisheye.enabled : urlParams.get('fisheye') === 'true',
             fstr: numParam('fstr', cfg.fisheye.strength, 0.1, 2),
+            globe: urlParams.get('globe') === null ? cfg.globe.enabled : urlParams.get('globe') === 'true',
+            zoom: numParam('zoom', cfg.globe.zoom, 0.4, 3),
             fps: numParam('fps', 60, 15, 60),
             speed: getSpeedFromURL(1.0),
             size: getSizeFromURL(cfg.size.default, cfg.size.min, cfg.size.max),
@@ -390,6 +400,8 @@
             overlayLocalLift: settings.olift,
             fisheye: settings.fisheye,
             fisheyeStrength: settings.fstr,
+            globe: settings.globe,
+            globeZoom: settings.zoom,
             speed: settings.speed,
             brightness: settings.brightness,
             gapWidth: settings.gap,
@@ -453,6 +465,8 @@
                 olift: cfg.bulbs.overlayLocalLift,
                 fisheye: cfg.fisheye.enabled,
                 fstr: cfg.fisheye.strength,
+                globe: cfg.globe.enabled,
+                zoom: cfg.globe.zoom,
                 fps: 60,
                 speed: 1.0,
                 size: cfg.size.default,
@@ -486,6 +500,8 @@
                 set('olift', settings.olift);
                 set('fisheye', settings.fisheye);
                 set('fstr', settings.fstr);
+                set('globe', settings.globe);
+                set('zoom', settings.zoom);
                 set('fps', settings.fps);
                 set('speed', settings.speed);
                 set('size', settings.size);
@@ -538,6 +554,7 @@
                 ['ctlOSLight', 'valOSLight', 'oslight', (v) => surface.applySettings({ overlaySurfaceLight: v })],
                 ['ctlOLift', 'valOLift', 'olift', (v) => surface.applySettings({ overlayLocalLift: v })],
                 ['ctlFStr', 'valFStr', 'fstr', (v) => surface.applySettings({ fisheyeStrength: v })],
+                ['ctlZoom', 'valZoom', 'zoom', (v) => surface.applySettings({ globeZoom: v })],
                 ['ctlFps', 'valFps', 'fps', () => { /* read directly by the frame loop */ }],
                 ['ctlSpeed', 'valSpeed', 'speed', (v) => surface.applySettings({ speed: v })],
                 ['ctlSize', 'valSize', 'size', (v) => surface.applySettings({ size: v })],
@@ -671,6 +688,29 @@
             $('starToggle').addEventListener('click', () => {
                 const open = $('starSection').classList.toggle('open');
                 $('starToggle').innerHTML = open ? 'Star effects &#9662;' : 'Star effects &#9656;';
+            });
+            $('ctlGlobe').checked = settings.globe;
+            $('ctlGlobe').addEventListener('change', (e) => {
+                settings.globe = e.target.checked;
+                surface.applySettings({ globe: settings.globe });
+                syncURL();
+            });
+
+            // Mouse-wheel zoom when the globe is on (debounced rebuild)
+            let zoomTimer = null;
+            lifecycle.addEventListener(window, 'wheel', (e) => {
+                if (!settings.globe) return;
+                const next = Math.min(3, Math.max(0.4,
+                    settings.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
+                settings.zoom = Math.round(next * 100) / 100;
+                $('ctlZoom').value = settings.zoom;
+                $('valZoom').textContent = settings.zoom;
+                if (zoomTimer) clearTimeout(zoomTimer);
+                zoomTimer = setTimeout(() => {
+                    zoomTimer = null;
+                    surface.applySettings({ globeZoom: settings.zoom });
+                    syncURL();
+                }, 90);
             });
 
             $('copyUrl').addEventListener('click', () => {

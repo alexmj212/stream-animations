@@ -187,6 +187,8 @@ export class EpcotSurface {
 
         this.fisheye = options.fisheye ?? cfg.fisheye.enabled;
         this.fisheyeStrength = options.fisheyeStrength ?? cfg.fisheye.strength;
+        this.globe = options.globe ?? cfg.globe.enabled;
+        this.globeZoom = options.globeZoom ?? cfg.globe.zoom;
 
         this.baseHSL = options.baseHSL ?? { h: 195, s: 55, l: 42 };
         this.saturation = options.saturation ?? cfg.color.saturationBoost;
@@ -282,6 +284,8 @@ export class EpcotSurface {
         if (s.beamLengthRatio !== undefined && s.beamLengthRatio !== this.beamLengthRatio) { this.beamLengthRatio = s.beamLengthRatio; needsRebuild = true; }
         if (s.fisheye !== undefined && s.fisheye !== this.fisheye) { this.fisheye = s.fisheye; needsRebuild = true; }
         if (s.fisheyeStrength !== undefined && s.fisheyeStrength !== this.fisheyeStrength) { this.fisheyeStrength = s.fisheyeStrength; needsRebuild = true; }
+        if (s.globe !== undefined && s.globe !== this.globe) { this.globe = s.globe; needsRebuild = true; }
+        if (s.globeZoom !== undefined && s.globeZoom !== this.globeZoom) { this.globeZoom = s.globeZoom; needsRebuild = true; }
         if (s.glowRadiusRatio !== undefined && s.glowRadiusRatio !== this.bulbGlowRadiusRatio) { this.bulbGlowRadiusRatio = s.glowRadiusRatio; needsRebuild = true; }
 
         if (needsRebuild) this.rebuild();
@@ -321,9 +325,63 @@ export class EpcotSurface {
         // chains that read as phantom extra beams.
         this._warpPoint = null;
         this._originalPositions = null;
+        this._vertexVisible = null;
+        this._triVisible = null;
         let drawTriangles = grid.triangles;
         this._vertexDrawPos = lattice.positions;
-        if (this.fisheye) {
+        if (this.globe) {
+            // Globe: map the flat lattice onto a sphere via lat/lon and
+            // project orthographically - the full ball, back hemisphere
+            // culled. Rows become latitude circles; the limb is the
+            // sphere's silhouette. Takes precedence over fisheye.
+            const latSpan = config.epcot.globe.latSpan ?? 2.6;
+            const Rs = height / latSpan; // sphere radius in plane units (arc length preserved at center)
+            const zoom = this.globeZoom;
+            const cx = width / 2, cy = height / 2;
+            const HALF = Math.PI / 2 - 1e-3;
+            const warp = (x, y, out) => {
+                let lon = (x - cx) / Rs;
+                let lat = (cy - y) / Rs;
+                if (lon > HALF) lon = HALF; else if (lon < -HALF) lon = -HALF;
+                if (lat > HALF) lat = HALF; else if (lat < -HALF) lat = -HALF;
+                out[0] = cx + Rs * Math.cos(lat) * Math.sin(lon) * zoom;
+                out[1] = cy - Rs * Math.sin(lat) * zoom;
+            };
+            const isVisible = (x, y) =>
+                Math.abs((x - cx) / Rs) < HALF && Math.abs((cy - y) / Rs) < HALF;
+
+            this._warpPoint = warp;
+            this._originalPositions = lattice.positions;
+
+            const w2 = [0, 0];
+            drawTriangles = Float32Array.from(grid.triangles);
+            for (let i = 0; i < drawTriangles.length; i += 2) {
+                warp(drawTriangles[i], drawTriangles[i + 1], w2);
+                drawTriangles[i] = w2[0];
+                drawTriangles[i + 1] = w2[1];
+            }
+            const drawPos = Float32Array.from(lattice.positions);
+            for (let i = 0; i < drawPos.length; i += 2) {
+                warp(drawPos[i], drawPos[i + 1], w2);
+                drawPos[i] = w2[0];
+                drawPos[i + 1] = w2[1];
+            }
+            this._vertexDrawPos = drawPos;
+
+            // Back-hemisphere culling: vertices/triangles past the limb
+            // never draw (bulbs, facets, seams, beams).
+            this._vertexVisible = new Uint8Array(lattice.count);
+            for (let v = 0; v < lattice.count; v++) {
+                this._vertexVisible[v] = isVisible(lattice.positions[v * 2], lattice.positions[v * 2 + 1]) ? 1 : 0;
+            }
+            this._triVisible = new Uint8Array(grid.triCount);
+            for (let t = 0; t < grid.triCount; t++) {
+                this._triVisible[t] =
+                    (this._vertexVisible[lattice.triVertexIndex[t * 3]] &&
+                     this._vertexVisible[lattice.triVertexIndex[t * 3 + 1]] &&
+                     this._vertexVisible[lattice.triVertexIndex[t * 3 + 2]]) ? 1 : 0;
+            }
+        } else if (this.fisheye) {
             const cx = width / 2, cy = height / 2;
             const R = Math.hypot(cx, cy) * 1.18; // margin triangles stay inside r=1
             const s = this.fisheyeStrength;
@@ -653,7 +711,13 @@ export class EpcotSurface {
         const warpFn = this._warpPoint;
         const wp = [0, 0];
         this.paths = new Array(this.facetCount);
+        const EMPTY_PATH = new Path2D();
         for (let f = 0; f < this.facetCount; f++) {
+            // Globe: facets of back-hemisphere triangles never draw
+            if (this._triVisible && !this._triVisible[(f / 3) | 0]) {
+                this.paths[f] = EMPTY_PATH;
+                continue;
+            }
             const o = f * 6;
             let ax = positions2D[o], ay = positions2D[o + 1];
             let bx = positions2D[o + 2], by = positions2D[o + 3];
@@ -713,7 +777,7 @@ export class EpcotSurface {
         const beamA = Math.sqrt(this.bulbFloor * 0.45) * this.beamAlpha;
         this._idleBeamAlpha = beamA;
         const hasBeams = this._starArms > 0;
-        const curved = this.fisheye && this._beamPathFull !== null;
+        const curved = this._beamPathFull !== null;
         const drawPos = this._vertexDrawPos;
         const buckets = this._vertexBucket;
         const pointR = this._pointRadius;
@@ -722,6 +786,7 @@ export class EpcotSurface {
 
         if (curved) ictx.lineCap = 'round';
         for (let v = 0; v < this.vertexCount; v++) {
+            if (this._vertexVisible && !this._vertexVisible[v]) continue;
             const x = drawPos[v * 2];
             const y = drawPos[v * 2 + 1];
             const c = buckets[v];
@@ -762,7 +827,7 @@ export class EpcotSurface {
         this._beamPathFull = null;
         this._beamGradRadius = null;
         this._beamWidthScale = null;
-        if (!this.fisheye || !this._warpPoint || this._starArms === 0) return;
+        if (!this._warpPoint || this._starArms === 0) return;
 
         const warp = this._warpPoint;
         const orig = this._originalPositions;
@@ -814,7 +879,15 @@ export class EpcotSurface {
         const widthScale = new Float32Array(this.vertexCount);
         const fullPaths = new Array(this.vertexCount);
         const gradRadius = new Float32Array(this.vertexCount);
+        const EMPTY_ARM_PATH = new Path2D();
         for (let v = 0; v < this.vertexCount; v++) {
+            // Globe: back-hemisphere bulbs get no beam geometry
+            if (this._vertexVisible && !this._vertexVisible[v]) {
+                fullPaths[v] = EMPTY_ARM_PATH;
+                gradRadius[v] = 1;
+                widthScale[v] = 1;
+                continue;
+            }
             const ox = orig[v * 2], oy = orig[v * 2 + 1];
             const path = new Path2D();
             let chordSum = 0;
@@ -861,7 +934,9 @@ export class EpcotSurface {
         canvas.height = this.canvas.height;
         const fctx = canvas.getContext('2d');
 
-        fctx.fillStyle = this._ambientColor;
+        // Globe: the void around the ball is near-black space, not the
+        // scheme's ambient wash.
+        fctx.fillStyle = this.globe ? '#020407' : this._ambientColor;
         fctx.fillRect(0, 0, canvas.width, canvas.height);
 
         const peak = config.epcot.lighting.intensity * this.brightness;
@@ -891,6 +966,7 @@ export class EpcotSurface {
         // real illumination comes from bulbs a row or two away that face
         // it. Shadows included, matching the live gathered path.
         for (let t = 0; t < this.triCount; t++) {
+            if (this._triVisible && !this._triVisible[t]) continue;
             const t3 = t * 3;
             triSums[t3] = triSums[t3 + 1] = triSums[t3 + 2] = 0;
             for (let k = 0; k < 3; k++) {
@@ -913,6 +989,7 @@ export class EpcotSurface {
 
         const bounceOn = this.bounceEnabled;
         for (let t = 0; t < this.triCount; t++) {
+            if (this._triVisible && !this._triVisible[t]) continue;
             const no = t * 3;
             let br = 0, bg = 0, bb = 0, n = 0;
             if (bounceOn) {
@@ -1218,6 +1295,7 @@ export class EpcotSurface {
         const internalPath = new Path2D();
 
         for (let t = 0; t < triCount; t++) {
+            if (this._triVisible && !this._triVisible[t]) continue;
             const o = t * 6;
             const ax = triangles[o], ay = triangles[o + 1];
             const bx = triangles[o + 2], by = triangles[o + 3];
@@ -1815,7 +1893,9 @@ export class EpcotSurface {
         // receivers (neighbors of lit triangles) are activated in a second
         // sweep so light still spills onto otherwise-dark panels.
         const triActive = this._triActive;
+        const triVis = this._triVisible;
         for (let t = 0; t < triCount; t++) {
+            if (triVis && !triVis[t]) { triActive[t] = 0; continue; }
             const start = triLightStart[t];
             const end = start + triLightCount[t];
             let active = 0;
@@ -2026,7 +2106,7 @@ export class EpcotSurface {
             const bulbFloor = this.bulbFloor;
             const pointSprites = this._pointSprites;
             const pointR = this._pointRadius;
-            const curvedBeams = this.fisheye && hasBeams && this._beamPathFull !== null;
+            const curvedBeams = hasBeams && this._beamPathFull !== null;
             const drawPos = this._vertexDrawPos;
             const beamPaths = this._beamPathFull;
             const beamGradR = this._beamGradRadius;
@@ -2049,7 +2129,9 @@ export class EpcotSurface {
                 ctx.drawImage(this._idleBulbCanvas, 0, 0);
             }
             if (curvedBeams) ctx.lineCap = 'round';
+            const vertexVis = this._vertexVisible;
             for (let v = 0; v < vertexCount; v++) {
+                if (vertexVis && !vertexVis[v]) continue;
                 const o = v * 7;
                 // Pattern drive only - the floor's sprite visibility is
                 // handled by bulbFloor below, not double-counted from the

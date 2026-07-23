@@ -550,6 +550,17 @@ export const config = {
       strength: 0.8          // 0 = flat, 1 = full spherical projection
     },
 
+    // Globe: render the lattice ON an actual sphere (orthographic
+    // projection, back hemisphere culled) - the full ball floating
+    // against darkness, zoomable. Takes precedence over fisheye when
+    // both are enabled. Like fisheye, a pure display projection: the
+    // simulation stays flat; only drawing coordinates map to the sphere.
+    globe: {
+      enabled: false,        // ?globe=true / panel toggle
+      zoom: 1,               // ?zoom= / panel slider / mouse wheel (0.4-3)
+      latSpan: 2.6           // Radians of latitude the canvas height covers on the sphere
+    },
+
     // Color pattern boundary handling: 'sharp' assigns each bulb to one
     // color group with a dithered edge; 'blend' interpolates smoothly
     // between the groups across a wide transition zone (?blend=true).
