@@ -84,11 +84,11 @@ function sampleStops(stops, t, vertexLights, lo) {
 }
 
 // Patterns auto mode cycles through (everything except 'auto' itself)
-const AUTO_PATTERNS = ['chase', 'split', 'orbit', 'bands', 'pulse', 'sweep', 'diagonal', 'wave', 'mix', 'cascade', 'scanner', 'spiral', 'radial'];
+const AUTO_PATTERNS = ['chase', 'split', 'orbit', 'bands', 'pulse', 'swoosh', 'sweep', 'diagonal', 'wave', 'mix', 'cascade', 'scanner', 'spiral', 'radial'];
 
 // Color patterns keep every bulb lit and animate WHICH of the scheme's
 // two color groups each bulb shows; intensity patterns move light around.
-const COLOR_PATTERNS = new Set(['split', 'sweep', 'bands', 'mix']);
+const COLOR_PATTERNS = new Set(['split', 'sweep', 'bands', 'mix', 'swoosh']);
 
 // Every intensity pattern pairs with a color animation running on its
 // OWN clock (rate = multiple of the pattern cycle; negative counter-
@@ -1129,6 +1129,23 @@ export class EpcotSurface {
                         w = rand[v] < p ? 0 : 1;
                     }
                     break;
+                case 'swoosh': {
+                    // Logo-style wave: an undulating S-curve boundary
+                    // travels horizontally; colors sit above/below it and
+                    // gradient across it. The wave's amplitude breathes
+                    // gently with p so the curve itself evolves.
+                    const xn = coord[v * 5 + 2];
+                    const amp = 0.14 + 0.1 * p;
+                    const boundary = 0.5 + amp * Math.sin(2 * Math.PI * (xn * 1.25 - phase));
+                    const d = coord[v * 5 + 3] - boundary;
+                    if (blend) {
+                        const mS = Math.min(1, Math.max(0, d / 0.45 + 0.5));
+                        w = mS * mS * (3 - 2 * mS);
+                    } else {
+                        w = d + (rand[v] - 0.5) * 0.06 < 0 ? 0 : 1;
+                    }
+                    break;
+                }
                 case 'split':
                 default:
                     if (blend) {
@@ -1487,7 +1504,8 @@ export class EpcotSurface {
             case 'split':
             case 'sweep':
             case 'bands':
-            case 'mix': {
+            case 'mix':
+            case 'swoosh': {
                 // Color patterns: every bulb stays fully driven (the
                 // animation is in the color assignment); a gentle ripple
                 // keeps the surface alive. Facet exposure stays in range

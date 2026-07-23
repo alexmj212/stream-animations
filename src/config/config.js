@@ -490,7 +490,9 @@ export const config = {
       // them with smooth crossfades.
       // 'steady' is fully lit and motionless - with a gradient scheme
       // (e.g. illuminations) it renders the flat static gradient.
-      options: ['steady', 'chase', 'orbit', 'pulse', 'diagonal', 'wave', 'cascade', 'scanner', 'spiral', 'radial', 'split', 'sweep', 'bands', 'mix', 'auto'],
+      // 'swoosh' is a logo-style wave: an undulating S-curve boundary
+      // travels horizontally while the colors gradient across it.
+      options: ['steady', 'chase', 'orbit', 'pulse', 'diagonal', 'wave', 'cascade', 'scanner', 'spiral', 'radial', 'split', 'sweep', 'bands', 'mix', 'swoosh', 'auto'],
       // Auto mode: seconds each pattern plays before crossfading to the
       // next, and the crossfade length in seconds.
       autoSegmentDuration: 20,
