@@ -1139,7 +1139,8 @@ export class EpcotSurface {
                     const boundary = 0.5 + amp * Math.sin(2 * Math.PI * (xn * 1.25 - phase));
                     const d = coord[v * 5 + 3] - boundary;
                     if (blend) {
-                        const mS = Math.min(1, Math.max(0, d / 0.45 + 0.5));
+                        // Wide gradient band across the wave
+                        const mS = Math.min(1, Math.max(0, d / 0.85 + 0.5));
                         w = mS * mS * (3 - 2 * mS);
                     } else {
                         w = d + (rand[v] - 0.5) * 0.06 < 0 ? 0 : 1;
