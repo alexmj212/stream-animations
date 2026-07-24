@@ -328,6 +328,16 @@ export const config = {
     // Full light pattern cycle duration in seconds (slow, so the sweep reads clearly)
     cycleDuration: 24,
 
+    // Loop period in seconds (?loop= / panel slider; 0 = off). When set,
+    // EVERY time-varying subsystem - patterns, combo color animations,
+    // the cycle scheme's hue rotation, auto-mode segments, twinkle
+    // schedules, meteor spawns - quantizes its own period to the nearest
+    // divisor of this master period and the clock wraps exactly, so the
+    // whole scene loops perfectly for seamless recordings. Note: the
+    // period is in pattern-clock seconds; real recording length is
+    // loopPeriod / speed.
+    loopPeriod: 0,
+
     // Point lights sit at every unique lattice vertex (panel corners), like
     // the LEDs on the real Spaceship Earth ball - see EpcotSurface. There
     // is deliberately no such thing as a "corner light": the 4 screen

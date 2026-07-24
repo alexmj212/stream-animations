@@ -148,6 +148,7 @@ export class EpcotSurface {
         this.cornerWeightFalloffRatio = options.cornerWeightFalloffRatio ?? cfg.lighting.cornerWeightFalloffRatio;
         this.vertexEpsilon = options.vertexEpsilon ?? cfg.vertexEpsilon;
         this.cycleDuration = options.cycleDuration ?? cfg.cycleDuration;
+        this.loopPeriod = options.loopPeriod ?? cfg.loopPeriod;
         this.speed = options.speed ?? 1.0;
         this.brightness = options.brightness ?? 1.0;
         this.seamInflatePx = options.seamInflatePx ?? cfg.seamInflatePx;
@@ -250,6 +251,7 @@ export class EpcotSurface {
         let needsRebuild = false;
 
         if (s.pattern !== undefined) this.patternName = s.pattern;
+        if (s.loopPeriod !== undefined) this.loopPeriod = s.loopPeriod;
         if (s.colorBlend !== undefined) this.colorBlend = s.colorBlend;
         if (s.coreStyle !== undefined) this.coreStyle = s.coreStyle;
         if (s.overlayPattern !== undefined) this.overlayPattern = s.overlayPattern;
@@ -1176,7 +1178,7 @@ export class EpcotSurface {
      * @private
      */
     _applyColorPattern(name, t, drive = null) {
-        const phase = (((t / this.cycleDuration) % 1) + 1) % 1;
+        const phase = (((t / (this._effCycle ?? this.cycleDuration)) % 1) + 1) % 1;
         const p = 0.5 + 0.42 * Math.sin(2 * Math.PI * phase);
         const A = this._groupA, B = this._groupB;
         const coord = this._vertexCoord;
@@ -1501,6 +1503,24 @@ export class EpcotSurface {
      */
     update(deltaTime) {
         this.clock += deltaTime * this.speed;
+        // Loop mode: wrap the clock exactly at the master period so the
+        // scene repeats seamlessly (and float precision never drifts over
+        // long recordings).
+        if (this.loopPeriod > 0 && this.clock >= this.loopPeriod) {
+            this.clock -= this.loopPeriod * Math.floor(this.clock / this.loopPeriod);
+        }
+    }
+
+    /**
+     * Quantize a desired period to the nearest exact divisor of the loop
+     * period (identity when looping is off) - every subsystem that cycles
+     * uses this so integer numbers of its cycles fit the master period.
+     * @private
+     */
+    _q(desired) {
+        const P = this.loopPeriod;
+        if (!(P > 0) || !(desired > 0)) return desired;
+        return P / Math.max(1, Math.round(P / desired));
     }
 
     /**
@@ -1515,7 +1535,7 @@ export class EpcotSurface {
         const vertexLights = this._vertexLights;
         const width = this.canvas.width;
         const height = this.canvas.height;
-        const phase = (((t / this.cycleDuration) % 1) + 1) % 1;
+        const phase = (((t / (this._effCycle ?? this.cycleDuration)) % 1) + 1) % 1;
 
         switch (name) {
             case 'orbit':
@@ -1616,7 +1636,7 @@ export class EpcotSurface {
             case 'radial':
             default: {
                 for (let v = 0; v < vertexCount; v++) {
-                    out[v] = radialField(coord[v * 5 + 1], t, this.cycleDuration);
+                    out[v] = radialField(coord[v * 5 + 1], t, (this._effCycle ?? this.cycleDuration));
                 }
                 break;
             }
@@ -1640,15 +1660,24 @@ export class EpcotSurface {
             const k = cfg.twinkleSharpness ?? 140;
             const phase = this._twinklePhase;
             const period = this._twinklePeriod;
+            const looping = this.loopPeriod > 0;
             for (let v = 0; v < vertexCount; v++) {
-                const base = 0.5 + 0.5 * Math.sin(2 * Math.PI * (t / period[v] + phase[v]));
+                // Loop mode: each bulb's period snaps to an exact divisor
+                // of the master period so its twinkle schedule repeats.
+                const pv = looping ? this._q(period[v]) : period[v];
+                const base = 0.5 + 0.5 * Math.sin(2 * Math.PI * (t / pv + phase[v]));
                 const I = Math.pow(base, k);
                 if (I > 0.02) out[v] = Math.min(1, I);
             }
         }
 
         if (name === 'meteor' || name === 'night') {
-            const interval = Math.max(0.5, this.meteorInterval);
+            // Loop mode: the interval snaps to divide the master period,
+            // and per-meteor randomness hashes the WRAPPED spawn index so
+            // the exact meteor sequence (directions, edges, positions)
+            // repeats every loop.
+            const interval = this._q(Math.max(0.5, this.meteorInterval));
+            const mCycle = this.loopPeriod > 0 ? Math.max(1, Math.round(this.loopPeriod / interval)) : 0;
             const speed = this.meteorSpeed * (this._renderSize ?? this.size);
             const tail = this.meteorTail * (this._renderSize ?? this.size);
             const tracks = Math.max(1, Math.min(4, this.meteorTracks | 0));
@@ -1677,10 +1706,12 @@ export class EpcotSurface {
                 for (let m = mNow; m > mNow - lookback && m >= 0; m--) {
                 const tau = tj - m * interval;
 
-                // Deterministic per-meteor parameters
-                const h1 = hash2(m, 0x27d4eb + j);
-                const h2 = hash2(m, 0x165667 + j);
-                const h3 = hash2(m, 0xfd7046 + j);
+                // Deterministic per-meteor parameters (loop mode hashes
+                // the wrapped index so the sequence repeats)
+                const hm = mCycle > 0 ? ((m % mCycle) + mCycle) % mCycle : m;
+                const h1 = hash2(hm, 0x27d4eb + j);
+                const h2 = hash2(hm, 0x165667 + j);
+                const h3 = hash2(hm, 0xfd7046 + j);
                 const angle = ((fixedDir >= 0 ? fixedDir : h3 % 6) * Math.PI) / 3;
                 const dx = Math.cos(angle), dy = Math.sin(angle);
 
@@ -1747,6 +1778,10 @@ export class EpcotSurface {
      * additively on top.
      */
     draw() {
+        // Loop mode: the effective pattern cycle is the nearest exact
+        // divisor of the master loop period.
+        this._effCycle = this._q(this.cycleDuration);
+
         const peak = config.epcot.lighting.intensity * this.brightness;
         const vertexLights = this._vertexLights;
         const vertexCount = this.vertexCount;
@@ -1770,7 +1805,7 @@ export class EpcotSurface {
         // time (slow - one full wheel per 3 pattern cycles).
         let bucketShift = 0;
         if (this.scheme === 'cycle') {
-            const hueShift = ((this.clock / (this.cycleDuration * 3)) * 360) % 360;
+            const hueShift = ((this.clock / (this._q(this.cycleDuration * 3))) * 360) % 360;
             bucketShift = Math.round(hueShift / (360 / HUE_BUCKETS)) % HUE_BUCKETS;
             const baseCol = this._vertexBaseColor;
             for (let v = 0; v < vertexCount; v++) {
@@ -1792,7 +1827,12 @@ export class EpcotSurface {
         let colorPatternName = null;
         let comboBase = this.patternName;
         if (this.patternName === 'auto') {
-            const seg = this.autoSegmentDuration;
+            // Loop mode: the full rotation (all segments) must divide the
+            // master period.
+            let seg = this.autoSegmentDuration;
+            if (this.loopPeriod > 0) {
+                seg = this._q(AUTO_PATTERNS.length * seg) / AUTO_PATTERNS.length;
+            }
             const fade = Math.min(this.autoFadeDuration, seg / 2);
             const idx = Math.floor(this.clock / seg);
             const cur = AUTO_PATTERNS[((idx % AUTO_PATTERNS.length) + AUTO_PATTERNS.length) % AUTO_PATTERNS.length];
@@ -1835,7 +1875,17 @@ export class EpcotSurface {
             // base colors the moment their light moves off.
             const combo = COMBO_COLOR[comboBase];
             if (combo) {
-                this._applyColorPattern(combo.c, this.clock * combo.rate, fieldA);
+                // Loop mode: snap the color-animation rate to a rational
+                // multiple of 1/N (N = pattern cycles per loop) so the
+                // color motion also completes integer cycles in the
+                // master period.
+                let rate = combo.rate;
+                if (this.loopPeriod > 0) {
+                    const N = Math.max(1, Math.round(this.loopPeriod / this._effCycle));
+                    const m = Math.max(1, Math.round(Math.abs(rate) * N));
+                    rate = (rate < 0 ? -1 : 1) * (m / N);
+                }
+                this._applyColorPattern(combo.c, this.clock * rate, fieldA);
                 comboActive = true;
             }
         }

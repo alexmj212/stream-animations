@@ -233,6 +233,9 @@
         <label>Max FPS <span class="val" id="valFps"></span></label>
         <div class="row"><input type="range" id="ctlFps" min="15" max="60" step="5"></div>
 
+        <label>Loop period (s, 0=off) <span class="val" id="valLoop"></span></label>
+        <div class="row"><input type="range" id="ctlLoop" min="0" max="240" step="12"></div>
+
         <label>Triangle size <span class="val" id="valSize"></span></label>
         <div class="row"><input type="range" id="ctlSize" min="70" max="300" step="5"></div>
 
@@ -332,6 +335,7 @@
             globe: urlParams.get('globe') === null ? cfg.globe.enabled : urlParams.get('globe') === 'true',
             zoom: numParam('zoom', cfg.globe.zoom, 0.4, 3),
             fps: numParam('fps', 60, 15, 60),
+            loop: numParam('loop', cfg.loopPeriod, 0, 600),
             speed: getSpeedFromURL(1.0),
             size: getSizeFromURL(cfg.size.default, cfg.size.min, cfg.size.max),
             brightness: getBrightnessFromURL(1.0),
@@ -402,6 +406,7 @@
             fisheyeStrength: settings.fstr,
             globe: settings.globe,
             globeZoom: settings.zoom,
+            loopPeriod: settings.loop,
             speed: settings.speed,
             brightness: settings.brightness,
             gapWidth: settings.gap,
@@ -467,6 +472,7 @@
                 fstr: cfg.fisheye.strength,
                 globe: cfg.globe.enabled,
                 zoom: cfg.globe.zoom,
+                loop: cfg.loopPeriod,
                 fps: 60,
                 speed: 1.0,
                 size: cfg.size.default,
@@ -502,6 +508,7 @@
                 set('fstr', settings.fstr);
                 set('globe', settings.globe);
                 set('zoom', settings.zoom);
+                set('loop', settings.loop);
                 set('fps', settings.fps);
                 set('speed', settings.speed);
                 set('size', settings.size);
@@ -555,6 +562,7 @@
                 ['ctlOLift', 'valOLift', 'olift', (v) => surface.applySettings({ overlayLocalLift: v })],
                 ['ctlFStr', 'valFStr', 'fstr', (v) => surface.applySettings({ fisheyeStrength: v })],
                 ['ctlZoom', 'valZoom', 'zoom', (v) => surface.applySettings({ globeZoom: v })],
+                ['ctlLoop', 'valLoop', 'loop', (v) => surface.applySettings({ loopPeriod: v })],
                 ['ctlFps', 'valFps', 'fps', () => { /* read directly by the frame loop */ }],
                 ['ctlSpeed', 'valSpeed', 'speed', (v) => surface.applySettings({ speed: v })],
                 ['ctlSize', 'valSize', 'size', (v) => surface.applySettings({ size: v })],
