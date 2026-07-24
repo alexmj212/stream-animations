@@ -1,0 +1,56 @@
+name: Deploy epcot scene to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test -- --run
+        env:
+          CI: "true"
+
+      - run: npm run build:epcot
+
+      - name: Stage site
+        run: |
+          mkdir -p _site
+          # The epcot build is a single self-contained HTML file; deploy it
+          # as the site root (vite nests the output path).
+          find dist/epcot -name 'index.html' -exec cp {} _site/index.html \;
+          test -s _site/index.html
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
