@@ -74,7 +74,7 @@ shows up in an OBS Browser Source (which sends no mouse events) - safe to
 leave the panel enabled for stream use. Press `c` to toggle it. A "Copy URL
 for OBS" button copies the current settings baked into the URL.
 
-**URL**: `epcot/index.html?color=#hexvalue&size=90&speed=1.0&pattern=chase&scheme=classic`
+**URL**: `epcot/index.html (curated defaults; every parameter below overridable)`
 
 ## Parameters
 
@@ -82,26 +82,26 @@ All animations support:
 - `color` - Base color in hex format (e.g., `#ff6600`)
 
 Epcot-specific:
-- `pattern` - Light cycling pattern: `steady`, `chase`, `orbit`, `pulse`, `diagonal`, `wave`, `cascade`, `scanner`, `spiral`, `radial`, `split`, `sweep`, `bands`, `mix`, or `auto` (default `chase`)
-- `scheme` - Color scheme: `classic`, `mono`, `duo`, `rainbow`, `cycle`, `illuminations`, `earidescent`, `celebration`, `holiday`, `halloween`, `patriot`, or `festival` (default `classic`)
+- `pattern` - Light cycling pattern: `steady`, `chase`, `orbit`, `pulse`, `diagonal`, `wave`, `cascade`, `scanner`, `spiral`, `radial`, `split`, `sweep`, `bands`, `mix`, or `auto` (default `orbit`)
+- `scheme` - Color scheme: `classic`, `mono`, `duo`, `rainbow`, `cycle`, `illuminations`, `earidescent`, `celebration`, `holiday`, `halloween`, `patriot`, or `festival` (default `illuminations`)
 - `star` - Bulb star-beam shape: `star6`, `star4`, `burst`, `rays`, or `none` (default `star6`)
 - `core` - Bulb core light color: `match` (scheme color) or `white` (default `match`)
-- `overlay` - Star overlay driving extra white cores on top of the base pattern: `none`, `twinkle`, `meteor`, or `night` (default `none`)
-- `size` - Triangle side length in pixels (default 90, range 70-300)
-- `speed` - Multiplies the light cycle rate (default 1.0)
+- `overlay` - Star overlay driving extra white cores on top of the base pattern: `none`, `twinkle`, `meteor`, or `night` (default `night`)
+- `size` - Triangle side length in pixels (default 100, range 70-300)
+- `speed` - Multiplies the light cycle rate (default 0.5)
 - `brightness` - Multiplies light intensity on top of the built-in baseline (default 1.0)
 - `sat` - Saturation multiplier applied to bulb colors (default 2)
-- `blend` - `true`/`false` - color patterns interpolate smoothly between groups instead of a dithered hard edge (default `false`)
+- `blend` - `true`/`false` - color patterns interpolate smoothly between groups instead of a dithered hard edge (default `true`)
 - `floor` - Minimum visibility (0-1) every bulb's LED point keeps even at zero pattern drive (default 0.2; 0 disables idle points)
 - `gap` - Panel gap line width in pixels (default 1.5; internal facet creases render thinner)
-- `bounce` - One-bounce indirect light strength, fraction of neighboring panels' average direct light (default 0.38)
-- `spec` - Specular (metallic glint) weight (default 2.4)
-- `beam` - Star beam length as a ratio of triangle size (default 1.05)
+- `bounce` - One-bounce indirect light strength, fraction of neighboring panels' average direct light (default 0.25)
+- `spec` - Specular (metallic glint) weight (default 2)
+- `beam` - Star beam length as a ratio of triangle size (default 0.6)
 - `bulbs` (alias `dots`) - `true`/`false` - show the bulb glow/core/beam sprites (default `true`)
 - `shadows` - `true`/`false` - spikes cast shadows onto neighboring panels (default `true`)
-- `mint` - Meteor spawn interval in seconds, per track (default 3.6)
-- `mspd` - Meteor head speed, in triangle-sizes per second (default 13)
-- `mtail` - Meteor tail length, in triangle-sizes (default 3.0)
+- `mint` - Meteor spawn interval in seconds, per track (default 2)
+- `mspd` - Meteor head speed, in triangle-sizes per second (default 29)
+- `mtail` - Meteor tail length, in triangle-sizes (default 10)
 - `mtrk` - Number of concurrent meteor tracks, 1-4 (default 2)
 - `mdir` - Meteor travel direction: `random`, `right`, `down-right`, `down-left`, `left`, `up-left`, or `up-right` (default `random`)
 - `fisheye` - `true`/`false` - curve the lattice into the ball's spherical silhouette (default `false`)
