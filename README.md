@@ -90,9 +90,9 @@ Epcot-specific:
 - `size` - Triangle side length in pixels (default 90, range 70-300)
 - `speed` - Multiplies the light cycle rate (default 1.0)
 - `brightness` - Multiplies light intensity on top of the built-in baseline (default 1.0)
-- `sat` - Saturation multiplier applied to bulb colors (default 1.35)
+- `sat` - Saturation multiplier applied to bulb colors (default 2)
 - `blend` - `true`/`false` - color patterns interpolate smoothly between groups instead of a dithered hard edge (default `false`)
-- `floor` - Minimum visibility (0-1) every bulb's LED point keeps even at zero pattern drive (default 0.35; 0 disables idle points)
+- `floor` - Minimum visibility (0-1) every bulb's LED point keeps even at zero pattern drive (default 0.2; 0 disables idle points)
 - `gap` - Panel gap line width in pixels (default 1.5; internal facet creases render thinner)
 - `bounce` - One-bounce indirect light strength, fraction of neighboring panels' average direct light (default 0.38)
 - `spec` - Specular (metallic glint) weight (default 2.4)
@@ -105,13 +105,13 @@ Epcot-specific:
 - `mtrk` - Number of concurrent meteor tracks, 1-4 (default 2)
 - `mdir` - Meteor travel direction: `random`, `right`, `down-right`, `down-left`, `left`, `up-left`, or `up-right` (default `random`)
 - `fisheye` - `true`/`false` - curve the lattice into the ball's spherical silhouette (default `false`)
-- `fstr` - Fisheye amount: 0 flat, 1 full spherical projection, >1 an exaggerated beyond-spherical bulge (default 0.8)
-- `loop` - Loop period in seconds (0 = off, default): guarantees the ENTIRE scene repeats pixel-exactly with this period for seamless recordings - every subsystem (patterns, combo colors, hue cycling, auto segments, twinkle schedules, meteor spawns) quantizes its own period to divide the master period. Period is in pattern-clock seconds; real recording length = loop / speed. To cut a recorded loop into ready-to-use OBS media files, use `tools/loopcut.sh <recording.mkv>` (see its --help): produces a frame-exact full-res cut plus a 720p30 variant
+- `fstr` - Fisheye amount: 0 flat, 1 full spherical projection, >1 an exaggerated beyond-spherical bulge (default 1)
+- `loop` - Loop period in seconds (default 24; 0 = off): guarantees the ENTIRE scene repeats pixel-exactly with this period for seamless recordings - every subsystem (patterns, combo colors, hue cycling, auto segments, twinkle schedules, meteor spawns) quantizes its own period to divide the master period. Period is in pattern-clock seconds; real recording length = loop / speed. To cut a recorded loop into ready-to-use OBS media files, use `tools/loopcut.sh <recording.mkv>` (see its --help): produces a frame-exact full-res cut plus a 720p30 variant
 - `globe` - Render the lattice on an actual sphere (orthographic, back hemisphere culled): the full ball floating against darkness. Takes precedence over fisheye
-- `zoom` - Globe zoom, 0.4-3 (default 1); also mouse-wheel when the globe is on
-- `fps` - Max frames per second, 15-60 (default 60). Slow light cycles look fine at 30, roughly halving GPU load; static scenes (steady pattern, no overlay) stop redrawing entirely regardless of this setting
+- `zoom` - Globe zoom, 0.4-3 (default 1.16); also mouse-wheel when the globe is on
+- `fps` - Max frames per second, 15-60 (default 30). Slow light cycles look fine at 30, roughly halving GPU load; static scenes (steady pattern, no overlay) stop redrawing entirely regardless of this setting
 - `oslight` - Star surface light, 0-0.3 (default 0.05): extra intensity a lit overlay star casts through its bulb's scheme-colored light; 0 for pure forward light
-- `olift` - Star shimmer, 0-1 (default 0.15): brightness gain (in each facet's own color) on the triangles touching a lit star
+- `olift` - Star shimmer, 0-1 (default 1): brightness gain (in each facet's own color) on the triangles touching a lit star
 
 Every moving animation also runs a paired color animation on an independent clock (e.g. chase's bloom orbits while a color sweep rotates beneath it at half speed; wave's band travels against scrolling color bands) - brightness and color both animate, each with its own motion. `steady` remains fully static.
 - `panel` - `false` disables the settings panel/gear entirely (default enabled)

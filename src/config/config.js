@@ -296,7 +296,7 @@ export const config = {
   epcot: {
     // Base triangle side length in pixels
     size: {
-      default: 90,   // Default triangle side length (?size= URL param)
+      default: 100,  // Default triangle side length (?size= URL param)
       // Perf floor, measured in headless Chrome @ 1920x1080 (post
       // seam-stroke removal, tools/benchmark-style rAF sampling): frame
       // time holds at the 60Hz vsync cap with low drop counts from
@@ -336,7 +336,11 @@ export const config = {
     // whole scene loops perfectly for seamless recordings. Note: the
     // period is in pattern-clock seconds; real recording length is
     // loopPeriod / speed.
-    loopPeriod: 0,
+    loopPeriod: 24,
+
+    // Default speed multiplier and frame-rate cap (?speed= / ?fps=)
+    speedDefault: 0.5,
+    maxFps: 30,
 
     // Point lights sit at every unique lattice vertex (panel corners), like
     // the LEDs on the real Spaceship Earth ball - see EpcotSurface. There
@@ -371,7 +375,7 @@ export const config = {
       // them; specular highlights are tinted by the base color in
       // shadeFacet() (metals color their reflections).
       diffuseWeight: 0.65,
-      specularWeight: 2.4,
+      specularWeight: 2,
       // Peak per-light intensity multiplier; the ?brightness= URL param
       // further multiplies this at runtime (default 1.0). Tuned for the
       // gathered-light model (each facet sums many bulbs within reach).
@@ -385,7 +389,7 @@ export const config = {
     // just isolated glints).
     bounce: {
       enabled: true,
-      strength: 0.38          // Fraction of neighboring panels' average direct light received
+      strength: 0.25          // Fraction of neighboring panels' average direct light received
     },
 
     // Panel gap lines simulating the seams between panels on the real ball.
@@ -415,7 +419,7 @@ export const config = {
       enabled: true,
       glowRadiusRatio: 0.40,   // Glow halo radius as a ratio of triangle size
       coreRadiusRatio: 0.09,   // White-hot core radius as a ratio of triangle size
-      beamLengthRatio: 1.05,   // Side-firing beam length as a ratio of triangle size
+      beamLengthRatio: 0.6,    // Side-firing beam length as a ratio of triangle size
       beamWidthPx: 2.2,        // Beam stroke width at the bulb, tapering outward
       beamAlpha: 0.8,          // Beam opacity multiplier relative to bulb intensity
       intensityThreshold: 0.06, // Skip bulbs below this normalized intensity (0..1)
@@ -424,7 +428,7 @@ export const config = {
       // zero pattern drive - like a real LED at its lowest, the point
       // never goes transparent while the bloom/illumination collapse.
       // 0 disables the idle points entirely.
-      floor: 0.35,
+      floor: 0.2,
       // Star effect: shape of each bulb's side-firing beams. star6 follows
       // the lattice edge directions (the classic 6-point star); star4 is an
       // upright 4-point twinkle; burst is 12 short arms; rays is 6 long
@@ -442,7 +446,7 @@ export const config = {
       // addressable here: twinkle = single bulbs flare briefly at
       // staggered deterministic times; meteor = a streak of bulbs lights
       // in sequence along a line with a decaying tail; night = both.
-      overlay: 'none',
+      overlay: 'night',
       overlayOptions: ['none', 'twinkle', 'meteor', 'night'],
       // Twinkle: mean seconds between one bulb's flares (each bulb gets a
       // deterministic +/-35% period jitter) and flare sharpness (higher =
@@ -456,9 +460,9 @@ export const config = {
       // locks every streak to that axis. Each streak's lifetime is
       // derived (not configured): it always travels the full ray across
       // the canvas from its spawn edge to its exit edge, tail included.
-      meteorInterval: 3.6,
-      meteorSpeed: 13,
-      meteorTail: 3.0,
+      meteorInterval: 2,
+      meteorSpeed: 29,
+      meteorTail: 10,
       meteorTracks: 2,
       meteorDirection: 'random',
       meteorDirectionOptions: ['random', 'right', 'down-right', 'down-left', 'left', 'up-left', 'up-right'],
@@ -475,7 +479,7 @@ export const config = {
       // Subtle by default, fully controllable (?oslight= / ?olift= and
       // panel sliders); 0 disables for pure forward-light stars.
       overlaySurfaceLight: 0.05,
-      overlayLocalLift: 0.15
+      overlayLocalLift: 1
     },
 
     // Cast shadows: spikes between a bulb and a panel occlude its
@@ -491,7 +495,7 @@ export const config = {
     // Light cycling pattern - every bulb runs the same formula; its
     // intensity depends only on its position and the current time.
     pattern: {
-      default: 'chase',       // ?pattern= URL param
+      default: 'orbit',       // ?pattern= URL param
       // Intensity patterns (chase..radial) move light around; color
       // patterns (split/sweep/bands/mix) keep every bulb lit and animate
       // WHICH color each bulb shows - the scheme's colors trade territory
@@ -517,7 +521,7 @@ export const config = {
     // discrete color combinations (below) in patchwork blocks, like the
     // real ball's panel-region lighting programs.
     scheme: {
-      default: 'classic',     // ?scheme= URL param
+      default: 'illuminations', // ?scheme= URL param
       options: ['classic', 'mono', 'duo', 'rainbow', 'cycle', 'illuminations', 'earidescent', 'celebration', 'holiday', 'halloween', 'patriot', 'festival']
     },
 
@@ -557,7 +561,7 @@ export const config = {
     // ball. Applied to the geometry at rebuild - zero per-frame cost.
     fisheye: {
       enabled: false,        // ?fisheye=true / panel toggle
-      strength: 0.8          // 0 = flat, 1 = full spherical projection
+      strength: 1          // 0 = flat, 1 = full spherical projection
     },
 
     // Globe: render the lattice ON an actual sphere (orthographic
@@ -567,7 +571,7 @@ export const config = {
     // simulation stays flat; only drawing coordinates map to the sphere.
     globe: {
       enabled: false,        // ?globe=true / panel toggle
-      zoom: 1,               // ?zoom= / panel slider / mouse wheel (0.4-3)
+      zoom: 1.16,            // ?zoom= / panel slider / mouse wheel (0.4-3)
       latSpan: 2.6,          // Radians of latitude the canvas height covers on the sphere
       // Authentic scale: the real Spaceship Earth has 11,324 triangular
       // panels; lights sit at panel intersections (~F/2+2 = ~5,664 total,
@@ -581,7 +585,7 @@ export const config = {
     // Color pattern boundary handling: 'sharp' assigns each bulb to one
     // color group with a dithered edge; 'blend' interpolates smoothly
     // between the groups across a wide transition zone (?blend=true).
-    colorBlend: false,
+    colorBlend: true,
 
     // Light gathering: each facet collects light from every bulb within
     // this many triangle-sizes of its triangle's centroid (precomputed
@@ -591,11 +595,11 @@ export const config = {
 
     // Default base color when no ?color= URL param is provided
     color: {
-      defaultHex: '#1c6f8c',  // Cool blue/teal, EPCOT Spaceship Earth inspired
+      defaultHex: '#c0c0c0',  // Silver - lets the illuminations palette carry the color
       // Saturation multiplier applied to every scheme's light colors
       // (?sat= URL param / panel slider). >1 deepens colors toward the
       // rich look the real ball's fixtures produce; 1.0 = palette as-is.
-      saturationBoost: 1.35
+      saturationBoost: 2
     }
   },
 

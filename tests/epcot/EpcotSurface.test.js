@@ -518,7 +518,7 @@ describe('EpcotSurface', () => {
     it('scheme, saturation, size, gapWidth, bulbStyle, beamLengthRatio, glowRadiusRatio, shadowsEnabled changes trigger a full rebuild', () => {
       const cases = [
         { scheme: 'rainbow' },
-        { saturation: 2.0 },
+        { saturation: 1.1 }, // any value != the config default
         { size: 120 },
         { gapWidth: 3 },
         { bulbStyle: 'burst' },
@@ -858,7 +858,8 @@ describe('EpcotSurface', () => {
         meteorTracks: 1,
         meteorSpeed: SPEED,
         meteorTail: TAIL,
-        meteorInterval: 3.6
+        meteorInterval: 3.6,
+        loopPeriod: 0 // loop quantization would retime the sampled spawn slots
       });
       const interval = Math.max(0.5, surface.meteorInterval);
 
