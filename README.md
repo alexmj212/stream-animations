@@ -106,7 +106,7 @@ Epcot-specific:
 - `mdir` - Meteor travel direction: `random`, `right`, `down-right`, `down-left`, `left`, `up-left`, or `up-right` (default `random`)
 - `fisheye` - `true`/`false` - curve the lattice into the ball's spherical silhouette (default `false`)
 - `fstr` - Fisheye amount: 0 flat, 1 full spherical projection, >1 an exaggerated beyond-spherical bulge (default 0.8)
-- `loop` - Loop period in seconds (0 = off, default): guarantees the ENTIRE scene repeats pixel-exactly with this period for seamless recordings - every subsystem (patterns, combo colors, hue cycling, auto segments, twinkle schedules, meteor spawns) quantizes its own period to divide the master period. Period is in pattern-clock seconds; real recording length = loop / speed
+- `loop` - Loop period in seconds (0 = off, default): guarantees the ENTIRE scene repeats pixel-exactly with this period for seamless recordings - every subsystem (patterns, combo colors, hue cycling, auto segments, twinkle schedules, meteor spawns) quantizes its own period to divide the master period. Period is in pattern-clock seconds; real recording length = loop / speed. To cut a recorded loop into ready-to-use OBS media files, use `tools/loopcut.sh <recording.mkv>` (see its --help): produces a frame-exact full-res cut plus a 720p30 variant
 - `globe` - Render the lattice on an actual sphere (orthographic, back hemisphere culled): the full ball floating against darkness. Takes precedence over fisheye
 - `zoom` - Globe zoom, 0.4-3 (default 1); also mouse-wheel when the globe is on
 - `fps` - Max frames per second, 15-60 (default 60). Slow light cycles look fine at 30, roughly halving GPU load; static scenes (steady pattern, no overlay) stop redrawing entirely regardless of this setting
