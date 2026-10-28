@@ -6,6 +6,8 @@ GSD `.planning/PROJECT.md`.
 
 | Date | Decision | Why | Outcome |
 |---|---|---|---|
+| 2026-10-28 | Sidebar text moves from 2/3 to 78% of the height, below the Mix It Up images; `config.sidebar.miuZones` lists where MIU draws over the sidebar, and the harness fails if the text overlaps one | AJ: MIU's images covered the sidebar text. The Mixitup source sits above the alerts in OBS, and its avatars are centred at 42-50% height on the right | new |
+| 2026-10-28 | Stinger, sidebar and shade take the epcot Illuminations palette as a screen-fixed top-to-bottom gradient; `?color=` is ignored by default (`?colormode=shift` hue-shifts it, anchor stop #a312c9 ≈ AJ's theme #b00bee); `?scheme=mono` keeps the old look | AJ: "the same color layout as the illuminations epcot ball on the 3 other animations". AJ chose "Always Illuminations" for Couch Color's `color=` (design review: shift turns warm colors like #ff6600 lime green over epcot) | new |
 | 2026-10-28 | Ship code without approval: code review Ready + green CI, release management merges; AJ only sees design decisions, with mocks | AJ: "just get it out the door" | new |
 | 2026-10-28 | Permanent role threads (code review, design review, release management, QA) write their own charters; all threads coordinate directly (`CLAUDE.md`, Work together) | AJ | new |
 | 2026-10-28 | Retire GSD (`.claude/agents`, `/gsd` commands, `.planning/`); one issue or thread plus one PR per change, decisions here | AJ, following Pixelbot; durable knowledge moved into `docs/` | new |

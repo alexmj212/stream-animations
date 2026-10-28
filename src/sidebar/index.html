@@ -36,9 +36,22 @@
         z-index: 2;
       }
 
+      /* ?debug=zones: where Mix It Up draws its images, above the text the
+         way OBS stacks them */
+      .miuZone {
+        position: absolute;
+        z-index: 3;
+        background: rgba(255, 0, 170, 0.35);
+        outline: 2px solid #ff00aa;
+        font: bold 14px Arial, sans-serif;
+        color: white;
+        padding: 4px;
+        pointer-events: none;
+      }
+
       #sidebarText {
         position: absolute;
-        top: 66.66%;
+        top: calc(var(--text-y) * 100%); /* --text-y = config.sidebar.text.centerY, set by the script: below the Mix It Up images */
         right: -125%; /* Start off-screen to the right */
         transform: translateY(-50%); /* Center vertically */
         font-family: "Jost", Arial, sans-serif;
@@ -81,6 +94,7 @@
 
     <script type="module">
       import { getColorFromURL, hexToHSL } from "../shared/colors.js";
+      import { paletteFromURL } from "../shared/palette.js";
       import { setupCanvas, clearCanvas } from "../shared/canvas.js";
       import { SidebarBar, planSidebar } from "./SidebarBar.js";
       import { PerformanceMonitor } from "../shared/performance.js";
@@ -91,6 +105,7 @@
       import { config } from "../config/config.js";
       import { registerProbe, sampleBar, createRandom, seedFromURL } from "../shared/motion.js";
       import { createDebug } from "../shared/debug.js";
+      import { miuItemRect, coveredFraction } from "../shared/layout.js";
       const debug = createDebug('sidebar');
 
       // Get parameters from URL
@@ -100,11 +115,15 @@
       const showPerf = urlParams.get("perf") === "true";
       const baseColor = getColorFromURL();
       const baseHSL = hexToHSL(baseColor);
+      // ?scheme= / ?colormode=: the epcot palette layout (null stops = single hue)
+      const palette = paletteFromURL();
+      debug.mark('palette', { scheme: palette.scheme, hueShift: palette.hueShift, color: baseColor });
 
       // Setup text element
       const textElement = document.getElementById("sidebarText");
       textElement.textContent = text.toUpperCase();
       textElement.style.setProperty("--duration", `${durationMs}ms`);
+      textElement.style.setProperty("--text-y", String(config.sidebar.text.centerY));
 
       // Setup performance monitoring
       const perfMonitor = new PerformanceMonitor(60, 60);
@@ -155,9 +174,31 @@
 
       // Background panel + balanced accents. ?seed=N pins the layout.
       const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
-      const bars = planSidebar(ctx, canvas, baseHSL, durationMs, createRandom(seed));
+      const bars = planSidebar(ctx, canvas, baseHSL, durationMs, createRandom(seed), palette.stops);
       bars.forEach((bar) => { bar.probeId = bar.isBackground ? 'background' : `${bar.type}-${bar.index}`; });
       registerProbe('sidebar', () => bars.filter(b => b.active).map(b => sampleBar(b, b.probeId)));
+
+      // Mix It Up images drawn over this scene (config.sidebar.miuZones).
+      // The harness fails if any of them covers the text.
+      const miuZones = () => config.sidebar.miuZones.items.map(item => ({
+        label: item.label,
+        ...miuItemRect(item, window.innerWidth, window.innerHeight, config.sidebar.miuZones.pad)
+      }));
+      registerProbe('sidebar', () => {
+        const r = textElement.getBoundingClientRect();
+        const rect = { x: r.left, y: r.top, width: r.width, height: r.height };
+        const onscreen = r.right > 0 && r.left < window.innerWidth;
+        return [{ id: 'text', x: r.left, y: r.top, onscreen, miuCover: onscreen ? coveredFraction(rect, miuZones()) : 0 }];
+      });
+      if (debug.on('zones')) {
+        for (const z of miuZones()) {
+          const el = document.createElement('div');
+          el.className = 'miuZone';
+          el.textContent = z.label;
+          Object.assign(el.style, { left: `${z.x}px`, top: `${z.y}px`, width: `${z.width}px`, height: `${z.height}px` });
+          document.body.appendChild(el);
+        }
+      }
 
       // Save session on page unload
       window.addEventListener('beforeunload', () => {

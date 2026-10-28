@@ -27,6 +27,8 @@ export class StingerBar extends AnimatedBar {
      * @param {Object} [options.layout] - Overrides from planStinger():
      *   targetX, y, direction, isWhite, width, height, zIndex,
      *   inDelay (s), inEndScale (0-1), exitDelay (s), drift (px/s), reverseOnExit
+     * @param {Array|null} [options.palette] - palette stops (src/shared/palette.js);
+     *   null keeps the single-hue look around baseHSL
      */
     constructor(ctx, canvas, type, index, total, baseHSL, duration, options = {}) {
         super(ctx, canvas, type, options);
@@ -35,6 +37,7 @@ export class StingerBar extends AnimatedBar {
         this.baseHSL = baseHSL;
         this.duration = duration;
         this.layout = options.layout || {};
+        this.palette = options.palette ?? null;
 
         if (this.layout.direction !== undefined) {
             this.direction = this.layout.direction;
@@ -121,6 +124,10 @@ export class StingerBar extends AnimatedBar {
         if (this.isWhite && this.type === 'horizontal') {
             this.useOffscreenCache = true;
         }
+
+        // Palette colors depend on where the bar sits, so apply them once
+        // the geometry is known
+        if (this._paletteShade) this.applyPalette(this.palette, this._paletteShade);
     }
 
     applyColor() {
@@ -136,6 +143,11 @@ export class StingerBar extends AnimatedBar {
             // a single bar can't read as the "hero stripe."
             const hueVariation = (this.random() - 0.5) * 24;
             const lightnessVariation = (this.random() - 0.5) * 20 - 5;
+            if (this.palette) {
+                // Same lightness spread and saturation damping, on the palette
+                this._paletteShade = { dl: lightnessVariation, ds: -15, brightness, floor: 15 };
+                return;
+            }
             this.hue = (this.baseHSL.h + hueVariation + 360) % 360;
             this.saturation = Math.max(0, this.baseHSL.s - 15);
             const baseLightness = Math.max(25, Math.min(65, this.baseHSL.l + lightnessVariation));
@@ -175,6 +187,10 @@ export class StingerBar extends AnimatedBar {
         this.hue = this.baseHSL.h;
         this.saturation = this.baseHSL.s;
         this.lightness = Math.max(15, this.baseHSL.l - 25);
+        this._paletteShade = null;
+        if (this.palette) {
+            this.applyPalette(this.palette, { dl: config.palette.curtainLightness, floor: 15 });
+        }
         this.zIndex = -1;
         this.useOffscreenCache = false;
         // Lit inner edge where the curtains meet
@@ -260,13 +276,14 @@ export class StingerBar extends AnimatedBar {
  * Positions come from stratified slots, so every run is different but no
  * run clumps all its bars on one side.
  *
+ * @param {Array|null} [palette] - palette stops from paletteFromURL(); null = single hue
  * @returns {StingerBar[]} bars in draw order (curtains first, then by zIndex)
  */
-export function planStinger(ctx, canvas, baseHSL, durationMs, random) {
+export function planStinger(ctx, canvas, baseHSL, durationMs, random, palette = null) {
     const T = durationMs / 1000;
     const timing = config.stinger.timing;
     const bars = [];
-    const opts = (layout) => ({ random, layout });
+    const opts = (layout) => ({ random, layout, palette });
 
     bars.push(new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, durationMs, opts({ direction: 1 })).makeCurtain('left'));
     bars.push(new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, durationMs, opts({ direction: -1 })).makeCurtain('right'));

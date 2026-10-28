@@ -1,6 +1,7 @@
 import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { config } from '../config/config.js';
 import { hermite } from '../shared/motion.js';
+import { samplePalette, shadeStops, paletteGradient } from '../shared/palette.js';
 
 /**
  * CurtainBar - Semi-transparent curtain overlay with animated horizontal bars
@@ -27,6 +28,8 @@ export class CurtainBar extends AnimatedBar {
    * @param {number} totalDurationMs - Total animation duration (enter + hold + exit)
    * @param {Object} options - Optional configuration
    * @param {number} options.textHeight - Height of text (for tip sizing)
+   * @param {Array|null} [options.palette] - palette stops (src/shared/palette.js);
+   *   null keeps the single-hue look around baseHSL
    */
   constructor(ctx, canvas, position, baseHSL, totalDurationMs, options = {}) {
     super(ctx, canvas, 'curtain', options);
@@ -34,9 +37,21 @@ export class CurtainBar extends AnimatedBar {
     this.position = position;
     this.baseHSL = baseHSL;
     this.totalDurationMs = totalDurationMs;
+    this.palette = options.palette ?? null;
 
     // Curtain visual properties (CONTEXT: 0.4-0.6 range, choose middle)
     this.opacity = 0.5;
+
+    if (this.palette) {
+      // Screen-fixed palette, like the ball: the curtain body shows the
+      // part of the gradient it covers, and the text band behind the text
+      // takes the color at the centerline, where both tips meet.
+      const b = config.shade.brightness;
+      this._bodyFill = paletteGradient(ctx, shadeStops(this.palette, { dl: config.palette.bodyLightness, brightness: b, floor: 10 }),
+        [0, 0, 0, canvas.height], this.opacity);
+      const tip = samplePalette(shadeStops(this.palette, { dl: config.palette.tipLightness, brightness: b, floor: 12 }), 0.5);
+      this._tipFill = `hsl(${tip.h}, ${tip.s}%, ${tip.l}%)`;
+    }
 
     // Overshoot: curtains extend slightly past center to guarantee no gap between tips
     this.overshoot = 4; // 4 pixels past center (8px total overlap between curtains)
@@ -122,6 +137,7 @@ export class CurtainBar extends AnimatedBar {
           // Colored bar with randomized hue variation
           const hueVariation = (this.random() - 0.5) * config.stinger.color.hueVariation; // ±20 from base
           const lightnessVariation = (this.random() - 0.5) * config.stinger.color.lightnessVariation; // ±15 from base
+          bar.dl = lightnessVariation;
 
           bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
           bar.saturation = this.baseHSL.s;
@@ -181,6 +197,7 @@ export class CurtainBar extends AnimatedBar {
           // Colored bar with randomized hue variation
           const hueVariation = (this.random() - 0.5) * config.stinger.color.hueVariation; // ±20 from base
           const lightnessVariation = (this.random() - 0.5) * config.stinger.color.lightnessVariation; // ±15 from base
+          bar.dl = lightnessVariation;
 
           bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
           bar.saturation = this.baseHSL.s;
@@ -209,8 +226,25 @@ export class CurtainBar extends AnimatedBar {
                   + config.stinger.opacity.min; // 0.6-1.0
 
       bar.x0 = bar.x;
+      if (this.palette && !bar.isWhite) this.applyBarPalette(bar, bar.dl);
       this.bars.push(bar);
     }
+  }
+
+  /**
+   * Palette colors for an inner bar (same spread as the single-hue look):
+   * slanted bars carry the screen-fixed gradient, horizontal bars take the
+   * palette color at their height.
+   * @param {Object} bar
+   * @param {number} dl - the bar's lightness offset
+   */
+  applyBarPalette(bar, dl) {
+    const shaded = shadeStops(this.palette, { dl, brightness: config.shade.brightness, floor: 10 });
+    const c = samplePalette(shaded, bar.type === 'slanted' ? 0.5 : bar.y / this.canvas.height);
+    bar.hue = c.h;
+    bar.saturation = c.s;
+    bar.lightness = c.l;
+    bar.paletteStops = bar.type === 'slanted' ? shaded : null;
   }
 
   /**
@@ -291,8 +325,12 @@ export class CurtainBar extends AnimatedBar {
     // Tip is darkened relative to the curtain body so it reads as a dedicated
     // text band rather than a continuation of the curtain. Floor at 12 so it
     // doesn't go fully black on already-dark base colors.
-    const tipLightness = Math.max(12, (this.baseHSL.l - 18) * config.shade.brightness);
-    this.ctx.fillStyle = `hsl(${this.baseHSL.h}, ${this.baseHSL.s}%, ${tipLightness}%)`;
+    if (this._tipFill) {
+      this.ctx.fillStyle = this._tipFill;
+    } else {
+      const tipLightness = Math.max(12, (this.baseHSL.l - 18) * config.shade.brightness);
+      this.ctx.fillStyle = `hsl(${this.baseHSL.h}, ${this.baseHSL.s}%, ${tipLightness}%)`;
+    }
 
     // Calculate tip position based on curtain position
     if (this.position === 'top') {
@@ -325,19 +363,22 @@ export class CurtainBar extends AnimatedBar {
     // Draw curtain fill (semi-transparent gradient)
     this.ctx.save();
 
-    // Gradient fill using baseHSL (matches stinger/sidebar pattern)
-    const gradient = this.ctx.createLinearGradient(0, this.y, 0, this.y + this.targetHeight);
+    if (this._bodyFill) {
+      this.ctx.fillStyle = this._bodyFill;
+    } else {
+      // Gradient fill using baseHSL (matches stinger/sidebar pattern)
+      const gradient = this.ctx.createLinearGradient(0, this.y, 0, this.y + this.targetHeight);
 
-    // Apply brightness multiplier to lightness
-    const baseLightness = this.baseHSL.l * config.shade.brightness;
-    const endLightness = Math.max(10, (this.baseHSL.l - 20) * config.shade.brightness);
+      // Apply brightness multiplier to lightness
+      const baseLightness = this.baseHSL.l * config.shade.brightness;
+      const endLightness = Math.max(10, (this.baseHSL.l - 20) * config.shade.brightness);
 
-    // PERF-03: Use hsla() colors with opacity baked in for GPU efficiency
-    // This allows GPU to optimize premultiplied alpha compositing
-    gradient.addColorStop(0, `hsla(${this.baseHSL.h}, ${this.baseHSL.s}%, ${baseLightness}%, ${this.opacity})`);
-    gradient.addColorStop(1, `hsla(${this.baseHSL.h}, ${this.baseHSL.s}%, ${endLightness}%, ${this.opacity})`);
-
-    this.ctx.fillStyle = gradient;
+      // PERF-03: Use hsla() colors with opacity baked in for GPU efficiency
+      // This allows GPU to optimize premultiplied alpha compositing
+      gradient.addColorStop(0, `hsla(${this.baseHSL.h}, ${this.baseHSL.s}%, ${baseLightness}%, ${this.opacity})`);
+      gradient.addColorStop(1, `hsla(${this.baseHSL.h}, ${this.baseHSL.s}%, ${endLightness}%, ${this.opacity})`);
+      this.ctx.fillStyle = gradient;
+    }
     this.ctx.fillRect(0, this.y, this.canvas.width, this.targetHeight);
 
     this.ctx.restore();
@@ -377,6 +418,7 @@ export class CurtainBar extends AnimatedBar {
       this._gradient = bar._gradient;
       this._gradientKey = bar._gradientKey;
       this._gradientFlip = bar._gradientFlip;
+      this.paletteStops = bar.paletteStops;
 
       this.drawBar(
         bar.x,

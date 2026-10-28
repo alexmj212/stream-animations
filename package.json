@@ -1,6 +1,6 @@
 {
   "name": "stream-animations",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Visually consistent HTML5 Canvas animations for OBS stream overlays",
   "type": "module",
   "scripts": {
@@ -29,6 +29,7 @@
     "bench": "node tools/benchmark/run.js",
     "motion": "node tools/motion/run.js",
     "motion:export": "node tools/motion/export.js",
+    "motion:compare": "node tools/motion/compare.js",
     "debug:collect": "node tools/debug/collect.js",
     "pages:stage": "npm run build && bash tools/pages/stage.sh",
     "pages:smoke": "node tools/pages/smoke.js"

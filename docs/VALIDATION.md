@@ -17,6 +17,9 @@ is built and checked.
 | `npm run motion -- stinger sidebar` | Only these scenarios |
 | `npm run motion -- --seeds=1,2,3,4,5,6` | More layouts (scenes with random layouts should pass on all of them) |
 | `npm run motion -- --color=00b3ff` | Another base color |
+| `npm run motion -- --params=scheme=mono` | Extra URL params on every scene, to mock a look without editing `scenes.js` |
+| `npm run motion -- --out=before` | Write to `tools/motion-results-before/`, so runs for a before/after mock don't wipe each other |
+| `npm run motion:compare -- --runs=before,after --frames=stinger/seed-1/t00750.png --bg=frame.png --out=cmp.png` | Labelled side-by-side grid of keyframes from those runs, over a backdrop, for design decisions |
 | `npm run motion -- --fps=30` | Step at another frame rate (OBS browser sources are often set to 30) |
 | `npm run motion -- --no-shots` | Skip keyframe screenshots (about 2x faster) |
 | `npm run motion -- --dump` | Also write every frame's raw data to `capture.json` |
@@ -88,7 +91,7 @@ code to verify without asking AJ. Everyone uses one convention,
 | Piece | What it does |
 |---|---|
 | `const debug = createDebug('stinger')` | One recorder per scene. Without `?debug=` it's a frozen no-op, so production pays nothing |
-| `?debug=1` / `all` / `events,frames,log` | Channels. `events`: timestamped `debug.mark(name, data)` calls. `frames`: frame-time count, mean, max, long frames (>34ms), idle gaps. `log`: echo events to the console. `build`: the build stamp on screen |
+| `?debug=1` / `all` / `events,frames,log` | Channels. `events`: timestamped `debug.mark(name, data)` calls. `frames`: frame-time count, mean, max, long frames (>34ms), idle gaps. `log`: echo events to the console. `build`: the build stamp on screen. `zones`: the screen areas other overlays cover, drawn over the scene (sidebar: Mix It Up's images, `config.sidebar.miuZones`) |
 | `window.__debug[scene].snapshot()` | Everything recorded so far, readable from the harness, Playwright or a CDP client |
 | `?debugReport=http://127.0.0.1:9777/` + `npm run debug:collect` | Scenes POST each event, and frame stats every 60s, to a local collector that writes `tools/debug-results/*.jsonl`. Use it for checks inside OBS and soak runs |
 
