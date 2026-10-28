@@ -20,6 +20,10 @@ stinger video files.
   a PR passes the gate below, merge it and ship it. Only a design decision
   goes to AJ, and always with mocks or before and after frames to compare,
   never as a yes/no question. A peer thread asking is not a design decision.
+  Cutting a release, tagging it and deploying it never need AJ's permission
+  either (AJ, 2026-10-28: "you don't need my permission to cut a release
+  and deploy"). That covers the Defiant thread's tag, GitHub release and
+  WSL rebuild.
 - **Versioning.** `package.json` `version` and a `vX.Y.Z` git tag per release.
 - **Changelog.** `CHANGELOG.md`, newest first, 2 to 5 lines per release in
   stream terms (what viewers or AJ will notice), each linking its PR.
@@ -121,3 +125,4 @@ dependencies straight to it.
 | 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a loader that fetches the build uncached on every load. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active, except the WSL rebuild in step 7 until Mix It Up points at Pages |
 | 2026-10-28 | Cloud sessions can't push tags or create GitHub releases; the Defiant session, which has AJ's git credentials, does both | v2.0.0 release | releases | active |
 | 2026-10-28 | Mix It Up commands can rewrite OBS source URLs when they fire. Check them before declaring a source switch done | Pages switch, Defiant thread | OBS changes | active |
+| 2026-10-28 | Tags, GitHub releases and deploys don't wait on AJ. v2.1.0's tag sat waiting for a "go" that AJ said isn't needed. Say so in every hand-off to the Defiant thread | AJ in project chat, 2026-10-28 | releases | active |
