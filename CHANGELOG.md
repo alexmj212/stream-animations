@@ -4,6 +4,12 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.2.2 - 2026-10-28
+
+- Notifications: a grown bar now stops at the title-safe edge, so its tip
+  stays inside the action-safe area instead of running to the screen
+  edge. Long lines start scrolling a little sooner. ([#47])
+
 ## v2.2.1 - 2026-10-28
 
 - Notifications: long text no longer ends in an ellipsis. The bar grows
@@ -80,3 +86,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#27]: https://github.com/alexmj212/stream-animations/pull/27
 [#29]: https://github.com/alexmj212/stream-animations/pull/29
 [#32]: https://github.com/alexmj212/stream-animations/pull/32
+[#47]: https://github.com/alexmj212/stream-animations/pull/47
