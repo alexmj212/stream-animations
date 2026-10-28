@@ -193,23 +193,25 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
       const baseHSL = { h: 220, s: 79, l: 64 };
       const curtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs);
 
-      // Should start in enter phase
+      // Curtains close in the first half of the entry and open in the last
+      // half of the exit (config.shade.curtainMoveShare = 0.5)
       expect(curtain.phase).toBe('enter');
 
-      // Advance to middle of enter phase (0.5 seconds)
-      curtain.update(0.5);
+      curtain.setTime(0.25);
       expect(curtain.phase).toBe('enter');
 
-      // Advance to end of enter phase (1 second total)
-      curtain.update(0.5);
+      // Band closed at 0.5s, before the text is fully in
+      curtain.setTime(0.5);
       expect(curtain.phase).toBe('hold');
 
-      // Advance through hold phase (3 seconds)
-      curtain.update(3.0);
+      // Still closed at 4.4s while the text exits
+      curtain.setTime(4.4);
+      expect(curtain.phase).toBe('hold');
+
+      curtain.setTime(4.5);
       expect(curtain.phase).toBe('exit');
 
-      // Advance through exit phase (1 second)
-      curtain.update(1.0);
+      curtain.setTime(5.0);
       expect(curtain.active).toBe(false);
     });
   });

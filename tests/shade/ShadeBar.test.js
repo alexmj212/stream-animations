@@ -295,3 +295,42 @@ describe('ShadeBar', () => {
     }
   );
 });
+
+describe('ShadeBar closed-form motion', () => {
+  const make = async () => {
+    const canvas = createMockCanvas(1920, 1080);
+    const ctx = createMockContext(canvas);
+    const bar = new ShadeBar(ctx, canvas, 'NEW RAID INCOMING', 3000);
+    await bar.init();
+    return bar;
+  };
+
+  it('hits its marks at each phase boundary', async () => {
+    const bar = await make();
+    const Te = bar.enterDurationMs / 1000;
+    const Th = bar.holdDurationMs / 1000;
+    const Tx = bar.exitDurationMs / 1000;
+    expect(bar.positionAt(0)).toBeCloseTo(1920, 6);
+    expect(bar.positionAt(Te)).toBeCloseTo(bar.enterEndX, 4);
+    expect(bar.positionAt(Te + Th)).toBeCloseTo(bar.holdEndX, 4);
+    expect(bar.positionAt(Te + Th + Tx)).toBeCloseTo(bar.exitEndX, 4);
+  });
+
+  it('matches the velocity profile (derivative of position = -calculateVelocity)', async () => {
+    const bar = await make();
+    const total = bar.totalDurationMs / 1000;
+    const eps = 1e-5;
+    for (let t = 0.05; t < total - 0.05; t += 0.25) {
+      const v = -(bar.positionAt(t + eps) - bar.positionAt(t - eps)) / (2 * eps);
+      expect(v).toBeCloseTo(bar.calculateVelocity(t), 0);
+    }
+  });
+
+  it('update(dt) and setTime(t) agree regardless of frame pacing', async () => {
+    const a = await make();
+    const b = await make();
+    for (const dt of [0.016, 0.05, 0.002, 0.1, 0.033, 0.4]) a.update(dt);
+    b.setTime(0.016 + 0.05 + 0.002 + 0.1 + 0.033 + 0.4);
+    expect(a.x).toBeCloseTo(b.x, 6);
+  });
+});

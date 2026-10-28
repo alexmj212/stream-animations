@@ -28,14 +28,15 @@
     <script type="module">
         import { getColorFromURL, hexToHSL } from '../shared/colors.js';
         import { setupCanvas, clearCanvas } from '../shared/canvas.js';
-        import { StingerBar } from './StingerBar.js';
+        import { StingerBar, planStinger } from './StingerBar.js';
         import { PerformanceMonitor } from '../shared/performance.js';
         import { PerformanceStorage } from '../shared/perfStorage.js';
         import { PerformanceOverlay } from '../shared/perfOverlay.js';
-        import { DeltaTimer } from '../shared/timing.js';
         import { AnimationLifecycle } from '../shared/lifecycle.js';
         import { DirtyRectTracker } from '../shared/dirtyRect.js';
         import { config } from '../config/config.js';
+        import { registerProbe, sampleBar, createRandom, seedFromURL } from '../shared/motion.js';
+        import { createDebug } from '../shared/debug.js';
 
         // Get parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -43,6 +44,7 @@
         const showPerf = urlParams.get('perf') === 'true';
         const baseColor = getColorFromURL();
         const baseHSL = hexToHSL(baseColor);
+        const debug = createDebug('stinger');
 
         // Setup performance monitoring
         const perfMonitor = new PerformanceMonitor(60, 60);
@@ -80,8 +82,6 @@
             dirtyTracker.setCanvas(canvas, ctx);
         }
 
-        // Initialize delta-time and lifecycle
-        const deltaTimer = new DeltaTimer();
         const lifecycle = new AnimationLifecycle();
 
         lifecycle.onCleanup(() => {
@@ -92,82 +92,22 @@
             console.log('[Stinger] Cleanup complete');
         });
 
-        // Create bars array
-        const bars = [];
-
-        // Animation loop control
+        // Bars for the current transition (curtains first, accents by depth)
+        let bars = [];
+        let startTimestamp = null;
         let animationStarted = false;
 
-        // Function to generate bars (called on each transitionStart)
+        // ?seed=N pins the layout (same stinger every time, e.g. for video
+        // export); without it every transition gets a fresh balanced layout.
+        const pinnedSeed = seedFromURL();
+
         function generateBars() {
-            bars.length = 0; // Clear existing bars
-
-            // First, create two large background curtain bars
-            const leftCurtain = new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, durationMs);
-            leftCurtain.width = canvas.width * 0.75;
-            leftCurtain.opacity = 1.0;
-            leftCurtain.direction = 1;
-            leftCurtain.startX = -leftCurtain.width - 300;
-            leftCurtain.targetX = canvas.width / 2 - leftCurtain.width;
-            leftCurtain.x = leftCurtain.startX;
-            leftCurtain.startDelay = 0;
-            leftCurtain.isBackground = true;
-            leftCurtain.hue = baseHSL.h;
-            leftCurtain.saturation = baseHSL.s;
-            leftCurtain.lightness = Math.max(15, baseHSL.l - 25);
-            leftCurtain.isWhite = false;
-            bars.push(leftCurtain);
-
-            const rightCurtain = new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, durationMs);
-            rightCurtain.width = canvas.width * 0.75;
-            rightCurtain.opacity = 1.0;
-            rightCurtain.direction = -1;
-            rightCurtain.startX = canvas.width + 300;
-            rightCurtain.targetX = canvas.width / 2;
-            rightCurtain.x = rightCurtain.startX;
-            rightCurtain.startDelay = 0;
-            rightCurtain.isBackground = true;
-            rightCurtain.hue = baseHSL.h;
-            rightCurtain.saturation = baseHSL.s;
-            rightCurtain.lightness = Math.max(15, baseHSL.l - 25);
-            rightCurtain.isWhite = false;
-            bars.push(rightCurtain);
-
-            // Add accent bars
-            const barCount = 6;
-            const tempBars = [];
-            for (let i = 0; i < barCount; i++) {
-                const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-                tempBars.push(new StingerBar(ctx, canvas, type, i + 2, barCount + 2, baseHSL, durationMs));
-            }
-
-            // Ensure at least 2 white bars exist
-            const whiteBarCount = tempBars.filter(bar => bar.isWhite).length;
-            if (whiteBarCount < 2) {
-                const nonWhiteBars = tempBars.filter(bar => !bar.isWhite);
-                const barsToConvert = Math.min(2 - whiteBarCount, nonWhiteBars.length);
-                for (let i = 0; i < barsToConvert; i++) {
-                    const randomIndex = Math.floor(Math.random() * nonWhiteBars.length);
-                    const barToConvert = nonWhiteBars.splice(randomIndex, 1)[0];
-                    barToConvert.isWhite = true;
-                    barToConvert.hue = 0;
-                    barToConvert.saturation = 0;
-                    barToConvert.lightness = 100;
-                    if (barToConvert.type === 'slanted') {
-                        barToConvert.width = Math.random() * 80 + 40;
-                    } else {
-                        barToConvert.height = Math.random() * 30 + 20;
-                    }
-                }
-            }
-
-            // Assign random z-index for weave effect
-            tempBars.forEach(bar => {
-                bar.zIndex = Math.random();
-            });
-
-            bars.push(...tempBars);
+            const seed = pinnedSeed ?? Math.floor(Math.random() * 2 ** 31);
+            bars = planStinger(ctx, canvas, baseHSL, durationMs, createRandom(seed));
         }
+
+        registerProbe('stinger', () => bars.filter(b => b.active).map((b, i) =>
+            sampleBar(b, b.isBackground ? `curtain-${b.direction === 1 ? 'L' : 'R'}` : `${b.type}-${b.index}`)));
 
         // Save session on page unload
         window.addEventListener('beforeunload', () => {
@@ -176,49 +116,30 @@
             }
         });
 
-        // Animation loop
+        // Animation loop. Bars are positioned from absolute time since the
+        // transition started (not accumulated deltas), so a dropped or slow
+        // frame can never push the cut point or the end off schedule.
         function animate(timestamp) {
             if (showPerf) perfMonitor.recordFrame();
+            debug.frame(timestamp);
 
-            const deltaTime = deltaTimer.update(timestamp);
+            if (startTimestamp === null) startTimestamp = timestamp;
+            const elapsed = (timestamp - startTimestamp) / 1000;
 
             clearCanvas(ctx, canvas, dirtyTracker);
 
             let allComplete = true;
+            for (let i = 0; i < bars.length; i++) {
+                const bar = bars[i];
+                bar.setTime(elapsed);
+                if (!bar.active) continue;
+                allComplete = false;
 
-            // Draw background curtain bars first
-            const backgroundBars = bars.filter(bar => bar.isBackground);
-            for (let i = 0; i < backgroundBars.length; i++) {
-                backgroundBars[i].update(deltaTime);
-
-                // Report dirty region before drawing
-                if (dirtyTracker && backgroundBars[i].active) {
-                    const bbox = backgroundBars[i].getBoundingBox();
+                if (dirtyTracker) {
+                    const bbox = bar.getBoundingBox();
                     dirtyTracker.addRegion(bbox.x, bbox.y, bbox.width, bbox.height);
                 }
-
-                backgroundBars[i].draw();
-                if (backgroundBars[i].active) {
-                    allComplete = false;
-                }
-            }
-
-            // Sort accent bars by zIndex and draw
-            const accentBars = bars.filter(bar => !bar.isBackground)
-                .sort((a, b) => a.zIndex - b.zIndex);
-            for (let i = 0; i < accentBars.length; i++) {
-                accentBars[i].update(deltaTime);
-
-                // Report dirty region before drawing
-                if (dirtyTracker && accentBars[i].active) {
-                    const bbox = accentBars[i].getBoundingBox();
-                    dirtyTracker.addRegion(bbox.x, bbox.y, bbox.width, bbox.height);
-                }
-
-                accentBars[i].draw();
-                if (accentBars[i].active) {
-                    allComplete = false;
-                }
+                bar.draw();
             }
 
             if (!allComplete) {
@@ -226,23 +147,45 @@
             } else {
                 // Animation complete, reset state for next transition
                 animationStarted = false;
+                debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
             }
         }
 
-        // Register transitionStart event listener IMMEDIATELY to catch first OBS scene change
-        lifecycle.addEventListener(window, 'transitionStart', () => {
-            console.log('[Stinger] transitionStart event received');
+        // One scene switch can deliver more than one trigger (e.g.
+        // transitionStart and obsSourceActiveChanged); a second trigger right
+        // after the first would swap in a new layout a frame in.
+        let lastPlayAt = -Infinity;
 
-            // Regenerate bars for fresh animation
+        function play(source) {
+            const now = performance.now();
+            debug.mark('trigger', { source });
+            if (animationStarted && now - lastPlayAt < 250) {
+                debug.mark('ignored', { source });
+                console.log(`[Stinger] ${source} ignored - transition already started`);
+                return;
+            }
+            lastPlayAt = now;
+            console.log(`[Stinger] ${source} - starting transition`);
             generateBars();
-
-            // Start animation if not already running
+            debug.mark('start', { source, durationMs, bars: bars.length });
+            startTimestamp = null; // restart the clock on the next frame
             if (!animationStarted) {
                 animationStarted = true;
-                deltaTimer.reset(); // Reset timer for fresh start
                 requestAnimationFrame(animate);
             }
+        }
+
+        // Register listeners IMMEDIATELY to catch the first scene change.
+        // transitionStart: dispatched by the OBS setup driving this page.
+        lifecycle.addEventListener(window, 'transitionStart', () => play('transitionStart'));
+        // obsSourceActiveChanged: OBS browser sources fire this when the source
+        // goes live (e.g. the stinger lives in a scene that is switched to).
+        lifecycle.addEventListener(window, 'obsSourceActiveChanged', (event) => {
+            debug.mark('obsSourceActiveChanged', { active: !!event.detail?.active });
+            if (event.detail?.active) play('obsSourceActiveChanged');
         });
+        // ?autoplay=true plays once on load (previewing, recording)
+        if (urlParams.get('autoplay') === 'true') play('autoplay');
 
         console.log('[Stinger] Initialized - waiting for transitionStart event');
     </script>
