@@ -12,6 +12,7 @@
  *   npm run motion -- --no-shots           # skip keyframe screenshots (faster)
  *   npm run motion -- --dump               # also write every frame's raw data (capture.json)
  *   npm run motion -- --color=00b3ff       # try another brand color
+ *   npm run motion -- --jitter             # uneven frame times (timing/coverage checks only)
  *
  * Exit code is non-zero when any check fails, so it can gate CI.
  * Report: tools/motion-results/index.html
@@ -24,6 +25,7 @@ import { installVirtualClock } from './clock.js';
 import { SCENARIOS } from './scenes.js';
 import { evaluate, workStats } from './analyze.js';
 import { renderReport } from './report.js';
+import { createRandom } from '../../src/shared/motion.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(__dirname, '..', 'motion-results');
@@ -39,6 +41,7 @@ const names = argv.filter(a => !a.startsWith('--'));
 const fps = Number(flags.fps || 60);
 const seeds = String(flags.seeds || '1,2,3').split(',').map(Number);
 const shots = !flags['no-shots'];
+const jitter = !!flags.jitter;
 const width = Number(flags.width || 1920);
 const height = Number(flags.height || 1080);
 
@@ -93,13 +96,18 @@ async function capture(browser, baseUrl, scenario, seed) {
   const dir = resolve(outDir, scenario.name, `seed-${seed}`);
   mkdirSync(dir, { recursive: true });
 
-  const total = Math.ceil(scenario.captureMs / dt);
-  for (let i = 1; i <= total; i++) {
+  // --jitter: uneven frame times (0.5x-3x the nominal frame, seeded), like a
+  // busy OBS. Scenes positioned from absolute time must still hit their marks.
+  const jitterRandom = createRandom(seed * 7919 + 1);
+  let elapsed = 0;
+  while (elapsed < scenario.captureMs) {
+    const d = jitter ? dt * (0.5 + jitterRandom() * 2.5) : dt;
+    elapsed += d;
     const frame = await page.evaluate((d, region) => {
       const r = window.__motion.step(d);
       r.pixels = window.__motion.pixelStats(2, region);
       return r;
-    }, dt, scenario.region || null);
+    }, d, scenario.region || null);
     frames.push(frame);
 
     while (shots && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
@@ -128,7 +136,11 @@ async function main() {
       for (const seed of seeds) {
         const t0 = Date.now();
         const { frames, errors, shots: shotFiles } = await capture(browser, baseUrl, scenario, seed);
-        const spec = { ...scenario, fps };
+        // Velocity estimates on uneven frames are noisy; jitter runs check
+        // timing and coverage only
+        const spec = jitter
+          ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 3 * 1000 / fps * 3 } }
+          : { ...scenario, fps };
         const { results, timeline, tracks } = evaluate(spec, frames);
         results.unshift({
           name: 'No page errors',
