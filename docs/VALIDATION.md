@@ -66,7 +66,7 @@ Defined per scenario in `tools/motion/scenes.js`.
 | Fully covers the screen at the cut point | Canvas fully opaque at `fullCoverAtMs` for at least `fullCoverMinMs` | Curtains that don't overlap, a phase that ends before the cut |
 | Covers *region* | A region (fractions of the screen) is opaque on every frame of a window | Panel positioned from the wrong property, slanted edge not accounted for |
 | Smooth motion | No isolated velocity jumps on any on-screen object | A phase hand-off that resets velocity (ease to a stop, then snap to a drift) |
-| Frame CPU budget | p95 of update+draw time ≤ `workP95Ms` | Per-frame allocation, cache thrash, too many objects drawn |
+| Frame CPU budget | p95 of update+draw time ≤ `workP95Ms`, over at least 200 drawn frames (`MIN_CPU_FRAMES`); fewer fails the check, since p95 of a short capture is one slow frame | Per-frame allocation, cache thrash, too many objects drawn; a scenario too short to measure |
 | Text over *panel* | Every canvas pixel under a text element's on-screen box (`textBox.selector`) is opaque through a window | Long text hanging off the slanted panel over the stream |
 | Scene events | The scene's debug events (`?debug=events`) match `debugEvents` counts exactly | A trigger that restarts the scene, a scene that never marks `end` |
 | Design rules (SAFE-1, SAFE-3, TYPE-1, TIME-1, CUT-2, FLASH-1, FLASH-2) | The bible's machine-checkable rules ([DESIGN.md](DESIGN.md)), from `tools/motion/designRules.js`. Placement and size read the text box (a probe sample with `box`, `fontPx`, `words`, or `textBox.selector`) through `holdMs`; CUT-2 and FLASH read a 16x9 luminance grid, taken in a second, untimed pass of the same seed so it can't touch the CPU numbers | Text in the screen margin or under the player controls, type under the floor, text that never stops long enough to read, a stinger sitting covered and still, strobing |
@@ -174,6 +174,9 @@ frame CPU budget over five follows, two seconds apart (`events`), because
 one follow draws only about 70 frames and p95 of so few is one GC pause
 away from failing (issue #50). The same goes for any scene that draws only
 on change: give its CPU check enough drawn frames, never a higher budget.
+`stinger-cpu` does the same for the stinger: six 1200ms transitions 1.5s
+apart (about 440 drawn frames), since one transition draws about 74 and
+its p95 failed once on a cold-JIT frame (PR #63).
 
 ### Recording the epcot loop
 

@@ -20,7 +20,8 @@
  *   fullCoverMinMs           - ...for at least this long
  *   regionCover              - {x0,x1,y0,y1 (fractions), fromMs, toMs, label}
  *   noVelocitySteps          - no isolated velocity jumps in probe tracks
- *   workP95Ms                - p95 update+draw CPU time per frame
+ *   workP95Ms                - p95 update+draw CPU time per frame, over at least
+ *                              MIN_CPU_FRAMES (200) drawn frames (analyze.js)
  *   debugEvents              - {name: count}: exact counts of the scene's debug
  *                              events (src/shared/debug.js, ?debug=events)
  *   probeMax                 - {field, max, label}, or a list of them: a probe sample
@@ -56,6 +57,25 @@ export const SCENARIOS = [
       fullCoverAtMs: 600,
       fullCoverMinMs: 200,
       debugEvents: { start: 1, ignored: 1, end: 1 },
+      // Frame CPU is checked by stinger-cpu: at 1200ms this capture draws
+      // only ~74 frames, so p95 was its 4th-worst frame and a cold-JIT
+      // frame failed it on a changelog-only diff (Release management, PR #63)
+      noVelocitySteps: true
+    }
+  },
+  {
+    name: 'stinger-cpu',
+    scene: 'stinger',
+    // Six back-to-back transitions, as on a busy stream: ~440 drawn frames,
+    // enough for a p95 one slow frame can't move
+    url: `/src/stinger/index.html?color=${COLOR}&duration=1200`,
+    start: { event: 'transitionStart' },
+    events: [1500, 3000, 4500, 6000, 7500].map(at => ({ at, event: 'transitionStart' })),
+    captureMs: 9000,
+    keyframes: [],
+    markers: [1500, 3000, 4500, 6000, 7500].map(at => ({ at, label: 'transition' })),
+    checks: {
+      debugEvents: { start: 6, end: 6 },
       noVelocitySteps: true,
       workP95Ms: 4
     }
@@ -369,9 +389,11 @@ export const SCENARIOS = [
     name: 'epcot',
     url: '/src/epcot/index.html?panel=false&fps=60',
     start: 'load',
-    captureMs: 3000,
+    // 4.5s for ~270 drawn frames: 3s drew 181, under the CPU check's 200
+    // (its fps cap skips some 60Hz ticks)
+    captureMs: 4500,
     keyframes: [0.5, 1],
-    keyframeSpanMs: 3000,
+    keyframeSpanMs: 4500,
     markers: [],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
