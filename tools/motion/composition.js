@@ -48,7 +48,8 @@ export const ELEMENTS = [
     { id: 'exobot', label: 'Exobot TTS', box: [70, 788, 436, 994], today: [450, 874, 816, 1080], kind: 'G' },
     { id: 'iphone', label: 'iPhone notification', box: [1332, 714, 1824, 942], today: [1428, 852, 1920, 1080], kind: 'G', read: true },
     { id: 'nut', label: 'Nut bucket', box: [92, 80, 408, 257], kind: 'G' },
-    { id: 'life', label: 'Life points', box: [1148, 562, 1824, 942], today: [1336, 700, 2012, 1080], kind: 'G', read: true },
+    // Life points as drawn after fix 9 (Rotom measured Defiant's frame, 2026-10-28)
+    { id: 'life', label: 'Life points', box: [1312, 622, 1737, 942], today: [1336, 700, 2012, 1080], kind: 'G', read: true },
     { id: 'pixelStart', label: 'Pixel Guess (Starting)', box: [1223, 140, 1920, 654], today: [1223, 0, 1920, 514], kind: 'G', read: true },
     { id: 'pixelFull', label: 'Pixel Guess (Full 16:9)', box: [1366, 140, 1920, 567], today: [1366, 0, 1920, 427], kind: 'G', read: true },
     { id: 'lizard', label: 'Lizard', box: [237, 920, 330, 1000], kind: 'G' },
