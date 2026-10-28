@@ -207,6 +207,15 @@ describe('NotificationBar', () => {
         }
     });
 
+    it('fits the streaks to the text on the first build (no NaN)', () => {
+        const bar = make({ style: 'creative' });
+        expect(Number.isFinite(bar.textInk.right)).toBe(true);
+        for (const st of bar.streaks) {
+            expect(Number.isFinite(st.rest)).toBe(true);
+            expect(Number.isFinite(st.length)).toBe(true);
+        }
+    });
+
     it('only the creative style has streaks', () => {
         expect(make({ style: 'creative' }).streaks.length).toBe(config.notifications.flair.streaks.count);
         expect(make({ style: 'clean' }).streaks.length).toBe(0);

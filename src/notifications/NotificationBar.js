@@ -187,8 +187,6 @@ export class NotificationBar extends AnimatedBar {
         cc.fillStyle = '#fff';
         cc.fillText(this.text, pad, pad + ascent);
         this.textCache = cache;
-        this.textInk = { right: Math.min(this.textX + pad + m.width, this.textRoomLeft + room) + stroke, top: this.textY, bottom: this.textY + cache.height };
-        if (this.streaks) fitStreaksToText(this.streaks, this.textInk.right, this.canvas.width / REF_WIDTH);
         this.textWidth = m.width;
         this.textRoom = room;
         this.textRoomLeft = this.geo.startX + this.geo.bodyLength / 2 - room / 2;
@@ -199,6 +197,10 @@ export class NotificationBar extends AnimatedBar {
             ? this.textRoomLeft - pad
             : this.geo.startX + this.geo.bodyLength / 2 - cache.width / 2;
         this.textY = this.geo.mid - (ascent + descent) / 2 - pad;
+        // Needs textX and textRoomLeft from this build (Code review, PR #32:
+        // before them, the first build fitted the streaks to NaN)
+        this.textInk = { right: Math.min(this.textX + pad + m.width, this.textRoomLeft + room) + stroke, top: this.textY, bottom: this.textY + cache.height };
+        if (this.streaks) fitStreaksToText(this.streaks, this.textInk.right, this.canvas.width / REF_WIDTH);
     }
 
     /** @param {number} t - Seconds since the toast started */
