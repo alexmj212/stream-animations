@@ -377,16 +377,30 @@ applies unchanged. Tokens: `config.design.vertical`.
   hold, as the 16:9 toast's last resort does. That trades V-TYPE-1 and
   TIME-1 for a single line; the harness reports it as a warning, not a
   failure. Don't re-file it.
-- **V-LAYOUT-1** Alerts sit on the camera/game seam or inside the game
-  half, never over AJ's face in the camera half. The toast spans the safe
-  width on the seam in one line at 56px (AJ's pick, B1), with no goal bar to grow from (there's no goal bar on
-  vertical). The raid shade uses its own native 1080x1920 source, where
-  the page already wraps the name to fit.
+- **V-LAYOUT-1** Alerts sit on the camera/game seam (y 700) or inside
+  the game half, never over AJ's face in the camera half. The game starts
+  at the seam on every vertical scene (AJ, 2026-10-28: the game moved from
+  y 635 to 700, so it no longer hides the bottom of the camera).
+  - The toast spans the safe width on the seam in one line at 56px (AJ's
+    pick, B1), with no goal bar to grow from (there's no goal bar on
+    vertical).
+  - The sidebar (tier 2: shoutouts, subs, gifts) is a two-line plate on
+    the seam, the action at `label` 48 over the name at `headline` 64, so
+    it outranks the 56px toast. The plate grows upward from the seam for
+    the second line, as the title card's does (AJ's pick A2, 2026-10-28;
+    the scaled 16:9 panel covered the camera half and ran under the app's
+    buttons). One alert per zone: the toast and the sidebar share the
+    seam, so they queue (ALERT-1).
+  - The raid shade (tier 3) may cover AJ, but its words still fit inside
+    x 60-940 (880px): shrink, then wrap, as on 16:9 (TYPE-6).
 - **V-REUSE-1** One page serves both canvases where it can: a portrait
   layout is picked from the viewport (or a URL param), not a second copy
-  of the scene.
+  of the scene. The notifications and sidebar pages each pick their seam
+  layout this way; no scaled 16:9 copy goes on the vertical canvas.
 
 ![Portrait toast options on the phone-safe box (mock, 2026-10-28). AJ picked B1: one line at 56px, shrinking to 45px and then scrolling](design/vertical-toast.jpg)
+
+![Vertical sidebar options over the live gameplay capture (design review mock, 2026-10-28). AJ picked A2: a two-line plate on the seam](design/vertical-sidebar.jpg)
 
 ## Scenes at a glance
 
