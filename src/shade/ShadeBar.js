@@ -202,21 +202,44 @@ export class ShadeBar extends AnimatedBar {
    * @param {number} deltaTime - Time elapsed since last frame in seconds
    */
   update(deltaTime) {
-    this.totalAnimationTime += deltaTime;
+    this.setTime(this.totalAnimationTime + deltaTime);
+  }
 
-    // Check if animation complete
-    const totalDurationSec = this.totalDurationMs / 1000;
-    if (this.totalAnimationTime >= totalDurationSec) {
+  /**
+   * Set absolute time (seconds). Position is the exact integral of
+   * calculateVelocity(), so the text lands on its marks regardless of frame
+   * timing (frame-by-frame Euler integration drifted with uneven frames).
+   */
+  setTime(t) {
+    this.totalAnimationTime = t;
+    if (t >= this.totalDurationMs / 1000) {
       this.active = false;
       this.x = this.exitEndX; // Snap to final position
       return;
     }
+    this.x = this.positionAt(t);
+  }
 
-    // Calculate velocity as a continuous function of total time
-    const velocity = this.calculateVelocity(this.totalAnimationTime);
+  /** Closed-form x(t): canvas.width minus the integral of calculateVelocity. */
+  positionAt(t) {
+    const Te = this.enterDurationMs / 1000;
+    const Th = this.holdDurationMs / 1000;
+    const Tx = this.exitDurationMs / 1000;
+    const enterDistance = this.canvas.width - this.enterEndX;
+    const hold = (this.enterEndX - this.holdEndX) / Th;
 
-    // Update position by integrating velocity (moving left means subtracting)
-    this.x -= velocity * deltaTime;
+    if (t < Te) {
+      const start = 2 * (enterDistance / Te) - hold;
+      const travelled = hold * t + (start - hold) / 2 * (t + (Te / Math.PI) * Math.sin(Math.PI * t / Te));
+      return this.canvas.width - travelled;
+    }
+    if (t < Te + Th) {
+      return this.enterEndX - hold * (t - Te);
+    }
+    const u = Math.min(t - Te - Th, Tx);
+    const end = 2 * ((this.holdEndX - this.exitEndX) / Tx) - hold;
+    const travelled = hold * u + (end - hold) / 2 * (u - (Tx / Math.PI) * Math.sin(Math.PI * u / Tx));
+    return this.holdEndX - travelled;
   }
 
   /**

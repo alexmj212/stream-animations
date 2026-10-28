@@ -38,14 +38,13 @@
       import { CurtainBar } from './CurtainBar.js';
       import { config } from '../config/config.js';
       import { setupCanvas, clearCanvas } from '../shared/canvas.js';
-      import { DeltaTimer } from '../shared/timing.js';
       import { AnimationLifecycle } from '../shared/lifecycle.js';
       import { getColorFromURL, hexToHSL } from '../shared/colors.js';
       import { PerformanceMonitor } from '../shared/performance.js';
       import { PerformanceStorage } from '../shared/perfStorage.js';
       import { PerformanceOverlay } from '../shared/perfOverlay.js';
       import { DirtyRectTracker } from '../shared/dirtyRect.js';
-      import { registerProbe } from '../shared/motion.js';
+      import { registerProbe, createRandom, seedFromURL } from '../shared/motion.js';
 
       // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
@@ -93,7 +92,6 @@
       }
 
       // Initialize delta-time and lifecycle
-      const deltaTimer = new DeltaTimer();
       const lifecycle = new AnimationLifecycle();
 
       lifecycle.onCleanup(() => {
@@ -141,8 +139,10 @@
         const fontSize = 96; // From config.shade.text.font: 'bold 96px Jost'
 
         // Create curtains with shared total duration and text height for tip sizing
-        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight: fontSize });
-        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight: fontSize });
+        // ?seed=N pins the inner bar layout
+        const random = createRandom(seedFromURL() ?? Math.floor(Math.random() * 2 ** 31));
+        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight: fontSize, random });
+        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight: fontSize, random });
 
         // Create ShadeBar instance (text is always white - no color parameter)
         const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);
@@ -172,10 +172,14 @@
          * - Curtains drawn first (background layer)
          * - Text drawn last (foreground layer - always visible on top)
          */
+        let startTimestamp = null;
         function animate(timestamp) {
           if (showPerf) perfMonitor.recordFrame();
 
-          const deltaTime = deltaTimer.update(timestamp);
+          // Absolute time since the first frame: text and curtains stay in
+          // lock-step and on schedule even if frames are dropped
+          if (startTimestamp === null) startTimestamp = timestamp;
+          const elapsed = (timestamp - startTimestamp) / 1000;
 
           clearCanvas(ctx, canvas, dirtyTracker);
 
@@ -183,7 +187,7 @@
 
           // Update and draw all components in order
           for (let i = 0; i < components.length; i++) {
-            components[i].update(deltaTime);
+            components[i].setTime(elapsed);
 
             // Report dirty region before drawing (if component has getBoundingBox)
             if (dirtyTracker && components[i].active && typeof components[i].getBoundingBox === 'function') {
