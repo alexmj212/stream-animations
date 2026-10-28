@@ -1000,7 +1000,7 @@ export const config = {
       safe: { topPx: 220, bottomPx: 440, leftPx: 60, rightPx: 140 },
       type: {
         // A 1080-wide frame shows about 390pt wide on a phone (x 0.36),
-        // so these read at 17, 23, 29 and 40pt
+        // so these read at 40, 29, 23 and 17pt
         sizes: { hero: 112, display: 80, headline: 64, label: 48 },
         minPx: 48
       },
