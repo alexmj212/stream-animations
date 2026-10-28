@@ -372,6 +372,11 @@ applies unchanged. Tokens: `config.design.vertical`.
   A 16:9 page scaled onto the vertical canvas fails this (the toast lands
   at about 34px), so an alert gets a portrait layout or a native
   1080x1920 source rather than a scaled copy of the 16:9 one.
+  One exception, AJ's pick B1 (2026-10-28): the vertical toast is one line
+  at 56px, and a long line shrinks to 45px and then scrolls during its
+  hold, as the 16:9 toast's last resort does. That trades V-TYPE-1 and
+  TIME-1 for a single line; the harness reports it as a warning, not a
+  failure. Don't re-file it.
 - **V-LAYOUT-1** Alerts sit on the camera/game seam or inside the game
   half, never over AJ's face in the camera half. The toast spans the safe
   width on the seam in one line at 56px (AJ's pick, B1), with no goal bar to grow from (there's no goal bar on
