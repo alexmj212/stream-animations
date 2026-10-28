@@ -5,14 +5,40 @@ A collection of visually consistent HTML5 Canvas animations for OBS stream overl
 ## Animations
 
 ### Stinger Transition
-A dynamic curtain-style transition with slanted and horizontal bars.
+A dynamic curtain-style transition with slanted and horizontal bars. Two
+curtains close over the screen while accent bars sweep in, everything holds
+while the scene cuts, then it all slides away.
 
-**URL**: `stinger/index.html?color=#hexvalue&duration=3000`
+**URL**: `stinger/index.html?color=#hexvalue&duration=1000`
+
+- `duration` - total length in ms (default 1000). The stinger lasts exactly
+  this long: bars arrive over the first 35%, the screen is fully covered
+  through the middle 30%, and bars leave over the last 35%. **Cut point: 50%
+  of the duration.**
+- `seed` - pin the bar layout (integer). Without it every transition gets a
+  fresh layout, always balanced across the screen.
+- `autoplay=true` - play once on load (previews, recording).
+
+Starts on a `transitionStart` window event, or when OBS reports the browser
+source became active (`obsSourceActiveChanged`).
+
+For OBS's native **Stinger** transition (which needs a video file), render it
+to a transparent WebM. The command prints the Transition Point to enter:
+
+```
+npm run motion:export -- stinger --color=#ff6600 --duration=1000
+```
+
+### Sidebar
+Bars slide in from the right, hold over the right 20% with the text, and
+slide out, ending exactly at `duration`.
+
+**URL**: `sidebar/index.html?color=#hexvalue&text=Now+Playing&duration=5000` (`seed` as above)
 
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 
-**URL**: `background/index.html?color=#hexvalue&speed=1.0&density=5`
+**URL**: `background/index.html?color=#hexvalue&speed=1.0&density=5` (`density` default 8)
 
 ### Epcot
 A flattened EPCOT Spaceship Earth triangular-lattice grid, shaded in real
@@ -127,6 +153,19 @@ public/         - Built/compiled animations for OBS
 ```
 
 ## Development
+
+```
+npm test -- --run        # unit tests
+npm run motion           # motion harness: timing, coverage, smoothness, CPU per scene
+npm run motion:export    # render a scene to transparent video (OBS stinger)
+npm run bench            # real-time FPS / Canvas 2D profile
+```
+
+The motion harness renders every scene frame by frame on a virtual clock and
+writes a report with filmstrips and motion charts to
+`tools/motion-results/index.html`. See [docs/VALIDATION.md](docs/VALIDATION.md).
+Claude Code skills for this workflow live in `.claude/skills/` (`motion-verify`,
+`motion-create`).
 
 The animations are built with vanilla HTML5 Canvas and JavaScript for maximum compatibility with OBS Browser Sources.
 

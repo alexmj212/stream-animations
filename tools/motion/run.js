@@ -1,0 +1,168 @@
+#!/usr/bin/env node
+/**
+ * Motion harness: renders each scene frame-by-frame on a virtual clock,
+ * checks timing / coverage / smoothness / CPU budget, and writes an HTML
+ * report with filmstrips and motion charts.
+ *
+ * Usage:
+ *   npm run motion                         # every scenario, seeds 1-3
+ *   npm run motion -- stinger              # one scenario
+ *   npm run motion -- stinger --seeds=7    # specific layout seed(s)
+ *   npm run motion -- --fps=30             # step at another frame rate
+ *   npm run motion -- --no-shots           # skip keyframe screenshots (faster)
+ *   npm run motion -- --dump               # also write every frame's raw data (capture.json)
+ *   npm run motion -- --color=00b3ff       # try another brand color
+ *
+ * Exit code is non-zero when any check fails, so it can gate CI.
+ * Report: tools/motion-results/index.html
+ */
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+import { startServer, launchBrowser } from '../lib/browser.js';
+import { installVirtualClock } from './clock.js';
+import { SCENARIOS } from './scenes.js';
+import { evaluate, workStats } from './analyze.js';
+import { renderReport } from './report.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const outDir = resolve(__dirname, '..', 'motion-results');
+
+const argv = process.argv.slice(2);
+const flags = Object.fromEntries(
+  argv.filter(a => a.startsWith('--')).map(a => {
+    const [k, v] = a.replace(/^--/, '').split('=');
+    return [k, v ?? true];
+  })
+);
+const names = argv.filter(a => !a.startsWith('--'));
+const fps = Number(flags.fps || 60);
+const seeds = String(flags.seeds || '1,2,3').split(',').map(Number);
+const shots = !flags['no-shots'];
+const width = Number(flags.width || 1920);
+const height = Number(flags.height || 1080);
+
+const scenarios = names.length ? SCENARIOS.filter(s => names.includes(s.name)) : SCENARIOS;
+if (scenarios.length === 0) {
+  console.error(`Unknown scenario(s): ${names.join(', ')}. Available: ${SCENARIOS.map(s => s.name).join(', ')}`);
+  process.exit(2);
+}
+
+async function waitFor(page, fn, timeoutMs = 8000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await page.evaluate(fn)) return true;
+    await new Promise(r => setTimeout(r, 25));
+  }
+  return false;
+}
+
+async function capture(browser, baseUrl, scenario, seed) {
+  const page = await browser.newPage();
+  await page.setViewport({ width, height, deviceScaleFactor: 1 });
+  const errors = [];
+  page.on('pageerror', err => errors.push(err.message));
+  page.on('console', msg => {
+    // Resource failures are reported (with their URL) by the response hook below
+    if (msg.type() === 'error' && !msg.text().startsWith('Failed to load resource')) errors.push(msg.text());
+  });
+  page.on('response', res => {
+    if (res.status() >= 400 && !res.url().endsWith('/favicon.ico')) errors.push(`${res.status()} ${res.url()}`);
+  });
+
+  await page.evaluateOnNewDocument(`(${installVirtualClock.toString()})(${seed});`);
+  const params = new URL(scenario.url, 'http://x');
+  if (flags.color) params.searchParams.set('color', String(flags.color).startsWith('#') ? flags.color : `#${flags.color}`);
+  params.searchParams.set('seed', String(seed));
+  const url = `${baseUrl}${params.pathname}${params.search}`;
+  await page.goto(url, { waitUntil: 'load' });
+
+  if (scenario.start === 'load') {
+    const ok = await waitFor(page, () => window.__motion.pending() > 0);
+    if (!ok) errors.push('scene never requested an animation frame');
+  } else if (scenario.start?.event) {
+    // Give module scripts a moment to register their listeners
+    await waitFor(page, () => document.readyState === 'complete');
+    await page.evaluate((name) => window.dispatchEvent(new Event(name)), scenario.start.event);
+  }
+
+  const dt = 1000 / fps;
+  const frames = [];
+  const shotTimes = (scenario.keyframes || []).map(k => k * (scenario.keyframeSpanMs || scenario.captureMs));
+  const shotFiles = [];
+  const dir = resolve(outDir, scenario.name, `seed-${seed}`);
+  mkdirSync(dir, { recursive: true });
+
+  const total = Math.ceil(scenario.captureMs / dt);
+  for (let i = 1; i <= total; i++) {
+    const frame = await page.evaluate((d, region) => {
+      const r = window.__motion.step(d);
+      r.pixels = window.__motion.pixelStats(2, region);
+      return r;
+    }, dt, scenario.region || null);
+    frames.push(frame);
+
+    while (shots && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
+      const at = shotTimes.shift();
+      const file = `t${String(Math.round(at)).padStart(5, '0')}.png`;
+      await page.screenshot({ path: resolve(dir, file), omitBackground: true });
+      shotFiles.push({ at, file: `${scenario.name}/seed-${seed}/${file}` });
+    }
+  }
+
+  await page.close();
+  return { frames, errors, shots: shotFiles };
+}
+
+async function main() {
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
+
+  const { server, baseUrl } = await startServer();
+  const { browser, executablePath } = await launchBrowser({ width, height });
+  console.log(`Chrome: ${executablePath}\nServing ${baseUrl}  fps=${fps} seeds=${seeds.join(',')}\n`);
+
+  const runs = [];
+  try {
+    for (const scenario of scenarios) {
+      for (const seed of seeds) {
+        const t0 = Date.now();
+        const { frames, errors, shots: shotFiles } = await capture(browser, baseUrl, scenario, seed);
+        const spec = { ...scenario, fps };
+        const { results, timeline, tracks } = evaluate(spec, frames);
+        results.unshift({
+          name: 'No page errors',
+          pass: errors.length === 0,
+          detail: errors.length ? errors.slice(0, 3).join(' | ') : 'console clean'
+        });
+        const pass = results.every(r => r.pass);
+        runs.push({
+          scenario: scenario.name, seed, pass, results, timeline,
+          work: workStats(frames), shots: shotFiles, frames,
+          tracks: Object.fromEntries(tracks), markers: scenario.markers || []
+        });
+
+        if (flags.dump) {
+          writeFileSync(resolve(outDir, scenario.name, `seed-${seed}`, 'capture.json'), JSON.stringify({ frames }, null, 1));
+        }
+        console.log(`${pass ? 'PASS' : 'FAIL'}  ${scenario.name} seed=${seed}  (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+        for (const r of results) console.log(`  ${r.pass ? '✓' : '✗'} ${r.name}: ${r.detail}`);
+      }
+    }
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+
+  const summary = runs.map(({ frames, tracks, ...rest }) => rest);
+  writeFileSync(resolve(outDir, 'report.json'), JSON.stringify({ fps, width, height, runs: summary }, null, 2));
+  writeFileSync(resolve(outDir, 'index.html'), renderReport({ fps, width, height, runs }));
+  const failed = runs.filter(r => !r.pass).length;
+  console.log(`\n${runs.length - failed}/${runs.length} runs passed. Report: ${resolve(outDir, 'index.html')}`);
+  process.exit(failed ? 1 : 0);
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(2);
+});

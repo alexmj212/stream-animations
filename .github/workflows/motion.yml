@@ -1,0 +1,40 @@
+name: Tests and motion checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test -- --run
+
+      # Renders every scene frame-by-frame on a virtual clock and checks
+      # timing, cut-point coverage, smoothness and per-frame CPU.
+      # ubuntu-latest ships Google Chrome at /usr/bin/google-chrome.
+      - name: Motion harness
+        run: npm run motion
+
+      - name: Upload motion report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-report
+          path: tools/motion-results/
+          retention-days: 14

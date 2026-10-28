@@ -45,6 +45,7 @@
       import { PerformanceStorage } from '../shared/perfStorage.js';
       import { PerformanceOverlay } from '../shared/perfOverlay.js';
       import { DirtyRectTracker } from '../shared/dirtyRect.js';
+      import { registerProbe } from '../shared/motion.js';
 
       // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
@@ -153,6 +154,11 @@
 
         // Add components to array (following stinger/sidebar/background pattern)
         components.push(topCurtain, bottomCurtain, shadeBar);
+
+        registerProbe('shade', () => [
+          ...[topCurtain, bottomCurtain].filter(c => c.active).map(c => ({ id: `curtain-${c.position}`, x: 0, y: c.y, phase: c.phase })),
+          ...(shadeBar.active ? [{ id: 'text', x: shadeBar.x, y: shadeBar.y, onscreen: shadeBar.x < canvas.width && shadeBar.x + shadeBar.textWidth > 0 }] : [])
+        ]);
 
         /**
          * Animation loop (following stinger/sidebar/background pattern)

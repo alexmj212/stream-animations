@@ -20,6 +20,8 @@ export class BackgroundBar extends AnimatedBar {
         this.baseHSL = baseHSL;
         this.speedMultiplier = speed;
         this.randomStart = randomStart;
+        // Bars already on screen; spawns are placed away from them
+        this.neighbours = options.neighbours || (() => []);
         this.init();
     }
 
@@ -147,64 +149,127 @@ export class BackgroundBar extends AnimatedBar {
         }
 
         // Enable offscreen cache only for white horizontal bars (slanted bars extend beyond viewport)
-        if (this.isWhite && this.type === 'horizontal') {
+        // Not for size-animated bars: their width changes every frame, which
+        // missed the cache (keyed by width) and built a new ~2300px offscreen
+        // canvas per frame.
+        if (this.isWhite && this.type === 'horizontal' && !this.animateSize) {
             this.useOffscreenCache = true;
         }
     }
 
+    /**
+     * Random on-screen x for a bar that fades in where it spawns. Bars used
+     * to start 300px past the edge and creep in at 6-60px/s, so most of a
+     * bar's 30-120s life was spent off-screen and the background often
+     * showed only one or two bars.
+     */
+    spawnX() {
+        const W = this.canvas.width;
+        if (this.type === 'slanted') {
+            return W * (0.02 + this.random() * 0.9) - this.width / 2;
+        }
+        // Horizontal bars are W+400 wide: keep at least ~40% of the screen covered
+        return -this.width * 0.8 + this.random() * (this.width * 0.8 + W * 0.6);
+    }
+
+    /** Middle of the part of the bar that is on screen, in screen fractions. */
+    visualCenter(x = this.x, y = this.y) {
+        const W = this.canvas.width;
+        const H = this.canvas.height;
+        if (this.type === 'slanted') return { cx: (x + this.width / 2) / W, cy: 0.5 };
+        const left = Math.max(0, x);
+        const right = Math.min(W, x + this.width);
+        return { cx: (left + right) / 2 / W, cy: (y + this.height / 2) / H };
+    }
+
+    /** On-screen area in the left and right halves, in screen fractions. */
+    halfAreas(x = this.x) {
+        const W = this.canvas.width;
+        const H = this.canvas.height;
+        const height = this.type === 'slanted' ? H : this.height;
+        const width = this.animateSize && this.originalWidth ? this.originalWidth * this.currentSizeMultiplier : this.width;
+        const span = (a, b) => Math.max(0, Math.min(b, x + width) - Math.max(a, x));
+        const scale = height / (W * H);
+        return [span(0, W / 2) * scale, span(W / 2, W) * scale];
+    }
+
+    /**
+     * Place the bar (x, and y for horizontal bars) away from the bars already
+     * on screen: best of a few random candidates, scored by distance to the
+     * nearest neighbour and by how evenly the two screen halves end up
+     * covered. Independent random spawns clustered, e.g. every colored
+     * slanted bar in the left third, or one half nearly empty.
+     */
+    place() {
+        const others = this.neighbours().filter(b => b !== this && b.active);
+        const candidates = others.length ? config.background.placementCandidates : 1;
+        let left = 0;
+        let right = 0;
+        for (const o of others) {
+            const [l, r] = o.halfAreas();
+            left += l;
+            right += r;
+        }
+        let best = null;
+        for (let i = 0; i < candidates; i++) {
+            const x = this.spawnX();
+            const y = this.type === 'horizontal' ? this.random() * this.canvas.height : this.y;
+            const c = this.visualCenter(x, y);
+            let spacing = 1;
+            for (const o of others) {
+                const oc = o.visualCenter();
+                const dy = this.type === 'horizontal' && o.type === 'horizontal' ? Math.abs(c.cy - oc.cy) : 0;
+                spacing = Math.min(spacing, Math.abs(c.cx - oc.cx) + dy);
+            }
+            const [l, r] = this.halfAreas(x);
+            const imbalance = Math.abs(left + l - right - r) / Math.max(left + l + right + r, 1e-6);
+            const score = spacing - imbalance;
+            if (!best || score > best.score) best = { x, y, score };
+        }
+        this.x = best.x;
+        this.y = best.y;
+    }
+
     initializeRandomPosition() {
-        // Start at random position in lifecycle for natural staggering
-        const randomPhase = Math.random();
+        // Start at random point in the lifecycle for natural staggering
+        const randomPhase = this.random();
+        this.place();
 
         if (randomPhase < 0.33) {
-            // Start in fade-in phase
             this.phase = 'fadeIn';
-            this.elapsedTime = Math.random() * this.fadeInDuration;
+            this.elapsedTime = this.random() * this.fadeInDuration;
             this.phaseStartTime = 0;
-            if (this.direction === 1) {
-                this.x = -this.width - 300 + (this.elapsedTime * this.baseSpeed);
-            } else {
-                this.x = this.canvas.width + 300 - (this.elapsedTime * this.baseSpeed);
-            }
         } else if (randomPhase < 0.66) {
-            // Start in visible phase
             this.phase = 'visible';
-            const phaseTime = Math.random() * this.visibleDuration;
+            const phaseTime = this.random() * this.visibleDuration;
             this.elapsedTime = this.fadeInDuration + phaseTime;
             this.phaseStartTime = this.fadeInDuration;
             this.currentOpacity = this.maxOpacity;
-            if (this.direction === 1) {
-                this.x = -this.width - 300 + (this.elapsedTime * this.baseSpeed);
-            } else {
-                this.x = this.canvas.width + 300 - (this.elapsedTime * this.baseSpeed);
-            }
         } else {
-            // Start in fade-out phase
             this.phase = 'fadeOut';
-            const phaseTime = Math.random() * this.fadeOutDuration;
+            const phaseTime = this.random() * this.fadeOutDuration;
             this.elapsedTime = this.fadeInDuration + this.visibleDuration + phaseTime;
             this.phaseStartTime = this.fadeInDuration + this.visibleDuration;
-            if (this.direction === 1) {
-                this.x = -this.width - 300 + (this.elapsedTime * this.baseSpeed);
-            } else {
-                this.x = this.canvas.width + 300 - (this.elapsedTime * this.baseSpeed);
-            }
         }
     }
 
     initializeFreshStart() {
-        // Always start fresh from off-screen, fading in
+        // Fade in on screen (opacity ramps from 0, so no pop-in)
         this.elapsedTime = 0;
         this.phaseStartTime = 0;
         this.phase = 'fadeIn';
         this.currentOpacity = 0;
+        this.place();
+    }
 
-        // Position off-screen based on direction
-        if (this.direction === 1) {
-            this.x = -this.width - 300;
-        } else {
-            this.x = this.canvas.width + 300;
-        }
+    /** Fully off-screen and still heading away: nothing left to show. */
+    isGoneForGood() {
+        const W = this.canvas.width;
+        const width = this.animateSize ? this.originalWidth * this.currentSizeMultiplier : this.width;
+        const sweep = this.type === 'slanted' ? this.canvas.height * 0.45 : 0;
+        if (this.direction > 0) return this.x - sweep > W + 50;
+        if (this.direction < 0) return this.x + width + sweep < -50;
+        return false;
     }
 
     update(deltaTime) {
@@ -215,12 +280,18 @@ export class BackgroundBar extends AnimatedBar {
         const phaseTime = this.elapsedTime - this.phaseStartTime;
         this.sizeTransitionTime += deltaTime;
 
-        // Update position based on direction and speed (per second, not per frame)
-        const movement = this.baseSpeed * deltaTime;
-        if (this.direction === 1) {
-            this.x += movement;
-        } else {
-            this.x -= movement;
+        // Update position based on direction and speed (per second, not per
+        // frame). direction is fractional while a reversal eases between -1
+        // and 1; it used to be compared with === 1, so bars kept full speed
+        // the old way for the whole 3s transition and then flipped instantly.
+        this.x += this.baseSpeed * deltaTime * this.direction;
+
+        // Recycle bars that drifted off-screen for good, so their slot
+        // respawns as a visible bar instead of idling invisibly for minutes
+        if (!this.isTransitioningDirection && this.isGoneForGood()) {
+            this.phase = 'complete';
+            this.active = false;
+            return;
         }
 
         // Phase transitions (time-based, not frame-based)

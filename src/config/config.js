@@ -14,6 +14,12 @@ export const config = {
     // Brightness multiplier (0.8 = 20% reduction for visual harmony)
     brightness: 0.8,
 
+    // Share of slanted bars, kept when bars respawn (MOTION.md: ~40/60)
+    slantedShare: 0.4,
+    // Random spawn positions tried per bar; the one farthest from the bars
+    // already on screen wins, so the layout stays balanced
+    placementCandidates: 6,
+
     // Animation speeds in pixels per second (NOT per frame - frame-rate independent)
     speed: {
       defaultMultiplier: 1.0,     // Default speed multiplier from URL
@@ -26,7 +32,7 @@ export const config = {
 
     // Bar density and lifecycle
     density: {
-      default: 15,                // Default number of bars
+      default: 8,                 // Default number of bars (all on screen since spawn fix)
       min: 1,                     // Minimum allowed
       max: 50                     // Maximum before performance degrades
     },
@@ -105,17 +111,28 @@ export const config = {
     brightness: 0.8,
 
     // Duration and timing
+    // The whole stinger lasts exactly `duration` ms: in, hold, out. The
+    // screen is fully covered through the hold; cut point = 50% of duration.
     timing: {
       defaultDurationMs: 1000,    // Default transition duration
       fps: 60,                    // Frames per second for calculations
-      // Phase proportions for slanted bars (curtain effect)
-      easeInProportion: 0.35,     // 35% of duration for ease-in
-      pauseProportion: 0.30,      // 30% of duration for pause
-      easeOutProportion: 0.35,    // 35% of duration for ease-out
-      pauseDurationMs: 300,       // Pause duration in milliseconds
-      // Stagger delays
-      slantedStaggerFrames: 20,   // Max stagger for slanted bars
-      horizontalStaggerProportion: 0.2 // Stagger as proportion of duration (20%)
+      easeInProportion: 0.35,     // 35% of duration: bars arrive
+      pauseProportion: 0.30,      // 30% of duration: full cover (hold)
+      easeOutProportion: 0.35,    // 35% of duration: bars leave
+      inStaggerProportion: 0.35,  // Accent arrivals start up to 35% into the in phase
+      outStaggerProportion: 0.3   // Accent exits start up to 30% into the out phase
+    },
+
+    // Accent bar composition (planStinger)
+    accents: {
+      count: 6,                   // Accent bars per transition
+      slantedMin: 2,              // 2-3 slanted, the rest horizontal
+      whiteMin: 2                 // At least this many white bars
+    },
+
+    // Visual style
+    style: {
+      edgeLight: true             // Lit leading edge on colored bars and the curtain seam
     },
 
 
@@ -128,7 +145,7 @@ export const config = {
       coloredBarWidthMax: 450,    // Maximum width for colored slanted bars
       targetPositionMin: 0.2,     // Minimum target position (20% of viewport width)
       targetPositionMax: 0.8,     // Maximum target position (80% of viewport width)
-      pauseDriftSpeed: 2          // Pixels per frame drift during pause phase
+      driftPxPerSec: 90           // Base hold drift (scaled 0.6-1.4x by depth)
     },
 
     // Horizontal bar configuration
@@ -193,9 +210,14 @@ export const config = {
       slideInProportion: 0.25,    // 25% of duration for slide in
       holdProportion: 0.50,       // 50% of duration for hold
       slideOutProportion: 0.25,   // 25% of duration for slide out
-      // Stagger delays
-      slantedStaggerFrames: 15,   // Max stagger for slanted bars
-      horizontalStaggerProportion: 0.15 // Stagger as proportion of duration (15%)
+      // Stagger happens inside the slide phases so everything ends at duration
+      inStaggerProportion: 0.4,   // Accent arrivals start up to 40% into slide-in
+      outStaggerProportion: 0.3   // Accent exits start up to 30% into slide-out
+    },
+
+    // Visual style
+    style: {
+      edgeLight: true             // Lit leading edge on colored bars and the panel
     },
 
     // Slanted bar configuration
