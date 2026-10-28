@@ -148,7 +148,10 @@ waveform is accepted while the waveform draws under its plate, so followers
 keeps KEEP-1 as a warning. When a source in OBS's Alerts or Information Box moves,
 update `keepOut` (AJ, 2026-10-28: "you're not testing the layout with chat
 present", "...with music playing"). No scene reacts to audio, so music only
-matters as a layer.
+matters as a layer. To prove a change keeps keyframes byte-identical, run both sides
+with `--no-keepout`: main's older shots carry no mock. The vertical canvas
+has no layer to keep clear today, so KEEP-1 passes there by default; a
+vertical chat source must go into `keepOut.vertical` (Code review, #79).
 
 
 ### Everything visible
