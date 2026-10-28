@@ -64,6 +64,7 @@ Defined per scenario in `tools/motion/scenes.js`.
 | Covers *region* | A region (fractions of the screen) is opaque on every frame of a window | Panel positioned from the wrong property, slanted edge not accounted for |
 | Smooth motion | No isolated velocity jumps on any on-screen object | A phase hand-off that resets velocity (ease to a stop, then snap to a drift) |
 | Frame CPU budget | p95 of update+draw time ≤ `workP95Ms` | Per-frame allocation, cache thrash, too many objects drawn |
+| Scene events | The scene's debug events (`?debug=events`) match `debugEvents` counts exactly | A trigger that restarts the scene, a scene that never marks `end` |
 
 ### Smooth motion, precisely
 
@@ -77,6 +78,28 @@ ease-in-out or an ease-out handing over to a constant drift, move Δv
 monotonically and are not flagged. Off-screen samples and wrap-arounds
 (displacement over 400px in one frame) are ignored. The detector is covered
 by `tests/tools/motionAnalyze.test.js`.
+
+### Debug signals
+
+AJ's rule (2026-10-28): agents add whatever signals they need to the scene
+code to verify without asking AJ. Everyone uses one convention,
+`src/shared/debug.js`:
+
+| Piece | What it does |
+|---|---|
+| `const debug = createDebug('stinger')` | One recorder per scene. Without `?debug=` it's a frozen no-op, so production pays nothing |
+| `?debug=1` / `all` / `events,frames,log` | Channels. `events`: timestamped `debug.mark(name, data)` calls. `frames`: frame-time count, mean, max, long frames (>34ms), idle gaps. `log`: echo events to the console. `build`: the build stamp on screen |
+| `window.__debug[scene].snapshot()` | Everything recorded so far, readable from the harness, Playwright or a CDP client |
+| `?debugReport=http://127.0.0.1:9777/` + `npm run debug:collect` | Scenes POST each event, and frame stats every 60s, to a local collector that writes `tools/debug-results/*.jsonl`. Use it for checks inside OBS and soak runs |
+
+Scenes mark `start` and `end`, and the stinger also marks `trigger`,
+`ignored` and `obsSourceActiveChanged`. The harness loads every scenario with
+`?debug=events`, and the `debugEvents` check asserts exact counts. The stinger
+scenario fires `transitionStart` and `obsSourceActiveChanged` together, the
+way OBS can, and expects one start, one ignored trigger and one end.
+
+To add a signal, call `debug.mark()` where the thing happens. To add a
+channel, add it to `DEBUG_CHANNELS` and this table.
 
 ### CPU numbers
 

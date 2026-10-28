@@ -62,10 +62,30 @@ is right (Code review), merging and merge order (Release management).
 step 3 on `main` (all scenes, stinger export) and send pass or fail. That
 pass gates the release.
 
-**Owed manual checks** that the cloud can't do. List them in every
-release verdict until someone does them on AJ's machine: the exported WebM
-in a real OBS Stinger transition, `obsSourceActiveChanged` in a real OBS
-browser source, and the 8-hour soak.
+**Post-deploy check** (Release management, 2026-10-28: OBS loads scenes from
+Pages and must never be stale). After the Pages deploy for a merge, run
+`npm run pages:smoke -- <pages-url> <main HEAD sha>`. It checks that the
+loader keeps the URL, that the build stamp and `version.json` match the sha,
+that `?debug=build` shows it, and that the stinger plays after the loader.
+The cloud can't reach Pages (proxy 403), so run it there against a staged
+`_site` (build, then the "Stage site" step of `pages.yml`, then
+`python3 -m http.server -d _site`). Ask a Remote Control session to run it
+against live Pages.
+
+**Measure, don't ask** (AJ, 2026-10-28). When a check needs a signal the
+scene doesn't give, add one with the shared debug convention
+(`src/shared/debug.js`; `docs/VALIDATION.md`, "Debug signals") and assert
+it in the harness. Asking AJ to watch the stream is the last resort.
+
+**OBS-only checks.** The cloud now covers the double-trigger logic: the
+stinger scenario fires `transitionStart` and `obsSourceActiveChanged`
+together and asserts one start. Three checks still need real OBS on AJ's
+machine, run by a Remote Control session with `?debug=events,frames&debugReport=`
+and `npm run debug:collect`, not by AJ: the exported WebM in a real OBS
+Stinger transition, `obsSourceActiveChanged` arriving in a real browser
+source (check the collector's `obsSourceActiveChanged` and `start` events),
+and the 8-hour soak (frame stats every 60s, no growth in long frames). List
+whichever are still owed in every release verdict.
 
 ## Coordination
 
@@ -85,6 +105,7 @@ that owns the work; don't route through the coordinator.
 | Date | Learning | Evidence | Applies to | Status |
 |---|---|---|---|---|
 | 2026-10-28 | Pixel checks read only the largest canvas, so they missed the background's second layer canvas, where most of its bars are. Coverage measured 2-12% where screenshots showed 30-70%. `pixelStats` now composites the alpha of every canvas of that size | QA branch, background seeds 1-8 | harness pixel checks; multi-canvas scenes | active |
+| 2026-10-28 | The Pages loader works: a staged site served build A, then after a restage and reload served build B with the same URL. The stinger caught transitionStart after the `document.write` and covered the screen, and debug=build showed the stamp. The cloud can't fetch alexmj212.dev (proxy 403) | `npm run pages:smoke` on a staged #11 | post-deploy check | active |
 | 2026-10-28 | All checks passed on PR #6 while the shade text sat over a fully open band at 250ms and 4750ms. Only the keyframes showed it. Look at the frames of every changed scene | PR #6 at caefe19; fixed in 491c906 with a "Text only over curtains" check | step 4 | active |
 | 2026-10-28 | At 120fps the duration check failed on float error when the end was exactly 2 frames early (16.6667 > 16.6667). It now compares with `tolerance + 1e-6`. Run changed scenes at 30 and 120fps, not only 60 | PR #2 run, `--fps=120`; fixed in 1b7d345 | tolerance checks | active |
 | 2026-10-28 | A new harness check can be unable to fail (shade's first `bareFraction()` returned 0 whenever clipping was on). Show each new check failing once before trusting it | Code review of PR #6 | step 6 | active |

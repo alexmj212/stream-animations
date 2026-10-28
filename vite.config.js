@@ -24,12 +24,13 @@ try {
 }
 const buildId = `${version} ${commit}`.trim();
 
-// Logs the build once at load. With ?debug=build it also shows the build in
+// Logs the build once at load. With ?debug=build (or 1/true/all, as in
+// src/shared/debug.js) it also shows the build in
 // the top-left corner, so a screenshot of OBS proves which build is running.
 // Off by default; nothing runs per frame.
 function buildStampScript(id) {
   return `console.info('stream-animations ${id}');
-if (/(^|,)build(,|$)/.test(new URLSearchParams(location.search).get('debug') || '')) {
+if (/^(1|true|all)$|(^|,)build(,|$)/.test(new URLSearchParams(location.search).get('debug') || '')) {
   addEventListener('DOMContentLoaded', () => {
     const el = document.createElement('div');
     el.textContent = 'build ${id}';

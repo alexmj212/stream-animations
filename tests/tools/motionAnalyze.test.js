@@ -83,3 +83,14 @@ describe('findVelocitySteps edge cases', () => {
     expect(findVelocitySteps(track).length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('debugEvents check', () => {
+  const spec = { fps: 60, checks: { debugEvents: { start: 1, end: 1 } } };
+  const snap = (...names) => ({ events: names.map((name, t) => ({ t, name, data: {} })) });
+
+  it('passes exact counts and fails a double start or a missing snapshot', () => {
+    expect(evaluate(spec, [], snap('init', 'start', 'end')).results[0].pass).toBe(true);
+    expect(evaluate(spec, [], snap('init', 'start', 'start', 'end')).results[0].pass).toBe(false);
+    expect(evaluate(spec, [], null).results[0].pass).toBe(false);
+  });
+});

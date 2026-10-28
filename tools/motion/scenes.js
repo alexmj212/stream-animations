@@ -8,6 +8,7 @@
  * start:
  *   'load'                   - scene animates on page load
  *   { event: 'name' }        - dispatch window event `name` once ready
+ *   { event, also: [{event, detail}] } - ...then these in the same instant
  * checks (all optional):
  *   totalDurationMs          - last visible frame must end here (±durationToleranceMs)
  *   endsClear                - final frame fully transparent
@@ -16,6 +17,8 @@
  *   regionCover              - {x0,x1,y0,y1 (fractions), fromMs, toMs, label}
  *   noVelocitySteps          - no isolated velocity jumps in probe tracks
  *   workP95Ms                - p95 update+draw CPU time per frame
+ *   debugEvents              - {name: count}: exact counts of the scene's debug
+ *                              events (src/shared/debug.js, ?debug=events)
  *   probeMax                 - {field, max, label}: a probe sample field never exceeds max
  */
 
@@ -25,7 +28,9 @@ export const SCENARIOS = [
   {
     name: 'stinger',
     url: `/src/stinger/index.html?color=${COLOR}&duration=1500`,
-    start: { event: 'transitionStart' },
+    // OBS can fire obsSourceActiveChanged with the transition; it must not
+    // restart the stinger (Code review, PR #2)
+    start: { event: 'transitionStart', also: [{ event: 'obsSourceActiveChanged', detail: { active: true } }] },
     captureMs: 2500,
     keyframes: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
     keyframeSpanMs: 1500,
@@ -35,6 +40,7 @@ export const SCENARIOS = [
       endsClear: true,
       fullCoverAtMs: 750,
       fullCoverMinMs: 200,
+      debugEvents: { start: 1, ignored: 1, end: 1 },
       noVelocitySteps: true,
       workP95Ms: 4
     }
@@ -50,6 +56,7 @@ export const SCENARIOS = [
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     checks: {
       totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
       endsClear: true,
       regionCover: { fromMs: 1400, toMs: 3700, label: 'the right 20% while holding' },
       noVelocitySteps: true,
@@ -66,6 +73,7 @@ export const SCENARIOS = [
     markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'exit' }, { at: 5000, label: 'end' }],
     checks: {
       totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
       endsClear: true,
       probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
       noVelocitySteps: true,
