@@ -83,3 +83,28 @@ describe('findVelocitySteps edge cases', () => {
     expect(findVelocitySteps(track).length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('debugEvents check', () => {
+  const spec = { fps: 60, checks: { debugEvents: { start: 1, end: 1 } } };
+  const snap = (...names) => ({ events: names.map((name, t) => ({ t, name, data: {} })) });
+
+  it('passes exact counts and fails a double start or a missing snapshot', () => {
+    expect(evaluate(spec, [], snap('init', 'start', 'end')).results[0].pass).toBe(true);
+    expect(evaluate(spec, [], snap('init', 'start', 'start', 'end')).results[0].pass).toBe(false);
+    expect(evaluate(spec, [], null).results[0].pass).toBe(false);
+  });
+});
+
+describe('textOverPanel check', () => {
+  const spec = { fps: 60, checks: { textOverPanel: { fromMs: 100, toMs: 200, label: 'the panel' } } };
+  const f = (t, textGaps) => ({ t, pixels: { opaque: 0, visible: 0.5, textGaps } });
+
+  it('passes when the canvas is opaque under the text throughout the window', () => {
+    expect(evaluate(spec, [f(50, 9), f(100, 0), f(150, 0), f(200, 0)]).results[0].pass).toBe(true);
+  });
+
+  it('fails a gap under the text, or text that never shows', () => {
+    expect(evaluate(spec, [f(100, 0), f(150, 3), f(200, 0)]).results[0].pass).toBe(false);
+    expect(evaluate(spec, [f(100, null), f(150, null)]).results[0].pass).toBe(false);
+  });
+});

@@ -175,7 +175,7 @@ export function workStats(frames) {
  * Evaluate a scenario's checks against a capture.
  * @returns {Array<{name, pass, detail}>}
  */
-export function evaluate(spec, frames) {
+export function evaluate(spec, frames, debug = null) {
   const results = [];
   const timeline = coverageTimeline(frames, spec.coverage);
   const tracks = buildTracks(frames);
@@ -233,6 +233,22 @@ export function evaluate(spec, frames) {
     });
   }
 
+  if (checks.textOverPanel) {
+    const { fromMs, toMs, label } = checks.textOverPanel;
+    const win = frames.filter(f => f.t >= fromMs && f.t <= toMs);
+    const shown = win.filter(f => f.pixels?.textGaps != null);
+    const bad = shown.filter(f => f.pixels.textGaps > 0);
+    results.push({
+      name: `Text over ${label}`,
+      pass: shown.length > 0 && bad.length === 0,
+      detail: shown.length === 0
+        ? `text never on screen between ${fromMs}ms and ${toMs}ms`
+        : bad.length === 0
+          ? `every pixel under the text box is opaque on all ${shown.length} frames between ${fromMs}ms and ${toMs}ms`
+          : `${bad.length}/${shown.length} frames show the stream behind the text (first at ${Math.round(bad[0].t)}ms, ${bad[0].pixels.textGaps} sampled px)`
+    });
+  }
+
   if (checks.probeMax) {
     const { field, max, label } = checks.probeMax;
     const hits = [];
@@ -274,6 +290,20 @@ export function evaluate(spec, frames) {
       name: 'Frame CPU budget',
       pass: stats.p95 <= checks.workP95Ms,
       detail: `update+draw p50 ${stats.p50.toFixed(2)}ms, p95 ${stats.p95.toFixed(2)}ms, max ${stats.max.toFixed(2)}ms (budget p95 ≤ ${checks.workP95Ms}ms)`
+    });
+  }
+
+  if (checks.debugEvents) {
+    const counts = {};
+    for (const e of debug?.events || []) counts[e.name] = (counts[e.name] || 0) + 1;
+    const want = Object.entries(checks.debugEvents);
+    const bad = want.filter(([name, n]) => (counts[name] || 0) !== n);
+    results.push({
+      name: 'Scene events',
+      pass: !!debug && bad.length === 0,
+      detail: !debug
+        ? 'no debug data - scene does not call createDebug()'
+        : want.map(([name, n]) => `${name} ${counts[name] || 0}/${n}`).join(', ')
     });
   }
 

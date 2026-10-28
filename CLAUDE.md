@@ -43,6 +43,13 @@ out the door." Run the most efficient workflow with the fewest approval stops.
   recommendation. Design review decides which questions need AJ.
 - Still never: skip or disable a test, or raise a performance budget, to get
   a PR green.
+- **Measure it yourself** (AJ, 2026-10-28): add whatever signals you need to
+  the scene code to test and verify without asking AJ. Use the shared debug
+  convention, so every thread reads the same signals: `createDebug(scene)`
+  from `src/shared/debug.js`, `?debug=` channels, `window.__debug[scene]`,
+  and `?debugReport=` with `npm run debug:collect` for runs inside OBS.
+  Off by default, so it costs nothing on stream. Details in
+  `docs/VALIDATION.md`, "Debug signals".
 
 ## Work together
 

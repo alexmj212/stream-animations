@@ -40,11 +40,14 @@
       import { setupCanvas, clearCanvas } from '../shared/canvas.js';
       import { AnimationLifecycle } from '../shared/lifecycle.js';
       import { getColorFromURL, hexToHSL } from '../shared/colors.js';
+      import { paletteFromURL } from '../shared/palette.js';
       import { PerformanceMonitor } from '../shared/performance.js';
       import { PerformanceStorage } from '../shared/perfStorage.js';
       import { PerformanceOverlay } from '../shared/perfOverlay.js';
       import { DirtyRectTracker } from '../shared/dirtyRect.js';
       import { registerProbe, createRandom, seedFromURL } from '../shared/motion.js';
+      import { createDebug } from '../shared/debug.js';
+      const debug = createDebug('shade');
 
       // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
@@ -54,6 +57,9 @@
       const showPerf = urlParams.get('perf') === 'true';
       const baseColor = getColorFromURL();
       const baseHSL = hexToHSL(baseColor);
+      // ?scheme= / ?colormode=: the epcot palette layout (null stops = single hue)
+      const palette = paletteFromURL();
+      debug.mark('palette', { scheme: palette.scheme, hueShift: palette.hueShift, color: baseColor });
 
       // Setup performance monitoring
       const perfMonitor = new PerformanceMonitor(60, 60);
@@ -141,8 +147,8 @@
         // Create curtains with shared total duration and text height for tip sizing
         // ?seed=N pins the inner bar layout
         const random = createRandom(seedFromURL() ?? Math.floor(Math.random() * 2 ** 31));
-        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight: fontSize, random });
-        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight: fontSize, random });
+        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight: fontSize, random, palette: palette.stops });
+        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight: fontSize, random, palette: palette.stops });
 
         // Create ShadeBar instance (text is always white - no color parameter)
         const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);
@@ -176,10 +182,14 @@
         let startTimestamp = null;
         function animate(timestamp) {
           if (showPerf) perfMonitor.recordFrame();
+          debug.frame(timestamp);
 
           // Absolute time since the first frame: text and curtains stay in
           // lock-step and on schedule even if frames are dropped
-          if (startTimestamp === null) startTimestamp = timestamp;
+          if (startTimestamp === null) {
+            startTimestamp = timestamp;
+            debug.mark('start', { components: components.length });
+          }
           const elapsed = (timestamp - startTimestamp) / 1000;
 
           clearCanvas(ctx, canvas, dirtyTracker);
@@ -207,6 +217,7 @@
             requestAnimationFrame(animate);
           } else {
             console.log('[Shade] Animation complete');
+            debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
           }
         }
 

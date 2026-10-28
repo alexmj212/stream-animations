@@ -22,5 +22,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-tools/motion-results/
+tools/motion-results*/
 exports/
+tools/debug-results/
+_site/

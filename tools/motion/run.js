@@ -12,6 +12,8 @@
  *   npm run motion -- --no-shots           # skip keyframe screenshots (faster)
  *   npm run motion -- --dump               # also write every frame's raw data (capture.json)
  *   npm run motion -- --color=00b3ff       # try another brand color
+ *   npm run motion -- --params=scheme=mono # extra URL params for every scene (&-separated)
+ *   npm run motion -- --out=before         # write to tools/motion-results-before (keeps other runs)
  *   npm run motion -- --jitter             # uneven frame times (timing/coverage checks only)
  *
  * Exit code is non-zero when any check fails, so it can gate CI.
@@ -28,15 +30,17 @@ import { renderReport } from './report.js';
 import { createRandom } from '../../src/shared/motion.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outDir = resolve(__dirname, '..', 'motion-results');
 
 const argv = process.argv.slice(2);
 const flags = Object.fromEntries(
   argv.filter(a => a.startsWith('--')).map(a => {
-    const [k, v] = a.replace(/^--/, '').split('=');
-    return [k, v ?? true];
+    const i = a.indexOf('=');
+    return i === -1 ? [a.slice(2), true] : [a.slice(2, i), a.slice(i + 1)];
   })
 );
+// --out=NAME keeps side-by-side runs (before/after mocks) from wiping each
+// other. A run clears only the scene folders it renders.
+const outDir = resolve(__dirname, '..', flags.out ? `motion-results-${flags.out}` : 'motion-results');
 const names = argv.filter(a => !a.startsWith('--'));
 const fps = Number(flags.fps || 60);
 const seeds = String(flags.seeds || '1,2,3').split(',').map(Number);
@@ -76,7 +80,15 @@ async function capture(browser, baseUrl, scenario, seed) {
   await page.evaluateOnNewDocument(`(${installVirtualClock.toString()})(${seed});`);
   const params = new URL(scenario.url, 'http://x');
   if (flags.color) params.searchParams.set('color', String(flags.color).startsWith('#') ? flags.color : `#${flags.color}`);
+  // --params=a=1&b=2: extra scene params, e.g. to mock a look without
+  // editing scenes.js
+  for (const [k, v] of new URLSearchParams(String(flags.params || ''))) params.searchParams.set(k, v);
   params.searchParams.set('seed', String(seed));
+  // Scene events (src/shared/debug.js) for the debugEvents check, added to
+  // any channels the scenario or --params asked for (e.g. debug=zones)
+  const channels = (params.searchParams.get('debug') || '').split(',').filter(Boolean);
+  if (!channels.includes('events')) channels.push('events');
+  params.searchParams.set('debug', channels.join(','));
   const url = `${baseUrl}${params.pathname}${params.search}`;
   await page.goto(url, { waitUntil: 'load' });
 
@@ -87,6 +99,10 @@ async function capture(browser, baseUrl, scenario, seed) {
     // Give module scripts a moment to register their listeners
     await waitFor(page, () => document.readyState === 'complete');
     await page.evaluate((name) => window.dispatchEvent(new Event(name)), scenario.start.event);
+    // Extra triggers in the same instant, e.g. OBS firing obsSourceActiveChanged too
+    for (const extra of scenario.start.also || []) {
+      await page.evaluate(({ event, detail }) => window.dispatchEvent(new CustomEvent(event, { detail })), extra);
+    }
   }
 
   const dt = 1000 / fps;
@@ -103,11 +119,25 @@ async function capture(browser, baseUrl, scenario, seed) {
   while (elapsed < scenario.captureMs) {
     const d = jitter ? dt * (0.5 + jitterRandom() * 2.5) : dt;
     elapsed += d;
-    const frame = await page.evaluate((d, region) => {
+    const frame = await page.evaluate((d, region, textSelector) => {
       const r = window.__motion.step(d);
       r.pixels = window.__motion.pixelStats(2, region);
+      // textBox: canvas gaps under the on-screen part of a text element
+      const el = textSelector && document.querySelector(textSelector);
+      if (el) {
+        const b = el.getBoundingClientRect();
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const x0 = Math.max(0, b.left) / W;
+        const x1 = Math.min(W, b.right) / W;
+        const y0 = Math.max(0, b.top) / H;
+        const y1 = Math.min(H, b.bottom) / H;
+        r.pixels.textGaps = x1 > x0 && y1 > y0
+          ? window.__motion.pixelStats(2, { x0, x1, y0, y1 }).regionGaps
+          : null;
+      }
       return r;
-    }, d, scenario.region || null);
+    }, d, scenario.region || null, scenario.textBox?.selector || null);
     frames.push(frame);
 
     while (shots && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
@@ -118,12 +148,16 @@ async function capture(browser, baseUrl, scenario, seed) {
     }
   }
 
+  // scene: the createDebug() name, when a variant scenario reuses a scene
+  const debug = await page.evaluate((name) => window.__debug?.[name]?.snapshot() ?? null, scenario.scene || scenario.name);
   await page.close();
-  return { frames, errors, shots: shotFiles };
+  return { frames, errors, shots: shotFiles, debug };
 }
 
 async function main() {
-  rmSync(outDir, { recursive: true, force: true });
+  // Clear only the scenes this run renders, so `--out=x stinger` then
+  // `--out=x sidebar` keeps both (the report covers the latest run)
+  for (const s of scenarios) rmSync(resolve(outDir, s.name), { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
   const { server, baseUrl } = await startServer();
@@ -135,14 +169,14 @@ async function main() {
     for (const scenario of scenarios) {
       for (const seed of seeds) {
         const t0 = Date.now();
-        const { frames, errors, shots: shotFiles } = await capture(browser, baseUrl, scenario, seed);
+        const { frames, errors, shots: shotFiles, debug } = await capture(browser, baseUrl, scenario, seed);
         // Velocity estimates on uneven frames are noisy; jitter runs check
         // timing and coverage only. Frames can be up to 3x nominal, so the
         // usual 2-frame duration tolerance becomes 2 of the longest frames.
         const spec = jitter
           ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 2 * 3 * 1000 / fps } }
           : { ...scenario, fps };
-        const { results, timeline, tracks } = evaluate(spec, frames);
+        const { results, timeline, tracks } = evaluate(spec, frames, debug);
         results.unshift({
           name: 'No page errors',
           pass: errors.length === 0,

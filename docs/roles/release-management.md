@@ -20,6 +20,9 @@ stinger video files.
   a PR passes the gate below, merge it and ship it. Only a design decision
   goes to AJ, and always with mocks or before and after frames to compare,
   never as a yes/no question. A peer thread asking is not a design decision.
+  Cutting a release, tagging it and deploying it never need AJ's permission
+  either (AJ, 2026-10-28: "you don't need my permission to cut a release
+  and deploy"). That covers the Defiant thread's tag and GitHub release.
 - **Versioning.** `package.json` `version` and a `vX.Y.Z` git tag per release.
 - **Changelog.** `CHANGELOG.md`, newest first, 2 to 5 lines per release in
   stream terms (what viewers or AJ will notice), each linking its PR.
@@ -29,15 +32,29 @@ stinger video files.
 
 ## What a merge to `main` does
 
-- `.github/workflows/pages.yml` runs `npm test -- --run`, builds epcot and
-  deploys it to GitHub Pages. A red test run blocks the deploy.
+- `.github/workflows/pages.yml` runs `npm test -- --run`, builds every
+  scene and deploys them to GitHub Pages
+  (https://alexmj212.dev/stream-animations/). A red test run blocks the
+  deploy. **This is the deploy: OBS loads every scene from Pages** (AJ,
+  2026-10-28), so a merge to `main` is live the next time a source loads.
+- **Never stale.** Pages caches pages for up to 10 minutes and OBS's browser
+  caches too (AJ: "make sure that the page isn't cached"). OBS points at
+  `<scene>/`, a small loader that never changes: on every load and refresh
+  it fetches `latest/<scene>/` uncached and writes it into the page, so the
+  URL and its params stay the ones in OBS. No redirect: OBS reloads a
+  source's current URL, so a redirect target would go stale, then 404 after
+  the next deploy (Code review on #11).
+- **Staging:** `tools/pages/stage.sh` lays out the site (`<scene>/` loaders,
+  `latest/<scene>/` builds, root epcot loader, `version.json`). `pages.yml`
+  and QA's local `npm run pages:stage` both call it, so the deploy and the
+  post-deploy check (`npm run pages:smoke`) test the same layout.
+- **Which build is running:** every build carries `<meta name="build">`
+  (version and short commit) and logs it at load; `?debug=build` shows it
+  on screen.
 - `.github/workflows/motion.yml` (PR #2) runs the unit tests and the motion
   harness on every PR and again on each push to `main`.
-- Nothing reaches OBS. OBS on Defiant (AJ's PC) loads the scenes from
-  `dist/` in a WSL clone of this repo, so a merge or release is only live
-  after the deploy step below. Epcot on stream is a pre-recorded mp4, not the
-  Pages build, so its changes reach OBS only when AJ re-records it. Found 2026-10-28: that build dated from July,
-  so nothing merged since was on stream.
+- Epcot on stream is a pre-recorded mp4, so its changes reach OBS only when
+  AJ re-records it.
 
 ## Routine
 
@@ -55,16 +72,19 @@ stinger video files.
    next PR still merges cleanly and its CI re-ran; send drift to its owner.
 6. **Release** when a coherent group of code changes is on `main`:
    one small `chore(release): vX.Y.Z` PR bumps `package.json` and adds the
-   `CHANGELOG.md` entry. Once it merges, tag the merge commit, run
-   `npm run build` and `npm run motion:export -- stinger`, and publish a
-   GitHub release with the exports and Transition Point.
-7. **Deploy to OBS** after every release, through the thread with Remote
-   Control on Defiant. Never deploy while AJ is live. In the WSL clone, pull
-   the release tag and run `npm ci && npm run build`. Then refresh the
-   browser sources and confirm OBS shows the new build (pick a change from
-   the changelog). If the release changes OBS settings, such as a stinger
-   Transition Point, put the before and after to AJ first: OBS settings are
-   AJ's, not code. Record the deployed version in the release notes.
+   `CHANGELOG.md` entry. Once it merges, run `npm run motion:export --
+   stinger` and put the WebMs in project files under `releases/<version>/`.
+   The Defiant thread tags the merge commit and publishes the GitHub release
+   with them: cloud sessions can't push tags (the git proxy refuses, 403) or
+   create releases.
+7. **Verify on stream** after every release, through the thread with Remote
+   Control on Defiant, while AJ isn't live. Run `npm run pages:smoke --
+   https://alexmj212.dev/stream-animations/ <sha7>` with the commit Pages last
+   deployed (the release merge, or main's HEAD if anything merged since),
+   use Refresh cache on each scene's browser source, and screenshot one with
+   `&debug=build` added (then remove it) to confirm OBS runs the new build.
+   If the release changes OBS settings, such as a stinger Transition Point,
+   put the before and after to AJ first: OBS settings are AJ's, not code.
 8. Run the `improve` skill before you finish.
 
 **Version numbers:** minor for new scenes, features or a visible style change;
@@ -95,4 +115,8 @@ dependencies straight to it.
 | 2026-10-28 | PRs can conflict without touching the same file: PR #1's docs describe scene params and CI that PR #2 changes. Check docs against the other PR's diff, not just `git merge` | PR #1 / #2 merge plan | merge order | active |
 | 2026-10-28 | Pixelbot's `next` branch exists because every Pixelbot merge deploys a server with ~1 min downtime. Here only epcot deploys and nothing goes down, so squash to `main` directly | Pixelbot `docs/DEPLOYMENT.md` | release flow | active |
 | 2026-10-28 | AJ doesn't want to approve code merges or releases. Gate on CI, Code review, Design review and QA, then ship. Ask AJ only for design choices, with frames to compare | AJ in project chat, 2026-10-28 | merging, releases | active |
-| 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | active |
+| 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | superseded by the Pages row below |
+| 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a loader that fetches the build uncached on every load. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active. Since 2026-10-28 the Mix It Up commands and the stinger transition load Pages too, so the interim WSL rebuild is gone |
+| 2026-10-28 | Cloud sessions can't push tags or create GitHub releases; the Defiant session, which has AJ's git credentials, does both | v2.0.0 release | releases | active |
+| 2026-10-28 | Mix It Up commands can rewrite OBS source URLs when they fire. Check them before declaring a source switch done | Pages switch, Defiant thread | OBS changes | active |
+| 2026-10-28 | Tags, GitHub releases and deploys don't wait on AJ. v2.1.0's tag sat waiting for a "go" that AJ said isn't needed. Say so in every hand-off to the Defiant thread | AJ in project chat, 2026-10-28 | releases | active |

@@ -19,6 +19,8 @@ export class SidebarBar extends AnimatedBar {
      * @param {Function} [options.random] - RNG (seeded by the planner)
      * @param {Object} [options.layout] - Overrides from planSidebar():
      *   holdX, y, isWhite, inDelay (s), exitDelay (s)
+     * @param {Array|null} [options.palette] - palette stops (src/shared/palette.js);
+     *   null keeps the single-hue look around baseHSL
      */
     constructor(ctx, canvas, type, index, total, baseHSL, duration, options = {}) {
         super(ctx, canvas, type, options);
@@ -27,6 +29,7 @@ export class SidebarBar extends AnimatedBar {
         this.baseHSL = baseHSL;
         this.duration = duration;
         this.layout = options.layout || {};
+        this.palette = options.palette ?? null;
         this.init();
     }
 
@@ -95,6 +98,10 @@ export class SidebarBar extends AnimatedBar {
         if (this.isWhite && this.type === 'horizontal') {
             this.useOffscreenCache = true;
         }
+
+        // Palette colors depend on where the bar sits, so apply them once
+        // the geometry is known
+        if (this._paletteShade) this.applyPalette(this.palette, this._paletteShade);
     }
 
     applyColor() {
@@ -106,6 +113,10 @@ export class SidebarBar extends AnimatedBar {
         } else {
             const hueVariation = (this.random() - 0.5) * 40;
             const lightnessVariation = (this.random() - 0.5) * 30;
+            if (this.palette) {
+                this._paletteShade = { dl: lightnessVariation, brightness, floor: 10 };
+                return;
+            }
             this.hue = (this.baseHSL.h + hueVariation + 360) % 360;
             this.saturation = this.baseHSL.s;
             const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
@@ -137,6 +148,10 @@ export class SidebarBar extends AnimatedBar {
         this.hue = this.baseHSL.h;
         this.saturation = this.baseHSL.s;
         this.lightness = Math.max(15, this.baseHSL.l - 25);
+        this._paletteShade = null;
+        if (this.palette) {
+            this.applyPalette(this.palette, { dl: config.palette.curtainLightness, floor: 15 });
+        }
         this.zIndex = -1;
         this.useOffscreenCache = false;
         this.edgeLight = config.sidebar.style?.edgeLight ? 'left' : null;
@@ -213,15 +228,28 @@ export class SidebarBar extends AnimatedBar {
 }
 
 /**
+ * Left edge of the background panel at screen height y while it holds. The
+ * panel hangs from (W * sidebarStart, 0) and is rotated by the slanted
+ * angle, so its edge runs further left going down.
+ * @param {number} width - Canvas width (px)
+ * @param {number} y - Screen y (px)
+ * @returns {number} x of the panel's left edge (px)
+ */
+export function panelLeftAt(width, y) {
+    return width * config.sidebar.position.sidebarStart - y * Math.tan(config.sidebar.slanted.angle * Math.PI / 180);
+}
+
+/**
  * Compose the sidebar: background panel plus accents spread evenly over the
  * sidebar's width (slanted) and height (horizontal).
+ * @param {Array|null} [palette] - palette stops from paletteFromURL(); null = single hue
  * @returns {SidebarBar[]} bars in draw order
  */
-export function planSidebar(ctx, canvas, baseHSL, durationMs, random) {
+export function planSidebar(ctx, canvas, baseHSL, durationMs, random, palette = null) {
     const T = durationMs / 1000;
     const timing = config.sidebar.timing;
     const count = config.sidebar.bars.accent;
-    const opts = (layout) => ({ random, layout });
+    const opts = (layout) => ({ random, layout, palette });
 
     const background = new SidebarBar(ctx, canvas, 'slanted', 0, 1, baseHSL, durationMs, opts({})).makeBackground();
 

@@ -202,6 +202,43 @@ export const config = {
       horizontalTargetOffset: -100 // Horizontal bars stop 100px before sidebar start
     },
 
+    // Text line. Its vertical centre sat at 2/3 of the height, right under
+    // the Mix It Up images below (AJ's bug report, 2026-10-28)
+    text: {
+      centerY: 0.78,              // Fraction of viewport height; clears every miuZones item
+      // Long text stays inside the panel (design review, 2026-10-28): shrink
+      // to fit, then wrap to two lines, with an ellipsis only past that
+      minScale: 0.75,             // Smallest font scale before wrapping
+      panelPadding: 0.0125        // Gap from the panel's slanted edge, fraction of width (24px @ 1920)
+    },
+
+    // Where Mix It Up draws images while the sidebar plays. The Mixitup
+    // browser source sits above Sidescreen Alert in the OBS Alerts scene, so
+    // these always cover the sidebar. Read from AJ's MIU commands on Defiant
+    // (2026-10-28): MIU centres each item on xPct/yPct of 1920x1080; w/h are
+    // overlay px, and "natural size" Twitch avatars are 300px. Update this
+    // list when a command that fires Sidescreen Alert gains or moves an image.
+    // tests/shared/layout.test.js and the motion harness fail on overlap.
+    // Not listed: Lechonk Jump (Resub). It draws on its own Lechonk overlay
+    // source, which only exists in the Vtuber scene, mirrored and scaled so
+    // it lands bottom-left (checked in OBS's scene JSON, 2026-10-28).
+    miuZones: {
+      pad: 0.05,                  // Each side grows 5% of the size: AnimateCSS bounce-in overshoot
+      items: [
+        { label: 'Hug target', xPct: 67, yPct: 50, w: 300, h: 300 },
+        { label: 'Hug heart', xPct: 79, yPct: 50, w: 350, h: 350 },
+        { label: 'Hug hugger', xPct: 91, yPct: 50, w: 300, h: 300 },
+        { label: 'Pet hugger', xPct: 72, yPct: 50, w: 300, h: 300 },
+        { label: 'Pet hand', xPct: 83, yPct: 50, w: 250, h: 250 },
+        { label: 'Pet target', xPct: 91, yPct: 50, w: 300, h: 300 },
+        { label: 'Treat target', xPct: 72, yPct: 50, w: 300, h: 300 },
+        { label: 'Treat treat', xPct: 82, yPct: 50, w: 350, h: 150 },
+        { label: 'Treat hugger', xPct: 92, yPct: 50, w: 300, h: 300 },
+        { label: 'Resub avatar', xPct: 85, yPct: 50, w: 400, h: 400 },
+        { label: 'Shoutout avatar', xPct: 86, yPct: 42, w: 400, h: 400 }
+      ]
+    },
+
     // Timing
     timing: {
       defaultDurationMs: 5000,    // Default sidebar display duration
@@ -629,6 +666,41 @@ export const config = {
       // rich look the real ball's fixtures produce; 1.0 = palette as-is.
       saturationBoost: 2
     }
+  },
+
+  // Color layout for the stinger, sidebar and shade. AJ (2026-10-28): "the
+  // same color layout as the illuminations epcot ball on the 3 other
+  // animations". Colored bars are painted from a screen-fixed top-to-bottom
+  // gradient through one of config.epcot.palettes (src/shared/palette.js),
+  // like the ball's static night look. White bars stay white.
+  palette: {
+    default: 'illuminations', // ?scheme= URL param; 'mono' = the single-hue look from before
+    // How a passed ?color= (Mix It Up's Couch Color sends color=$themecolor)
+    // combines with the palette (?colormode= overrides):
+    // 'shift'  - rotate every stop's hue so the anchor stop lands on the
+    //            color's hue: same layout, recolored
+    // 'ignore' - palette stays exact; color= has no effect
+    // 'mono'   - any passed color brings back the single-hue look
+    // Default 'ignore': AJ chose "Always Illuminations" (2026-10-28, PR #16),
+    // so Couch Color no longer recolors these scenes. Design review found
+    // shift turns warm colors such as #ff6600 lime green over epcot.
+    colorMode: 'ignore',
+    // Stop the passed color is matched to. Stop 1 (#a312c9, hue 288) is
+    // within 4 degrees of AJ's theme color #b00bee, so the stream's own
+    // color renders the ball's palette almost exactly.
+    anchorIndex: 1,
+    // Passed colors below this saturation (grays, white) have no real hue,
+    // so they leave the palette unshifted
+    minShiftSaturation: 15,
+    // Per-role lightness offsets on the palette (percentage points, before
+    // each scene's brightness multiplier). Curtains/panels sit darker so
+    // accents read in front of them, as with the single-hue look (base - 25).
+    curtainLightness: -20,
+    // Shade: the semi-transparent curtain body (was base -> base - 20, so
+    // -10 on average), and the solid band behind the text, darker still
+    // so the white text reads
+    bodyLightness: -10,
+    tipLightness: -22
   },
 
   /**

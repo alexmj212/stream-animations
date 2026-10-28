@@ -7,15 +7,34 @@ live in `src/config/config.js`.
 
 | Scene | What it is | Triggered by | URL params |
 |---|---|---|---|
-| stinger | Curtain-style scene transition: slanted and horizontal bars sweep across | OBS `transitionStart` or `obsSourceActiveChanged` window events (listeners registered at load to catch the first scene change); `?autoplay=true` plays once on load | `color`, `duration`, `seed`, `autoplay`, `perf` |
-| sidebar | Slide-in notification panel with animated bars and text | Plays on load (OBS reloads it when the source is shown) | `color`, `text`, `duration`, `seed`, `perf` |
-| shade | Raid/alert banner: semi-transparent curtains with large scrolling text | Plays on load (OBS reloads it when the source is shown) | `color`, `text`, `duration`, `perf` |
+| stinger | Curtain-style scene transition: slanted and horizontal bars sweep across | OBS `transitionStart` or `obsSourceActiveChanged` window events (listeners registered at load to catch the first scene change); `?autoplay=true` plays once on load | `color`, `scheme`, `colormode`, `duration`, `seed`, `autoplay`, `perf` |
+| sidebar | Slide-in notification panel with animated bars and text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
+| shade | Raid/alert banner: semi-transparent curtains with large scrolling text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
 | background | Continuous loop of drifting bars on two canvas layers | Always running | `color`, `speed`, `density` (default 8), `perf` |
 | epcot | Spaceship Earth lattice with lit bulbs, patterns and overlays; deployed to GitHub Pages on push to `main` | Always running | Many; see the root README |
+
+The stinger, sidebar and shade paint colored bars from the epcot
+Illuminations palette by default, as one screen-fixed top-to-bottom
+gradient (`config.palette`, `src/shared/palette.js`); `?scheme=mono` gives
+the old single-hue look. See the root README for `scheme` and `colormode`.
 
 `?perf=true` shows the performance overlay on any scene. `?seed=N` pins a
 random layout so the same stinger or sidebar plays every time (recording,
 motion checks).
+
+Long sidebar `text` shrinks to fit inside the panel (down to 75% of its
+size), then wraps to two lines, then ends in an ellipsis
+(`config.sidebar.text`).
+
+Mix It Up draws avatars and props over the sidebar in OBS (its Mixitup
+source sits above Sidescreen Alert). Their positions live in
+`config.sidebar.miuZones`; keep that list in step with the MIU commands that
+fire Sidescreen Alert. `?debug=zones` draws them, and the motion harness
+fails if the sidebar text overlaps one. To re-read the commands, stage
+`%LOCALAPPDATA%\MixItUp\Settings\<id>.db3` from Defiant (read-only folder
+access) and read the JSON in its `Commands` table: an Overlay action's
+`OverlayItemV3` holds `XPosition`/`YPosition` (percent when `PositionType`
+is 1) and `Width`/`Height` (0 = natural size).
 
 ## Shared code
 

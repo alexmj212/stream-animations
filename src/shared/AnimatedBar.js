@@ -1,5 +1,6 @@
 import { LRUCache } from './cache.js';
 import { config } from '../config/config.js';
+import { samplePalette, shadeStops, screenGradientLine, paletteGradient } from './palette.js';
 
 /**
  * Base class for animated bars used across all animations
@@ -229,7 +230,7 @@ export class AnimatedBar {
         ctx.globalAlpha = opacity;
 
         if (saturation > 0) {
-            ctx.fillStyle = this._getGradient(width, hue, saturation, lightness);
+            ctx.fillStyle = this._getGradient(width, hue, saturation, lightness, y, angle);
         } else {
             ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         }
@@ -242,7 +243,7 @@ export class AnimatedBar {
             if (this.edgeLight) {
                 // Thin lit edge along the bar's leading side: reads as a
                 // specular rim and gives overlapping bars crisp separation.
-                ctx.fillStyle = this._edgeStyle(hue, saturation, lightness);
+                ctx.fillStyle = this._edgeStyle(hue, saturation, lightness, y, angle);
                 const w = Math.min(this.edgeLightWidth ?? 4, width / 4);
                 ctx.fillRect(this.edgeLight === 'right' ? width - w : 0, -minHeight * 0.3, w, minHeight);
             }
@@ -260,11 +261,41 @@ export class AnimatedBar {
         ctx.restore();
     }
 
-    _edgeStyle(hue, saturation, lightness) {
+    _edgeStyle(hue, saturation, lightness, y = 0, angle = 0) {
         if (!this._edgeFill) {
-            this._edgeFill = `hsla(${hue}, ${Math.min(100, saturation + 10)}%, ${Math.min(92, lightness + 28)}%, 0.85)`;
+            if (this.paletteStops && this.type === 'slanted') {
+                // Same screen-fixed palette as the bar, lit the same way
+                const lit = this.paletteStops.map(c => ({
+                    h: c.h, s: Math.min(100, c.s + 10), l: Math.min(92, c.l + 28)
+                }));
+                this._edgeFill = paletteGradient(this.ctx, lit, screenGradientLine('slanted', angle, y, this.canvas.height), 0.85);
+            } else {
+                this._edgeFill = `hsla(${hue}, ${Math.min(100, saturation + 10)}%, ${Math.min(92, lightness + 28)}%, 0.85)`;
+            }
         }
         return this._edgeFill;
+    }
+
+    /**
+     * Color this bar from a palette (src/shared/palette.js) instead of one
+     * hue. Slanted bars span the screen height, so they carry the whole
+     * screen-fixed gradient; horizontal bars take the palette color at
+     * their own height and keep the usual sheen along their length.
+     * Sets hue/saturation/lightness either way, so callers that read them
+     * (probes, the white-bar check) keep working.
+     * @param {Array<{h:number,s:number,l:number}>} stops - top to bottom
+     * @param {Object} shade - shadeStops() options (dl, ds, brightness, floor)
+     */
+    applyPalette(stops, shade) {
+        const shaded = shadeStops(stops, shade);
+        const H = this.canvas.height;
+        const c = samplePalette(shaded, this.type === 'slanted' ? 0.5 : (this.y ?? H / 2) / H);
+        this.hue = c.h;
+        this.saturation = c.s;
+        this.lightness = c.l;
+        this.paletteStops = this.type === 'slanted' ? shaded : null;
+        this._gradient = null;
+        this._edgeFill = null;
     }
 
     /**
@@ -311,9 +342,21 @@ export class AnimatedBar {
      * all share a lighting direction. Sheen narrowed to ±8 (biased up by 2)
      * so colored bars never dip into muddy lightness territory.
      */
-    _getGradient(width, hue, saturation, lightness) {
+    _getGradient(width, hue, saturation, lightness, y = 0, angle = 0) {
         const w = Math.round(width);
         if (this._gradient && this._gradientKey === w) {
+            return this._gradient;
+        }
+
+        if (this.paletteStops && this.type === 'slanted') {
+            // Palette bars: the screen-fixed top-to-bottom gradient replaces
+            // the sheen (both run down the bar). Depends only on y and angle,
+            // which are constant per slanted bar. Returning here skips the
+            // lazy _gradientFlip RNG read below, so after the first draw the
+            // shared RNG sequence differs from mono mode (layouts are planned
+            // before that, so per-seed layouts match; Code review, PR #16).
+            this._gradient = paletteGradient(this.ctx, this.paletteStops, screenGradientLine('slanted', angle, y, this.canvas.height));
+            this._gradientKey = w;
             return this._gradient;
         }
 
