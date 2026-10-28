@@ -18,18 +18,18 @@ describe('banner kind', () => {
 });
 
 describe('banner geometry', () => {
-    it('is the toast lane, x 560-1824, y 26-74 (AJ, #86)', () => {
+    it('is the toast lane, from the follower bar to the frame edge, y 26-74 (AJ, #86)', () => {
         const g = bannerGeometry(1920, b.lane);
         expect(g.x).toBe(560);
-        expect(g.x + g.width).toBe(1824);
+        expect(g.x + g.width).toBe(1920);
         expect(g.y).toBe(26);
         expect(g.y + g.height).toBe(74);
         expect(g.mid).toBe(50);
     });
 
-    it('ends at title-safe, never at the frame edge (the old ad banner ran to x 1920)', () => {
-        const g = bannerGeometry(1920, b.lane);
-        expect(g.x + g.width).toBeLessThanOrEqual(1920 * (1 - config.design.safe.titleInset));
+    it('touches the follower bar and runs all the way across (AJ, #86)', () => {
+        expect(b.lane.x).toBe(config.followers.geometry.rightX);
+        expect(b.lane.x + b.lane.width).toBe(1920);
     });
 
     it('scales with the canvas', () => {
@@ -44,7 +44,6 @@ describe('banner geometry', () => {
         expect(b.lane.y).toBe(n.top);
         expect(b.lane.height).toBe(n.height);
         expect(b.lane.x).toBe(n.startX);
-        expect(b.lane.x + b.lane.width).toBe(n.maxEndX);
         expect(b.lane.skewAngle).toBe(n.skewAngle);
         // The top edge sits right of mid-height, like the toast's (about 6.4px)
         expect(bannerGeometry(1920, b.lane).lean).toBeCloseTo(Math.tan(15 * Math.PI / 180) * 24);

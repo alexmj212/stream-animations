@@ -626,7 +626,8 @@ export const SCENARIOS = [
     // Banner lane (issue #85), in AJ's original OBS look (#86): the hype
     // train strip wipes in from the goal bar's end, in the toast's own place
     // (AJ, #86), and the line scrolls across it. Everything stays inside the
-    // lane, x 560-1824 at mid-height, y 26-74, with 32px caps (TYPE-1). No TIME-1: the marquee is
+    // lane, x 560 (the follower bar's end) to 1920, y 26-74, with 32px caps
+    // (TYPE-1). No TIME-1: the marquee is
     // AJ's exemption from still text (MOTION.md Learnings). It draws every
     // frame for as long as it's up, so it carries a CPU check
     name: 'banner-hype',
@@ -653,8 +654,8 @@ export const SCENARIOS = [
   },
   {
     // The ad warning: black text on a solid orange plate, which also covers
-    // the hype strip when both are up. It ends at x 1824; the OBS group ran
-    // to the frame edge (#85)
+    // the hype strip when both are up. Like the hype strip it runs from the
+    // follower bar to the frame edge (AJ, #86)
     name: 'banner-ad',
     scene: 'banner',
     url: `/src/banner/index.html?kind=ad`,
@@ -663,7 +664,7 @@ export const SCENARIOS = [
     keyframes: [0.05, 0.5],
     keyframeSpanMs: 6000,
     // The plate once it's in: opaque
-    region: { x0: 0.3, x1: 0.945, y0: 0.03, y1: 0.065 },
+    region: { x0: 0.3, x1: 0.995, y0: 0.03, y1: 0.065 },
     checks: {
       // No SAFE-1: in the toast's place it shares the toast's top-margin
       // exemption (AJ, #40 and #86; DESIGN.md SAFE-1). SAFE-3 still holds

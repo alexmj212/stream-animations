@@ -83,7 +83,8 @@ source loads, then holds still. A long title shrinks, then takes two lines.
 
 ### Banner lane
 The hype train banner and the ad warning, in the goal bar toast's own place
-(x 560-1824, y 26-74, with the toast's leaning ends; a toast plays over it),
+(from the follower bar's end at x 560 to the right edge, y 26-74, with the
+toast's leaning ends; a toast plays over it),
 in AJ's original OBS look with 32px caps: a
 teal strip with a scrolling "HYPE TRAIN ✦✧" marquee, or black "ADS MAY BE
 PLAYING -" scrolling on an orange plate. One OBS browser source per kind,

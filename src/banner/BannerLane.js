@@ -5,7 +5,7 @@
  * translucent teal strip with white text and sparkles; the ad is black
  * text on a solid orange plate. It sits in the toast's own lane (AJ, #86),
  * with the toast's leaning ends. The rule fixes over the OBS groups: 32px
- * caps, and the strip and text stay inside the lane (x 560-1824, y 26-74).
+ * caps, and the strip and text stay inside the lane (x 560-1920, y 26-74).
  * The hype train's optional 4px screen border is the one thing drawn
  * outside it, at the canvas edges (?border=0 drops it).
  *

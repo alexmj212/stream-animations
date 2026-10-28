@@ -664,13 +664,15 @@ export const config = {
   banner: {
     // The toast lane itself (config.notifications.geometry): AJ (2026-10-28,
     // #86) "have the banner show in the same place as the notification
-    // banner when the hype train is happening". x 560-1824 at mid-height
-    // (the goal bar's right end to title-safe's right edge), y 26-74. The
-    // strip's ends lean like the toast's (`skewAngle`), so it meets the
-    // goal bar's slanted end. A toast plays over it (OBS order); the
-    // strip and its text stay inside this box, and only the hype train's
-    // optional screen border (kinds.hype.border) draws outside it
-    lane: { x: 560, y: 26, width: 1264, height: 48, skewAngle: -15 },
+    // banner when the hype train is happening", and "extend all the way
+    // across and touch the follow bar". x 560 (the follower bar's end, at
+    // mid-height) to the frame's right edge, y 26-74. The strip's ends lean
+    // like the toast's (`skewAngle`), so it meets the follower bar's slanted
+    // end. Past title-safe (1824) only the scrolling line passes, under the
+    // toast's top-margin exemption (SAFE-1). A toast plays over it (OBS
+    // order); only the hype train's optional screen border
+    // (kinds.hype.border) draws outside this box
+    lane: { x: 560, y: 26, width: 1360, height: 48, skewAngle: -15 },
     kinds: {
       hype: {
         text: 'HYPE TRAIN',
