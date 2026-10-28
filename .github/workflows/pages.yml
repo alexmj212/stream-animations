@@ -37,25 +37,8 @@ jobs:
       - run: npm run build
 
       - name: Stage site
-        run: |
-          # Layout (https://alexmj212.dev/stream-animations/):
-          #   <scene>/          loader OBS points at (tools/pages/loader.html);
-          #                     fetches latest/<scene>/ uncached on every load
-          #   latest/<scene>/   this deploy's build
-          #   index.html        loader for epcot (the site's old root URL)
-          #   version.json      which deploy is live
-          version=$(node -p "require('./package.json').version")
-          mkdir -p _site
-          for scene in stinger sidebar shade background epcot; do
-            # find: vite can nest the output path under dist/<scene>/
-            src=$(find "dist/$scene" -name index.html | head -n 1)
-            test -s "$src"
-            mkdir -p "_site/latest/$scene" "_site/$scene"
-            cp "$src" "_site/latest/$scene/index.html"
-            sed -e "s|__SCENE__|$scene|" -e "s|__ROOT__|../|" tools/pages/loader.html > "_site/$scene/index.html"
-          done
-          sed -e "s|__SCENE__|epcot|" -e "s|__ROOT__|./|" tools/pages/loader.html > _site/index.html
-          printf '{"version":"%s","commit":"%s"}\n' "$version" "$GITHUB_SHA" > _site/version.json
+        # Layout and version.json: see tools/pages/stage.sh
+        run: bash tools/pages/stage.sh
 
       - uses: actions/configure-pages@v5
         with:

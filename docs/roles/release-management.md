@@ -41,6 +41,10 @@ stinger video files.
   URL and its params stay the ones in OBS. No redirect: OBS reloads a
   source's current URL, so a redirect target would go stale, then 404 after
   the next deploy (Code review on #11).
+- **Staging:** `tools/pages/stage.sh` lays out the site (`<scene>/` loaders,
+  `latest/<scene>/` builds, root epcot loader, `version.json`). `pages.yml`
+  and QA's local `npm run pages:stage` both call it, so the deploy and the
+  post-deploy check (`npm run pages:smoke`) test the same layout.
 - **Which build is running:** every build carries `<meta name="build">`
   (version and short commit) and logs it at load; `?debug=build` shows it
   on screen.
