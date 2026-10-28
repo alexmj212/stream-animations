@@ -52,3 +52,4 @@ Add a dated line when a review or AJ's feedback settles a question of style.
 | Date | Learning | Evidence | Status |
 |---|---|---|---|
 | 2026-01-20 | URL-based color coordination across scenes didn't work out; don't retry it without a new idea | v1.1 out-of-scope list | active |
+| 2026-10-28 | Background default stays at 8 bars once spawns are balanced; 5 goes too empty, a lighter OBS source can use `?density=6` | AJ's pick on a side-by-side mock, PR #2 design review | active |
