@@ -4,6 +4,13 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.3.0 - 2026-10-28
+
+- Stinger: runs at 1200ms with the cut at 600ms, as AJ picked. The bars
+  hold still for a shorter time while they cover the screen (45/10/45
+  instead of 35/30/35), so the transition never sits frozen for more than
+  about 270ms. OBS was already set to 1200ms. ([#56])
+
 ## v2.2.3 - 2026-10-28
 
 - Followers: a new follow no longer stutters the stream (its slowest frame
@@ -94,3 +101,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#32]: https://github.com/alexmj212/stream-animations/pull/32
 [#47]: https://github.com/alexmj212/stream-animations/pull/47
 [#52]: https://github.com/alexmj212/stream-animations/pull/52
+[#56]: https://github.com/alexmj212/stream-animations/pull/56
