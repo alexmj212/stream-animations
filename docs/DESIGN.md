@@ -216,7 +216,7 @@ fine within COMP-7. The ones worth knowing are listed under the table.
 |---|---|---|---|
 | Goal bar | x 36-560, y 26-75 | Follower goal | AJ's pick: it stays put (#62) |
 | Music box | x 19-481, y 0-130 | Waveform, now playing | Draws under the goal bar |
-| Toast lane | x 560-1824, y 26-74 | Notifications toast, hype train banner, ad warning | AJ, 2026-10-28: the banners show in the toast's place, and a toast plays over a banner. The ad wins if both banners are up. Banner text at 32px caps in AJ's original look: the teal "HYPE TRAIN" marquee with sparkles, and black scrolling text on orange (11:1). The scroll is exempt from MOTION-1 and TIME-1. During a hype train, the original 4px hue-cycling border also runs round the frame at 50% |
+| Toast lane | x 560-1824, y 26-74 | Notifications toast, hype train banner, ad warning | AJ, 2026-10-28: the banners show in the toast's place, and a toast plays over a banner. The ad wins if both banners are up. Banner text at 32px caps in AJ's original look: the hue-cycling "HYPE TRAIN" marquee with sparkles (teal with `?cycle=0`), and black scrolling text on orange (11:1). The scroll is exempt from MOTION-1 and TIME-1. During a hype train, the original 4px hue-cycling border also runs round the frame at 50% |
 | Remote | x 496-546, y 83-133 | Remote holder | Out of the toast's path, right of chat |
 | Jail | x 496-622, y 140-211 | Jail slideshow | Below the remote |
 | Chat column | x 18-488, y 127-537 | Chat, with the discoball pig behind it (x 43-491, y 130-469) | Our text stays off it (KEEP-1) |
