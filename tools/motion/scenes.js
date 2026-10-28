@@ -24,8 +24,9 @@
  *                              events (src/shared/debug.js, ?debug=events)
  *   probeMax                 - {field, max, label}, or a list of them: a probe sample
  *                              field never exceeds max
- *   textOverPanel            - {fromMs, toMs, label}: with `textBox: {selector}`, every
- *                              pixel under the text element's on-screen box is opaque
+ *   textOverPanel            - {fromMs, toMs, label, minAlpha?}: with `textBox: {selector}`,
+ *                              every pixel under the text element's on-screen box has at
+ *                              least minAlpha (default 250, opaque)
  *   design                   - {rules, fail}: the bible's machine-checkable rules
  *                              (tools/motion/designRules.js). Rules not in `fail` only
  *                              warn (⚠) until the scene meets them; then add them to
@@ -63,23 +64,51 @@ export const SCENARIOS = [
     url: `/src/sidebar/index.html?color=${COLOR}&text=Now+Playing&duration=5000`,
     start: 'load',
     captureMs: 6000,
-    keyframes: [0.05, 0.15, 0.25, 0.5, 0.75, 0.85, 0.95],
+    keyframes: [0.05, 0.1, 0.5, 0.94, 0.97],
     keyframeSpanMs: 5000,
-    markers: [{ at: 1250, label: 'hold' }, { at: 3750, label: 'out' }, { at: 5000, label: 'end' }],
+    // duration=5000 is a minimum: enter 500, still to 4650, exit 350 (#35)
+    markers: [{ at: 500, label: 'hold' }, { at: 4650, label: 'out' }, { at: 5000, label: 'end' }],
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     textBox: { selector: '#sidebarText' },
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1250, 3750], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 4650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
-      regionCover: { fromMs: 1400, toMs: 3700, label: 'the right 20% while holding' },
+      regionCover: { fromMs: 650, toMs: 4600, label: 'the right 20% while holding' },
       // Mix It Up draws avatars over the sidebar in OBS (AJ's bug report,
       // 2026-10-28); zones in config.sidebar.miuZones, view with ?debug=zones
       probeMax: { field: 'miuCover', max: 0, label: 'Text clear of the Mix It Up images' },
-      // Text never hangs off the panel over the stream (Design review, 2026-10-28)
-      textOverPanel: { fromMs: 1400, toMs: 3700, label: 'the panel while holding' },
+      // The text sits on its ink nameplate (86%, alpha 219), never bare over
+      // the stream (Design review, 2026-10-28; design audit #34)
+      textOverPanel: { fromMs: 650, toMs: 4600, label: 'the nameplate while holding', minAlpha: 215 },
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    name: 'sidebar-name',
+    scene: 'sidebar',
+    // Mix It Up's shoutout as OBS sends it: duration=3000 is too short to
+    // read, so the hold grows to 3s and the alert to 4s (design audit #35).
+    // The name on its own 56px line, the action at 40px (#34)
+    url: `/src/sidebar/index.html?color=b00bee&text=Check+out+@thegigglepussgang&duration=3000`,
+    start: 'load',
+    captureMs: 5000,
+    keyframes: [0.05, 0.125, 0.5, 0.92, 0.96],
+    keyframeSpanMs: 4000,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'out' }, { at: 4000, label: 'end' }],
+    region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
+    textBox: { selector: '#sidebarText' },
+    checks: {
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 4000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      regionCover: { fromMs: 650, toMs: 3600, label: 'the right 20% while holding' },
+      probeMax: { field: 'miuCover', max: 0, label: 'Text clear of the Mix It Up images' },
+      textOverPanel: { fromMs: 650, toMs: 3600, label: 'the nameplate while holding', minAlpha: 215 },
       noVelocitySteps: true,
       workP95Ms: 4
     }
@@ -87,26 +116,23 @@ export const SCENARIOS = [
   {
     name: 'sidebar-long',
     scene: 'sidebar',
-    // A raid thank-you must fit the panel: shrink, then wrap (Design review, 2026-10-28)
-    url: `/src/sidebar/index.html?color=${COLOR}&text=Thank+you+so+much+for+the+huge+raid+everybody+welcome+in&duration=5000`,
+    // Long text without a name shrinks, then wraps to two lines (Design
+    // review, 2026-10-28); 11 words hold 3s at 200ms a word
+    url: `/src/sidebar/index.html?color=${COLOR}&text=Thank+you+so+much+for+the+huge+raid+everybody+welcome+in&duration=3000`,
     start: 'load',
-    captureMs: 6000,
-    keyframes: [0.05, 0.15, 0.25, 0.5, 0.75, 0.85, 0.95],
-    keyframeSpanMs: 5000,
-    markers: [{ at: 1250, label: 'hold' }, { at: 3750, label: 'out' }, { at: 5000, label: 'end' }],
+    captureMs: 5000,
+    keyframes: [0.05, 0.125, 0.5, 0.92, 0.96],
+    keyframeSpanMs: 4000,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'out' }, { at: 4000, label: 'end' }],
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     textBox: { selector: '#sidebarText' },
     checks: {
-      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1250, 3750], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
-      totalDurationMs: 5000,
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 4000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
-      regionCover: { fromMs: 1400, toMs: 3700, label: 'the right 20% while holding' },
-      // Text never hangs off the panel over the stream (Design review, 2026-10-28)
-      textOverPanel: { fromMs: 1400, toMs: 3700, label: 'the panel while holding' },
-      // Mix It Up draws avatars over the sidebar in OBS (AJ's bug report,
-      // 2026-10-28); zones in config.sidebar.miuZones, view with ?debug=zones
+      regionCover: { fromMs: 650, toMs: 3600, label: 'the right 20% while holding' },
+      textOverPanel: { fromMs: 650, toMs: 3600, label: 'the nameplate while holding', minAlpha: 215 },
       probeMax: { field: 'miuCover', max: 0, label: 'Text clear of the Mix It Up images' },
       noVelocitySteps: true,
       workP95Ms: 4
@@ -116,14 +142,58 @@ export const SCENARIOS = [
     name: 'shade',
     url: `/src/shade/index.html?color=${COLOR}&text=NEW+RAID+INCOMING`,
     start: 'load',
-    captureMs: 6000,
-    keyframes: [0.05, 0.15, 0.25, 0.5, 0.75, 0.85, 0.95],
-    keyframeSpanMs: 5000,
-    markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'exit' }, { at: 5000, label: 'end' }],
+    captureMs: 5500,
+    keyframes: [0.05, 0.1, 0.5, 0.85, 0.95],
+    keyframeSpanMs: 4500,
+    // Curtains close as the text arrives (500), the text is still to 3650,
+    // leaves by 4000, the curtains are open at 4500 (design audit #33)
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4000, label: 'open' }, { at: 4500, label: 'end' }],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
-      totalDurationMs: 5000,
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 4500,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    name: 'shade-raid',
+    scene: 'shade',
+    // The raid as OBS sends it: duration=3000 is the minimum hold
+    url: `/src/shade/index.html?color=b00bee&duration=3000&text=@aspiritualbumpit+RAID!!`,
+    start: 'load',
+    captureMs: 5500,
+    keyframes: [0.05, 0.1, 0.5, 0.85],
+    keyframeSpanMs: 4500,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4500, label: 'end' }],
+    checks: {
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 4500,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    name: 'shade-long',
+    scene: 'shade',
+    // Too long for one line even at 72px: name / action on two lines,
+    // still inside title-safe, never scrolling (design audit #33). 16 words
+    // hold 3.2s
+    url: `/src/shade/index.html?color=b00bee&duration=3000&text=@aspiritualbumpit+gifted+50+tier+1+subs+to+the+goobers+thank+you+so+much+for+the+support!!`,
+    start: 'load',
+    captureMs: 5500,
+    keyframes: [0.1, 0.5],
+    keyframeSpanMs: 4700,
+    markers: [{ at: 500, label: 'hold' }, { at: 3850, label: 'exit' }, { at: 4700, label: 'end' }],
+    checks: {
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3850], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 4700,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
       probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },

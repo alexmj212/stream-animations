@@ -17,19 +17,29 @@ bible, [DESIGN.md](DESIGN.md), which links here for these decisions.
   A new scene uses the same multiplier. [v1.0 decision]
 - **Curtains** are semi-transparent at opacity 0.5 (range 0.4 to 0.6), clipped
   to their bounds, with top and bottom meeting at the centerline. [06-01]
-- **Text** is white, 96px bold Jost with a soft shadow, optically centered
-  with `actualBoundingBox` metrics, and always drawn above curtains. [05-01,
-  05-03, 06-02]
+- **Alert text** is white Jost 700 with the ink stroke and soft shadow of
+  `config.design.type` (DESIGN.md TYPE-3), and it holds still and whole while
+  it is read. The shade's line is 96px, shrinks to fit title-safe down to
+  72px, then wraps to two lines (name / action); it never scrolls. The
+  sidebar sets the @name at 56px and the action at 40px on an ink nameplate,
+  right-aligned to title-safe. [AJ's pick on design audit #33-#35]
 
 ## Timing
 
+- **Alerts** (shade, sidebar): the text arrives on `ease.enter` in 500 ms,
+  settles for 150 ms, holds for its reading time, and leaves on `ease.exit`
+  in 350 ms (`config.design.motion`). A URL `duration` is a minimum: it can
+  lengthen the hold but never cut it, so OBS's `duration=3000` gives a 4 s
+  sidebar and a 4.5 s shade. The shade's curtains close as the text arrives
+  and open after it has gone (`config.shade.curtainMoveMs`); the sidebar's
+  panel and accents arrive inside the enter, the accents 60 ms apart.
+  [design audit #33-#35]
 - **Shared defaults**: entry 1000 ms, exit 1000 ms, hold 2000 ms, eased with
-  `easeInOutCubic`, used by the shade. Scenes override only with a reason:
-  the background fades over 2000 ms because it is ambient. Two scenes split
-  their `?duration` proportionally instead: the stinger 45% in, 10% hold,
-  45% out, so OBS cuts at the 50% mark while the screen is covered
-  (`config.stinger.timing`), and the sidebar 25% in, 50% hold, 25% out
-  (`config.sidebar.timing`). [v1.0 timing patterns; motion harness PR #2]
+  `easeInOutCubic`. Scenes override only with a reason: the background fades
+  over 2000 ms because it is ambient. The stinger splits its `?duration`
+  proportionally instead: 45% in, 10% hold, 45% out, so OBS cuts at the
+  50% mark while the screen is covered (`config.stinger.timing`). [v1.0
+  timing patterns; motion harness PR #2]
 - **Reading pace**: text holds 200 ms per word (5 words a second), never less
   than 3 s. Count words, not characters. [05-02]
 - **No jumps between phases**: motion that crosses a phase boundary is
@@ -64,5 +74,5 @@ Add a dated line when a review or AJ's feedback settles a question of style.
 | 2026-10-28 | Long notification text grows the bar to fit the line, up to the bar's full length at title-safe's right edge (x1824, DESIGN.md SAFE-1), and the text stays still; it scrolls only if it still doesn't fit at full length. Scrolling clipped the start and end of the line during the hold | Side-by-side mock from the notifications thread; design review call (AJ may override) | active (#32) |
 | 2026-10-28 | The scene title cards (WELCOME, BRB, ENDING) and the BRB collage stay as they are, and are exempt from the rules the audit raised against them in #39 and #42 (SAFE-1/3, TYPE-3, TYPE-7, ALERT-2, COLOR-1); don't propose a title-card scene or a BRB redo again without a new reason | AJ picked "Leave as is" on the design audit cards (#39, #42, closed as not planned) | active |
 | 2026-10-28 | The stinger runs 1200 ms with OBS's transition point at 600, and the split moves to 45/10/45 (`pauseProportion` 0.10), so the still full cover is 230-300 ms, so the cut is a moment rather than a hold (DESIGN.md CUT-2) | AJ picked it from the 2000-vs-1200 video, design audit #36 | active (#56) |
-| 2026-10-28 | Alert text (shade and sidebar) holds still and whole while it is read, for a reading-time hold (DESIGN.md MOTION-1, TIME-1, TYPE-1/3) | AJ's pick on the design audit set, #33-#35 | target: being built in its own work thread |
+| 2026-10-28 | Alert text (shade and sidebar) holds still and whole while it is read, for a reading-time hold (DESIGN.md MOTION-1, TIME-1, TYPE-1/3) | AJ's pick on the design audit set, #33-#35 | active (#58) |
 | 2026-10-28 | The GOOBERS widget pair gets bigger text but keeps its position, so its top margin is AJ's exemption from SAFE-1 | AJ's pick, design audit #40 | active: 42px text, the goal bar runs to x560 and the toast starts there; long toast lines may shrink to 23px |

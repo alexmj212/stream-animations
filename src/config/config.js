@@ -204,14 +204,29 @@ export const config = {
       horizontalTargetOffset: -100 // Horizontal bars stop 100px before sidebar start
     },
 
-    // Text line. Its vertical centre sat at 2/3 of the height, right under
-    // the Mix It Up images below (AJ's bug report, 2026-10-28)
+    // Text: two lines on an ink nameplate, right-aligned to title-safe
+    // (x 1824) and centred at 78% height (AJ's pick on design audit #34,
+    // 2026-10-28). The action ("CHECK OUT") is `label` 40px and the @name
+    // `headline` 56px; text without a name is one `headline` line. Jost 700
+    // with the ink stroke and shadow of config.design.type
     text: {
+      // Its vertical centre sat at 2/3 of the height, right under the Mix It
+      // Up images below (AJ's bug report, 2026-10-28)
       centerY: 0.78,              // Fraction of viewport height; clears every miuZones item
-      // Long text stays inside the panel (design review, 2026-10-28): shrink
-      // to fit, then wrap to two lines, with an ellipsis only past that
-      minScale: 0.75,             // Smallest font scale before wrapping
-      panelPadding: 0.0125        // Gap from the panel's slanted edge, fraction of width (24px @ 1920)
+      // Long text (design review, 2026-10-28): the name shrinks to fit,
+      // then (text without a name) wraps to two lines, with an ellipsis
+      // only past that
+      minScale: 0.75,             // Smallest headline scale: 42px, still over the 40px floor
+      // Widest line: the plate stops at the screen's centre (x 960), so a
+      // side alert never reaches the content's centre (DESIGN.md, Alerts)
+      maxWidthPx: 864,
+      lineHeight: 1.1,            // Line spacing, em of each line's size
+      plate: {
+        alpha: 0.86,              // design.color.ink at 86%: the text reads on it without the panel
+        padXPx: 24,               // Ink past the text's left end, before the 15° slant
+        padYPx: 16,               // Above the first line and below the last
+        bleedPx: 64               // Runs off the right edge (only bars may bleed past title-safe)
+      }
     },
 
     // Where Mix It Up draws images while the sidebar plays. The Mixitup
@@ -241,17 +256,20 @@ export const config = {
       ]
     },
 
-    // Timing
+    // Timing (design audit #35, AJ's pick 2026-10-28). Enter, settle and
+    // exit are config.design.motion (500 / 150 / 350ms); the hold is the
+    // text's reading time. ?duration= (OBS sends 3000) is a minimum total:
+    // a longer one lengthens the hold, a shorter one can't cut it
     timing: {
-      defaultDurationMs: 5000,    // Default sidebar display duration
-      fps: 60,                    // Frames per second for calculations
-      // Phase proportions
-      slideInProportion: 0.25,    // 25% of duration for slide in
-      holdProportion: 0.50,       // 50% of duration for hold
-      slideOutProportion: 0.25,   // 25% of duration for slide out
-      // Stagger happens inside the slide phases so everything ends at duration
-      inStaggerProportion: 0.4,   // Accent arrivals start up to 40% into slide-in
-      outStaggerProportion: 0.3   // Accent exits start up to 30% into slide-out
+      defaultDurationMs: 5000,    // Minimum total without ?duration=
+      readingSpeedMsPerWord: 200, // DESIGN.md TIME-1
+      minHoldMs: 3000,            // Never under 3 seconds
+      accentStaggerSteps: 4,      // Accents arrive on up to 4 stagger steps (0-180ms) inside the enter
+      // OBS hides Sidescreen Alert 7000ms after it shows it (the Show
+      // Sidescreen Alert move filter's end_delay, read on Defiant
+      // 2026-10-28), so the alert must end first; past ~29 words the hold is
+      // cut short instead. Raise both together
+      maxTotalMs: 6800
     },
 
     // Visual style
@@ -284,10 +302,11 @@ export const config = {
       accent: 8                   // Number of accent bars
     },
 
-    // Hold phase velocity
+    // Accents' leftward drift while the panel holds (was 0.3-0.8 px a
+    // 60fps frame)
     hold: {
-      velocityMin: 0.3,           // Minimum velocity during hold phase (px/frame)
-      velocityMax: 0.8            // Maximum velocity during hold phase (px/frame)
+      velocityMinPxPerSec: 18,
+      velocityMaxPxPerSec: 48
     },
 
     // Color settings
@@ -321,35 +340,34 @@ export const config = {
     // Brightness multiplier (0.8 = 20% reduction to match background/sidebar/stinger)
     brightness: 0.8,
 
-    // Text styling
+    // Text: Jost 700 in white with the ink stroke and shadow of
+    // config.design.type (DESIGN.md TYPE-3). Sizes come from the type
+    // scale: `hero` 96px, shrinking to fit title-safe down to `display`
+    // 72px, then two lines at `display` (name / action). It never scrolls
+    // (AJ's pick on design audit #33, 2026-10-28)
     text: {
-      font: 'bold 96px Jost',     // Large celebratory font size
-      color: '#ffffff',           // Default white (overridden by URL ?color parameter)
-      shadow: {
-        blur: 8,                  // Shadow blur radius
-        offsetX: 4,               // Shadow X offset
-        offsetY: 4,               // Shadow Y offset
-        color: 'rgba(0, 0, 0, 0.6)' // Shadow color with opacity
-      }
+      color: '#ffffff',
+      lineHeight: 1.15            // Line spacing when the text wraps to two lines, in em
     },
 
-    // Timing configuration
+    // Reading time (DESIGN.md TIME-1): the text is still for at least this
+    // long. ?duration= is a minimum on top of it, so OBS's duration=3000
+    // still works but can't cut a long name short
     timing: {
       readingSpeedMsPerWord: 200, // 200ms per word = 5 words/second (fast pace for stream events)
-      minHoldMs: 3000,            // Minimum 3-second hold duration
-      scrollSpeedPxPerSec: 300    // Initial baseline scroll speed (will be dynamically calculated)
+      minHoldMs: 3000,            // Never under 3 seconds
+      // OBS hides Fullscreen Alert 10000ms after it shows it (the Start
+      // Alert move filter's end_delay, read on Defiant 2026-10-28), so the
+      // shade must end first; past ~41 words the hold is cut short instead.
+      // Raise both together
+      maxTotalMs: 9800
     },
 
-    // Durations (use shared defaults for entry/exit transitions)
-    durations: {
-      entryMs: 1000,              // Entry animation duration
-      exitMs: 1000                // Exit animation duration
-    },
-
-    // Curtains close in the first half of the entry and open in the last
-    // half of the exit, so the band is covered before the text reaches it
-    // and after it has gone; the text is also clipped to the curtains
-    curtainMoveShare: 0.5,
+    // The text arrives and leaves on config.design.motion (enter 500ms,
+    // settle 150, exit 350). The curtains close over the first 500ms, as the
+    // text arrives, and open over the last 500ms, after it has gone, so the
+    // text is only ever on a closed band; it is also clipped to the curtains
+    curtainMoveMs: 500,
     clipTextToCurtains: true,
 
     // Curtain configuration

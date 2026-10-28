@@ -2,16 +2,43 @@
  * Sidebar bars: slide in from the right, hold over the right 20% of the
  * screen, slide back out.
  *
- * Timeline (D = duration): in 25% → hold 50% → out 25%, ending at exactly D
- * so the bars finish with the CSS text animation. Stagger happens inside the
- * in/out phases. Positions are a pure function of time (setTime) and the
- * phase hand-offs are velocity-matched, so bars glide into a slow leftward
- * drift and curve back out instead of stopping and lurching.
+ * Timeline (planSidebarTimeline): everything arrives within the 500ms enter
+ * (accents staggered 60ms apart inside it), holds while the text is read,
+ * and leaves within the 350ms exit, ending together with the text
+ * (docs/DESIGN.md MOTION-1, TIME-1/2; design audit #35). Positions are a pure
+ * function of time (setTime). The panel eases on the motion tokens; the
+ * accents' hand-offs are velocity-matched, so they glide into a slow
+ * leftward drift and curve back out instead of stopping and lurching.
  */
 import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { isBarInViewport } from '../shared/animations/calculations.js';
+import { cubicBezier, planAlertText, readingHoldMs } from '../shared/animations/alertText.js';
 import { hermite, stratified } from '../shared/motion.js';
 import { config } from '../config/config.js';
+
+const easeEnter = cubicBezier(config.design.motion.ease.enter);
+const easeExit = cubicBezier(config.design.motion.ease.exit);
+
+/**
+ * The sidebar's timeline (seconds): enter 500ms, settle 150, a hold of the
+ * text's reading time, exit 350. `durationMs` (the URL's, OBS sends 3000)
+ * is a minimum: a longer one lengthens the hold, a shorter one can't cut it.
+ * @param {string} text
+ * @param {number} durationMs
+ * @returns {ReturnType<typeof planAlertText>}
+ */
+export function planSidebarTimeline(text, durationMs) {
+    const { durationMs: d, settleMs } = config.design.motion;
+    const timing = config.sidebar.timing;
+    return planAlertText({
+        holdMs: readingHoldMs(text, timing.readingSpeedMsPerWord, timing.minHoldMs),
+        enterMs: d.enter,
+        settleMs,
+        exitMs: d.exit,
+        minTotalMs: durationMs,
+        maxTotalMs: timing.maxTotalMs
+    });
+}
 
 export class SidebarBar extends AnimatedBar {
     /**
@@ -21,6 +48,8 @@ export class SidebarBar extends AnimatedBar {
      *   holdX, y, isWhite, inDelay (s), exitDelay (s)
      * @param {Array|null} [options.palette] - palette stops (src/shared/palette.js);
      *   null keeps the single-hue look around baseHSL
+     * @param {Object} [options.timeline] - planSidebarTimeline(); default: no
+     *   text, so the bars hold for whatever `duration` leaves
      */
     constructor(ctx, canvas, type, index, total, baseHSL, duration, options = {}) {
         super(ctx, canvas, type, options);
@@ -28,6 +57,7 @@ export class SidebarBar extends AnimatedBar {
         this.total = total;
         this.baseHSL = baseHSL;
         this.duration = duration;
+        this.timeline = options.timeline ?? planSidebarTimeline('', duration);
         this.layout = options.layout || {};
         this.palette = options.palette ?? null;
         this.init();
@@ -35,7 +65,6 @@ export class SidebarBar extends AnimatedBar {
 
     init() {
         const L = this.layout;
-        const timing = config.sidebar.timing;
         const W = this.canvas.width;
         const H = this.canvas.height;
 
@@ -45,13 +74,11 @@ export class SidebarBar extends AnimatedBar {
         this.zIndex = this.random();
 
         // Shared timeline (seconds); stagger stays inside the in/out phases
-        const T = this.duration / 1000;
-        const inEnd = T * timing.slideInProportion;
-        const outStart = T * (1 - timing.slideOutProportion);
-        this.delayTime = Math.min(L.inDelay ?? 0, inEnd * 0.5);
-        this.inEnd = inEnd;
-        this.outStart = outStart + Math.min(L.exitDelay ?? 0, (T - outStart) * 0.5);
-        this.outEnd = T;
+        const tl = this.timeline;
+        this.delayTime = Math.min(L.inDelay ?? 0, tl.enterEnd * 0.5);
+        this.inEnd = tl.enterEnd;
+        this.outStart = tl.exitStart + Math.min(L.exitDelay ?? 0, (tl.exitEnd - tl.exitStart) * 0.5);
+        this.outEnd = tl.exitEnd;
         this.slideInDuration = this.inEnd - this.delayTime;
         this.holdDuration = this.outStart - this.inEnd;
         this.slideOutDuration = this.outEnd - this.outStart;
@@ -82,9 +109,9 @@ export class SidebarBar extends AnimatedBar {
             this.endX = this.startX;
         }
 
-        // Leftward drift during hold, px/s (config is px per 60fps frame)
+        // Leftward drift during hold, px/s
         const hold = config.sidebar.hold;
-        this.holdVelocity = (hold.velocityMin + this.random() * (hold.velocityMax - hold.velocityMin)) * 60;
+        this.holdVelocity = hold.velocityMinPxPerSec + this.random() * (hold.velocityMaxPxPerSec - hold.velocityMinPxPerSec);
 
         if (!this.isWhite && config.sidebar.style?.edgeLight) {
             this.edgeLight = this.type === 'slanted' ? 'left' : 'top';
@@ -141,7 +168,7 @@ export class SidebarBar extends AnimatedBar {
         this.holdX = this.canvas.width * config.sidebar.position.sidebarStart;
         this.x = this.startX;
         this.delayTime = 0;
-        this.outStart = this.outEnd - this.duration / 1000 * config.sidebar.timing.slideOutProportion;
+        this.outStart = this.timeline.exitStart;
         this.slideInDuration = this.inEnd;
         this.holdDuration = this.outStart - this.inEnd;
         this.slideOutDuration = this.outEnd - this.outStart;
@@ -163,8 +190,14 @@ export class SidebarBar extends AnimatedBar {
 
     /** Position at time t (seconds since the sidebar started). */
     positionAt(t) {
+        if (this.isBackground) {
+            // The panel rides the motion tokens, with the nameplate
+            if (t < this.inEnd) return this.startX + (this.holdX - this.startX) * easeEnter(t / this.inEnd);
+            if (t < this.outStart) return this.holdX;
+            return this.holdX + (this.endX - this.holdX) * easeExit((t - this.outStart) / (this.outEnd - this.outStart));
+        }
         if (t < this.delayTime) return this.startX;
-        const v = this.isBackground ? 0 : -this.holdVelocity;
+        const v = -this.holdVelocity;
         if (t < this.inEnd) {
             const d = this.inEnd - this.delayTime;
             // Arrive fast and settle into the drift
@@ -228,28 +261,16 @@ export class SidebarBar extends AnimatedBar {
 }
 
 /**
- * Left edge of the background panel at screen height y while it holds. The
- * panel hangs from (W * sidebarStart, 0) and is rotated by the slanted
- * angle, so its edge runs further left going down.
- * @param {number} width - Canvas width (px)
- * @param {number} y - Screen y (px)
- * @returns {number} x of the panel's left edge (px)
- */
-export function panelLeftAt(width, y) {
-    return width * config.sidebar.position.sidebarStart - y * Math.tan(config.sidebar.slanted.angle * Math.PI / 180);
-}
-
-/**
  * Compose the sidebar: background panel plus accents spread evenly over the
  * sidebar's width (slanted) and height (horizontal).
+ * @param {Object} timeline - planSidebarTimeline()
  * @param {Array|null} [palette] - palette stops from paletteFromURL(); null = single hue
  * @returns {SidebarBar[]} bars in draw order
  */
-export function planSidebar(ctx, canvas, baseHSL, durationMs, random, palette = null) {
-    const T = durationMs / 1000;
-    const timing = config.sidebar.timing;
+export function planSidebar(ctx, canvas, baseHSL, timeline, random, palette = null) {
+    const durationMs = timeline.total * 1000;
     const count = config.sidebar.bars.accent;
-    const opts = (layout) => ({ random, layout, palette });
+    const opts = (layout) => ({ random, layout, palette, timeline });
 
     const background = new SidebarBar(ctx, canvas, 'slanted', 0, 1, baseHSL, durationMs, opts({})).makeBackground();
 
@@ -260,18 +281,24 @@ export function planSidebar(ctx, canvas, baseHSL, durationMs, random, palette = 
     const width = W * config.sidebar.position.sidebarWidth;
     const xs = stratified(slantedCount, start, start + width, random);
     const ys = stratified(horizontalCount, canvas.height * 0.05, canvas.height * 0.95, random);
-    const inStagger = T * timing.slideInProportion * timing.inStaggerProportion;
-    const exitStagger = T * timing.slideOutProportion * timing.outStaggerProportion;
+    // Accents arrive and leave on 60ms steps (MOTION-4), as many steps as
+    // fit in the first half of the enter or exit
+    const step = config.design.motion.durationMs.stagger / 1000;
+    const steps = (phase) => Math.min(config.sidebar.timing.accentStaggerSteps, Math.floor(phase / 2 / step) + 1);
+    const inSteps = steps(timeline.enterEnd);
+    const outSteps = steps(timeline.exitEnd - timeline.exitStart);
+    const inDelay = () => Math.floor(random() * inSteps) * step;
+    const exitDelay = () => Math.floor(random() * outSteps) * step;
 
     const accents = [];
     for (let i = 0; i < slantedCount; i++) {
         accents.push(new SidebarBar(ctx, canvas, 'slanted', i + 2, count + 2, baseHSL, durationMs, opts({
-            holdX: xs[i], isWhite: i === 0, inDelay: random() * inStagger, exitDelay: random() * exitStagger
+            holdX: xs[i], isWhite: i === 0, inDelay: inDelay(), exitDelay: exitDelay()
         })));
     }
     for (let i = 0; i < horizontalCount; i++) {
         accents.push(new SidebarBar(ctx, canvas, 'horizontal', slantedCount + i + 2, count + 2, baseHSL, durationMs, opts({
-            y: ys[i], isWhite: i === 0, inDelay: random() * inStagger, exitDelay: random() * exitStagger
+            y: ys[i], isWhite: i === 0, inDelay: inDelay(), exitDelay: exitDelay()
         })));
     }
     accents.sort((a, b) => a.zIndex - b.zIndex);

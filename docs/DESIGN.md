@@ -31,10 +31,7 @@ force now.
 
 | Rule | Target | Ships today |
 |---|---|---|
-| MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shared entry/exit 1000/1000ms on `easeInOutCubic` ([MOTION.md](MOTION.md), Timing); the sidebar splits its `duration` 25/50/25 |
-| TYPE-1 | Alert text 56px and up | Sidebar 29px; shade 96px |
-| TYPE-3 | Ink stroke 0.08em + soft shadow | Shade: 96px with a soft shadow, no stroke ([MOTION.md](MOTION.md), Look); sidebar: a black text-shadow outline |
-| TIME-1 | The hold alone meets reading time | The sidebar's hold is 50% of `duration` (1.5s at OBS's 3000ms) |
+| MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shade and sidebar ship it (#33-#35); the other scenes keep their own timings ([MOTION.md](MOTION.md), Timing) |
 | SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | Two exemptions, AJ's call on 2026-10-28 ([MOTION.md](MOTION.md) Learnings): the goal bar and notifications toast keep their place in the top margin (#40, text size only), and the OBS scene titles and BRB collage stay as they are (#39, #42). New text gets no exemption |
 
 **Scope** is the OBS program output (AJ, 2026-10-28): every scene, alert,
@@ -167,8 +164,9 @@ canvas, with what a viewer sees:
 | `headline` | 56 | 37 | 11.4 | Tier 2 alerts (sidebar), scene titles |
 | `label` | 40 | 27 | 8.1 | Persistent widgets (goal, notifications) |
 
-- **TYPE-1** (target for alerts) Nothing a viewer must read is under 40px
-  (`minPx`). Alert text is 56px and up. Today's sidebar text is 29px: 6px on a phone.
+- **TYPE-1** Nothing a viewer must read is under 40px (`minPx`). Alert
+  text is 56px and up; a short action line set with it (the sidebar's
+  "CHECK OUT") may be `label` 40px (#34).
   One exception: the notifications toast draws at 42px, but a very long
   custom line (about 20 words) shrinks to 23px (`notifications.text.minScale`)
   so it holds still and whole for its reading time. TIME-1 wins over TYPE-1
@@ -176,7 +174,7 @@ canvas, with what a viewer sees:
   Design review accepted it in #62 (2026-10-28); don't re-file it.
 - **TYPE-2** Uppercase, tracking +2% (`trackingEm`). Usernames keep their
   letters but render in caps like everything else.
-- **TYPE-3** (target) Text over anything that moves takes the recipe: an ink stroke
+- **TYPE-3** Text over anything that moves takes the recipe: an ink stroke
   of 0.08em (never under 3px, so 2px survives a 720p encode), painted
   under the fill, plus a soft ink shadow 0.04em down-right. Text on a solid
   plate needs only the plate.
@@ -291,7 +289,7 @@ canvas, with what a viewer sees:
 
 ### Timing
 
-- **TIME-1** (target for the sidebar) Reading time: the hold, still and fully on screen, is at least
+- **TIME-1** Reading time: the hold, still and fully on screen, is at least
   200ms a word and never under 3s ([MOTION.md](MOTION.md), Timing). Enter
   and exit don't count. An alert whose `duration` can't fit enter + hold +
   exit grows its duration; it never cuts the hold.
@@ -359,7 +357,7 @@ Design rules that keep them:
 | vtuber | 1 | Content | none | Idle | Never under an alert's text |
 | goal bar | 1 | Top-left, title-safe | `label` 40px | Still; swap on change | Rebuild in progress (Follower widget thread) |
 | notifications bar | 1 | Top band | `label` 40px | One toast at a time | AJ chose "A Creative", PR #27 |
-| sidebar | 2 | Right panel, text at 78% | `headline` 56px | Enter, hold, exit | Text inside the panel ([MOTION.md](MOTION.md)) |
+| sidebar | 2 | Right panel, text at 78% | `headline` 56px name, `label` 40px action | Enter, hold, exit | Text on an ink nameplate, right edge on title-safe (#34) |
 | shade | 3 | Full screen | `hero` 96px | Enter, hold, exit | Text still and whole during the hold |
 | stinger | T | Full screen | none | 800-1500ms | CUT rules |
 

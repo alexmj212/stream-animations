@@ -118,11 +118,13 @@ export function installVirtualClock(seed) {
      *  - opaque: fraction of pixels with alpha >= 250 (fully covered)
      *  - visible: fraction with alpha > 8 (anything drawn)
      *  - minAlphaInRegion: smallest alpha inside an optional region
+     *  - regionGaps: sampled pixels in the region under `gapAlpha` (default
+     *    250, fully covered; a translucent plate passes its own alpha)
      *  - grid (with `grid`): mean linear luminance of each cell of a 16x9
      *    grid, the layers composited over black, for the flash and still-cover
      *    rules (tools/motion/designRules.js)
      */
-    pixelStats(stride = 2, region = null, grid = false) {
+    pixelStats(stride = 2, region = null, grid = false, gapAlpha = 250) {
       // Scenes can stack full-size layer canvases (background has two), so
       // read every canvas the size of the largest and composite their alpha
       // per pixel (source-over: 1 - prod(1 - a_i)). Measuring one layer
@@ -153,7 +155,7 @@ export function installVirtualClock(seed) {
           if (alpha > 8) visible++;
           if (region && x >= rx0 && x < rx1 && y >= ry0 && y < ry1) {
             if (alpha < regionMin) regionMin = alpha;
-            if (alpha < 250) regionGaps++;
+            if (alpha < gapAlpha) regionGaps++;
           }
         }
       }
