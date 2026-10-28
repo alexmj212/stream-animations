@@ -374,14 +374,14 @@ applies unchanged. Tokens: `config.design.vertical`.
   1080x1920 source rather than a scaled copy of the 16:9 one.
 - **V-LAYOUT-1** Alerts sit on the camera/game seam or inside the game
   half, never over AJ's face in the camera half. The toast spans the safe
-  width on the seam, with no goal bar to grow from (there's no goal bar on
+  width on the seam in one line at 56px (AJ's pick, B1), with no goal bar to grow from (there's no goal bar on
   vertical). The raid shade uses its own native 1080x1920 source, where
   the page already wraps the name to fit.
 - **V-REUSE-1** One page serves both canvases where it can: a portrait
   layout is picked from the viewport (or a URL param), not a second copy
   of the scene.
 
-![Portrait toast options on the phone-safe box (mock, 2026-10-28)](design/vertical-toast.jpg)
+![Portrait toast options on the phone-safe box (mock, 2026-10-28). AJ picked B1: one line at 56px, shrinking to 45px and then scrolling](design/vertical-toast.jpg)
 
 ## Scenes at a glance
 
