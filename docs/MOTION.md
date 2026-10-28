@@ -26,8 +26,8 @@ bible, [DESIGN.md](DESIGN.md), which links here for these decisions.
 - **Shared defaults**: entry 1000 ms, exit 1000 ms, hold 2000 ms, eased with
   `easeInOutCubic`, used by the shade. Scenes override only with a reason:
   the background fades over 2000 ms because it is ambient. Two scenes split
-  their `?duration` proportionally instead: the stinger 35% in, 30% full
-  cover, 35% out, so OBS cuts at the 50% mark while the screen is covered
+  their `?duration` proportionally instead: the stinger 45% in, 10% hold,
+  45% out, so OBS cuts at the 50% mark while the screen is covered
   (`config.stinger.timing`), and the sidebar 25% in, 50% hold, 25% out
   (`config.sidebar.timing`). [v1.0 timing patterns; motion harness PR #2]
 - **Reading pace**: text holds 200 ms per word (5 words a second), never less

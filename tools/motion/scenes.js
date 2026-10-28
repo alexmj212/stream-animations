@@ -37,20 +37,21 @@ const COLOR = '%23ff6600';
 export const SCENARIOS = [
   {
     name: 'stinger',
-    url: `/src/stinger/index.html?color=${COLOR}&duration=1500`,
+    url: `/src/stinger/index.html?color=${COLOR}&duration=1200`,
+    // duration=1200 is what OBS runs on stream (AJ, 2026-10-28, #36).
     // OBS can fire obsSourceActiveChanged with the transition; it must not
     // restart the stinger (Code review, PR #2)
     start: { event: 'transitionStart', also: [{ event: 'obsSourceActiveChanged', detail: { active: true } }] },
-    captureMs: 2500,
+    captureMs: 2200,
     keyframes: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
-    keyframeSpanMs: 1500,
-    markers: [{ at: 750, label: 'cut' }, { at: 1500, label: 'end' }],
+    keyframeSpanMs: 1200,
+    markers: [{ at: 600, label: 'cut' }, { at: 1200, label: 'end' }],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['CUT-2', 'FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] },
-      totalDurationMs: 1500,
+      design: { rules: ['CUT-2', 'FLASH-1', 'FLASH-2'], fail: ['CUT-2', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 1200,
       endsClear: true,
-      fullCoverAtMs: 750,
+      fullCoverAtMs: 600,
       fullCoverMinMs: 200,
       debugEvents: { start: 1, ignored: 1, end: 1 },
       noVelocitySteps: true,
