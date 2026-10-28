@@ -10,7 +10,7 @@ Sources in brackets. Owned by the design review role.
   rotated 15 degrees clockwise and horizontal bars skewed -15 degrees, white
   and colored, on a transparent background. Mixed scenes use about 40%
   slanted and 60% horizontal bars (`config.background.slantedShare`; the
-  stinger and background pick slanted when `Math.random() > 0.6`).
+  stinger plans 2 to 3 slanted of 6 accents, `config.stinger.accents`).
 - **Brightness 0.8** on every scene's colors: harmony without looking dim.
   A new scene uses the same multiplier. [v1.0 decision]
 - **Curtains** are semi-transparent at opacity 0.5 (range 0.4 to 0.6), clipped
