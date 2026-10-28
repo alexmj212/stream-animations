@@ -141,7 +141,7 @@
         console.log('[Shade] Text:', shadeBar.lines.join(' / '), `${Math.round(shadeBar.fontPx)}px`);
         console.log('[Shade] Hold Duration:', calculatedHoldMs, 'ms');
         console.log('[Shade] Total Duration:', totalDurationMs, 'ms');
-        debug.mark('layout', { lines: shadeBar.lines.length, fontPx: Math.round(shadeBar.fontPx), holdMs: calculatedHoldMs, totalMs: totalDurationMs });
+        debug.mark('layout', { lines: shadeBar.lines.length, fontPx: Math.round(shadeBar.fontPx), holdMs: calculatedHoldMs, stillMs: Math.round((shadeBar.timeline.exitStart - shadeBar.timeline.enterEnd) * 1000), totalMs: totalDurationMs });
 
         // The band behind the text grows with a two-line block
         const textHeight = Math.max(config.design.type.sizes.hero, shadeBar.blockHeight);

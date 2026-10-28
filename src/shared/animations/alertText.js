@@ -154,6 +154,26 @@ export function balancedLines(text, measure) {
 }
 
 /**
+ * Two lines for text too long for two even ones: the first line takes as
+ * many words as fit, and only the second ends in an ellipsis, so the words
+ * that show read on without a gap (QA on #58: an ellipsis on each even line
+ * cut words out of the middle).
+ *
+ * @param {string} text
+ * @param {(s: string) => number} measure
+ * @param {number} maxWidth
+ * @returns {string[]}
+ */
+export function overflowLines(text, measure, maxWidth) {
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    let n = 1;
+    while (n < words.length && measure(words.slice(0, n + 1).join(' ')) <= maxWidth) n++;
+    const first = ellipsize(words.slice(0, n).join(' '), measure, maxWidth);
+    const rest = words.slice(n).join(' ');
+    return rest ? [first, ellipsize(rest, measure, maxWidth)] : [first];
+}
+
+/**
  * Cut a line down with an ellipsis until it fits (the last resort of TYPE-6).
  * @param {string} line
  * @param {(s: string) => number} measure
@@ -196,7 +216,7 @@ export function fitShadeText(text, measure, maxWidth, { hero, display, minPx }) 
         if (widest(lines, display) > maxWidth && widest(even, display) < widest(lines, display)) lines = even;
     }
     const px = Math.max(minPx, Math.min(display, display * maxWidth / widest(lines, display)));
-    lines = lines.map(s => ellipsize(s, w => measure(w, px), maxWidth));
+    if (widest(lines, px) > maxWidth) lines = overflowLines(text, s => measure(s, px), maxWidth);
     return { lines, px };
 }
 
@@ -224,9 +244,11 @@ export function fitSidebarText(text, measure, maxWidth, { headline, label, minPx
         return split.nameFirst ? [name, action] : [action, name];
     }
     const px = shrink(text, headline);
-    const lines = measure(text, px) <= maxWidth ? [text] : balancedLines(text, s => measure(s, floor));
-    const linePx = lines.length === 1 ? px : floor;
-    return lines.map(s => ({ text: ellipsize(s, w => measure(w, linePx), maxWidth), px: linePx, role: 'line' }));
+    if (measure(text, px) <= maxWidth) return [{ text, px, role: 'line' }];
+    const at = s => measure(s, floor);
+    let lines = balancedLines(text, at);
+    if (Math.max(...lines.map(at)) > maxWidth) lines = overflowLines(text, at, maxWidth);
+    return lines.map(s => ({ text: s, px: floor, role: 'line' }));
 }
 
 /**
