@@ -1,6 +1,6 @@
 {
   "name": "stream-animations",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Visually consistent HTML5 Canvas animations for OBS stream overlays",
   "type": "module",
   "scripts": {
