@@ -80,3 +80,19 @@ export function marqueeOffsetAt(tMs, unitPx, pxPerSec) {
 export function marqueeCopies(width, unitPx) {
     return Math.ceil(width / unitPx) + 1;
 }
+
+/**
+ * Hue of the hype banner's colour at time t. The OBS group swept its Color
+ * Correction hue shift from -180 to +180 degrees over 10 s and back again
+ * (Move Value filters), so the colour runs through the whole wheel and
+ * back: a triangle wave with no jump at either end.
+ * @param {number} tMs - Since the banner started
+ * @param {{baseHue: number, swingDeg: number, sweepMs: number}} cycle
+ * @returns {number} degrees, 0-360
+ */
+export function hueAt(tMs, cycle) {
+    const p = (Math.max(0, tMs) / cycle.sweepMs) % 2;
+    const tri = p < 1 ? p : 2 - p;                // 0 -> 1 -> 0
+    const shift = -cycle.swingDeg + 2 * cycle.swingDeg * tri;
+    return (((cycle.baseHue + shift) % 360) + 360) % 360;
+}

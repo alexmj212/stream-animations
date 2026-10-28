@@ -89,10 +89,12 @@ PLAYING -" scrolling on an orange plate. One OBS browser source per kind,
 shown and hidden by Mix It Up; the ad source sits above the hype one, so it
 wins when both are up.
 
-**URL**: `banner/index.html?kind=hype` (`kind`, `text`)
+**URL**: `banner/index.html?kind=hype` (`kind`, `text`, `cycle`, `border`)
 
 - `kind` - `hype` (default) or `ad`
 - `text` - Replace the line (set in caps)
+- `cycle` - `0` holds the hype strip at a fixed teal; by default it cycles through the colour wheel and back every 20 s, as the OBS group did
+- `border` - `0` drops the hype train's 4px border around the whole screen
 
 ### Background Animation
 Subtle continuously looping background with drifting bars.

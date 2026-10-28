@@ -13,7 +13,7 @@ live in `src/config/config.js`.
 | followers | Always-on follower-goal bar, top left; the notifications toast grows out of its right end | Always on; polls MIU's Developer API (`GET :8911/api/v2/counters/followercount`) every 5 s, or a `followers` window event | `goal`, `goalstep`, `label`, `count`, `source`, `api`, `counter`, `style`, `filllayout`, `scheme`, `perf` |
 | notifications | Toast bar that grows out of the right end of the follower-goal bar (top left), shows one line of text, and slides back in. Rebuilt from the OBS "Notifications" scene (color sources, Move filters and a mask plugin that broke in OBS 33) | Plays on load (OBS reloads it when the source is shown) | `text`, `duration` (default grows with long text), `seed` (streaks), `style`, `colorlayout`, `layout`, `scheme`, `perf` |
 | title | Scene title card (WELCOME, BRB, ENDING): one line of 96px Jost on a slanted ink plate, bottom-left inside title-safe; replaces the OBS text sources (design audit #39) | Plays on load: the plate slides in, the words follow, then it holds still and draws nothing | `text` (default `WELCOME`) |
-| banner | Banner lane under the toast (issue #85): the hype train banner (`?kind=hype`, a teal strip with a scrolling "HYPE TRAIN ✦✧" marquee) or the ad warning (`?kind=ad`, black "ADS MAY BE PLAYING -" scrolling on an orange plate), AJ's original OBS look with 32px caps, inside x 560-1824, y 84-132; replaces the OBS "Hype Train Banner" and "Ad Banner" groups | Plays on load (OBS reloads it when the source is shown): the strip wipes in from the goal bar's end and the line scrolls for as long as it's up. MIU shows and hides the sources on Hype Train Started/Ended and Ad Started/Ended | `kind` (`hype`, default, or `ad`), `text` |
+| banner | Banner lane under the toast (issue #85): the hype train banner (`?kind=hype`, a teal strip with a scrolling "HYPE TRAIN ✦✧" marquee) or the ad warning (`?kind=ad`, black "ADS MAY BE PLAYING -" scrolling on an orange plate), AJ's original OBS look with 32px caps, inside x 560-1824, y 84-132; replaces the OBS "Hype Train Banner" and "Ad Banner" groups | Plays on load (OBS reloads it when the source is shown): the strip wipes in from the goal bar's end and the line scrolls for as long as it's up. MIU shows and hides the sources on Hype Train Started/Ended and Ad Started/Ended | `kind` (`hype`, default, or `ad`), `text`, `cycle` (`0`: fixed teal), `border` (`0`: no screen border) |
 | background | Continuous loop of drifting bars on two canvas layers | Always running | `color`, `speed`, `density` (default 8), `perf` |
 | epcot | Spaceship Earth lattice with lit bulbs, patterns and overlays; deployed to GitHub Pages on push to `main` | Always running | Many; see the root README |
 
@@ -82,7 +82,10 @@ The banner fills the banner lane of DESIGN.md's zone plan
 font size comes from Jost's measured cap height, so the capitals are 32px
 (a ~46px line). It keeps AJ's original OBS look (#86): the line repeats as a
 marquee at 120 px/s, with drawn sparkles between repeats on the hype strip
-and a dash on the ad plate. One repeat is rendered once offscreen and tiled
+and a dash on the ad plate. The hype train also brings back the OBS group's
+4px border around the whole screen at 50%, and strip and border cycle through
+the colour wheel and back every 20 s (`config.banner.kinds.hype.hueCycle`),
+as its Color Correction filter did. One repeat is rendered once offscreen and tiled
 each frame, and only the lane is cleared and drawn. Each kind is its own OBS
 browser source in Alerts, the ad one above the hype one; the ad plate is
 opaque, so the ad warning wins when both are up. OBS hides a source

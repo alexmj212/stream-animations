@@ -12,7 +12,7 @@
  */
 import { config } from '../config/config.js';
 import { cubicBezier } from '../shared/animations/alertText.js';
-import { bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies } from '../shared/animations/banner.js';
+import { bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, hueAt } from '../shared/animations/banner.js';
 
 const easeEnter = cubicBezier(config.design.motion.ease.enter);
 
@@ -23,6 +23,8 @@ export class BannerLane {
      * @param {Object} options
      * @param {string} options.kind - 'hype' | 'ad' (resolveBannerKind)
      * @param {string} [options.text] - ?text=; the kind's line by default
+     * @param {boolean} [options.cycle=true] - ?cycle=0 holds the kind's fixed colour
+     * @param {boolean} [options.border=true] - ?border=0 drops the screen border
      */
     constructor(ctx, canvas, options) {
         this.ctx = ctx;
@@ -30,6 +32,9 @@ export class BannerLane {
         this.kind = options.kind;
         this.look = config.banner.kinds[this.kind];
         this.text = (options.text || this.look.text).trim().toUpperCase();
+        this.cycle = options.cycle !== false ? this.look.hueCycle : null;
+        this.border = options.border !== false ? this.look.border : null;
+        this.hue = null;
         this.tMs = 0;
         this.reveal = 0;
         this.offset = 0;
@@ -110,24 +115,45 @@ export class BannerLane {
         this.tMs = tMs;
         this.reveal = revealAt(tMs, config.banner.timing.revealMs, easeEnter);
         this.offset = marqueeOffsetAt(tMs, this.unitWidth, config.banner.scrollPxPerSec * this.geo.k);
+        if (this.cycle) this.hue = hueAt(tMs, this.cycle);
         this.phase = this.reveal < 1 ? 'in' : 'hold';
     }
 
-    /** Only the lane is ever painted, so only the lane is cleared. */
+    /** Only the lane (and the border, if any) is ever painted, so only they are cleared. */
     clear() {
         const { x, y, width, height } = this.geo;
         this.ctx.clearRect(Math.floor(x), Math.floor(y), Math.ceil(width) + 1, Math.ceil(height) + 1);
+        if (this.border) for (const r of this.borderRects()) this.ctx.clearRect(...r);
+    }
+
+    /** The screen border's four edges, [x, y, w, h], at the canvas edges. */
+    borderRects() {
+        const { width: w, height: h } = this.canvas;
+        const b = Math.max(1, Math.round(this.border.px * this.geo.k));
+        return [[0, 0, w, b], [0, h - b, w, b], [0, b, b, h - 2 * b], [w - b, b, b, h - 2 * b]];
+    }
+
+    /** The cycling colour at an alpha, or the kind's fixed fill. */
+    colour(alpha) {
+        if (this.hue === null) return hexToRgba(this.look.fill, alpha);
+        const c = this.cycle;
+        return `hsla(${this.hue.toFixed(1)}, ${c.saturation}%, ${c.lightness}%, ${alpha})`;
     }
 
     draw() {
         const { ctx, geo } = this;
         if (this.reveal <= 0) return;
+        if (this.border) {
+            // Fades in with the strip's wipe, then stays
+            ctx.fillStyle = this.colour(this.border.alpha * this.reveal);
+            for (const r of this.borderRects()) ctx.fillRect(...r);
+        }
         const w = geo.width * this.reveal;
         ctx.save();
         ctx.beginPath();
         ctx.rect(geo.x, geo.y, w, geo.height);
         ctx.clip();
-        ctx.fillStyle = this.stripFill;
+        ctx.fillStyle = this.hue === null ? this.stripFill : this.colour(this.look.fillAlpha);
         ctx.fillRect(geo.x, geo.y, w, geo.height);
         const start = Math.round(geo.x - this.offset);
         const n = marqueeCopies(geo.width, this.unitWidth);

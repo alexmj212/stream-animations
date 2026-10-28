@@ -675,6 +675,14 @@ export const config = {
         // (option B on design-review/banner/original-look-A-vs-B.png)
         fill: '#3fdfd1',
         fillAlpha: 0.6,
+        // The OBS group's colour cycle: its Color Correction swept the hue
+        // shift -180 -> +180 over 10 s and back (Move Value / Move Value 2),
+        // round the base #ffaa00, so strip and border run through the whole
+        // wheel. `fill` is the strip's colour only with ?cycle=0
+        hueCycle: { baseHue: 40, swingDeg: 180, sweepMs: 10000, saturation: 100, lightness: 50 },
+        // The 4px frame around the whole screen the OBS group drew, at the
+        // group's 50% opacity (backup .bak-20261028-124618)
+        border: { px: 4, alpha: 0.5 },
         textColor: '#ffffff',
         // A soft dark glow under the letters, like the OBS Glow filter, so
         // white still reads over the bright wall (option B)
@@ -693,6 +701,8 @@ export const config = {
         fill: '#ffaa00',
         fillAlpha: 1,
         textColor: '#000000',
+        hueCycle: null,
+        border: null,
         glow: null,
         stroke: false,            // Black on an opaque plate needs no stroke (TYPE-3)
         sparkles: false,

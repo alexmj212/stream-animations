@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, resolveBannerKind } from '../../src/shared/animations/banner.js';
+import { bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, resolveBannerKind, hueAt } from '../../src/shared/animations/banner.js';
 import { cubicBezier } from '../../src/shared/animations/alertText.js';
 import { contrastRatio } from '../../src/shared/design.js';
 import { config } from '../../src/config/config.js';
@@ -104,5 +104,33 @@ describe('marquee', () => {
 
     it('is safe with no width yet', () => {
         expect(marqueeOffsetAt(1000, 0, 120)).toBe(0);
+    });
+});
+
+describe('hue cycle', () => {
+    const cycle = { baseHue: 40, swingDeg: 180, sweepMs: 10000 };
+
+    it('sweeps the whole wheel over 10 s and back, like the OBS Move Value pair', () => {
+        expect(hueAt(0, cycle)).toBeCloseTo(220);       // 40 - 180
+        expect(hueAt(5000, cycle)).toBeCloseTo(40);     // the base, halfway
+        expect(hueAt(10000, cycle)).toBeCloseTo(220);   // 40 + 180, the same colour
+        expect(hueAt(15000, cycle)).toBeCloseTo(40);
+    });
+
+    it('never jumps between frames', () => {
+        let prev = hueAt(0, cycle);
+        for (let t = 0; t < 40000; t += 1000 / 60) {
+            const h = hueAt(t, cycle);
+            const d = Math.abs(h - prev);
+            expect(Math.min(d, 360 - d)).toBeLessThan(1.5);
+            prev = h;
+        }
+    });
+
+    it('is configured on hype only', () => {
+        expect(b.kinds.hype.hueCycle).toBeTruthy();
+        expect(b.kinds.hype.border.px).toBe(4);
+        expect(b.kinds.ad.hueCycle).toBeNull();
+        expect(b.kinds.ad.border).toBeNull();
     });
 });

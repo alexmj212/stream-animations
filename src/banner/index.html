@@ -43,6 +43,10 @@
       const urlParams = new URLSearchParams(window.location.search);
       const kind = resolveBannerKind(urlParams.get("kind"), config.banner.kinds);
       const text = urlParams.get("text");
+      // ?cycle=0 holds the strip's fixed colour; ?border=0 drops the screen
+      // border (hype only: the ad has neither)
+      const cycle = urlParams.get("cycle") !== "0";
+      const border = urlParams.get("border") !== "0";
       debug.mark('kind', { kind });
 
       const canvas = document.getElementById("canvas");
@@ -67,7 +71,7 @@
       document.fonts.load(`${t.weight} 44px ${t.font}`)
         .catch(() => {})
         .then(() => {
-          banner = new BannerLane(ctx, canvas, { kind, text });
+          banner = new BannerLane(ctx, canvas, { kind, text, cycle, border });
           registerProbe('banner', () => banner.probeSamples());
           debug.mark('start', { kind, text: banner.text });
           requestAnimationFrame(frame);

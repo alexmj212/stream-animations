@@ -634,7 +634,8 @@ export const SCENARIOS = [
     url: `/src/banner/index.html?kind=hype`,
     start: 'load',
     captureMs: 6000,
-    keyframes: [0.02, 0.05, 0.1, 0.5],
+    // 0.6 s, 3 s and 5.4 s: three points on the colour cycle
+    keyframes: [0.02, 0.05, 0.1, 0.5, 0.9],
     keyframeSpanMs: 6000,
     markers: [{ at: 500, label: 'strip in' }],
     checks: {
