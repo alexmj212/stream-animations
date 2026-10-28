@@ -76,6 +76,10 @@ reports ⚠ and doesn't fail the run: those are DESIGN.md's "Today vs target"
 gaps, closed by each scene's audit issue. Rules listed in the scenario's
 `design.fail` fail the run. When an audit issue lands, move its rule into
 `fail` in the same PR. Never take a rule out of `fail` to get green.
+A ⚠ should mean a gap someone still owes. Where a rule can't apply (an
+exemption AJ or design review made, or a widget that never moves, where
+TIME-1 only measures the capture), leave it out of `rules`, with a comment
+naming the decision, so the warnings that remain are real.
 
 ### Smooth motion, precisely
 
