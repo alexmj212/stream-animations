@@ -29,7 +29,7 @@ stinger video files.
 - `.github/workflows/pages.yml` runs `npm test -- --run`, builds epcot and
   deploys it to GitHub Pages. A red test run blocks the deploy.
 - `.github/workflows/motion.yml` (PR #2) runs the unit tests and the motion
-  harness on PRs.
+  harness on every PR and again on each push to `main`.
 - The other scenes reach OBS only when AJ rebuilds them or loads a release
   asset, so a merge never changes the stream mid-show except epcot.
 
