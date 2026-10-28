@@ -739,8 +739,9 @@ export const config = {
         lane: { x: 0, y: 1032, width: 1920, height: 48, skewAngle: 0 },
         // The whole banner at the OBS group's Color Correction opacity (its
         // "Show Ad Banner" Move Value took it to 0.5; the same filter pair is
-        // copied on the hype group). The plate stays solid under it, so the
-        // black text keeps its contrast against the orange
+        // copied on the hype group). The page fades plate and text together
+        // as one layer (globalAlpha): the text keeps its contrast against the
+        // plate, and both show the stream through at 50%
         opacity: 0.5,
         fill: '#ffaa00',
         fillAlpha: 1,
