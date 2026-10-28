@@ -45,8 +45,22 @@ it. The OBS transition must agree with the page:
 - **Transition point** (time) = half of it.
 
 Example: `?duration=2000` → duration 2000 ms, transition point 1000 ms.
-The per-scene overrides on Starting/BRB/Ending set their own duration, so
-update those too.
+## Which transition runs: Transition Table
+
+The **Transition Table** plugin picks the transition and duration for each
+switch between scenes. It's stored in the collection under
+`modules["transition-table"]`, and it takes precedence over the default
+transition. The stinger-related entries:
+
+| From | To | Transition | Duration |
+|---|---|---|---|
+| Any | Starting, BRB, Ending | Browser | 3000 ms |
+| Just Chatting | Starting, BRB, Ending | Browser | 3000 ms |
+
+Scenes also carry matching per-scene overrides (`private_settings.transition`).
+To change the stinger's duration, edit both places. The table also has an entry
+for a scene named "Scene Transition" that no longer exists. StreamUP's *Scene as
+Transition* plugin is installed but unused.
 
 ## Inspecting the setup
 
