@@ -20,6 +20,11 @@ esac
 
 cd "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null || exit 0
 
+# Only react to a commit made just now in this project: a failed commit, or
+# one made in another clone, leaves an older HEAD here.
+head_time=$(git log -1 --format=%ct 2>/dev/null || echo 0)
+[ $(( $(date +%s) - head_time )) -gt 120 ] && exit 0
+
 changed=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null || true)
 source=$(printf '%s\n' "$changed" | grep -E '^(src/|tools/|package\.json|vite\.config\.js|\.github/workflows/)' || true)
 [ -z "$source" ] && exit 0

@@ -7,7 +7,14 @@ description: How to open, review and drive a stream-animations pull request to m
 
 Merging to `main` runs the tests and deploys the epcot scene to GitHub Pages
 (`.github/workflows/pages.yml`). The other scenes reach OBS when AJ rebuilds
-them locally. There is no PR CI yet, so the checks below are on you.
+them locally. Every PR runs `.github/workflows/motion.yml`: unit tests plus the motion
+harness, with the report uploaded as an artifact. PRs go straight to `main`
+(no release branch: only epcot deploys, with no downtime; see
+`docs/roles/release-management.md`).
+
+Reviews come from the role threads (`docs/roles/README.md`): code review on
+every PR, design review and QA on visual changes, release management on
+anything that changes how work ships. Ask them by messaging their threads.
 
 ## Opening a PR
 
@@ -28,7 +35,7 @@ them locally. There is no PR CI yet, so the checks below are on you.
 ```bash
 npm test -- --run      # what the Pages workflow runs
 npm run build          # every scene still builds to a single file
-npm run motion         # changed visuals: the motion harness (docs/VALIDATION.md)
+npm run motion         # the motion harness, as CI runs it (docs/VALIDATION.md)
 ```
 
 Put all of a round's fixes in one push.
@@ -57,10 +64,18 @@ Checked: tests, build, motion harness, bench (if perf-sensitive), code review, d
 - <finding, file:line, what to do>  (blocking first)
 ```
 
-`Needs AJ's call` is for taste and anything viewers will notice that the
-change didn't announce.
+`Needs AJ's call` is only for design decisions: how a scene looks or moves,
+when taste has to settle it. Attach mocks to compare and a recommendation.
+Everything else is Ready or Needs changes (AJ, 2026-10-28: "for code related
+things i don't need to see it, just get it out the door").
+
+## Merging
+
+Once code review says Ready and CI is green (plus design review and QA
+sign-off on visual changes), release management merges, in
+the order it sets when PRs overlap. No approval from AJ is needed for code.
 
 ## Never
 
 Skip or disable a test to get green, raise a performance budget without a
-reason in the PR, or merge your own PR.
+reason in the PR, or merge a PR code review hasn't marked Ready.

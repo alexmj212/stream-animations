@@ -6,6 +6,8 @@ GSD `.planning/PROJECT.md`.
 
 | Date | Decision | Why | Outcome |
 |---|---|---|---|
+| 2026-10-28 | Ship code without approval: code review Ready + green CI, release management merges; AJ only sees design decisions, with mocks | AJ: "just get it out the door" | new |
+| 2026-10-28 | Permanent role threads (code review, design review, release management, QA) write their own charters; all threads coordinate directly (`CLAUDE.md`, Work together) | AJ | new |
 | 2026-10-28 | Retire GSD (`.claude/agents`, `/gsd` commands, `.planning/`); one issue or thread plus one PR per change, decisions here | AJ, following Pixelbot; durable knowledge moved into `docs/` | new |
 | 2026-10-28 | Agents always improve themselves: CLAUDE.md rule, `improve` skill, role Learnings | AJ's standing rule, modeled on Pixelbot | new |
 | 2026-01 | OBS validation deferred (v1.1) | Implementation complete, performance script available, empirical testing can be post-milestone | — Pending |
