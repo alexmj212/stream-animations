@@ -7,13 +7,22 @@ import { execSync } from 'child_process';
 // Stamped into every build so a deploy can be checked from the page itself
 // (view source, or the console) without asking AJ what OBS is showing.
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
-let commit = process.env.GITHUB_SHA || '';
+let commit = (process.env.GITHUB_SHA || '').slice(0, 7);
 try {
-  commit ||= execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  if (!commit) {
+    commit = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim().slice(0, 7);
+    // Tracked files edited since HEAD: the build isn't that commit (the WSL
+    // clone OBS loads from has had local edits). Untracked files don't count.
+    try {
+      execSync('git diff --quiet HEAD', { stdio: 'ignore' });
+    } catch {
+      commit += '-dirty';
+    }
+  }
 } catch {
   // Not a git checkout; the version alone still identifies the release.
 }
-const buildId = `${version} ${commit.slice(0, 7)}`.trim();
+const buildId = `${version} ${commit}`.trim();
 
 export default defineConfig(({ mode }) => {
   const input = mode === 'stinger'
