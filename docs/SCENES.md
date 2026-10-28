@@ -39,8 +39,9 @@ nameplate, and a long name shrinks to 75%; text without a name shrinks, then
 wraps to two lines, then ends in an ellipsis (`config.sidebar.text`). The
 shade's line shrinks from 96px to 72px to fit title-safe, then wraps to two
 lines (`config.shade`). OBS's Sidescreen Alert hides the source after 7 s
-and Fullscreen Alert after 10 s, so text past about 25 words would need
-those filters raised.
+and Fullscreen Alert after 10 s (their move filters' `end_delay`), so each
+scene stops short of that (`timing.maxTotalMs`): past about 29 words
+(sidebar) or 41 (shade) the hold is cut instead. Raise both together.
 
 Mix It Up draws avatars and props over the sidebar in OBS (its Mixitup
 source sits above Sidescreen Alert). Their positions live in

@@ -262,7 +262,12 @@ export const config = {
       defaultDurationMs: 5000,    // Minimum total without ?duration=
       readingSpeedMsPerWord: 200, // DESIGN.md TIME-1
       minHoldMs: 3000,            // Never under 3 seconds
-      accentStaggerSteps: 4       // Accents arrive on up to 4 stagger steps (0-180ms) inside the enter
+      accentStaggerSteps: 4,      // Accents arrive on up to 4 stagger steps (0-180ms) inside the enter
+      // OBS hides Sidescreen Alert 7000ms after it shows it (the Show
+      // Sidescreen Alert move filter's end_delay, read on Defiant
+      // 2026-10-28), so the alert must end first; past ~29 words the hold is
+      // cut short instead. Raise both together
+      maxTotalMs: 6800
     },
 
     // Visual style
@@ -348,7 +353,12 @@ export const config = {
     // still works but can't cut a long name short
     timing: {
       readingSpeedMsPerWord: 200, // 200ms per word = 5 words/second (fast pace for stream events)
-      minHoldMs: 3000             // Never under 3 seconds
+      minHoldMs: 3000,            // Never under 3 seconds
+      // OBS hides Fullscreen Alert 10000ms after it shows it (the Start
+      // Alert move filter's end_delay, read on Defiant 2026-10-28), so the
+      // shade must end first; past ~41 words the hold is cut short instead.
+      // Raise both together
+      maxTotalMs: 9800
     },
 
     // The text arrives and leaves on config.design.motion (enter 500ms,

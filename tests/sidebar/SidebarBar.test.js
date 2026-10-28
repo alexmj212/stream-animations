@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
 import { SidebarBar, planSidebar, planSidebarTimeline } from '../../src/sidebar/SidebarBar.js';
 import { createRandom } from '../../src/shared/motion.js';
+import { config } from '../../src/config/config.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
 describe('SidebarBar animation sequence', () => {
@@ -370,6 +371,12 @@ describe('planSidebarTimeline (design audit #35)', () => {
     expect(tl.exitStart - tl.enterEnd).toBeCloseTo(3.15); // settle 150 + hold 3000
     expect(tl.exitEnd).toBeCloseTo(tl.total);
     expect(tl.total).toBeCloseTo(4.0);
+  });
+
+  it("ends before OBS hides the source (7s), however long the text", () => {
+    const tl = planSidebarTimeline('word '.repeat(60), 3000);
+    expect(tl.total * 1000).toBeLessThanOrEqual(config.sidebar.timing.maxTotalMs);
+    expect(config.sidebar.timing.maxTotalMs).toBeLessThan(7000);
   });
 
   it('lengthens the hold to a longer duration', () => {

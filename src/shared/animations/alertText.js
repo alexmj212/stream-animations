@@ -79,11 +79,13 @@ export function readingHoldMs(text, msPerWord, minMs) {
  * @param {number} o.exitMs
  * @param {number} [o.tailMs=0] - Time after the text has left (the shade's curtains opening)
  * @param {number} [o.minTotalMs=0]
+ * @param {number} [o.maxTotalMs=Infinity] - Hard ceiling (OBS hides the source on a timer); it
+ *   shortens the hold, and wins over minTotalMs
  * @returns {{enterStart: number, enterEnd: number, exitStart: number, exitEnd: number, total: number}}
  */
-export function planAlertText({ holdMs, enterMs, settleMs, exitMs, tailMs = 0, minTotalMs = 0 }) {
+export function planAlertText({ holdMs, enterMs, settleMs, exitMs, tailMs = 0, minTotalMs = 0, maxTotalMs = Infinity }) {
     const needMs = enterMs + settleMs + holdMs + exitMs + tailMs;
-    const totalMs = Math.max(needMs, minTotalMs);
+    const totalMs = Math.min(Math.max(needMs, minTotalMs), maxTotalMs);
     const exitStart = (totalMs - tailMs - exitMs) / 1000;
     return {
         enterStart: 0,

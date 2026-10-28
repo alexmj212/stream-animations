@@ -57,7 +57,8 @@ export class ShadeBar extends AnimatedBar {
       enterMs: durationMs.enter,
       settleMs,
       exitMs: durationMs.exit,
-      tailMs: config.shade.curtainMoveMs
+      tailMs: config.shade.curtainMoveMs,
+      maxTotalMs: config.shade.timing.maxTotalMs
     });
   }
 

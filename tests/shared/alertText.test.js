@@ -59,6 +59,13 @@ describe('planAlertText', () => {
         expect(short.exitStart - short.enterEnd).toBeCloseTo(3.15);
     });
 
+    it('never runs past maxTotalMs, shortening the hold', () => {
+        const p = planAlertText({ ...base, holdMs: 9000, minTotalMs: 3000, maxTotalMs: 6800 });
+        expect(p.total).toBeCloseTo(6.8);
+        expect(p.exitEnd).toBeCloseTo(6.8);
+        expect(p.exitStart).toBeCloseTo(6.45);
+    });
+
     it('leaves a tail after the text has gone', () => {
         const p = planAlertText({ ...base, tailMs: 500 });
         expect(p.exitEnd).toBeCloseTo(4.0);

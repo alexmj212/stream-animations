@@ -98,6 +98,14 @@ describe('ShadeBar', () => {
       expect(bar.totalDurationMs).toBe(durationMs.enter + settleMs + 3000 + durationMs.exit + config.shade.curtainMoveMs);
     });
 
+    it('ends before OBS hides the source (10s), however long the text', () => {
+      const canvas = createMockCanvas(1920, 1080);
+      const ctx = createMockContext(canvas);
+      const bar = new ShadeBar(ctx, canvas, 'word '.repeat(80), null);
+      expect(bar.totalDurationMs).toBeLessThanOrEqual(config.shade.timing.maxTotalMs);
+      expect(config.shade.timing.maxTotalMs).toBeLessThan(10000);
+    });
+
     it('starts with zero animation time and no measured text', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);

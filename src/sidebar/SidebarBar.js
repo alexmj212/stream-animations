@@ -35,7 +35,8 @@ export function planSidebarTimeline(text, durationMs) {
         enterMs: d.enter,
         settleMs,
         exitMs: d.exit,
-        minTotalMs: durationMs
+        minTotalMs: durationMs,
+        maxTotalMs: timing.maxTotalMs
     });
 }
 
