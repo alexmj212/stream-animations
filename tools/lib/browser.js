@@ -44,14 +44,24 @@ export async function startServer() {
 
 export async function launchBrowser({ headed = false, width = 1920, height = 1080 } = {}) {
   const executablePath = findChrome();
-  const browser = await puppeteer.launch({
+  const options = {
     executablePath,
     headless: !headed,
+    // CI runners occasionally take longer than puppeteer's 30s default to
+    // start Chrome; one slow start shouldn't fail the whole run
+    timeout: 90_000,
     args: [
       '--no-sandbox',
       '--disable-dev-shm-usage',
       `--window-size=${width},${height}`
     ]
-  });
-  return { browser, executablePath };
+  };
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return { browser: await puppeteer.launch(options), executablePath };
+    } catch (err) {
+      if (attempt >= 2) throw err;
+      console.warn(`Chrome failed to start (${err.message.split('\n')[0]}), retrying`);
+    }
+  }
 }
