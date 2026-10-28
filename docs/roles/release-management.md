@@ -55,7 +55,9 @@ stinger video files.
 **Version numbers:** minor for new scenes, features or a visible style change;
 patch for fixes and tuning; major only if OBS setup has to change (new URL
 params that break old ones, a different source size). The GSD milestones
-reached v1.1 (2026-01-20) with no tags, so the first release is `v1.2.0`.
+reached v1.1 (2026-01-20) with no tags. PR #2 moves the stinger's cut point
+to 50% of `duration`, so OBS Transition Points need re-entering: by this rule
+the first release is `v2.0.0` (AJ's call).
 
 ## Coordination
 
