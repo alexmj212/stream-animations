@@ -1,20 +1,45 @@
 /**
- * Stinger-specific animated bar with phase-based transitions
+ * Stinger transition bars and the layout planner that composes them.
+ *
+ * Timeline (D = duration, all bars share it so the whole stinger lands on
+ * exactly D milliseconds):
+ *
+ *   0 ──── in ──── 0.35D ──── hold ──── 0.65D ──── out ──── D
+ *                    └── screen fully covered ──┘
+ *                              cut point = 0.5D
+ *
+ * Each bar's position is a pure function of time since the transition
+ * started (setTime). Segment hand-offs are velocity-matched Hermite curves,
+ * so bars enter fast and settle, drift through the hold at the speed they
+ * arrived with, and accelerate away - no stop-then-lurch at phase changes.
  */
 import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { isBarInViewport } from '../shared/animations/calculations.js';
+import { hermite, stratified } from '../shared/motion.js';
 import { config } from '../config/config.js';
 
+const OFFSCREEN = 300;
+
 export class StingerBar extends AnimatedBar {
+    /**
+     * @param {Object} options
+     * @param {Function} [options.random] - RNG (seeded by the planner)
+     * @param {Object} [options.layout] - Overrides from planStinger():
+     *   targetX, y, direction, isWhite, width, height, zIndex,
+     *   inDelay (s), inEndScale (0-1), exitDelay (s), drift (px/s), reverseOnExit
+     */
     constructor(ctx, canvas, type, index, total, baseHSL, duration, options = {}) {
         super(ctx, canvas, type, options);
         this.index = index;
         this.total = total;
         this.baseHSL = baseHSL;
         this.duration = duration;
+        this.layout = options.layout || {};
 
-        // For slanted: alternate left/right. For horizontal: random side
-        if (this.type === 'slanted') {
+        if (this.layout.direction !== undefined) {
+            this.direction = this.layout.direction;
+        } else if (this.type === 'slanted') {
+            // For slanted: alternate left/right. For horizontal: random side
             this.direction = index % 2 === 0 ? 1 : -1;
         } else {
             this.direction = this.random() > 0.5 ? 1 : -1;
@@ -24,15 +49,75 @@ export class StingerBar extends AnimatedBar {
     }
 
     init() {
-        // Some bars are white, others use hue variations
-        this.isWhite = this.random() > 0.7;
+        const L = this.layout;
+        const timing = config.stinger.timing;
+        this.isWhite = L.isWhite ?? this.random() > 0.7;
+        this.applyColor();
 
-        const brightness = config.stinger.brightness; // 0.8 from config
+        this.opacity = L.opacity ?? this.random() * 0.4 + 0.6;
+        this.zIndex = L.zIndex ?? this.random();
 
+        // Shared timeline (seconds)
+        const T = this.duration / 1000;
+        this.totalDuration = T;
+        this.inEnd = T * timing.easeInProportion * (L.inEndScale ?? 1);
+        this.inStart = Math.min(L.inDelay ?? 0, this.inEnd * 0.6);
+        this.outEnd = T;
+        this.outStart = T * (timing.easeInProportion + timing.pauseProportion) + (L.exitDelay ?? 0);
+        // Kept for callers/tests that read phase lengths
+        this.inDuration = this.inEnd - this.inStart;
+        this.pauseDuration = this.outStart - this.inEnd;
+        this.outDuration = this.outEnd - this.outStart;
+
+        this.reverseOnExit = L.reverseOnExit ?? (this.type === 'slanted' && this.random() > 0.5);
+
+        const W = this.canvas.width;
+        if (this.type === 'slanted') {
+            this.width = L.width ?? (this.isWhite ? this.random() * 80 + 40 : this.random() * 300 + 150);
+            this.angle = config.stinger.slanted.angle;
+            this.y = 0;
+            const center = L.targetX ?? W * (0.2 + this.random() * 0.6);
+            this.targetX = center - this.width / 2;
+            this.startX = this.direction === 1 ? -this.width - OFFSCREEN : W + OFFSCREEN;
+            this.farX = this.direction === 1 ? W + OFFSCREEN : -this.width - OFFSCREEN;
+        } else {
+            this.width = W + 400;
+            this.height = L.height ?? (this.isWhite ? this.random() * 30 + 20 : this.random() * 60 + 40);
+            this.skew = config.stinger.horizontal.skewAngle;
+            this.y = L.y ?? (this.index / this.total) * this.canvas.height;
+            // Hold with the bar spanning the screen (it is W+400 wide), then
+            // carry on out the far side
+            this.targetX = -200 + (L.targetJitter ?? 0);
+            this.startX = this.direction === 1 ? -this.width - OFFSCREEN : W + OFFSCREEN;
+            this.farX = this.direction === 1 ? W + OFFSCREEN : -this.width - OFFSCREEN;
+            this.reverseOnExit = false;
+        }
+
+        // Hold drift (px/s) in the direction of travel; front bars drift
+        // faster for a little parallax depth
+        this.drift = L.drift ?? config.stinger.slanted.driftPxPerSec * (0.6 + 0.8 * this.zIndex);
+        this.exitX = this.reverseOnExit ? this.startX : this.farX;
+
+        this.x = this.startX;
+        this.phase = 'in'; // 'in', 'pause', 'out'
+        this.elapsedTime = 0;
+
+        if (!this.isWhite && !this.isBackground && config.stinger.style.edgeLight) {
+            this.edgeLight = this.type === 'slanted' ? (this.direction === 1 ? 'right' : 'left') : 'top';
+        }
+
+        // Offscreen cache only for white horizontal bars (slanted bars extend beyond viewport)
+        if (this.isWhite && this.type === 'horizontal') {
+            this.useOffscreenCache = true;
+        }
+    }
+
+    applyColor() {
+        const brightness = config.stinger.brightness;
         if (this.isWhite) {
             this.hue = 0;
             this.saturation = 0;
-            this.lightness = 100 * brightness; // 100 * 0.8 = 80 (matches background)
+            this.lightness = 100 * brightness;
         } else {
             // Tighter hue range (±12) and lightness range (±10, biased −5 toward
             // the curtain lightness) so no accent bar punches brighter than the
@@ -40,191 +125,95 @@ export class StingerBar extends AnimatedBar {
             // a single bar can't read as the "hero stripe."
             const hueVariation = (this.random() - 0.5) * 24;
             const lightnessVariation = (this.random() - 0.5) * 20 - 5;
-
             this.hue = (this.baseHSL.h + hueVariation + 360) % 360;
             this.saturation = Math.max(0, this.baseHSL.s - 15);
             const baseLightness = Math.max(25, Math.min(65, this.baseHSL.l + lightnessVariation));
             this.lightness = Math.max(15, baseLightness * brightness);
         }
+        this._gradient = null;
+        this._edgeFill = null;
+    }
 
-        this.opacity = this.random() * 0.4 + 0.6;
+    /**
+     * Turn this bar into one of the two background curtains that close over
+     * the screen. They ease in, hold perfectly still while the scene cuts,
+     * and ease back out the way they came.
+     */
+    makeCurtain(side) {
+        const W = this.canvas.width;
+        const timing = config.stinger.timing;
+        const T = this.totalDuration;
+        this.isBackground = true;
+        this.isWhite = false;
+        this.width = W * 0.75;
+        this.opacity = 1.0;
+        this.direction = side === 'left' ? 1 : -1;
+        this.startX = side === 'left' ? -this.width - OFFSCREEN : W + OFFSCREEN;
+        // Curtains overlap by ~50px at the seam (see geometry in README)
+        this.targetX = side === 'left' ? W / 2 - this.width : W / 2;
+        this.exitX = this.startX;
+        this.x = this.startX;
+        this.drift = 0;
+        this.inStart = 0;
+        this.inEnd = T * timing.easeInProportion;
+        this.outStart = T * (timing.easeInProportion + timing.pauseProportion);
+        this.outEnd = T;
+        this.inDuration = this.inEnd - this.inStart;
+        this.pauseDuration = this.outStart - this.inEnd;
+        this.outDuration = this.outEnd - this.outStart;
+        this.hue = this.baseHSL.h;
+        this.saturation = this.baseHSL.s;
+        this.lightness = Math.max(15, this.baseHSL.l - 25);
+        this.zIndex = -1;
+        this.useOffscreenCache = false;
+        // Lit inner edge where the curtains meet
+        this.edgeLight = config.stinger.style.edgeLight ? (side === 'left' ? 'right' : 'left') : null;
+        this.edgeLightWidth = 6;
+        this._gradient = null;
+        this._edgeFill = null;
+        return this;
+    }
 
-        // Time tracking
-        this.elapsedTime = 0;
-        this.phaseStartTime = 0;
-
-        // Convert duration from milliseconds to seconds with shared fallback
-        this.inDuration = (this.duration * 0.4) / 1000;  // 40% for 'in' phase
-        const pauseDurationMs = config.stinger.timing?.pauseDurationMs ?? config.shared.durations.holdMs;
-        this.pauseDuration = pauseDurationMs / 1000;
-        this.outDuration = (this.duration * 0.4) / 1000; // 40% for 'out' phase
-
-        // Some slanted bars reverse direction during exit (not background bars)
-        this.reverseOnExit = this.type === 'slanted' && this.random() > 0.5;
-
-        if (this.type === 'slanted') {
-            // White bars are smaller, colored bars have more variation
-            if (this.isWhite) {
-                this.width = this.random() * 80 + 40;
-            } else {
-                this.width = this.random() * 300 + 150;
-            }
-            this.angle = 15; // Slight clockwise angle
-            this.y = 0; // Start at top, extend full height
-
-            // Random target position across the width (20% to 80% of screen width)
-            const randomTarget = this.canvas.width * (0.2 + this.random() * 0.6);
-
-            // Start from left or right based on direction
-            if (this.direction === 1) {
-                this.startX = -this.width - 300;
-                this.targetX = randomTarget - this.width / 2;
-            } else {
-                this.startX = this.canvas.width + 300;
-                this.targetX = randomTarget - this.width / 2;
-            }
-            this.x = this.startX;
-            this.startDelay = (this.index / this.total) * 20;
-        } else {
-            this.width = this.canvas.width + 400;
-            // White bars are smaller
-            if (this.isWhite) {
-                this.height = this.random() * 30 + 20;
-            } else {
-                this.height = this.random() * 60 + 40;
-            }
-            this.skew = -15; // Negative skew angle for opposite direction
-            this.y = (this.index / this.total) * this.canvas.height;
-
-            // Start from left or right
-            if (this.direction === 1) {
-                this.startX = -this.width - 200;
-            } else {
-                this.startX = this.canvas.width + 200;
-            }
-            this.x = this.startX;
-
-            // Stagger horizontal bars based on animation duration
-            const fps = 60;
-            const totalFrames = (this.duration / 1000) * fps;
-            this.startDelay = (this.index / this.total) * (totalFrames * 0.2);
+    /** Position at time t (seconds since the transition started). */
+    positionAt(t) {
+        if (t < this.inStart) return this.startX;
+        const v = this.direction * this.drift;
+        if (t < this.inEnd) {
+            const d = this.inEnd - this.inStart;
+            // Arrive fast and settle into the drift: leave at 2x average speed
+            const entry = 2 * (this.targetX - this.startX) / d;
+            return hermite(this.startX, this.targetX, entry, v, d, t - this.inStart);
         }
+        const holdX = this.targetX + v * (Math.min(t, this.outStart) - this.inEnd);
+        if (t < this.outStart) return holdX;
+        const d = this.outEnd - this.outStart;
+        // Accelerate away: reach 2x average speed as it leaves the screen
+        const exit = 2 * (this.exitX - holdX) / d;
+        return hermite(holdX, this.exitX, v, exit, d, t - this.outStart);
+    }
 
-        this.phase = 'in'; // 'in', 'pause', 'out'
-
-        // Enable offscreen cache only for white horizontal bars (slanted bars extend beyond viewport)
-        if (this.isWhite && this.type === 'horizontal') {
-            this.useOffscreenCache = true;
+    /** Set absolute time (seconds) - preferred over update() */
+    setTime(t) {
+        this.elapsedTime = t;
+        if (t >= this.outEnd) {
+            this.active = false;
+            this.x = this.exitX;
+            this.phase = 'out';
+            return;
         }
+        this.active = true;
+        this.phase = t < this.inEnd ? 'in' : t < this.outStart ? 'pause' : 'out';
+        this.x = this.positionAt(t);
     }
 
     update(deltaTime) {
         if (!this.active) return;
-
-        this.elapsedTime += deltaTime;
-
-        // Handle delay before animation starts (convert frame delay to time)
-        const delayTime = (this.startDelay / 60); // Convert frames to seconds at 60fps
-        if (this.elapsedTime < delayTime) {
-            return;
-        }
-
-        const animTime = this.elapsedTime - delayTime;
-        const phaseTime = animTime - this.phaseStartTime;
-
-        if (this.type === 'horizontal') {
-            // Horizontal bars: continuous movement in one direction
-            const totalDuration = this.duration / 1000; // Convert ms to seconds
-            const totalDistance = this.canvas.width + this.width + 400;
-            const speed = totalDistance / totalDuration;
-
-            this.x += speed * deltaTime * this.direction;
-
-            // Deactivate when completely off screen or duration exceeded
-            if (animTime >= totalDuration ||
-                (this.direction === 1 && this.x > this.canvas.width + 400) ||
-                (this.direction === -1 && this.x < -this.width - 400)) {
-                this.active = false;
-            }
-        } else {
-            // Slanted bars: curtain effect with ease in/out
-            if (this.phase === 'in') {
-                const progress = Math.min(phaseTime / this.inDuration, 1);
-                const easedProgress = this.easeInOutCubic(progress);
-                this.x = this.startX + (this.targetX - this.startX) * easedProgress;
-
-                if (progress >= 1) {
-                    this.phase = 'pause';
-                    this.phaseStartTime = animTime;
-                }
-            } else if (this.phase === 'pause') {
-                if (!this.isBackground) {
-                    this.x += this.direction * 2 * (deltaTime / (1/60)); // Scale pause drift by deltaTime
-                }
-
-                if (phaseTime >= this.pauseDuration) {
-                    this.phase = 'out';
-                    this.pauseStartX = this.x;
-                    this.phaseStartTime = animTime;
-                }
-            } else if (this.phase === 'out') {
-                const progress = Math.min(phaseTime / this.outDuration, 1);
-                const easedProgress = this.easeInOutCubic(progress);
-
-                if (this.isBackground || this.reverseOnExit) {
-                    this.x = this.pauseStartX + (this.startX - this.pauseStartX) * easedProgress;
-                } else {
-                    if (this.direction === 1) {
-                        this.x = this.pauseStartX + (this.canvas.width + 300 - this.pauseStartX) * easedProgress;
-                    } else {
-                        this.x = this.pauseStartX - (this.pauseStartX - (-this.width - 300)) * easedProgress;
-                    }
-                }
-
-                if (progress >= 1) {
-                    this.active = false;
-                }
-            }
-        }
+        this.setTime(this.elapsedTime + deltaTime);
     }
 
-    /**
-     * Calculate bounding box accounting for rotation/skew and shadow offset
-     * @returns {{x: number, y: number, width: number, height: number}}
-     */
     getBoundingBox() {
-        const shadowOffset = config.shared.shadow.offset;
-        const height = this.type === 'horizontal' ? this.height : this.canvas.height * 1.5;
-
-        if (this.type === 'slanted') {
-            // Rotated rectangle bounding box calculation
-            const angle = this.angle * Math.PI / 180;
-            const cos = Math.abs(Math.cos(angle));
-            const sin = Math.abs(Math.sin(angle));
-
-            // Calculate rotated bounding box
-            const bboxWidth = this.width * cos + height * sin;
-            const bboxHeight = this.width * sin + height * cos;
-
-            return {
-                x: this.x - bboxWidth / 2 - shadowOffset,
-                y: this.y - shadowOffset,
-                width: bboxWidth + shadowOffset * 2,
-                height: bboxHeight + shadowOffset * 2
-            };
-        } else {
-            // Skewed rectangle bounding box calculation
-            const skewAngle = this.skew * Math.PI / 180;
-            const skewOffset = Math.abs(height * Math.tan(skewAngle));
-
-            // Calculate skewed bounding box
-            return {
-                x: this.x - skewOffset - shadowOffset,
-                y: this.y - height / 2 - shadowOffset,
-                width: this.width + skewOffset + shadowOffset * 2,
-                height: height + shadowOffset * 2
-            };
-        }
+        const angle = this.type === 'slanted' ? this.angle : this.skew;
+        return this.computeBounds(this.x, this.y, this.width, this.height ?? 0, angle);
     }
 
     draw() {
@@ -235,10 +224,8 @@ export class StingerBar extends AnimatedBar {
         const withShadow = !this.isBackground;
 
         // Viewport culling - skip drawing if bar is completely off-screen
-        // For cached bars (centered at x,y), adjust culling bounds
-        const cullX = this.useOffscreenCache ? this.x - this.width / 2 : this.x;
-        const cullWidth = this.width;
-        if (!isBarInViewport(cullX, this.y, cullWidth, height, this.canvas.width, this.canvas.height, 300)) {
+        const bb = this.getBoundingBox();
+        if (!isBarInViewport(bb.x, bb.y, bb.width, bb.height, this.canvas.width, this.canvas.height, 0)) {
             return;
         }
 
@@ -255,4 +242,60 @@ export class StingerBar extends AnimatedBar {
             withShadow
         );
     }
+}
+
+/**
+ * Compose one stinger: two curtains plus a balanced set of accent bars.
+ * Positions come from stratified slots, so every run is different but no
+ * run clumps all its bars on one side.
+ *
+ * @returns {StingerBar[]} bars in draw order (curtains first, then by zIndex)
+ */
+export function planStinger(ctx, canvas, baseHSL, durationMs, random) {
+    const T = durationMs / 1000;
+    const timing = config.stinger.timing;
+    const bars = [];
+    const opts = (layout) => ({ random, layout });
+
+    bars.push(new StingerBar(ctx, canvas, 'slanted', 0, 2, baseHSL, durationMs, opts({ direction: 1 })).makeCurtain('left'));
+    bars.push(new StingerBar(ctx, canvas, 'slanted', 1, 2, baseHSL, durationMs, opts({ direction: -1 })).makeCurtain('right'));
+
+    const accentCount = config.stinger.accents.count;
+    const slantedCount = config.stinger.accents.slantedMin + (random() < 0.5 ? 1 : 0);
+    const horizontalCount = accentCount - slantedCount;
+    const xs = stratified(slantedCount, canvas.width * 0.15, canvas.width * 0.85, random);
+    const ys = stratified(horizontalCount, canvas.height * 0.1, canvas.height * 0.9, random);
+
+    // At least two white bars: one slanted, the rest horizontal
+    const whiteHorizontal = Math.max(1, config.stinger.accents.whiteMin - 1);
+    const firstDir = random() < 0.5 ? 1 : -1;
+    const inStagger = T * timing.easeInProportion * timing.inStaggerProportion;
+    const exitStagger = T * timing.easeOutProportion * timing.outStaggerProportion;
+
+    const accents = [];
+    for (let i = 0; i < slantedCount; i++) {
+        accents.push(new StingerBar(ctx, canvas, 'slanted', i + 2, accentCount + 2, baseHSL, durationMs, opts({
+            targetX: xs[i],
+            direction: i % 2 === 0 ? firstDir : -firstDir,
+            isWhite: i === 0,
+            inDelay: random() * inStagger,
+            inEndScale: 0.85 + random() * 0.15,
+            exitDelay: random() * exitStagger
+        })));
+    }
+    for (let i = 0; i < horizontalCount; i++) {
+        accents.push(new StingerBar(ctx, canvas, 'horizontal', slantedCount + i + 2, accentCount + 2, baseHSL, durationMs, opts({
+            y: ys[i],
+            direction: random() < 0.5 ? 1 : -1,
+            isWhite: i < whiteHorizontal,
+            targetJitter: (random() - 0.5) * 120,
+            inDelay: random() * inStagger,
+            inEndScale: 0.85 + random() * 0.15,
+            exitDelay: random() * exitStagger
+        })));
+    }
+
+    accents.sort((a, b) => a.zIndex - b.zIndex);
+    bars.push(...accents);
+    return bars;
 }

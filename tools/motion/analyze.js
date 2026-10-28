@@ -83,7 +83,9 @@ export function findVelocitySteps(track, { minStep = 45, relative = 0.45, speedF
     // neighbours. A change of acceleration (ease-out handing over to a
     // constant drift, the sign flip in the middle of an ease-in-out) moves
     // Δv monotonically from one neighbour's value to the other's instead.
-    const spike = (cur.x - before.x) * (cur.x - after.x) > 0 || (cur.y - before.y) * (cur.y - after.y) > 0;
+    const margin = minStep / 2;
+    const sticksOut = (c, b, a) => (c - b > margin && c - a > margin) || (b - c > margin && a - c > margin);
+    const spike = sticksOut(cur.x, before.x, after.x) || sticksOut(cur.y, before.y, after.y);
     if (!spike) continue;
     const residual = Math.hypot(cur.x - (before.x + after.x) / 2, cur.y - (before.y + after.y) / 2);
     if (residual >= minStep && residual > relative * (cur.speed + speedFloor)) {

@@ -10,6 +10,7 @@
  *   npm run motion -- stinger --seeds=7    # specific layout seed(s)
  *   npm run motion -- --fps=30             # step at another frame rate
  *   npm run motion -- --no-shots           # skip keyframe screenshots (faster)
+ *   npm run motion -- --dump               # also write every frame's raw data (capture.json)
  *
  * Exit code is non-zero when any check fails, so it can gate CI.
  * Report: tools/motion-results/index.html
@@ -137,6 +138,9 @@ async function main() {
           tracks: Object.fromEntries(tracks), markers: scenario.markers || []
         });
 
+        if (flags.dump) {
+          writeFileSync(resolve(outDir, scenario.name, `seed-${seed}`, 'capture.json'), JSON.stringify({ frames }, null, 1));
+        }
         console.log(`${pass ? 'PASS' : 'FAIL'}  ${scenario.name} seed=${seed}  (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
         for (const r of results) console.log(`  ${r.pass ? '✓' : '✗'} ${r.name}: ${r.detail}`);
       }
