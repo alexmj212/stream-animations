@@ -29,7 +29,8 @@
     "bench": "node tools/benchmark/run.js",
     "motion": "node tools/motion/run.js",
     "motion:export": "node tools/motion/export.js",
-    "debug:collect": "node tools/debug/collect.js"
+    "debug:collect": "node tools/debug/collect.js",
+    "pages:smoke": "node tools/pages/smoke.js"
   },
   "keywords": [
     "obs",
