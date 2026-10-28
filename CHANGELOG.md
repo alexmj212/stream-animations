@@ -9,9 +9,10 @@ minor for new scenes, features or a visible style change, patch for fixes.
 - Alerts: the shade and sidebar text now holds still and whole while
   viewers read it, for 200ms a word and never under 3s, instead of
   scrolling. The shade line sits centred and wraps to two lines when it's
-  long. The sidebar shows the @name large on a dark nameplate under the
-  action. OBS's `duration` is now a minimum, so nothing changes in OBS or
-  Mix It Up. ([#58])
+  long. The sidebar shows the @name large on a dark nameplate, with the
+  action in reading order. OBS's `duration` is now a minimum, so nothing
+  changes in OBS or Mix It Up. A very long alert stops at 6.8s in the
+  sidebar and 9.8s in the shade, before OBS hides the source. ([#58])
 - Text scenes carry their own copy of Jost, so a browser source that
   loads offline or before the font arrives no longer falls back to
   Arial. ([#60])
