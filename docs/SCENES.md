@@ -10,6 +10,7 @@ live in `src/config/config.js`.
 | stinger | Curtain-style scene transition: slanted and horizontal bars sweep across | OBS `transitionStart` or `obsSourceActiveChanged` window events (listeners registered at load to catch the first scene change); `?autoplay=true` plays once on load | `color`, `scheme`, `colormode`, `duration`, `seed`, `autoplay`, `perf` |
 | sidebar | Slide-in notification panel with animated bars and text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
 | shade | Raid/alert banner: semi-transparent curtains with large scrolling text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
+| notifications | Toast bar that grows out of the right end of the follower-goal bar (top left), shows one line of text, and slides back in. Rebuilt from the OBS "Notifications" scene (color sources, Move filters and a mask plugin that broke in OBS 33) | Plays on load (OBS reloads it when the source is shown) | `text`, `duration` (default grows with long text), `seed` (streaks), `style`, `colorlayout`, `scheme`, `perf` |
 | background | Continuous loop of drifting bars on two canvas layers | Always running | `color`, `speed`, `density` (default 8), `perf` |
 | epcot | Spaceship Earth lattice with lit bulbs, patterns and overlays; deployed to GitHub Pages on push to `main` | Always running | Many; see the root README |
 
@@ -21,6 +22,13 @@ the old single-hue look. See the root README for `scheme` and `colormode`.
 `?perf=true` shows the performance overlay on any scene. `?seed=N` pins a
 random layout so the same stinger or sidebar plays every time (recording,
 motion checks).
+
+The notifications toast lines up with the MIU "Follow Goal" overlay
+(`config.notifications.geometry`, measured on the OBS program at 1920x1080:
+top 26, height 48, right edge at x 451, -15 degree lean). If the follow bar
+moves or changes size in MIU, update those numbers. Its colors run along the
+bar (`config.notifications.colorLayout`), because the screen-fixed gradient
+the other scenes use is all violet at the top of the screen.
 
 Long sidebar `text` shrinks to fit inside the panel (down to 75% of its
 size), then wraps to two lines, then ends in an ellipsis
