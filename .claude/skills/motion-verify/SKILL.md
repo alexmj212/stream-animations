@@ -45,6 +45,9 @@ console.log(f.t.toFixed(0),s.phase,s.x.toFixed(1),px===null?'':((s.x-px)*60).toF
 Don't loosen a threshold in `tools/motion/scenes.js` or `analyze.js` to get green unless the
 check is demonstrably wrong. If so, add a failing case to `tests/tools/motionAnalyze.test.js` first.
 
+Adding a check? Show it failing once (turn off the fix or flag it guards) before it counts as
+coverage. A check that can't fail looks exactly like one that passes (Code review, PR #6, 2026-10-28).
+
 ## 3. Look at it
 
 Numbers can't judge composition. Read the keyframes in
@@ -53,7 +56,8 @@ on a checkerboard). Check:
 
 - Balance: bars spread across the frame, no side left empty or crowded
 - Hierarchy: accent bars never out-shout the curtains or panel; white bars are accents, not walls
-- Text (sidebar, shade): legible over every bar behind it, never clipped
+- Text (sidebar, shade): legible over every bar behind it, never clipped, never over an open band
+  (PR #6 passed every check with its text over a transparent band at 250ms; QA, 2026-10-28)
 - Nothing visible before the start or after the end (no slivers parked at an edge)
 - Stinger: the 50% frame is fully covered
 

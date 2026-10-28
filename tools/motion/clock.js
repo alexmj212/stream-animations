@@ -70,19 +70,27 @@ export function installVirtualClock(seed) {
     },
 
     /**
-     * Pixel statistics for the scene canvas (largest <canvas> on the page).
+     * Pixel statistics for the scene canvas (largest <canvas> on the page,
+     * combined with any other layer canvases of the same size).
      * Samples every `stride`-th pixel on both axes.
      *  - opaque: fraction of pixels with alpha >= 250 (fully covered)
      *  - visible: fraction with alpha > 8 (anything drawn)
      *  - minAlphaInRegion: smallest alpha inside an optional region
      */
     pixelStats(stride = 2, region = null) {
-      const canvases = [...document.querySelectorAll('canvas')];
-      const canvas = canvases.sort((x, y) => y.width * y.height - x.width * x.height)[0];
+      // Scenes can stack full-size layer canvases (background has two), so
+      // read every canvas the size of the largest and take the highest alpha
+      // per pixel. Measuring one layer missed most of the background's bars
+      // (QA, 2026-10-28).
+      const canvases = [...document.querySelectorAll('canvas')]
+        .sort((x, y) => y.width * y.height - x.width * x.height);
+      const canvas = canvases[0];
       if (!canvas) return null;
-      const ctx = canvas.getContext('2d');
       const { width, height } = canvas;
-      const data = ctx.getImageData(0, 0, width, height).data;
+      const layers = canvases
+        .filter(c => c.width === width && c.height === height)
+        .map(c => c.getContext('2d').getImageData(0, 0, width, height).data);
+      const alphaAt = i => layers.reduce((m, d) => (d[i] > m ? d[i] : m), 0);
       let opaque = 0;
       let visible = 0;
       let total = 0;
@@ -94,7 +102,7 @@ export function installVirtualClock(seed) {
       const ry1 = region ? Math.ceil(region.y1 * height) : 0;
       for (let y = 0; y < height; y += stride) {
         for (let x = 0; x < width; x += stride) {
-          const alpha = data[(y * width + x) * 4 + 3];
+          const alpha = alphaAt((y * width + x) * 4 + 3);
           total++;
           if (alpha >= 250) opaque++;
           if (alpha > 8) visible++;

@@ -41,7 +41,9 @@ wall-clock time:
 
 So every frame is rendered at an exact timestamp no matter how slow the
 machine or the screenshotting is. After each step the harness reads the
-canvas alpha (coverage) and the scene's probe (object positions).
+canvas alpha (coverage) and the scene's probe (object positions). Scenes
+that stack full-size layer canvases (background) are read as one image: the
+highest alpha across layers at each pixel.
 
 Scenes opt in to motion tracking with `registerProbe()` from
 `src/shared/motion.js`. It is a no-op unless the harness is present, so
