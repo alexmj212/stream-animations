@@ -4,6 +4,12 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.4.1 - 2026-10-28
+
+- Stinger on the vertical (1080x1920) canvas: the slanted bars now start
+  fully off screen instead of popping in partway down. The 16:9 stinger
+  is unchanged. ([#69])
+
 ## v2.4.0 - 2026-10-28
 
 - Alerts: the shade and sidebar text now holds still and whole while
@@ -128,3 +134,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#62]: https://github.com/alexmj212/stream-animations/pull/62
 [#64]: https://github.com/alexmj212/stream-animations/pull/64
 [#66]: https://github.com/alexmj212/stream-animations/pull/66
+[#69]: https://github.com/alexmj212/stream-animations/pull/69
