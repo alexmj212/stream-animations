@@ -15,6 +15,7 @@
  *   npm run motion -- --params=scheme=mono # extra URL params for every scene (&-separated)
  *   npm run motion -- --out=before         # write to tools/motion-results-before (keeps other runs)
  *   npm run motion -- --jitter             # uneven frame times (timing/coverage checks only)
+ *   npm run motion -- --no-keepout         # keyframes without the mock chat and music layers
  *
  * Exit code is non-zero when any check fails, so it can gate CI.
  * Report: tools/motion-results/index.html
@@ -28,6 +29,8 @@ import { SCENARIOS } from './scenes.js';
 import { evaluate, workStats } from './analyze.js';
 import { renderReport } from './report.js';
 import { createRandom } from '../../src/shared/motion.js';
+import { config } from '../../src/config/config.js';
+import { keepOutRects } from './designRules.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -46,6 +49,9 @@ const fps = Number(flags.fps || 60);
 const seeds = String(flags.seeds || '1,2,3').split(',').map(Number);
 const shots = !flags['no-shots'];
 const jitter = !!flags.jitter;
+// Keyframes show chat and the music display where OBS draws them
+// (config.design.keepOut), so a shot looks like the stream (AJ, 2026-10-28)
+const keepOutShots = !flags['no-keepout'];
 const width = Number(flags.width || 1920);
 const height = Number(flags.height || 1080);
 
@@ -181,7 +187,9 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
     while (shots && !grid && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
       const at = shotTimes.shift();
       const file = `t${String(Math.round(at)).padStart(5, '0')}.png`;
+      if (keepOutShots) await page.evaluate(drawKeepOut, keepOutLayers(viewportFor(scenario)));
       await page.screenshot({ path: resolve(dir, file), omitBackground: true });
+      if (keepOutShots) await page.evaluate(() => document.getElementById('__keepout')?.remove());
       shotFiles.push({ at, file: `${scenario.name}/seed-${seed}/${file}` });
     }
   }
@@ -190,6 +198,40 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
   const debug = await page.evaluate((name) => window.__debug?.[name]?.snapshot() ?? null, scenario.scene || scenario.name);
   await page.close();
   return { frames, errors, shots: shotFiles, debug };
+}
+
+/** The keep-out zones for this viewport, with what each one mocks up. */
+function keepOutLayers({ width, height }) {
+  return keepOutRects(config.design, width, height);
+}
+
+/**
+ * Runs in the page: draws mock chat and music layers over the scene for a
+ * keyframe, above everything like OBS stacks them. Removed after the shot,
+ * so the frame data never sees it.
+ */
+function drawKeepOut(layers) {
+  const root = document.createElement('div');
+  root.id = '__keepout';
+  root.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;font:600 20px system-ui,sans-serif;color:#fff';
+  for (const l of layers) {
+    const el = document.createElement('div');
+    el.style.cssText = `position:absolute;left:${l.x}px;top:${l.y}px;width:${l.width}px;height:${l.height}px;` +
+      'box-sizing:border-box;overflow:hidden;padding:8px 12px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;' +
+      'outline:2px dashed rgba(0,255,170,0.9);background:rgba(0,0,0,0.35)';
+    for (const line of l.mock || []) {
+      const p = document.createElement('div');
+      p.textContent = line;
+      p.style.cssText = 'text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      el.append(p);
+    }
+    const tag = document.createElement('div');
+    tag.textContent = `mock ${l.label}`;
+    tag.style.cssText = 'position:absolute;top:2px;left:6px;font-size:13px;color:rgba(0,255,170,0.95)';
+    el.append(tag);
+    root.append(el);
+  }
+  document.body.append(root);
 }
 
 /** The flash and still-cover rules need the luminance grid pass. */
