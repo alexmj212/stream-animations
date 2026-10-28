@@ -20,6 +20,22 @@ const easeEnter = cubicBezier(config.design.motion.ease.enter);
 const easeExit = cubicBezier(config.design.motion.ease.exit);
 
 /**
+ * The sidebar's layout for a page (V-REUSE-1: one page serves both
+ * canvases). `vertical` when the page is taller than wide, the Aitum
+ * Vertical 1080x1920 source, or with ?layout=vertical; ?layout=wide forces
+ * 16:9. Portrait is AJ's pick A2 (issue #81): the nameplate alone on the
+ * seam, no panel or bars.
+ * @param {number} width
+ * @param {number} height
+ * @param {string|null} [requested] - ?layout=
+ * @returns {'vertical'|'wide'}
+ */
+export function sidebarLayoutName(width, height, requested = null) {
+    if (requested === 'vertical' || requested === 'wide') return requested;
+    return height > width ? 'vertical' : 'wide';
+}
+
+/**
  * The sidebar's timeline (seconds): enter 500ms, settle 150, a hold of the
  * text's reading time, exit 350. `durationMs` (the URL's, OBS sends 3000)
  * is a minimum: a longer one lengthens the hold, a shorter one can't cut it.

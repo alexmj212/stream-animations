@@ -39,6 +39,7 @@
     "motion:export": "node tools/motion/export.js",
     "design:figures": "node tools/design/figures.js",
     "motion:compare": "node tools/motion/compare.js",
+    "motion:compose": "node tools/motion/compose.js",
     "debug:collect": "node tools/debug/collect.js",
     "pages:stage": "npm run build && bash tools/pages/stage.sh",
     "pages:smoke": "node tools/pages/smoke.js"

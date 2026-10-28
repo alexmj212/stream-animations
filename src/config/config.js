@@ -229,6 +229,20 @@ export const config = {
       }
     },
 
+    // Portrait (the Aitum Vertical 1080x1920 source; AJ's pick A2,
+    // 2026-10-28, issue #81): no panel or bars, which covered AJ's face.
+    // Just the ink nameplate, its bottom edge on the camera/game seam and
+    // its text ending at the phone-safe right edge (DESIGN.md V-LAYOUT-1)
+    vertical: {
+      refWidth: 1080,             // Numbers below are px on the 1080-wide canvas
+      seamY: 700,                 // = design.vertical seam: the plate's bottom edge; a 2nd line grows it upward
+      textRightPx: 940,           // = 1080 - design.vertical.safe.rightPx
+      maxWidthPx: 880,            // x 60-940, the phone-safe width
+      headlinePx: 64,             // = design.vertical.type.sizes.headline: the @name
+      labelPx: 48,                // = design.vertical.type.sizes.label: "CHECK OUT", the phone floor
+      minScale: 0.75              // A long name shrinks to 48px, then TYPE-6
+    },
+
     // Where Mix It Up draws images while the sidebar plays. The Mixitup
     // browser source sits above Sidescreen Alert in the OBS Alerts scene, so
     // these always cover the sidebar. Read from AJ's MIU commands on Defiant

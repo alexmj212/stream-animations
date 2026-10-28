@@ -8,8 +8,8 @@ live in `src/config/config.js`.
 | Scene | What it is | Triggered by | URL params |
 |---|---|---|---|
 | stinger | Curtain-style scene transition: slanted and horizontal bars sweep across | OBS `transitionStart` or `obsSourceActiveChanged` window events (listeners registered at load to catch the first scene change); `?autoplay=true` plays once on load | `color`, `scheme`, `colormode`, `duration`, `seed`, `autoplay`, `perf` |
-| sidebar | Slide-in notification panel with animated bars and text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
-| shade | Raid/alert banner: semi-transparent curtains close round a still line of large text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
+| sidebar | Slide-in notification panel with animated bars and text. Portrait (1080x1920): the ink nameplate alone on the camera/game seam, no bars | Plays on load (OBS reloads it when the source is shown); in portrait it waits for a toast already on the seam | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `layout`, `perf` |
+| shade | Raid/alert banner: semi-transparent curtains close round a still line of large text (in portrait, fitted to the phone-safe x 60-940) | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
 | followers | Always-on follower-goal bar, top left; the notifications toast grows out of its right end | Always on; polls MIU's Developer API (`GET :8911/api/v2/counters/followercount`) every 5 s, or a `followers` window event | `goal`, `goalstep`, `label`, `count`, `source`, `api`, `counter`, `style`, `filllayout`, `scheme`, `perf` |
 | notifications | Toast bar that grows out of the right end of the follower-goal bar (top left), shows one line of text, and slides back in. Rebuilt from the OBS "Notifications" scene (color sources, Move filters and a mask plugin that broke in OBS 33) | Plays on load (OBS reloads it when the source is shown) | `text`, `duration` (default grows with long text), `seed` (streaks), `style`, `colorlayout`, `layout`, `scheme`, `perf` |
 | title | Scene title card (WELCOME, BRB, ENDING): one line of 96px Jost on a slanted ink plate, bottom-left inside title-safe; replaces the OBS text sources (design audit #39) | Plays on load: the plate slides in, the words follow, then it holds still and draws nothing | `text` (default `WELCOME`) |
@@ -87,6 +87,34 @@ each frame, and only the lane is cleared and drawn. Each kind is its own OBS
 browser source in Alerts, the ad one above the hype one; the ad plate is
 opaque, so the ad warning wins when both are up. OBS hides a source
 instantly; give each source a Hide transition (Fade, 350 ms) for the exit.
+
+### Vertical canvas (Aitum, 1080x1920)
+
+The vertical canvas has its own 1080x1920 browser sources in Alerts (vrt):
+"Fullscreen Source (vrt)" (shade), "Notifications Source (vrt)" (toast) and
+"Sidescreen Source (vrt)" (sidebar). Move filters and show/hide can't reach
+sources on the Aitum canvas, so each one stays **always visible** and rests
+on `about:blank`. Mix It Up plays an alert by setting the source's URL (the
+page picks portrait from its size), then runs a separate, non-blocking
+"Reset Vrt …" command that waits and sets `about:blank` again. Each reset
+is guarded by a counter, so it only blanks the source if no newer alert has
+started since.
+
+The toast and the sidebar share the seam, so in portrait the second one
+waits for the first (`playOnSeam`, a Web Lock, ALERT-1). A queued alert can
+start up to about 13 s late (the toast's longest hold), so the reset waits
+must cover the wait plus the play time:
+
+| Source | Plays for | Can wait | Reset wait |
+|---|---|---|---|
+| Notifications Source (vrt) | up to ~12 s (a scrolled long line) | up to ~8 s (a sidebar) | 25 s |
+| Sidescreen Source (vrt) | up to 6.8 s (`sidebar.timing.maxTotalMs`) | up to ~13 s (a toast) | 25 s |
+| Fullscreen Source (vrt) | ~4-6 s | never (the shade doesn't queue) | 10 s |
+
+Raise a reset wait together with any longer hold. The 16:9 sources keep
+their move-filter timers (7 s sidebar, 10 s toast) because nothing queues
+there. The OBS and MIU steps live with the Defiant thread
+(project files `vertical-layout/defiant-steps.md`).
 
 ## Shared code
 

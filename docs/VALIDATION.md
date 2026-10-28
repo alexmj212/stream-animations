@@ -23,6 +23,7 @@ is built and checked.
 | `npm run motion -- --fps=30` | Step at another frame rate (OBS browser sources are often set to 30) |
 | `npm run motion -- --no-shots` | Skip keyframe screenshots (about 2x faster) |
 | `npm run motion -- --no-keepout` | Keyframes without the mock chat and music layers |
+| `npm run motion:compose` | Worst-case "everything visible" frames: each pair of OBS elements that can be up together, with our scenes live, and a report of overlaps and placement breaks (`--today` for the layout before Defiant's fixes) |
 | `npm run motion -- --dump` | Also write every frame's raw data to `capture.json` |
 | `npm run motion -- --jitter` | Uneven frame times, like a loaded OBS. Checks timing and coverage still hold; skips the smoothness and CPU checks |
 | `npm run motion:export -- stinger` | Render to a transparent WebM for OBS (see below) |
@@ -147,7 +148,25 @@ waveform is accepted while the waveform draws under its plate, so followers
 keeps KEEP-1 as a warning. When a source in OBS's Alerts or Information Box moves,
 update `keepOut` (AJ, 2026-10-28: "you're not testing the layout with chat
 present", "...with music playing"). No scene reacts to audio, so music only
-matters as a layer.
+matters as a layer. To prove a change keeps keyframes byte-identical, run both sides
+with `--no-keepout`: main's older shots carry no mock. The vertical canvas
+has no layer to keep clear today, so KEEP-1 passes there by default; a
+vertical chat source must go into `keepOut.vertical` (Code review, #79).
+
+
+### Everything visible
+
+`tools/motion/composition.js` lists every element that can be on the 16:9
+canvas (Rotom's inventory, 2026-10-28: goal bar, chat, music, toast, banners,
+MIU images, gags, camera presets), with its box after Defiant's collision
+fixes and `today`'s box before them, plus the pairs that can be up together.
+`npm run motion:compose` renders each pair into
+`tools/motion-results-compose/`: our scenes live at their hold, everything
+else as a labelled box, and `report.md` with each overlap and placement
+break. Design review gated pairs 1, 2, 5 and 6 as rule fixes, so
+`tests/tools/composition.test.js` holds them to `KNOWN_OVERLAPS`: a new
+overlap fails CI, and so does a known one that stops happening. When OBS or
+MIU moves a source, update its box there.
 
 ## Building motion that passes
 
