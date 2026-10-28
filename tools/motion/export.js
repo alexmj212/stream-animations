@@ -98,6 +98,9 @@ try {
   const page = await browser.newPage();
   await page.setViewport({ width, height, deviceScaleFactor: 1 });
   await page.evaluateOnNewDocument(`(${installVirtualClock.toString()})(${seed});`);
+  // Every run starts from empty storage: the followers scene paints its last
+  // stored count, which would leak from one seed's run into the next
+  await page.evaluateOnNewDocument(() => { try { localStorage.clear(); } catch { /* blocked storage */ } });
   await page.goto(`${baseUrl}${url.pathname}${url.search}`, { waitUntil: 'load' });
   if (scenario.start?.event) {
     await page.evaluate((name) => window.dispatchEvent(new Event(name)), scenario.start.event);

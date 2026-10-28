@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Follower Goal</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Jost:ital,wght@1,700&display=swap');
-
       * {
         margin: 0;
         padding: 0;
@@ -120,17 +118,22 @@
         debug,
         onCount: (count, info) => {
           if (info.goal) goalOverride = info.goal;
-          // The first count after a cold start appears without a sweep
+          // With nothing painted yet (no stored count, no ?count=) the first
+          // count appears as is; after that every change sweeps
           show(count, bar !== null);
         }
       });
 
-      // Paint at once from ?count= or the last count this browser saw
-      const initial = intParam("count") ?? source.stored();
+      // Paint at once from the last count this browser saw (else ?count=).
+      // When MIU sets ?count= on the URL (?source=url), the page reloads, so
+      // a new ?count= sweeps up from the stored one
+      const fromUrl = intParam("count");
+      const initial = source.stored() ?? fromUrl;
       if (initial !== null) {
         source.last = initial;
         show(initial, false);
       }
+      if (fromUrl !== null) source.emit(fromUrl, { via: 'url' });
       source.start();
 
       // A resize clears the canvas: rebuild sizes and repaint
@@ -139,8 +142,8 @@
         bar.resize();
         requestDraw();
       });
-      // The line first renders in a fallback font; redo it in Jost once
-      // loaded. Canvas text doesn't request a web font by itself, so ask
+      // Jost is installed on Defiant, as for the other scenes (no web font).
+      // If it isn't ready at the first paint, redo the line once it is
       const t = cfg.text;
       Promise.resolve(document.fonts?.load(`${t.style} ${t.weight} ${t.sizePx}px ${t.font}`)).catch(() => {}).then(() => {
         if (!bar) return;
@@ -157,7 +160,6 @@
         }, cfg.timing.glintEveryMs);
         lifecycle.onCleanup(() => clearInterval(glint));
       }
-      lifecycle.setupBeforeUnload();
     </script>
   </body>
 </html>

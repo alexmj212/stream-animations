@@ -59,7 +59,7 @@ nothing.
 
 - `goal` - Goal (default 1000); `goalstep` - once reached, roll on to the next multiple of this (default 0: stay, full bar)
 - `label` - Word after the numbers (default `GOOBERS`; `label=` for none)
-- `count` - Count to paint at load (otherwise the last count this browser saw)
+- `count` - Count to show at load; if this browser last saw a different count, the bar sweeps from that one to this (otherwise it starts from the last count it saw)
 - `source` - `miu` (default: poll MIU's Developer API on port 8911; enable it in MIU under Services) or `url` (only `count` and `followers` events)
 - `api`, `counter` - API base (default `http://localhost:8911/api/v2/counters/`) and counter name (default `followercount`)
 - `style` - `creative` (default: sweep, white tip, a glint every 90 s) or `clean`
