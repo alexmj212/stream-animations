@@ -14,7 +14,7 @@ is built and checked.
 | Command | What it does |
 |---|---|
 | `npm run motion` | Every scenario, layout seeds 1-3. Exit code 1 if any check fails. |
-| `npm run motion -- stinger sidebar` | Only these scenarios |
+| `npm run motion -- stinger sidebar` | Only these scenes, with their variants (`notifications` also runs `notifications-long` and `-scroll`). An exact scenario name such as `notifications-long` runs just that one |
 | `npm run motion -- --seeds=1,2,3,4,5,6` | More layouts (scenes with random layouts should pass on all of them) |
 | `npm run motion -- --color=00b3ff` | Another base color |
 | `npm run motion -- --params=scheme=mono` | Extra URL params on every scene, to mock a look without editing `scenes.js` |
