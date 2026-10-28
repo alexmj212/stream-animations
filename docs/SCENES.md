@@ -17,6 +17,16 @@ live in `src/config/config.js`.
 random layout so the same stinger or sidebar plays every time (recording,
 motion checks).
 
+Mix It Up draws avatars and props over the sidebar in OBS (its Mixitup
+source sits above Sidescreen Alert). Their positions live in
+`config.sidebar.miuZones`; keep that list in step with the MIU commands that
+fire Sidescreen Alert. `?debug=zones` draws them, and the motion harness
+fails if the sidebar text overlaps one. To re-read the commands, stage
+`%LOCALAPPDATA%\MixItUp\Settings\<id>.db3` from Defiant (read-only folder
+access) and read the JSON in its `Commands` table: an Overlay action's
+`OverlayItemV3` holds `XPosition`/`YPosition` (percent when `PositionType`
+is 1) and `Width`/`Height` (0 = natural size).
+
 ## Shared code
 
 - `src/shared/AnimatedBar.js`: base class; scene bars (`BackgroundBar`,

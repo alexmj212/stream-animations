@@ -88,7 +88,7 @@ code to verify without asking AJ. Everyone uses one convention,
 | Piece | What it does |
 |---|---|
 | `const debug = createDebug('stinger')` | One recorder per scene. Without `?debug=` it's a frozen no-op, so production pays nothing |
-| `?debug=1` / `all` / `events,frames,log` | Channels. `events`: timestamped `debug.mark(name, data)` calls. `frames`: frame-time count, mean, max, long frames (>34ms), idle gaps. `log`: echo events to the console. `build`: the build stamp on screen |
+| `?debug=1` / `all` / `events,frames,log` | Channels. `events`: timestamped `debug.mark(name, data)` calls. `frames`: frame-time count, mean, max, long frames (>34ms), idle gaps. `log`: echo events to the console. `build`: the build stamp on screen. `zones`: the screen areas other overlays cover, drawn over the scene (sidebar: Mix It Up's images, `config.sidebar.miuZones`) |
 | `window.__debug[scene].snapshot()` | Everything recorded so far, readable from the harness, Playwright or a CDP client |
 | `?debugReport=http://127.0.0.1:9777/` + `npm run debug:collect` | Scenes POST each event, and frame stats every 60s, to a local collector that writes `tools/debug-results/*.jsonl`. Use it for checks inside OBS and soak runs |
 

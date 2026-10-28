@@ -202,6 +202,36 @@ export const config = {
       horizontalTargetOffset: -100 // Horizontal bars stop 100px before sidebar start
     },
 
+    // Text line. Its vertical centre sat at 2/3 of the height, right under
+    // the Mix It Up images below (AJ's bug report, 2026-10-28)
+    text: {
+      centerY: 0.78               // Fraction of viewport height; clears every miuZones item
+    },
+
+    // Where Mix It Up draws images while the sidebar plays. The Mixitup
+    // browser source sits above Sidescreen Alert in the OBS Alerts scene, so
+    // these always cover the sidebar. Read from AJ's MIU commands on Defiant
+    // (2026-10-28): MIU centres each item on xPct/yPct of 1920x1080; w/h are
+    // overlay px, and "natural size" Twitch avatars are 300px. Update this
+    // list when a command that fires Sidescreen Alert gains or moves an image.
+    // tests/shared/layout.test.js and the motion harness fail on overlap.
+    miuZones: {
+      pad: 0.05,                  // Each side grows 5% of the size: AnimateCSS bounce-in overshoot
+      items: [
+        { label: 'Hug target', xPct: 67, yPct: 50, w: 300, h: 300 },
+        { label: 'Hug heart', xPct: 79, yPct: 50, w: 350, h: 350 },
+        { label: 'Hug hugger', xPct: 91, yPct: 50, w: 300, h: 300 },
+        { label: 'Pet hugger', xPct: 72, yPct: 50, w: 300, h: 300 },
+        { label: 'Pet hand', xPct: 83, yPct: 50, w: 250, h: 250 },
+        { label: 'Pet target', xPct: 91, yPct: 50, w: 300, h: 300 },
+        { label: 'Treat target', xPct: 72, yPct: 50, w: 300, h: 300 },
+        { label: 'Treat treat', xPct: 82, yPct: 50, w: 350, h: 150 },
+        { label: 'Treat hugger', xPct: 92, yPct: 50, w: 300, h: 300 },
+        { label: 'Resub avatar', xPct: 85, yPct: 50, w: 400, h: 400 },
+        { label: 'Shoutout avatar', xPct: 86, yPct: 42, w: 400, h: 400 }
+      ]
+    },
+
     // Timing
     timing: {
       defaultDurationMs: 5000,    // Default sidebar display duration

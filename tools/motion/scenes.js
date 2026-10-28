@@ -59,6 +59,9 @@ export const SCENARIOS = [
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
       regionCover: { fromMs: 1400, toMs: 3700, label: 'the right 20% while holding' },
+      // Mix It Up draws avatars over the sidebar in OBS (AJ's bug report,
+      // 2026-10-28); zones in config.sidebar.miuZones, view with ?debug=zones
+      probeMax: { field: 'miuCover', max: 0, label: 'Text clear of the Mix It Up images' },
       noVelocitySteps: true,
       workP95Ms: 4
     }
