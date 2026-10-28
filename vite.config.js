@@ -1,7 +1,43 @@
 import { defineConfig } from 'vite';
 import { resolve, dirname, basename } from 'path';
 import { viteSingleFile } from 'vite-plugin-singlefile';
-import { renameSync, mkdirSync, rmSync } from 'fs';
+import { renameSync, mkdirSync, rmSync, readFileSync } from 'fs';
+import { execSync } from 'child_process';
+
+// Stamped into every build so a deploy can be checked from the page itself
+// (view source, or the console) without asking AJ what OBS is showing.
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+let commit = (process.env.GITHUB_SHA || '').slice(0, 7);
+try {
+  if (!commit) {
+    commit = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim().slice(0, 7);
+    // Tracked files edited since HEAD: the build isn't that commit (the WSL
+    // clone OBS loads from has had local edits). Untracked files don't count.
+    try {
+      execSync('git diff --quiet HEAD', { stdio: 'ignore' });
+    } catch {
+      commit += '-dirty';
+    }
+  }
+} catch {
+  // Not a git checkout; the version alone still identifies the release.
+}
+const buildId = `${version} ${commit}`.trim();
+
+// Logs the build once at load. With ?debug=build it also shows the build in
+// the top-left corner, so a screenshot of OBS proves which build is running.
+// Off by default; nothing runs per frame.
+function buildStampScript(id) {
+  return `console.info('stream-animations ${id}');
+if (/(^|,)build(,|$)/.test(new URLSearchParams(location.search).get('debug') || '')) {
+  addEventListener('DOMContentLoaded', () => {
+    const el = document.createElement('div');
+    el.textContent = 'build ${id}';
+    el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:2147483647;padding:4px 8px;font:16px monospace;color:#fff;background:rgba(0,0,0,.7)';
+    document.body.appendChild(el);
+  });
+}`;
+}
 
 export default defineConfig(({ mode }) => {
   const input = mode === 'stinger'
@@ -19,6 +55,15 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       viteSingleFile(),
+      {
+        name: 'build-stamp',
+        transformIndexHtml(html) {
+          return html.replace(
+            '</head>',
+            `<meta name="build" content="${buildId}">\n<script>${buildStampScript(buildId)}</script>\n</head>`
+          );
+        },
+      },
       {
         name: 'move-index-html',
         closeBundle() {

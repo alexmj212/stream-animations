@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>stream-animations</title>
+<style>html, body { margin: 0; background: transparent; }</style>
+<script>
+    // Stable URL for an OBS browser source. Pages and OBS both cache pages,
+    // so this page never changes between deploys: it fetches the current
+    // build of the scene uncached and writes it into this document. Every
+    // load and every OBS refresh goes through here, so it always gets the
+    // newest build, and the URL (with its params) stays the one in OBS.
+    // No redirect: a redirected source would reload the old URL later.
+    // Built by .github/workflows/pages.yml; __SCENE__ and __ROOT__ are
+    // filled in there.
+    (function () {
+        var root = new URL('__ROOT__', location.href);
+        var tries = 0;
+        function load() {
+            fetch(new URL('latest/__SCENE__/index.html?t=' + Date.now(), root), { cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+                .then(function (html) {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                })
+                .catch(function (err) {
+                    // Offline or mid-deploy: retry, and stay transparent
+                    // rather than show an error page on stream.
+                    console.error('stream-animations loader:', err);
+                    setTimeout(load, Math.min(30000, 1000 * Math.pow(2, tries++)));
+                });
+        }
+        load();
+    })();
+</script>
+</head>
+<body></body>
+</html>
