@@ -601,6 +601,39 @@ export const config = {
     }
   },
 
+  // Title card for the WELCOME, BRB and ENDING scenes (design audit #39).
+  // AJ (2026-10-28): "I like the title card changes but I don't like the
+  // subtext above", so the card is the title alone on its plate. It stays up
+  // for the whole scene: after the entrance it stops drawing
+  title: {
+    defaultText: 'WELCOME',       // ?text=; always set in caps (DESIGN.md TYPE-2)
+    // The slanted ink plate, bottom-left. Its text sits inside title-safe
+    // (x 96+) and clear of Twitch's player controls (y 994+, SAFE-3)
+    plate: {
+      x: 72,                      // Bottom-left corner; the slant carries the top edge right
+      top: 850,
+      height: 124,
+      padX: 48,                   // Room each side of the line
+      slantDeg: 15,               // The house slant (GEO-1)
+      alpha: 0.82                 // Ink plate over the moving backdrop (TYPE-3: a plate needs no stroke)
+    },
+    text: {
+      font: '"Jost", Arial, sans-serif',
+      weight: 700,
+      sizePx: 96,                 // design.type.sizes.hero
+      minPx: 72,                  // design.type.sizes.display: a long title shrinks to here, then takes two lines
+      floorPx: 56,                // ...which shrink again only down to design.type.sizes.headline
+      lineHeight: 1.1,            // Two lines: baseline to baseline, in ems
+      maxRight: 1824              // Title-safe's right edge: the line never runs past it
+    },
+    timing: {
+      enterMs: 500,               // design.motion.durationMs.enter, on ease.enter
+      textDelayMs: 150,           // design.motion.settleMs: the plate lands, then the words
+      textMs: 350,
+      textSlidePx: 24
+    }
+  },
+
   // Epcot scene configuration (flattened tetrahedron grid, real-3D shading)
   epcot: {
     // Base triangle side length in pixels

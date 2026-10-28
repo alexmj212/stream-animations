@@ -187,6 +187,11 @@ on change: give its CPU check enough drawn frames, never a higher budget.
 apart (about 440 drawn frames), since one transition draws about 74 and
 its p95 failed once on a cold-JIT frame (PR #63).
 
+`title` and `title-long` check that the title card lands inside title-safe,
+clear of the player controls, and then holds still (SAFE-1, SAFE-3, TYPE-1,
+TIME-1). It draws about 60 frames once and none after, so it has no CPU
+check: the debug `idle` event proves it stops.
+
 ### Recording the epcot loop
 
 On stream, epcot plays as a pre-recorded looping video, so changes to the
