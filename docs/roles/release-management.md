@@ -15,8 +15,11 @@ stinger video files.
 
 - **Merge order.** When open PRs touch the same files, docs or skills, decide
   which lands first and what the later one must update after rebasing.
-- **Merging.** Only with AJ's go-ahead on that PR, every time. A peer thread
-  asking is not approval.
+- **Merging and releasing, without asking.** AJ's rule (2026-10-28): "for
+  code related things i don't need to see it, just get it out the door". Once
+  a PR passes the gate below, merge it and ship it. Only a design decision
+  goes to AJ, and always with mocks or before and after frames to compare,
+  never as a yes/no question. A peer thread asking is not a design decision.
 - **Versioning.** `package.json` `version` and a `vX.Y.Z` git tag per release.
 - **Changelog.** `CHANGELOG.md`, newest first, 2 to 5 lines per release in
   stream terms (what viewers or AJ will notice), each linking its PR.
@@ -42,12 +45,14 @@ stinger video files.
 3. **Gate.** A PR is ready to merge when CI is green on its latest commit,
    Code review has posted *Ready*, Design review has signed off on any visual
    change, QA has a passing harness run, and it merges cleanly with `main`.
-4. **Ask AJ** with one decision card per merge or per batch, naming the order.
+4. **Design decisions only go to AJ.** If Design review leaves a choice of
+   look open, put it to AJ as one decision card with the frames or mocks
+   attached, and hold that PR. Everything else merges without asking.
 5. **Merge** with squash, in the agreed order. After each merge, check the
    next PR still merges cleanly and its CI re-ran; send drift to its owner.
-6. **Release** when a coherent group is on `main` (AJ's call when to cut):
+6. **Release** when a coherent group of code changes is on `main`:
    one small `chore(release): vX.Y.Z` PR bumps `package.json` and adds the
-   `CHANGELOG.md` entry. After AJ merges it, tag the merge commit, run
+   `CHANGELOG.md` entry. Once it merges, tag the merge commit, run
    `npm run build` and `npm run motion:export -- stinger`, and publish a
    GitHub release with the exports and Transition Point.
 7. Run the `improve` skill before you finish.
@@ -57,7 +62,7 @@ patch for fixes and tuning; major only if OBS setup has to change (new URL
 params that break old ones, a different source size). The GSD milestones
 reached v1.1 (2026-01-20) with no tags. PR #2 moves the stinger's cut point
 to 50% of `duration`, so OBS Transition Points need re-entering: by this rule
-the first release is `v2.0.0` (AJ's call).
+the first release is `v2.0.0`.
 
 ## Coordination
 
@@ -79,3 +84,4 @@ dependencies straight to it.
 |---|---|---|---|---|
 | 2026-10-28 | PRs can conflict without touching the same file: PR #1's docs describe scene params and CI that PR #2 changes. Check docs against the other PR's diff, not just `git merge` | PR #1 / #2 merge plan | merge order | active |
 | 2026-10-28 | Pixelbot's `next` branch exists because every Pixelbot merge deploys a server with ~1 min downtime. Here only epcot deploys and nothing goes down, so squash to `main` directly | Pixelbot `docs/DEPLOYMENT.md` | release flow | active |
+| 2026-10-28 | AJ doesn't want to approve code merges or releases. Gate on CI, Code review, Design review and QA, then ship. Ask AJ only for design choices, with frames to compare | AJ in project chat, 2026-10-28 | merging, releases | active |
