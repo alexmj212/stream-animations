@@ -15,6 +15,10 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 out=${1:-_site}
+# rm -rf below: refuse paths that would wipe the repo, its parent or root
+case $out in
+  ''|.|./|..|../*|/) echo "stage.sh: refusing to stage into '$out'" >&2; exit 2 ;;
+esac
 version=$(node -p "require('./package.json').version")
 commit=${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || true)}
 
