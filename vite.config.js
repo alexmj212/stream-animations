@@ -1,7 +1,19 @@
 import { defineConfig } from 'vite';
 import { resolve, dirname, basename } from 'path';
 import { viteSingleFile } from 'vite-plugin-singlefile';
-import { renameSync, mkdirSync, rmSync } from 'fs';
+import { renameSync, mkdirSync, rmSync, readFileSync } from 'fs';
+import { execSync } from 'child_process';
+
+// Stamped into every build so a deploy can be checked from the page itself
+// (view source, or the console) without asking AJ what OBS is showing.
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+let commit = process.env.GITHUB_SHA || '';
+try {
+  commit ||= execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+} catch {
+  // Not a git checkout; the version alone still identifies the release.
+}
+const buildId = `${version} ${commit.slice(0, 7)}`.trim();
 
 export default defineConfig(({ mode }) => {
   const input = mode === 'stinger'
@@ -19,6 +31,15 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       viteSingleFile(),
+      {
+        name: 'build-stamp',
+        transformIndexHtml(html) {
+          return html.replace(
+            '</head>',
+            `<meta name="build" content="${buildId}">\n<script>console.info('stream-animations ${buildId}')</script>\n</head>`
+          );
+        },
+      },
       {
         name: 'move-index-html',
         closeBundle() {
