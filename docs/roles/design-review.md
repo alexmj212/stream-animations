@@ -30,10 +30,11 @@ the PR while AJ decides.
 
 Spend review effort where AJ's stream actually shows it (AJ, 2026-10-28):
 
-1. **epcot**: the main background. AJ records it and plays the recording on
-   stream (`tools/loopcut.sh`), so the loop seam and the recorded look
-   matter more than live CPU. It has no harness scenario yet; review it from
-   the dev server or a recording.
+1. **epcot**: the main background. On stream it is a pre-recorded 48s
+   720p30 loop (`epcot-loop2-48s-720p30.mp4`), not the live scene, so a code
+   change only reaches the stream once the loop is re-recorded. Review the
+   seamless-loop export (seam, recorded look, compression) and bring epcot
+   look calls to AJ as frames from that export.
 2. **stinger, sidebar, shade**: used on stream; full review routine.
 3. **background** (bar background): rarely used. A light check (three seeds,
    no density deep-dives) is enough unless AJ says otherwise.
