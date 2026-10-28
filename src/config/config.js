@@ -204,9 +204,14 @@ export const config = {
       slideInProportion: 0.25,    // 25% of duration for slide in
       holdProportion: 0.50,       // 50% of duration for hold
       slideOutProportion: 0.25,   // 25% of duration for slide out
-      // Stagger delays
-      slantedStaggerFrames: 15,   // Max stagger for slanted bars
-      horizontalStaggerProportion: 0.15 // Stagger as proportion of duration (15%)
+      // Stagger happens inside the slide phases so everything ends at duration
+      inStaggerProportion: 0.4,   // Accent arrivals start up to 40% into slide-in
+      outStaggerProportion: 0.3   // Accent exits start up to 30% into slide-out
+    },
+
+    // Visual style
+    style: {
+      edgeLight: true             // Lit leading edge on colored bars and the panel
     },
 
     // Slanted bar configuration
