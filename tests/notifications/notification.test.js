@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    notificationDurationMs, planNotificationTimeline, extentAt, textStateAt, streakFrontAt, wipeAt
+    notificationDurationMs, planNotificationTimeline, extentAt, textStateAt, streakFrontAt, wipeAt, scrollOffsetAt, extraLengthFor
 } from '../../src/shared/animations/notification.js';
 import { planStreaks, fitStreaksToText, notificationGeometry, resolveColorLayout, NotificationBar } from '../../src/notifications/NotificationBar.js';
 import { createRandom } from '../../src/shared/motion.js';
@@ -210,5 +210,33 @@ describe('NotificationBar', () => {
     it('only the creative style has streaks', () => {
         expect(make({ style: 'creative' }).streaks.length).toBe(config.notifications.flair.streaks.count);
         expect(make({ style: 'clean' }).streaks.length).toBe(0);
+    });
+});
+
+describe('long text', () => {
+    it('extraLengthFor grows the bar only as much as needed, up to the cap', () => {
+        expect(extraLengthFor(800, 1000, 300)).toBe(0);
+        expect(extraLengthFor(1100.2, 1000, 300)).toBe(101);
+        expect(extraLengthFor(2000, 1000, 300)).toBe(300);
+    });
+
+    it('scrollOffsetAt holds, glides smoothly, then holds at the end', () => {
+        const seg = { inEnd: 1, outStart: 6 };
+        expect(scrollOffsetAt(seg, 0, 0.8, 3)).toBe(0);
+        expect(scrollOffsetAt(seg, 200, 0.8, 1.5)).toBe(0);
+        expect(scrollOffsetAt(seg, 200, 0.8, 3.5)).toBeCloseTo(100, 6);
+        expect(scrollOffsetAt(seg, 200, 0.8, 5.5)).toBe(200);
+        const f = (t) => scrollOffsetAt(seg, 200, 0.8, t);
+        for (const t of [1.8, 5.2]) {
+            const [before, after] = velocities(f, t);
+            expect(Math.abs(before)).toBeLessThan(0.5);
+            expect(Math.abs(after)).toBeLessThan(0.5);
+        }
+    });
+
+    it('the grown bar ends at maxEndX (measuring needs a real browser: notifications-long in the harness)', () => {
+        const g = config.notifications.geometry;
+        const geo = notificationGeometry(1920, g.maxEndX - g.endX);
+        expect(geo.startX + geo.leadLength).toBeCloseTo(g.maxEndX, 6);
     });
 });

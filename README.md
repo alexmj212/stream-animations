@@ -38,8 +38,10 @@ slide out, ending exactly at `duration`.
 ### Notifications
 A toast bar that grows out of the right end of the follower-goal bar (top
 left), shows one line of text and slides back in. Rebuilt from the OBS
-"Notifications" scene. Long text shrinks to fit, then ends in an ellipsis,
-and the default duration stretches so the text holds at 200 ms a word.
+"Notifications" scene. Long text never loses words: it shrinks to 70%, then
+the bar grows toward the right edge (up to x 1890), and only a line too long
+even for that scrolls during the hold. The default duration stretches so the
+text holds at 200 ms a word.
 
 **URL**: `notifications/index.html?text=Thanks+for+the+follow` (`duration`, `seed`, `scheme`, `style`, `colorlayout`)
 

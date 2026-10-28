@@ -6,6 +6,7 @@ GSD `.planning/PROJECT.md`.
 
 | Date | Decision | Why | Outcome |
 |---|---|---|---|
+| 2026-10-28 | Long notifications text grows the bar (to x 1890) instead of ending in an ellipsis; a line still too long scrolls during the hold (`config.notifications.text`, `geometry.maxEndX`) | Design review: the ellipsis cut the giver's name off a thank-you; a static line reads better than a scroll (MOTION.md, #31) | new |
 | 2026-10-28 | New notifications scene replaces the OBS "Notifications" toast (color sources, Move filters, mask plugin): it grows out of the follower-goal bar, takes `?text=` from MIU instead of OBS reading notification.txt, runs the Illuminations palette along the bar, and adds seeded streaks, rims and a text wipe (`?style=clean` drops them) | AJ: the mask plugin broke in OBS 33, "rebuild it", "give it that color makeover", "get creative" | new |
 | 2026-10-28 | Long sidebar text stays inside the panel: it shrinks to fit, down to 75%, then wraps to two lines, and only then ends in an ellipsis (`config.sidebar.text`) | Design review: a raid thank-you hung off the slanted panel over the stream | new |
 | 2026-10-28 | Sidebar text moves from 2/3 to 78% of the height, below the Mix It Up images; `config.sidebar.miuZones` lists where MIU draws over the sidebar, and the harness fails if the text overlaps one | AJ: MIU's images covered the sidebar text. The Mixitup source sits above the alerts in OBS, and its avatars are centred at 42-50% height on the right | new |

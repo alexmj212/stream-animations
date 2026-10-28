@@ -110,6 +110,38 @@ export function streakFrontAt(s, t) {
 }
 
 /**
+ * How far a scrolling line has moved left at time t: still for `pause` s
+ * after the text is in, a smoothstep glide over the rest of the hold, still
+ * for `pause` s before the text goes. 0 when nothing needs to scroll.
+ * @param {{inEnd: number, outStart: number}} seg - text segment
+ * @param {number} scrollPx - how much wider the line is than its room
+ * @param {number} pause - seconds still at each end
+ * @param {number} t - Seconds since the toast started
+ * @returns {number} px (0 to scrollPx)
+ */
+export function scrollOffsetAt(seg, scrollPx, pause, t) {
+    if (scrollPx <= 0) return 0;
+    const a = seg.inEnd + pause;
+    const b = Math.max(a, seg.outStart - pause);
+    if (t <= a) return 0;
+    if (t >= b) return scrollPx;
+    const p = (t - a) / (b - a);
+    return scrollPx * p * p * (3 - 2 * p);
+}
+
+/**
+ * Extra bar length (px at 1920 wide) a line needs: enough for it to fit at
+ * the smallest text scale, capped so the bar's front stops at maxEndX.
+ * @param {number} widthAtMinScale - the line's width at minScale (px)
+ * @param {number} room - room for text in the standard bar (px)
+ * @param {number} maxExtra - most the bar may grow (px)
+ * @returns {number} px, 0 when the line already fits
+ */
+export function extraLengthFor(widthAtMinScale, room, maxExtra) {
+    return Math.max(0, Math.min(Math.ceil(widthAtMinScale - room), maxExtra));
+}
+
+/**
  * Position of the light band that writes the text in: from `from` to `to`
  * (px) between seg.inStart and seg.inEnd, starting and ending at rest.
  * @param {{inStart: number, inEnd: number}} seg
