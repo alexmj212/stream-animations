@@ -289,9 +289,9 @@ export const SCENARIOS = [
     region: { x0: 0.31, x1: 0.78, y0: 0.03, y1: 0.065 },
     checks: {
       // No SAFE-1: AJ's top-margin exemption (#40), as on notifications.
-      // TYPE-1 warns, a gap still owed: this 7-word follow shrinks to 37.8px,
-      // under the 40px floor (QA, 2026-10-28; with the design system role)
-      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      // TYPE-1 enforced: before #76 this follow shrank to 37.8px; the bar now
+      // grows first and it draws at 42px
+      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
