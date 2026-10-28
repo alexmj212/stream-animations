@@ -347,6 +347,42 @@ Design rules that keep them:
 - **PERF-3** Prefer a recorded loop for an always-on look that doesn't
   react to anything (the epcot recording is the model).
 
+## Vertical canvas
+
+The Aitum Vertical canvas (1080x1920) feeds clips for Shorts, Reels and
+TikTok, so its viewers are on a phone, with the app's own buttons and
+captions drawn over the frame (AJ, 2026-10-28). It has its own safe area
+and type floor; the rest of this bible (colour, slant, motion, timing)
+applies unchanged. Tokens: `config.design.vertical`.
+
+| Token | Value | On a 390pt phone |
+|---|---|---|
+| `vertical.safe` | top 220, bottom 440, left 60, right 140 | text box x 60-940, y 220-1480 |
+| `vertical.type.sizes` | hero 112, display 80, headline 64, label 48 | 40, 29, 23, 17pt |
+| `vertical.type.minPx` | 48 | 17pt |
+| `vertical.seamY` | 700 | camera above, game below |
+
+- **V-SAFE-1** Every word sits inside the phone-safe box. The top 220px
+  holds the app's status and tabs, the bottom 440px its captions, channel
+  and sound, and the right 140px its like/comment/share column. The
+  numbers are the strictest of the current platform guides (TikTok's right
+  column 120, captions 320-370) plus a margin; recheck them when an app
+  redesigns. Bars and fills may still bleed to the edges.
+- **V-TYPE-1** Nothing a viewer must read is under 48px (17pt on a phone).
+  A 16:9 page scaled onto the vertical canvas fails this (the toast lands
+  at about 34px), so an alert gets a portrait layout or a native
+  1080x1920 source rather than a scaled copy of the 16:9 one.
+- **V-LAYOUT-1** Alerts sit on the camera/game seam or inside the game
+  half, never over AJ's face in the camera half. The toast spans the safe
+  width on the seam, with no goal bar to grow from (there's no goal bar on
+  vertical). The raid shade uses its own native 1080x1920 source, where
+  the page already wraps the name to fit.
+- **V-REUSE-1** One page serves both canvases where it can: a portrait
+  layout is picked from the viewport (or a URL param), not a second copy
+  of the scene.
+
+![Portrait toast options on the phone-safe box (mock, 2026-10-28)](design/vertical-toast.jpg)
+
 ## Scenes at a glance
 
 | Scene | Tier | Zone | Type | Motion | Notes |
@@ -383,6 +419,8 @@ capture when OBS adds layers on top. Cite the rule id for each finding.
    (FLASH-1, 2).
 10. No long dark gradients, no full-screen noise (ENC-1, 3).
 11. Within the frame budget (PERF; the harness and `npm run bench`).
+12. On the vertical canvas: words inside the phone-safe box, 48px or
+    more, off AJ's face (V-SAFE-1, V-TYPE-1, V-LAYOUT-1).
 
 ## Making designs
 

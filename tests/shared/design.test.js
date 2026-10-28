@@ -66,6 +66,25 @@ describe('safe areas', () => {
     });
 });
 
+describe('vertical canvas', () => {
+    const v = design.vertical;
+
+    it('keeps every phone size at or above its floor', () => {
+        for (const size of Object.values(v.type.sizes)) {
+            expect(size).toBeGreaterThanOrEqual(v.type.minPx);
+        }
+    });
+
+    it('reads the floor at 17pt or more on a 390pt-wide phone', () => {
+        expect(v.type.minPx * 390 / v.canvas.width).toBeGreaterThanOrEqual(17);
+    });
+
+    it('leaves the camera/game seam inside the phone-safe box', () => {
+        expect(v.seamY).toBeGreaterThan(v.safe.topPx);
+        expect(v.seamY).toBeLessThan(v.canvas.height - v.safe.bottomPx);
+    });
+});
+
 describe('safeAreaGuides (?debug=safe)', () => {
     it('draws the same rectangles as safeRect, as fractions of the frame', () => {
         const [action, title, player] = safeAreaGuides(design);

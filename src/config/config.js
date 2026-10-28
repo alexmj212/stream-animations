@@ -987,6 +987,26 @@ export const config = {
       ]
     },
 
+    // The vertical canvas (Aitum Vertical, 1080x1920), cut into clips for
+    // Shorts, Reels and TikTok and watched on a phone (AJ, 2026-10-28: "the
+    // text size requirements and guidelines might need to be specifically
+    // for that"). DESIGN.md, Vertical canvas
+    vertical: {
+      canvas: { width: 1080, height: 1920 },
+      // The apps draw over the frame: status and tabs at the top, captions,
+      // channel and sound at the bottom, the like/comment/share column on
+      // the right. The strictest of the current guides (TikTok right 120,
+      // bottom captions 320-370) plus a margin
+      safe: { topPx: 220, bottomPx: 440, leftPx: 60, rightPx: 140 },
+      type: {
+        // A 1080-wide frame shows about 390pt wide on a phone (x 0.36),
+        // so these read at 17, 23, 29 and 40pt
+        sizes: { hero: 112, display: 80, headline: 64, label: 48 },
+        minPx: 48
+      },
+      seamY: 700                  // Camera above, game below (Chatting/Game (vrt)); a toast sits on it
+    },
+
     // Motion tokens. Enter decelerates, exit accelerates, a move across the
     // screen eases both ends. MOTION.md keeps each scene's decided timings
     motion: {
