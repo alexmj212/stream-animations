@@ -42,7 +42,7 @@ wall-clock time:
 - `requestAnimationFrame` callbacks queue and only run when the harness calls
   `__motion.step(dt)`; `performance.now()` and `Date.now()` return virtual time
 - `Math.random` is seeded (`?seed=`), so runs are reproducible
-- CSS animations (sidebar text) are paused and advanced in lock-step
+- CSS animations are paused and advanced in lock-step
 
 So every frame is rendered at an exact timestamp no matter how slow the
 machine or the screenshotting is. After each step the harness reads the
@@ -159,7 +159,10 @@ to `exports/` (gitignored).
 ## Scenarios
 
 `stinger`, `sidebar` and `shade` are checked for timing, coverage and smooth
-motion. `background` is checked for smooth motion and CPU. `epcot` has no
+motion. `sidebar-name` and `shade-raid` load the alerts as OBS sends them
+(`duration=3000`), and `sidebar-long` and `shade-long` check that long text
+fits; all of them enforce SAFE-1, TYPE-1 and TIME-1, so the text can't go
+back to moving during its hold. `background` is checked for smooth motion and CPU. `epcot` has no
 motion probe; it is a CPU regression guard (p95 at most 20ms, measured
 around 10ms).
 

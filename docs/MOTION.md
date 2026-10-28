@@ -17,19 +17,29 @@ bible, [DESIGN.md](DESIGN.md), which links here for these decisions.
   A new scene uses the same multiplier. [v1.0 decision]
 - **Curtains** are semi-transparent at opacity 0.5 (range 0.4 to 0.6), clipped
   to their bounds, with top and bottom meeting at the centerline. [06-01]
-- **Text** is white, 96px bold Jost with a soft shadow, optically centered
-  with `actualBoundingBox` metrics, and always drawn above curtains. [05-01,
-  05-03, 06-02]
+- **Alert text** is white Jost 700 with the ink stroke and soft shadow of
+  `config.design.type` (DESIGN.md TYPE-3), and it holds still and whole while
+  it is read. The shade's line is 96px, shrinks to fit title-safe down to
+  72px, then wraps to two lines (name / action); it never scrolls. The
+  sidebar sets the @name at 56px and the action at 40px on an ink nameplate,
+  right-aligned to title-safe. [AJ's pick on design audit #33-#35]
 
 ## Timing
 
+- **Alerts** (shade, sidebar): the text arrives on `ease.enter` in 500 ms,
+  settles for 150 ms, holds for its reading time, and leaves on `ease.exit`
+  in 350 ms (`config.design.motion`). A URL `duration` is a minimum: it can
+  lengthen the hold but never cut it, so OBS's `duration=3000` gives a 4 s
+  sidebar and a 4.5 s shade. The shade's curtains close as the text arrives
+  and open after it has gone (`config.shade.curtainMoveMs`); the sidebar's
+  panel and accents arrive inside the enter, the accents 60 ms apart.
+  [design audit #33-#35]
 - **Shared defaults**: entry 1000 ms, exit 1000 ms, hold 2000 ms, eased with
-  `easeInOutCubic`, used by the shade. Scenes override only with a reason:
-  the background fades over 2000 ms because it is ambient. Two scenes split
-  their `?duration` proportionally instead: the stinger 35% in, 30% full
-  cover, 35% out, so OBS cuts at the 50% mark while the screen is covered
-  (`config.stinger.timing`), and the sidebar 25% in, 50% hold, 25% out
-  (`config.sidebar.timing`). [v1.0 timing patterns; motion harness PR #2]
+  `easeInOutCubic`. Scenes override only with a reason: the background fades
+  over 2000 ms because it is ambient. The stinger splits its `?duration`
+  proportionally instead: 35% in, 30% full cover, 35% out, so OBS cuts at the
+  50% mark while the screen is covered (`config.stinger.timing`). [v1.0
+  timing patterns; motion harness PR #2]
 - **Reading pace**: text holds 200 ms per word (5 words a second), never less
   than 3 s. Count words, not characters. [05-02]
 - **No jumps between phases**: motion that crosses a phase boundary is

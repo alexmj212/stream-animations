@@ -1,18 +1,34 @@
 import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { config } from '../config/config.js';
+import {
+  cubicBezier, readingHoldMs, planAlertText, textOffsetAt, fitShadeText, strokeWidthPx, wordCount
+} from '../shared/animations/alertText.js';
+
+const easeEnter = cubicBezier(config.design.motion.ease.enter);
+const easeExit = cubicBezier(config.design.motion.ease.exit);
 
 /**
- * ShadeBar - Canvas-based text rendering component for OBS overlays
+ * '#rrggbb' at an alpha, as rgba()
+ * @param {string} hex
+ * @param {number} alpha
+ * @returns {string}
+ */
+function rgba(hex, alpha) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/**
+ * ShadeBar - the shade's line of text (raids, hype train, mass gifts)
  *
- * Displays large scrolling text with dynamic hold duration based on text length.
- * Text appears as a celebratory shade element for raids, gift subs, and major stream events.
+ * The text arrives on `ease.enter` while the curtains close, settles, holds
+ * still and whole inside title-safe for its reading time, then leaves on
+ * `ease.exit` before the curtains open (docs/DESIGN.md MOTION-1, TIME-1,
+ * SAFE-1; AJ's pick on design audit #33). It never scrolls: a long line
+ * shrinks from `hero` to `display`, then wraps to two lines.
  *
- * Features:
- * - Canvas-based rendering with explicit fillStyle (OBS compatible)
- * - Font Loading API integration prevents measurement race conditions
- * - Right-to-left marquee scrolling with dynamic speed calculation
- * - Text shadow/glow for depth and separation from background
- * - URL parameter configuration for text, color, and duration
+ * Drawn once into an offscreen canvas with the TYPE-3 ink stroke and shadow,
+ * then copied each frame.
  *
  * @extends AnimatedBar
  */
@@ -25,34 +41,24 @@ export class ShadeBar extends AnimatedBar {
    * @returns {number} Hold duration in milliseconds
    */
   static calculateHoldDuration(text, msPerWord = config.shade.timing.readingSpeedMsPerWord, minDurationMs = config.shade.timing.minHoldMs) {
-    // Count words by splitting on whitespace (RESEARCH.md Word Count pattern)
-    // Filter empty strings to handle edge case of empty/whitespace-only text (RESEARCH.md Pitfall 4)
-    const words = text.trim().split(/\s+/).filter(word => word.length > 0);
-    const wordCount = words.length;
-
-    // Calculate duration based on reading speed (TEXT-02 requirement)
-    const calculatedDuration = wordCount * msPerWord;
-
-    // Enforce minimum duration (TEXT-05 requirement - minimum readability guarantee)
-    return Math.max(calculatedDuration, minDurationMs);
+    return readingHoldMs(text, msPerWord, minDurationMs);
   }
 
   /**
-   * Calculate scroll speed to ensure full text visibility within hold duration
-   * @param {number} textWidth - Width of text in pixels
-   * @param {number} canvasWidth - Canvas width in pixels
-   * @param {number} holdDurationMs - Hold phase duration in milliseconds
-   * @returns {number} Scroll speed in pixels per second
+   * The shade's timeline for a hold: text enter, settle, hold, text exit,
+   * then the curtains opening (seconds).
+   * @param {number} holdDurationMs
+   * @returns {ReturnType<typeof planAlertText>}
    */
-  static calculateScrollSpeed(textWidth, canvasWidth, holdDurationMs) {
-    // Text must travel its full width plus canvas width to scroll completely across screen
-    // (starts fully on right, ends fully off left)
-    const totalDistance = textWidth + canvasWidth;
-
-    // Speed = distance / time (convert ms to seconds)
-    const speedPxPerSecond = (totalDistance / holdDurationMs) * 1000;
-
-    return speedPxPerSecond;
+  static plan(holdDurationMs) {
+    const { durationMs, settleMs } = config.design.motion;
+    return planAlertText({
+      holdMs: holdDurationMs,
+      enterMs: durationMs.enter,
+      settleMs,
+      exitMs: durationMs.exit,
+      tailMs: config.shade.curtainMoveMs
+    });
   }
 
   /**
@@ -67,143 +73,125 @@ export class ShadeBar extends AnimatedBar {
     super(ctx, canvas, 'text', {});
 
     this.text = text;
+    this.words = wordCount(text);
 
     // Calculate hold duration if not provided via URL parameter
     this.holdDurationMs = holdDurationMs !== null
       ? holdDurationMs
       : ShadeBar.calculateHoldDuration(text);
+    this.timeline = ShadeBar.plan(this.holdDurationMs);
+    this.totalDurationMs = this.timeline.total * 1000;
 
-    // Text positioning
-    this.x = canvas.width; // Start offscreen right (will rush in from right edge)
-    this.y = canvas.height / 2; // Vertical center (will be adjusted in init() for optical alignment)
+    // Block position: x is the left edge of the widest line, y the top of
+    // the ink (both set in init() once the text is measured)
+    this.x = canvas.width;
+    this.y = canvas.height / 2;
 
     // Curtains behind the text; when clipping, text is only drawn over them
     this.curtains = [];
     this.clipToCurtains = config.shade.clipTextToCurtains;
 
-    // Text metrics (will be measured after font loads in init())
+    // Layout (measured after the font loads, in init())
+    this.lines = [text];
+    this.fontPx = config.design.type.sizes.hero;
     this.textWidth = 0;
-    this.actualAscent = 0; // Cached for draw() positioning
+    this.blockHeight = 0;
+    this.holdX = 0;
 
-    // Offscreen canvas for text caching (created in init() after font loads)
     this.textCanvas = null;
-    this.textCanvasWidth = 0;
-    this.textCanvasHeight = 0;
+    this.pad = 0;
+    this.totalAnimationTime = 0;
+  }
 
-    // Continuous animation tracking (not discrete phases)
-    this.totalAnimationTime = 0; // Total time elapsed across entire animation (seconds)
+  /** Canvas font for a size. */
+  static font(px) {
+    return `${config.design.type.weight} ${px}px ${config.design.type.family}`;
   }
 
   /**
    * Initialize ShadeBar after font loading
    *
    * IMPORTANT: Must be called AFTER document.fonts.ready resolves to ensure
-   * accurate text measurement. Calling before font loads results in incorrect
-   * textWidth (race condition).
+   * accurate text measurement.
    */
   async init() {
-    // Explicitly ensure Jost font is loaded before measuring/rendering
-    // Even after document.fonts.ready, we need to load the specific font for canvas contexts
+    const type = config.design.type;
     try {
-      await document.fonts.load(config.shade.text.font);
+      await document.fonts.load(ShadeBar.font(type.sizes.hero));
     } catch (e) {
       console.warn('[ShadeBar] Font load warning:', e);
     }
 
-    // Measure text width and vertical metrics (requires font to be loaded)
-    this.ctx.font = config.shade.text.font;
-    const metrics = this.ctx.measureText(this.text);
-    this.textWidth = metrics.width;
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const ctx = this.ctx;
+    const setFont = (c, px) => {
+      c.font = ShadeBar.font(px);
+      c.letterSpacing = `${type.trackingEm * px}px`;
+    };
+    const measure = (s, px) => {
+      setFont(ctx, px);
+      return ctx.measureText(s).width;
+    };
 
-    // Calculate visual center offset for optical alignment
-    // TextMetrics provides actual bounding box of rendered text relative to baseline
-    // For perfect vertical centering, we need to account for asymmetric ascent/descent
-    const actualAscent = metrics.actualBoundingBoxAscent;
-    const actualDescent = metrics.actualBoundingBoxDescent;
+    // Fit inside title-safe, leaving room for the stroke on both sides
+    const safeX = Math.round(W * config.design.safe.titleInset);
+    const room = (px) => W - 2 * safeX - 2 * strokeWidthPx(px, type);
+    const fit = fitShadeText(this.text, measure, room(type.sizes.display), {
+      hero: type.sizes.hero, display: type.sizes.display, minPx: type.minPx
+    });
+    this.lines = fit.lines;
+    this.fontPx = fit.px;
+    const px = fit.px;
 
-    // Cache actualAscent for draw() positioning (PERF-02: no per-frame measureText)
-    this.actualAscent = actualAscent;
-    this.actualDescent = actualDescent;
+    // Line metrics: the block is the ink from the first line's ascent to
+    // the last line's descent, centred on the band
+    setFont(ctx, px);
+    const metrics = this.lines.map(s => ctx.measureText(s));
+    this.textWidth = Math.max(...metrics.map(m => m.width));
+    const lineGap = px * config.shade.text.lineHeight;
+    const ascent = metrics[0].actualBoundingBoxAscent || px * 0.7;
+    const descent = metrics[metrics.length - 1].actualBoundingBoxDescent || px * 0.05;
+    this.actualAscent = ascent;
+    this.blockHeight = ascent + lineGap * (this.lines.length - 1) + descent;
+    this.y = H / 2 - this.blockHeight / 2;
+    this.holdX = (W - this.textWidth) / 2;
 
-    // Calculate the true visual center of the text
-    // When using textBaseline='alphabetic', the baseline is at y
-    // The visual center is at: baseline - (actualAscent - actualDescent) / 2
-    // So to place visual center at canvas.height/2, we need:
-    // y = canvas.height/2 + (actualAscent - actualDescent) / 2
-    this.visualCenterOffset = (actualAscent - actualDescent) / 2;
-
-    // Adjust y position for true optical centering
-    // This ensures the visual bounds of the text are centered, not just the em square
-    this.y = this.canvas.height / 2 + this.visualCenterOffset;
-
-    // PERF-01: Create offscreen canvas for text caching (10-20x speedup)
-    // Pre-render text with shadow once, then use drawImage() each frame instead of fillText()
-
-    // Calculate offscreen canvas dimensions with shadow padding
-    // Shadow blur (8px) + offset (4px) + safety margin requires 20px padding on each side
-    this.textCanvasWidth = Math.ceil(this.textWidth + 40);
-    this.textCanvasHeight = Math.ceil(actualAscent + actualDescent + 40);
-
-    // Create offscreen canvas with transparent background
+    // Offscreen copy: stroke (with the soft shadow) under the fill
+    const stroke = strokeWidthPx(px, type);
+    const shadowOffset = px * type.shadowOffsetEm;
+    const shadowBlur = px * type.shadowBlurEm;
+    this.pad = Math.ceil(stroke + shadowOffset + shadowBlur * 2 + 4);
     this.textCanvas = document.createElement('canvas');
-    this.textCanvas.width = this.textCanvasWidth;
-    this.textCanvas.height = this.textCanvasHeight;
-    const offCtx = this.textCanvas.getContext('2d', { alpha: true });
+    this.textCanvas.width = Math.ceil(this.textWidth + 2 * this.pad);
+    this.textCanvas.height = Math.ceil(this.blockHeight + 2 * this.pad);
+    const off = this.textCanvas.getContext('2d', { alpha: true });
+    setFont(off, px);
+    off.textAlign = 'center';
+    off.textBaseline = 'alphabetic';
+    off.lineJoin = 'round';
+    const ink = config.design.color.ink;
+    const cx = this.pad + this.textWidth / 2;
+    const baseline = (i) => this.pad + ascent + i * lineGap;
+    off.strokeStyle = ink;
+    off.lineWidth = stroke * 2; // Half of it sits under the fill
+    off.shadowColor = rgba(ink, type.shadowAlpha);
+    off.shadowBlur = shadowBlur;
+    off.shadowOffsetX = shadowOffset;
+    off.shadowOffsetY = shadowOffset;
+    this.lines.forEach((s, i) => off.strokeText(s, cx, baseline(i)));
+    off.shadowColor = 'transparent';
+    off.fillStyle = config.shade.text.color;
+    this.lines.forEach((s, i) => off.fillText(s, cx, baseline(i)));
 
-    // Pre-render text with shadow to offscreen canvas (done once here, not every frame)
-    // CRITICAL: Set font BEFORE textBaseline to ensure font is fully applied
-    offCtx.font = config.shade.text.font;
-    offCtx.textBaseline = 'alphabetic';
-    offCtx.fillStyle = config.shade.text.color;
-
-    // Apply shadow properties
-    offCtx.shadowColor = config.shade.text.shadow.color;
-    offCtx.shadowBlur = config.shade.text.shadow.blur;
-    offCtx.shadowOffsetX = config.shade.text.shadow.offsetX;
-    offCtx.shadowOffsetY = config.shade.text.shadow.offsetY;
-
-    // Calculate baseline Y position (padding + ascent)
-    const baselineY = 20 + actualAscent;
-
-    // Render text once to offscreen canvas
-    offCtx.fillText(this.text, 20, baselineY);
-
-    // Calculate total animation duration (enter + hold + exit)
-    this.enterDurationMs = config.shared.durations.entryMs;
-    this.exitDurationMs = config.shared.durations.exitMs;
-    this.totalDurationMs = this.enterDurationMs + this.holdDurationMs + this.exitDurationMs;
-
-    // Calculate keyframe positions (CENTER-BASED for proper alignment)
-    // Key requirement: At 50% of total time (middle of hold phase), text CENTER must be at screen CENTER
-
-    // Enter phase: text CENTER goes from offscreen right to 75% viewport
-    // (LEFT EDGE starts at canvas.width, CENTER ends at 75% viewport)
-    const enterEndCenter = this.canvas.width * 0.75;
-    this.enterEndX = enterEndCenter - (this.textWidth / 2);
-
-    // Hold phase: text CENTER scrolls from 75% to 25% viewport (across screen center at 50%)
-    // This ensures text center is at screen center (50%) at the midpoint of hold phase
-    const holdEndCenter = this.canvas.width * 0.25;
-    this.holdEndX = holdEndCenter - (this.textWidth / 2);
-
-    // Exit phase: text accelerates offscreen, CENTER ends offscreen left
-    // (LEFT EDGE ends at -textWidth means CENTER is at -textWidth/2)
-    this.exitEndX = -this.textWidth;
+    // Arrive from the right edge, leave past the left edge
+    this.inPx = W - this.holdX + this.pad;
+    this.outPx = -(this.holdX + this.textWidth + this.pad);
+    this.x = this.holdX + this.inPx;
   }
 
   /**
-   * Update text position using continuous velocity function
-   *
-   * Velocity is calculated as a function of total animation time (not per-phase).
-   * This ensures smooth velocity transitions at phase boundaries with NO discontinuities.
-   *
-   * Velocity curve:
-   * - Enter phase: High velocity (fast movement), smoothly decelerating
-   * - Hold phase: Low constant velocity (middle of deceleration curve)
-   * - Exit phase: Low velocity accelerating to high (smooth ramp up)
-   *
-   * Position is updated by integrating velocity: x -= velocity * deltaTime
-   *
+   * Advance by deltaTime seconds (kept for callers/tests; setTime is exact)
    * @param {number} deltaTime - Time elapsed since last frame in seconds
    */
   update(deltaTime) {
@@ -211,123 +199,29 @@ export class ShadeBar extends AnimatedBar {
   }
 
   /**
-   * Set absolute time (seconds). Position is the exact integral of
-   * calculateVelocity(), so the text lands on its marks regardless of frame
-   * timing (frame-by-frame Euler integration drifted with uneven frames).
+   * Set absolute time (seconds). Position is a pure function of time, so
+   * the text lands on its marks regardless of frame timing.
    */
   setTime(t) {
     this.totalAnimationTime = t;
-    if (t >= this.totalDurationMs / 1000) {
+    if (t >= this.timeline.exitEnd) {
       this.active = false;
-      this.x = this.exitEndX; // Snap to final position
+      this.x = this.holdX + this.outPx;
       return;
     }
     this.x = this.positionAt(t);
   }
 
-  /** Closed-form x(t): canvas.width minus the integral of calculateVelocity. */
+  /** Left edge of the block at time t (seconds). */
   positionAt(t) {
-    const Te = this.enterDurationMs / 1000;
-    const Th = this.holdDurationMs / 1000;
-    const Tx = this.exitDurationMs / 1000;
-    const enterDistance = this.canvas.width - this.enterEndX;
-    const hold = (this.enterEndX - this.holdEndX) / Th;
-
-    if (t < Te) {
-      const start = 2 * (enterDistance / Te) - hold;
-      const travelled = hold * t + (start - hold) / 2 * (t + (Te / Math.PI) * Math.sin(Math.PI * t / Te));
-      return this.canvas.width - travelled;
-    }
-    if (t < Te + Th) {
-      return this.enterEndX - hold * (t - Te);
-    }
-    const u = Math.min(t - Te - Th, Tx);
-    const end = 2 * ((this.holdEndX - this.exitEndX) / Tx) - hold;
-    const travelled = hold * u + (end - hold) / 2 * (u - (Tx / Math.PI) * Math.sin(Math.PI * u / Tx));
-    return this.holdEndX - travelled;
+    return this.holdX + textOffsetAt(this.timeline, this.inPx, this.outPx, easeEnter, easeExit, t);
   }
 
-  /**
-   * Calculate velocity as a continuous function of total elapsed time
-   *
-   * Uses a piecewise velocity curve that's smooth at phase boundaries:
-   * - Enter: High velocity smoothly decelerating (cosine deceleration)
-   * - Hold: Constant low velocity (smooth transition from enter deceleration)
-   * - Exit: Low velocity smoothly accelerating to high (cosine acceleration)
-   *
-   * The key insight: velocity at END of enter must equal velocity at START of hold.
-   * Similarly, velocity at END of hold must equal velocity at START of exit.
-   *
-   * @param {number} timeSeconds - Total elapsed time in seconds (0 to totalDuration)
-   * @returns {number} Velocity in pixels per second (always positive, moving left)
-   */
-  calculateVelocity(timeSeconds) {
-    const enterDurationSec = this.enterDurationMs / 1000;
-    const holdDurationSec = this.holdDurationMs / 1000;
-    const exitDurationSec = this.exitDurationMs / 1000;
-
-    // Calculate distances for each phase
-    const enterDistance = this.canvas.width - this.enterEndX; // canvas.width → 25%
-    const holdDistance = this.enterEndX - this.holdEndX; // 25% → 0
-    const exitDistance = this.holdEndX - this.exitEndX; // 0 → -textWidth
-
-    if (timeSeconds < enterDurationSec) {
-      // ENTER PHASE: Decelerate from high velocity to hold velocity
-      // Use cosine deceleration: v(t) = v_min + (v_max - v_min) * (1 + cos(π*t/T)) / 2
-
-      const holdVelocity = holdDistance / holdDurationSec;
-      const progress = timeSeconds / enterDurationSec; // 0 to 1
-
-      // Start velocity calculated to cover enter distance with cosine deceleration
-      // Average velocity = (v_start + v_end) / 2 = distance / time
-      // v_end = holdVelocity
-      // v_start = 2 * (distance / time) - v_end
-      const averageVelocity = enterDistance / enterDurationSec;
-      const startVelocity = 2 * averageVelocity - holdVelocity;
-
-      // Cosine interpolation: starts at startVelocity, ends at holdVelocity
-      const velocity = holdVelocity + (startVelocity - holdVelocity) * (1 + Math.cos(Math.PI * progress)) / 2;
-
-      return velocity;
-
-    } else if (timeSeconds < enterDurationSec + holdDurationSec) {
-      // HOLD PHASE: Constant velocity
-      const holdVelocity = holdDistance / holdDurationSec;
-      return holdVelocity;
-
-    } else {
-      // EXIT PHASE: Accelerate from hold velocity to high velocity
-      // Use cosine acceleration: v(t) = v_min + (v_max - v_min) * (1 - cos(π*t/T)) / 2
-
-      const holdVelocity = holdDistance / holdDurationSec;
-      const progress = (timeSeconds - enterDurationSec - holdDurationSec) / exitDurationSec; // 0 to 1
-
-      // End velocity calculated to cover exit distance with cosine acceleration
-      const averageVelocity = exitDistance / exitDurationSec;
-      const endVelocity = 2 * averageVelocity - holdVelocity;
-
-      // Cosine interpolation: starts at holdVelocity, ends at endVelocity
-      const velocity = holdVelocity + (endVelocity - holdVelocity) * (1 - Math.cos(Math.PI * progress)) / 2;
-
-      return velocity;
-    }
+  /** The drawn ink box (screen px), for the probe and the harness. */
+  box() {
+    return { x: this.x, y: this.y, width: this.textWidth, height: this.blockHeight };
   }
 
-  /**
-   * Draw pre-rendered text from offscreen canvas
-   *
-   * PERF-01: Uses drawImage() to composite pre-rendered text (10-20x faster than fillText).
-   * Text with shadow was rendered once in init() to an offscreen canvas.
-   * Each frame, we simply copy that cached canvas to the main canvas at the current position.
-   *
-   * This optimization is critical for 60fps performance with large fonts (96px) and shadows.
-   * Benchmark: fillText with shadow ~10-15ms, drawImage ~0.5-1.5ms per frame.
-   *
-   * Text positioning uses alphabetic baseline with calculated offset for true optical centering.
-   * The y position is pre-adjusted in init() based on actualBoundingBox metrics to ensure
-   * the visual center of the text aligns with the canvas center, accounting for asymmetric
-   * ascenders/descenders in the font.
-   */
   /**
    * Fraction of the text's height drawn with no curtain behind it (0 while
    * the text is off screen). Used by the motion harness to check that the
@@ -335,8 +229,8 @@ export class ShadeBar extends AnimatedBar {
    */
   bareFraction() {
     if (!this.active || this.x >= this.canvas.width || this.x + this.textWidth <= 0) return 0;
-    const top = Math.floor(this.y - this.actualAscent);
-    const bottom = Math.ceil(this.y + (this.actualDescent || 0));
+    const top = Math.floor(this.y);
+    const bottom = Math.ceil(this.y + this.blockHeight);
     const curtains = this.curtains.filter(c => c.active);
     let bare = 0;
     for (let row = top; row < bottom; row++) {
@@ -348,17 +242,8 @@ export class ShadeBar extends AnimatedBar {
   }
 
   draw() {
+    if (!this.active || !this.textCanvas) return;
     this.ctx.save();
-
-    // PERF-01: Draw pre-rendered text from offscreen canvas
-    // This is 10-20x faster than calling fillText() with shadow every frame
-    const drawX = this.x - 20; // Account for offscreen canvas left padding
-
-    // Position offscreen canvas so text baseline aligns correctly
-    // this.y already has the correct baseline position (canvas.height/2 + visualCenterOffset)
-    // In offscreen canvas, text baseline is at (20px padding + actualAscent)
-    // So we need: drawY + (20 + actualAscent) = this.y
-    const drawY = this.y - 20 - this.actualAscent;
 
     // Only show text where a curtain is behind it, so it never sits bare
     // over the game while the band opens or closes
@@ -370,7 +255,8 @@ export class ShadeBar extends AnimatedBar {
       this.ctx.clip();
     }
 
-    this.ctx.drawImage(this.textCanvas, drawX, drawY);
+    // Whole pixels: the cached text stays crisp while it holds
+    this.ctx.drawImage(this.textCanvas, Math.round(this.x - this.pad), Math.round(this.y - this.pad));
 
     this.ctx.restore();
   }

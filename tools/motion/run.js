@@ -135,7 +135,7 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
     }
     const d = jitter ? dt * (0.5 + jitterRandom() * 2.5) : dt;
     elapsed += d;
-    const frame = await page.evaluate((d, region, textSelector, grid) => {
+    const frame = await page.evaluate((d, region, textSelector, grid, gapAlpha) => {
       const r = window.__motion.step(d);
       r.pixels = window.__motion.pixelStats(2, region, grid);
       // textBox: canvas gaps under the on-screen part of a text element
@@ -149,7 +149,7 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
         const y0 = Math.max(0, b.top) / H;
         const y1 = Math.min(H, b.bottom) / H;
         r.pixels.textGaps = x1 > x0 && y1 > y0
-          ? window.__motion.pixelStats(2, { x0, x1, y0, y1 }).regionGaps
+          ? window.__motion.pixelStats(2, { x0, x1, y0, y1 }, false, gapAlpha).regionGaps
           : null;
         // The same box as a text sample for the design rules: drawn font
         // size (computed size times any transform scale) and word count
@@ -162,7 +162,7 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
         });
       }
       return r;
-    }, d, scenario.region || null, scenario.textBox?.selector || null, grid);
+    }, d, scenario.region || null, scenario.textBox?.selector || null, grid, scenario.checks?.textOverPanel?.minAlpha ?? 250);
     frames.push(frame);
 
     while (shots && !grid && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {

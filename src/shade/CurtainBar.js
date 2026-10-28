@@ -10,7 +10,7 @@ import { samplePalette, shadeStops, paletteGradient } from '../shared/palette.js
  * Each curtain contains continuously animating horizontal bars for visual interest.
  *
  * Features:
- * - Three-phase animation (enter/hold/exit) with easeInOutCubic transitions
+ * - Three-phase animation (close/hold/open) on velocity-matched Hermite segments
  * - Semi-transparent gradient fill (0.4-0.6 opacity range)
  * - Horizontal bars embedded and clipped to curtain boundaries
  * - Synchronized with ShadeBar via shared total duration
@@ -27,7 +27,7 @@ export class CurtainBar extends AnimatedBar {
    * @param {Object} baseHSL - Base HSL color {h, s, l}
    * @param {number} totalDurationMs - Total animation duration (enter + hold + exit)
    * @param {Object} options - Optional configuration
-   * @param {number} options.textHeight - Height of text (for tip sizing)
+   * @param {number} options.textHeight - Height of the text block (for tip sizing)
    * @param {Array|null} [options.palette] - palette stops (src/shared/palette.js);
    *   null keeps the single-hue look around baseHSL
    */
@@ -69,10 +69,10 @@ export class CurtainBar extends AnimatedBar {
     this.elapsedTime = 0;
     this.phaseStartTime = 0;
 
-    // Phase durations (milliseconds to seconds for update() calculations)
-    const share = config.shade.curtainMoveShare;
-    this.enterDuration = config.shade.durations.entryMs * share / 1000;
-    this.exitDuration = config.shade.durations.exitMs * share / 1000;
+    // Close over the first curtainMoveMs and open over the last, so the
+    // band is closed for the text's whole enter, hold and exit
+    this.enterDuration = config.shade.curtainMoveMs / 1000;
+    this.exitDuration = config.shade.curtainMoveMs / 1000;
 
     // Hold fills the rest, so the curtains still end at totalDurationMs
     this.holdDuration = totalDurationMs / 1000 - this.enterDuration - this.exitDuration;

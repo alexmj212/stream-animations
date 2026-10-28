@@ -53,7 +53,8 @@
       const urlParams = new URLSearchParams(window.location.search);
       const text = (urlParams.get('text') || 'Default Text').toUpperCase();
       const durationParam = urlParams.get('duration');
-      const holdDurationMs = durationParam ? parseInt(durationParam) : null; // null triggers calculation
+      // Minimum hold in ms; null = reading time alone
+      const holdDurationMs = Number.isFinite(parseInt(durationParam)) ? parseInt(durationParam) : null;
       const showPerf = urlParams.get('perf') === 'true';
       const baseColor = getColorFromURL();
       const baseHSL = hexToHSL(baseColor);
@@ -127,37 +128,31 @@
       document.fonts.ready.then(async () => {
         console.log('[Shade] Fonts loaded, initializing components');
 
-        // Calculate shared timing (single source of truth - RESEARCH.md Pitfall 3)
-        // Hold duration calculated from text length (ShadeBar pattern)
-        const calculatedHoldMs = holdDurationMs !== null
-          ? holdDurationMs
-          : ShadeBar.calculateHoldDuration(text);
+        // The text holds still for its reading time; ?duration= (OBS sends
+        // 3000) is a minimum on top of it, never a cap (design audit #33)
+        const readingMs = ShadeBar.calculateHoldDuration(text);
+        const calculatedHoldMs = holdDurationMs !== null ? Math.max(holdDurationMs, readingMs) : readingMs;
 
-        // Total duration = enter + hold + exit (all components must share this)
-        const totalDurationMs = config.shade.durations.entryMs + calculatedHoldMs + config.shade.durations.exitMs;
+        // The text sets the timeline and the band's height, so it is laid
+        // out first; the curtains share its total duration
+        const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);
+        await shadeBar.init();
+        const totalDurationMs = shadeBar.totalDurationMs;
 
-        console.log('[Shade] Text:', text);
-        console.log('[Shade] Color:', baseColor);
+        console.log('[Shade] Text:', shadeBar.lines.join(' / '), `${Math.round(shadeBar.fontPx)}px`);
         console.log('[Shade] Hold Duration:', calculatedHoldMs, 'ms');
         console.log('[Shade] Total Duration:', totalDurationMs, 'ms');
+        debug.mark('layout', { lines: shadeBar.lines.length, fontPx: Math.round(shadeBar.fontPx), holdMs: calculatedHoldMs, totalMs: totalDurationMs });
 
-        // Extract font size for curtain tip sizing (96px from config)
-        const fontSize = 96; // From config.shade.text.font: 'bold 96px Jost'
+        // The band behind the text grows with a two-line block
+        const textHeight = Math.max(config.design.type.sizes.hero, shadeBar.blockHeight);
 
         // Create curtains with shared total duration and text height for tip sizing
         // ?seed=N pins the inner bar layout
         const random = createRandom(seedFromURL() ?? Math.floor(Math.random() * 2 ** 31));
-        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight: fontSize, random, palette: palette.stops });
-        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight: fontSize, random, palette: palette.stops });
-
-        // Create ShadeBar instance (text is always white - no color parameter)
-        const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);
+        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight, random, palette: palette.stops });
+        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight, random, palette: palette.stops });
         shadeBar.curtains = [topCurtain, bottomCurtain];
-
-        // Initialize text metrics after fonts are ready (now async)
-        await shadeBar.init();
-
-        console.log('[Shade] Text Width:', shadeBar.textWidth, 'px');
 
         // Add components to array (following stinger/sidebar/background pattern)
         components.push(topCurtain, bottomCurtain, shadeBar);
@@ -167,19 +162,19 @@
           ...(shadeBar.active ? [{
             id: 'text', x: shadeBar.x, y: shadeBar.y, onscreen: shadeBar.x < canvas.width && shadeBar.x + shadeBar.textWidth > 0, bare: shadeBar.bareFraction(),
             // Drawn text for the design rules (tools/motion/designRules.js)
-            box: { x: shadeBar.x, y: shadeBar.y - shadeBar.actualAscent, width: shadeBar.textWidth, height: shadeBar.actualAscent + shadeBar.actualDescent },
-            fontPx: parseFloat(/(\d+(?:\.\d+)?)px/.exec(config.shade.text.font)?.[1]),
-            words: text.split(/\s+/).filter(Boolean).length
+            box: shadeBar.box(),
+            fontPx: shadeBar.fontPx,
+            words: shadeBar.words
           }] : [])
         ]);
 
         /**
          * Animation loop (following stinger/sidebar/background pattern)
          *
-         * Three-phase animation (synchronized across all components):
-         * - Enter phase: curtains enter, text flies in from right (1 second)
-         * - Hold phase: curtains static, text scrolls continuously (dynamic duration)
-         * - Exit phase: curtains exit, text flies out left (1 second)
+         * Timeline (ShadeBar.plan, all components share its total):
+         * - Curtains close while the text arrives on ease.enter (500ms)
+         * - Text settles and holds still for its reading time
+         * - Text leaves on ease.exit (350ms), then the curtains open (500ms)
          *
          * RENDERING ORDER CRITICAL (RESEARCH.md Pitfall 1):
          * - Curtains drawn first (background layer)
@@ -254,18 +249,18 @@
           // Measure baseline (fillText every frame)
           measureBaseline() {
             const iterations = 1000;
-            const testText = shadeBar.text;
+            const testText = shadeBar.lines[0];
 
-            ctx.font = config.shade.text.font;
+            ctx.font = ShadeBar.font(shadeBar.fontPx);
             ctx.fillStyle = config.shade.text.color;
-            ctx.shadowColor = config.shade.text.shadow.color;
-            ctx.shadowBlur = config.shade.text.shadow.blur;
-            ctx.shadowOffsetX = config.shade.text.shadow.offsetX;
-            ctx.shadowOffsetY = config.shade.text.shadow.offsetY;
+            ctx.lineWidth = 2 * shadeBar.fontPx * config.design.type.strokeEm;
+            ctx.shadowColor = 'rgba(20, 6, 31, 0.6)';
+            ctx.shadowBlur = shadeBar.fontPx * config.design.type.shadowBlurEm;
 
             const start = performance.now();
             for (let i = 0; i < iterations; i++) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.strokeText(testText, 100, 500);
               ctx.fillText(testText, 100, 500);
             }
             const duration = performance.now() - start;
