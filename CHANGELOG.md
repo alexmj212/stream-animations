@@ -6,7 +6,7 @@ minor for new scenes, features or a visible style change, patch for fixes.
 
 ## v2.1.2 - 2026-10-28
 
-- Sidebar: long text now fits inside the panel. It shrinks to 75%, then
+- Sidebar: long text now fits inside the panel. It shrinks as needed, down to 75%, then
   wraps to two lines, and only then ends with an ellipsis, instead of
   hanging off the panel over the stream. ([#23])
 
