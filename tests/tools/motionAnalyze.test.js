@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findVelocitySteps, coverageTimeline, evaluate, percentile } from '../../tools/motion/analyze.js';
+import { findVelocitySteps, coverageTimeline, evaluate, percentile, MIN_CPU_FRAMES } from '../../tools/motion/analyze.js';
 import { easings, hermite } from '../../src/shared/motion.js';
 
 const FRAME = 1000 / 60;
@@ -54,10 +54,34 @@ describe('coverageTimeline / evaluate', () => {
   });
 
   it('evaluates duration and cut-point checks', () => {
-    const { results } = evaluate({ fps: 60, checks: { totalDurationMs: 1500, endsClear: true, fullCoverAtMs: 750, fullCoverMinMs: 300, workP95Ms: 1 } }, frames);
+    const { results } = evaluate({ fps: 60, checks: { totalDurationMs: 1500, endsClear: true, fullCoverAtMs: 750, fullCoverMinMs: 300 } }, frames);
     expect(results.every(r => r.pass)).toBe(true);
     const late = evaluate({ fps: 60, checks: { totalDurationMs: 1000 } }, frames).results[0];
     expect(late.pass).toBe(false);
+  });
+});
+
+describe('Frame CPU budget', () => {
+  const run = (n, workMs = 0.5) => Array.from({ length: n }, (_, i) => ({ t: i * FRAME, workMs, ran: 1, pixels: { opaque: 0, visible: 0 }, samples: [] }));
+  const cpu = frames => evaluate({ fps: 60, checks: { workP95Ms: 1 } }, frames).results.find(r => r.name === 'Frame CPU budget');
+
+  it('passes a cheap scene over enough drawn frames', () => {
+    expect(cpu(run(MIN_CPU_FRAMES)).pass).toBe(true);
+  });
+
+  it('fails too few drawn frames, however cheap (a short capture is one slow frame from red)', () => {
+    const r = cpu(run(MIN_CPU_FRAMES - 1));
+    expect(r.pass).toBe(false);
+    expect(r.detail).toMatch(/only 199 drawn frames/);
+  });
+
+  it('counts only frames where a callback ran', () => {
+    const frames = run(MIN_CPU_FRAMES + 50).map((f, i) => (i % 2 ? { ...f, ran: 0 } : f));
+    expect(cpu(frames).pass).toBe(false);
+  });
+
+  it('fails an expensive scene', () => {
+    expect(cpu(run(MIN_CPU_FRAMES, 2)).pass).toBe(false);
   });
 });
 
