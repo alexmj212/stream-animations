@@ -644,7 +644,10 @@ export const config = {
     //            color's hue: same layout, recolored
     // 'ignore' - palette stays exact; color= has no effect
     // 'mono'   - any passed color brings back the single-hue look
-    colorMode: 'shift',
+    // Default 'ignore': AJ chose "Always Illuminations" (2026-10-28, PR #16),
+    // so Couch Color no longer recolors these scenes. Design review found
+    // shift turns warm colors such as #ff6600 lime green over epcot.
+    colorMode: 'ignore',
     // Stop the passed color is matched to. Stop 1 (#a312c9, hue 288) is
     // within 4 degrees of AJ's theme color #b00bee, so the stream's own
     // color renders the ball's palette almost exactly.

@@ -39,7 +39,7 @@ const flags = Object.fromEntries(
   })
 );
 // --out=NAME keeps side-by-side runs (before/after mocks) from wiping each
-// other: each run deletes its own output folder first.
+// other. A run clears only the scene folders it renders.
 const outDir = resolve(__dirname, '..', flags.out ? `motion-results-${flags.out}` : 'motion-results');
 const names = argv.filter(a => !a.startsWith('--'));
 const fps = Number(flags.fps || 60);
@@ -137,7 +137,9 @@ async function capture(browser, baseUrl, scenario, seed) {
 }
 
 async function main() {
-  rmSync(outDir, { recursive: true, force: true });
+  // Clear only the scenes this run renders, so `--out=x stinger` then
+  // `--out=x sidebar` keeps both (the report covers the latest run)
+  for (const s of scenarios) rmSync(resolve(outDir, s.name), { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
   const { server, baseUrl } = await startServer();

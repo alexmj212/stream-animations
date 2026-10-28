@@ -351,7 +351,10 @@ export class AnimatedBar {
         if (this.paletteStops && this.type === 'slanted') {
             // Palette bars: the screen-fixed top-to-bottom gradient replaces
             // the sheen (both run down the bar). Depends only on y and angle,
-            // which are constant per slanted bar.
+            // which are constant per slanted bar. Returning here skips the
+            // lazy _gradientFlip RNG read below, so after the first draw the
+            // shared RNG sequence differs from mono mode (layouts are planned
+            // before that, so per-seed layouts match; Code review, PR #16).
             this._gradient = paletteGradient(this.ctx, this.paletteStops, screenGradientLine('slanted', angle, y, this.canvas.height));
             this._gradientKey = w;
             return this._gradient;

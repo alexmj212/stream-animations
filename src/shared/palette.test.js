@@ -15,16 +15,17 @@ describe('resolvePalette', () => {
     });
 
     it("barely moves for AJ's theme color #b00bee", () => {
-        expect(Math.abs(resolve({ colorHex: '#b00bee' }).hueShift)).toBeLessThanOrEqual(6);
+        expect(Math.abs(resolve({ colorHex: '#b00bee', colorMode: 'shift' }).hueShift)).toBeLessThanOrEqual(6);
     });
 
     it('rotates every stop so the anchor lands on the passed hue', () => {
-        const r = resolve({ colorHex: '#00b3ff' });
+        const r = resolve({ colorHex: '#00b3ff', colorMode: 'shift' });
         expect(r.stops[defaults.anchorIndex].h).toBeCloseTo(198, -1);
     });
 
     it('leaves the palette alone for grays and in ignore mode', () => {
-        expect(resolve({ colorHex: '#c0c0c0' }).hueShift).toBe(0);
+        expect(resolve({ colorHex: '#c0c0c0', colorMode: 'shift' }).hueShift).toBe(0);
+        expect(resolve({ colorHex: '#ff6600' }).hueShift).toBe(0);
         expect(resolve({ colorHex: '#00b3ff', colorMode: 'ignore' }).hueShift).toBe(0);
     });
 
