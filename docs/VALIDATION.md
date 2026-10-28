@@ -171,6 +171,9 @@ frame CPU budget over five follows, two seconds apart (`events`), because
 one follow draws only about 70 frames and p95 of so few is one GC pause
 away from failing (issue #50). The same goes for any scene that draws only
 on change: give its CPU check enough drawn frames, never a higher budget.
+`stinger-cpu` does the same for the stinger: six 1200ms transitions 1.5s
+apart (about 440 drawn frames), since one transition draws about 74 and
+its p95 failed once on a cold-JIT frame (PR #63).
 
 ### Recording the epcot loop
 

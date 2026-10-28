@@ -55,6 +55,25 @@ export const SCENARIOS = [
       fullCoverAtMs: 600,
       fullCoverMinMs: 200,
       debugEvents: { start: 1, ignored: 1, end: 1 },
+      // Frame CPU is checked by stinger-cpu: at 1200ms this capture draws
+      // only ~74 frames, so p95 was its 4th-worst frame and a cold-JIT
+      // frame failed it on a changelog-only diff (Release management, PR #63)
+      noVelocitySteps: true
+    }
+  },
+  {
+    name: 'stinger-cpu',
+    scene: 'stinger',
+    // Six back-to-back transitions, as on a busy stream: ~440 drawn frames,
+    // enough for a p95 one slow frame can't move
+    url: `/src/stinger/index.html?color=${COLOR}&duration=1200`,
+    start: { event: 'transitionStart' },
+    events: [1500, 3000, 4500, 6000, 7500].map(at => ({ at, event: 'transitionStart' })),
+    captureMs: 9000,
+    keyframes: [],
+    markers: [1500, 3000, 4500, 6000, 7500].map(at => ({ at, label: 'transition' })),
+    checks: {
+      debugEvents: { start: 6, end: 6 },
       noVelocitySteps: true,
       workP95Ms: 4
     }
