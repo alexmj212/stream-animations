@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
-import { SidebarBar, panelLeftAt } from '../../src/sidebar/SidebarBar.js';
+import { SidebarBar, planSidebar, planSidebarTimeline } from '../../src/sidebar/SidebarBar.js';
+import { createRandom } from '../../src/shared/motion.js';
+import { config } from '../../src/config/config.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
 describe('SidebarBar animation sequence', () => {
@@ -362,9 +364,43 @@ describe('SidebarBar property-based tests', () => {
   );
 });
 
-describe('panelLeftAt', () => {
-  it('starts at the sidebar start at the top and slants left going down', () => {
-    expect(panelLeftAt(1920, 0)).toBeCloseTo(1536);
-    expect(panelLeftAt(1920, 1000)).toBeCloseTo(1536 - 1000 * Math.tan(15 * Math.PI / 180));
+describe('planSidebarTimeline (design audit #35)', () => {
+  it("holds for the reading time when OBS's duration=3000 is too short", () => {
+    const tl = planSidebarTimeline('CHECK OUT @THEGIGGLEPUSSGANG', 3000);
+    expect(tl.enterEnd).toBeCloseTo(0.5);
+    expect(tl.exitStart - tl.enterEnd).toBeCloseTo(3.15); // settle 150 + hold 3000
+    expect(tl.exitEnd).toBeCloseTo(tl.total);
+    expect(tl.total).toBeCloseTo(4.0);
+  });
+
+  it("ends before OBS hides the source (7s), however long the text", () => {
+    const tl = planSidebarTimeline('word '.repeat(60), 3000);
+    expect(tl.total * 1000).toBeLessThanOrEqual(config.sidebar.timing.maxTotalMs);
+    expect(config.sidebar.timing.maxTotalMs).toBeLessThan(7000);
+  });
+
+  it('lengthens the hold to a longer duration', () => {
+    const tl = planSidebarTimeline('NOW PLAYING', 5000);
+    expect(tl.total).toBeCloseTo(5.0);
+    expect(tl.exitStart).toBeCloseTo(4.65);
+  });
+
+  it('brings every bar in by the end of the enter and out by the end', () => {
+    const canvas = createMockCanvas(1920, 1080);
+    const ctx = createMockContext(canvas);
+    const timeline = planSidebarTimeline('CHECK OUT @THEGIGGLEPUSSGANG', 3000);
+    const bars = planSidebar(ctx, canvas, { h: 280, s: 80, l: 50 }, timeline, createRandom(1));
+    for (const bar of bars) {
+      expect(bar.inEnd).toBeCloseTo(timeline.enterEnd);
+      expect(bar.delayTime).toBeLessThanOrEqual(timeline.enterEnd / 2);
+      expect(bar.outStart).toBeGreaterThanOrEqual(timeline.exitStart);
+      expect(bar.outEnd).toBeCloseTo(timeline.exitEnd);
+      // Stagger on 60ms steps
+      expect(Math.round(bar.delayTime * 1000) % 60).toBe(0);
+    }
+    const panel = bars.find(b => b.isBackground);
+    expect(panel.positionAt(timeline.enterEnd)).toBeCloseTo(panel.holdX);
+    expect(panel.positionAt(timeline.exitStart)).toBeCloseTo(panel.holdX);
+    expect(panel.positionAt(timeline.exitEnd)).toBeCloseTo(panel.endX);
   });
 });

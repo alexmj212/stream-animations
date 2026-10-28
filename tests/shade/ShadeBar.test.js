@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
 import { ShadeBar } from '../../src/shade/ShadeBar.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
+import { config } from '../../src/config/config.js';
 
 describe('ShadeBar', () => {
   describe('calculateHoldDuration', () => {
@@ -60,67 +61,6 @@ describe('ShadeBar', () => {
     });
   });
 
-  describe('calculateScrollSpeed', () => {
-    it('calculates speed to cover text width + canvas width', () => {
-      const textWidth = 1200;
-      const canvasWidth = 1920;
-      const holdDurationMs = 5000;
-
-      const speed = ShadeBar.calculateScrollSpeed(textWidth, canvasWidth, holdDurationMs);
-
-      // Total distance: 1200 + 1920 = 3120 pixels
-      // Time: 5000ms = 5 seconds
-      // Speed: 3120 / 5 = 624 px/s
-      expect(speed).toBeCloseTo(624, 1);
-    });
-
-    it('returns higher speed for shorter hold duration', () => {
-      const textWidth = 1000;
-      const canvasWidth = 1920;
-
-      const speed3s = ShadeBar.calculateScrollSpeed(textWidth, canvasWidth, 3000);
-      const speed5s = ShadeBar.calculateScrollSpeed(textWidth, canvasWidth, 5000);
-
-      expect(speed3s).toBeGreaterThan(speed5s);
-    });
-
-    it('returns higher speed for longer text', () => {
-      const canvasWidth = 1920;
-      const holdDurationMs = 5000;
-
-      const speedShort = ShadeBar.calculateScrollSpeed(500, canvasWidth, holdDurationMs);
-      const speedLong = ShadeBar.calculateScrollSpeed(2000, canvasWidth, holdDurationMs);
-
-      expect(speedLong).toBeGreaterThan(speedShort);
-    });
-
-    it('handles edge case of very short text', () => {
-      const textWidth = 50;
-      const canvasWidth = 1920;
-      const holdDurationMs = 3000;
-
-      const speed = ShadeBar.calculateScrollSpeed(textWidth, canvasWidth, holdDurationMs);
-
-      // Total distance: 50 + 1920 = 1970 pixels
-      // Speed: 1970 / 3 = 656.67 px/s
-      expect(speed).toBeCloseTo(656.67, 1);
-      expect(speed).toBeGreaterThan(0);
-    });
-
-    it('handles edge case of very long text', () => {
-      const textWidth = 5000;
-      const canvasWidth = 1920;
-      const holdDurationMs = 10000;
-
-      const speed = ShadeBar.calculateScrollSpeed(textWidth, canvasWidth, holdDurationMs);
-
-      // Total distance: 5000 + 1920 = 6920 pixels
-      // Speed: 6920 / 10 = 692 px/s
-      expect(speed).toBeCloseTo(692, 1);
-      expect(speed).toBeGreaterThan(0);
-    });
-  });
-
   describe('ShadeBar instance', () => {
     it('creates instance with provided text', () => {
       const canvas = createMockCanvas(1920, 1080);
@@ -150,95 +90,30 @@ describe('ShadeBar', () => {
       expect(bar.holdDurationMs).toBe(8000);
     });
 
-    it('initializes position at canvas right edge', () => {
+    it('lasts enter + settle + hold + exit + the curtains opening', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
-
-      const bar = new ShadeBar(ctx, canvas, 'Test', null);
-
-      expect(bar.x).toBe(1920); // Offscreen right
-      expect(bar.y).toBe(540); // Vertical center
+      const bar = new ShadeBar(ctx, canvas, 'Test', 3000);
+      const { durationMs, settleMs } = config.design.motion;
+      expect(bar.totalDurationMs).toBe(durationMs.enter + settleMs + 3000 + durationMs.exit + config.shade.curtainMoveMs);
     });
 
-    it('starts with zero animation time', () => {
+    it('ends before OBS hides the source (10s), however long the text', () => {
+      const canvas = createMockCanvas(1920, 1080);
+      const ctx = createMockContext(canvas);
+      const bar = new ShadeBar(ctx, canvas, 'word '.repeat(80), null);
+      expect(bar.totalDurationMs).toBeLessThanOrEqual(config.shade.timing.maxTotalMs);
+      expect(config.shade.timing.maxTotalMs).toBeLessThan(10000);
+    });
+
+    it('starts with zero animation time and no measured text', () => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
 
       const bar = new ShadeBar(ctx, canvas, 'Test', null);
 
       expect(bar.totalAnimationTime).toBe(0);
-    });
-
-    it('initializes textWidth to 0 before init()', () => {
-      const canvas = createMockCanvas(1920, 1080);
-      const ctx = createMockContext(canvas);
-
-      const bar = new ShadeBar(ctx, canvas, 'Test', null);
-
       expect(bar.textWidth).toBe(0);
-    });
-  });
-
-  describe('ShadeBar.init()', () => {
-    it('measures text width after font loading', () => {
-      const canvas = createMockCanvas(1920, 1080);
-      const ctx = createMockContext(canvas);
-
-      const bar = new ShadeBar(ctx, canvas, 'Test Message', null);
-      bar.init();
-
-      // measureText should set textWidth to non-zero value
-      expect(bar.textWidth).toBeGreaterThan(0);
-    });
-
-    it('calculates continuous velocity across phases with no discontinuities', () => {
-      const canvas = createMockCanvas(1920, 1080);
-      const ctx = createMockContext(canvas);
-
-      const bar = new ShadeBar(ctx, canvas, 'Test', 5000);
-      bar.init();
-
-      // Test velocity at phase boundaries - should be continuous (no jumps)
-      const enterDurationSec = bar.enterDurationMs / 1000;
-      const holdDurationSec = bar.holdDurationMs / 1000;
-
-      // Velocity at end of enter phase
-      const enterEndVelocity = bar.calculateVelocity(enterDurationSec - 0.001);
-
-      // Velocity at start of hold phase
-      const holdStartVelocity = bar.calculateVelocity(enterDurationSec + 0.001);
-
-      // Velocity at end of hold phase
-      const holdEndVelocity = bar.calculateVelocity(enterDurationSec + holdDurationSec - 0.001);
-
-      // Velocity at start of exit phase
-      const exitStartVelocity = bar.calculateVelocity(enterDurationSec + holdDurationSec + 0.001);
-
-      // All velocities should be positive (moving left)
-      expect(enterEndVelocity).toBeGreaterThan(0);
-      expect(holdStartVelocity).toBeGreaterThan(0);
-      expect(holdEndVelocity).toBeGreaterThan(0);
-      expect(exitStartVelocity).toBeGreaterThan(0);
-
-      // Velocity should be continuous at enter→hold boundary (within 10% tolerance)
-      expect(Math.abs(enterEndVelocity - holdStartVelocity)).toBeLessThan(holdStartVelocity * 0.1);
-
-      // Velocity should be continuous at hold→exit boundary (within 10% tolerance)
-      expect(Math.abs(holdEndVelocity - exitStartVelocity)).toBeLessThan(exitStartVelocity * 0.1);
-    });
-
-    it('stores phase durations from config', () => {
-      const canvas = createMockCanvas(1920, 1080);
-      const ctx = createMockContext(canvas);
-
-      const bar = new ShadeBar(ctx, canvas, 'Test', null);
-      bar.init();
-
-      // Phase durations should be set from config.shared.durations
-      expect(bar.enterDurationMs).toBeDefined();
-      expect(bar.exitDurationMs).toBeDefined();
-      expect(bar.enterDurationMs).toBeGreaterThan(0);
-      expect(bar.exitDurationMs).toBeGreaterThan(0);
     });
   });
 
@@ -248,18 +123,6 @@ describe('ShadeBar', () => {
     (text) => {
       const duration = ShadeBar.calculateHoldDuration(text, 200, 3000);
       expect(duration).toBeGreaterThanOrEqual(3000);
-    }
-  );
-
-  test.prop([
-    fc.integer({ min: 1, max: 5000 }),
-    fc.integer({ min: 1, max: 5000 }),
-    fc.integer({ min: 1000, max: 30000 })
-  ], { seed: 49, numRuns: 100 })(
-    'scroll speed always positive',
-    (textWidth, canvasWidth, holdDurationMs) => {
-      const speed = ShadeBar.calculateScrollSpeed(textWidth, canvasWidth, holdDurationMs);
-      expect(speed).toBeGreaterThan(0);
     }
   );
 
@@ -279,51 +142,65 @@ describe('ShadeBar', () => {
       expect(duration).toBe(expectedDuration);
     }
   );
-
-  test.prop([
-    fc.integer({ min: 100, max: 5000 }),
-    fc.integer({ min: 800, max: 3840 }),
-    fc.integer({ min: 1000, max: 30000 })
-  ], { seed: 51, numRuns: 100 })(
-    'scroll speed calculation is deterministic',
-    (textWidth, canvasWidth, holdDurationMs) => {
-      const speed1 = ShadeBar.calculateScrollSpeed(textWidth, canvasWidth, holdDurationMs);
-      const speed2 = ShadeBar.calculateScrollSpeed(textWidth, canvasWidth, holdDurationMs);
-
-      // Same inputs should produce identical outputs
-      expect(speed1).toBe(speed2);
-    }
-  );
 });
 
-describe('ShadeBar closed-form motion', () => {
-  const make = async () => {
+describe('ShadeBar still text (design audit #33)', () => {
+  // Every glyph 0.6em wide, so fitting is predictable under the canvas mock
+  const make = async (text = 'NEW RAID INCOMING', holdMs = 3000) => {
     const canvas = createMockCanvas(1920, 1080);
     const ctx = createMockContext(canvas);
-    const bar = new ShadeBar(ctx, canvas, 'NEW RAID INCOMING', 3000);
+    ctx.measureText = (s) => {
+      const px = parseFloat(/(\d+(?:\.\d+)?)px/.exec(ctx.font)[1]);
+      return { width: s.length * px * 0.6, actualBoundingBoxAscent: px * 0.7, actualBoundingBoxDescent: px * 0.05 };
+    };
+    const bar = new ShadeBar(ctx, canvas, text, holdMs);
     await bar.init();
     return bar;
   };
 
-  it('hits its marks at each phase boundary', async () => {
+  it('arrives from off the right edge and leaves past the left edge', async () => {
     const bar = await make();
-    const Te = bar.enterDurationMs / 1000;
-    const Th = bar.holdDurationMs / 1000;
-    const Tx = bar.exitDurationMs / 1000;
-    expect(bar.positionAt(0)).toBeCloseTo(1920, 6);
-    expect(bar.positionAt(Te)).toBeCloseTo(bar.enterEndX, 4);
-    expect(bar.positionAt(Te + Th)).toBeCloseTo(bar.holdEndX, 4);
-    expect(bar.positionAt(Te + Th + Tx)).toBeCloseTo(bar.exitEndX, 4);
+    expect(bar.positionAt(0)).toBeGreaterThanOrEqual(1920);
+    expect(bar.positionAt(bar.timeline.exitEnd) + bar.textWidth).toBeLessThanOrEqual(0);
   });
 
-  it('matches the velocity profile (derivative of position = -calculateVelocity)', async () => {
+  it('holds still, centred, from the end of the enter to the start of the exit', async () => {
     const bar = await make();
-    const total = bar.totalDurationMs / 1000;
-    const eps = 1e-5;
-    for (let t = 0.05; t < total - 0.05; t += 0.25) {
-      const v = -(bar.positionAt(t + eps) - bar.positionAt(t - eps)) / (2 * eps);
-      expect(v).toBeCloseTo(bar.calculateVelocity(t), 0);
+    const { enterEnd, exitStart } = bar.timeline;
+    expect(exitStart - enterEnd).toBeCloseTo((config.design.motion.settleMs + 3000) / 1000, 6);
+    for (let t = enterEnd; t <= exitStart; t += 0.1) {
+      expect(bar.positionAt(t)).toBeCloseTo((1920 - bar.textWidth) / 2, 6);
     }
+  });
+
+  it('eases into and out of the hold at rest', async () => {
+    const bar = await make();
+    const { enterEnd, exitStart } = bar.timeline;
+    const v = (t) => (bar.positionAt(t + 1e-4) - bar.positionAt(t - 1e-4)) / 2e-4;
+    expect(Math.abs(v(enterEnd - 2e-4))).toBeLessThan(50);
+    expect(Math.abs(v(exitStart + 2e-4))).toBeLessThan(50);
+  });
+
+  it('stays inside title-safe at hero size when the line fits', async () => {
+    const bar = await make('@aspiritualbumpit RAID!!');
+    expect(bar.fontPx).toBe(config.design.type.sizes.hero);
+    expect(bar.lines).toEqual(['@aspiritualbumpit RAID!!']);
+    expect(bar.holdX).toBeGreaterThanOrEqual(96);
+    expect(bar.holdX + bar.textWidth).toBeLessThanOrEqual(1824);
+  });
+
+  it('wraps a long line to two lines inside title-safe instead of scrolling', async () => {
+    const bar = await make('@aspiritualbumpit gifted 50 tier 1 subs to the goobers thank you all!!');
+    expect(bar.lines).toHaveLength(2);
+    expect(bar.fontPx).toBeGreaterThanOrEqual(config.design.type.minPx);
+    expect(bar.holdX).toBeGreaterThanOrEqual(96);
+    expect(bar.holdX + bar.textWidth).toBeLessThanOrEqual(1824);
+  });
+
+  it('is inactive once the text has left', async () => {
+    const bar = await make();
+    bar.setTime(bar.timeline.exitEnd);
+    expect(bar.active).toBe(false);
   });
 
   it('update(dt) and setTime(t) agree regardless of frame pacing', async () => {

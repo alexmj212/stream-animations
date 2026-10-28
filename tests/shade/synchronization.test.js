@@ -54,7 +54,7 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
     it('should give all components the same total duration', () => {
       const text = 'Test message for synchronization';
       const holdDurationMs = ShadeBar.calculateHoldDuration(text);
-      const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
+      const totalDurationMs = ShadeBar.plan(holdDurationMs).total * 1000;
 
       const baseHSL = { h: 220, s: 79, l: 64 }; // Discord blurple
 
@@ -74,7 +74,7 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
     it('should start with all components active', () => {
       const text = 'Test message';
       const holdDurationMs = ShadeBar.calculateHoldDuration(text);
-      const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
+      const totalDurationMs = ShadeBar.plan(holdDurationMs).total * 1000;
 
       const baseHSL = { h: 220, s: 79, l: 64 };
 
@@ -92,7 +92,7 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
     it('should remain active during animation', () => {
       const text = 'Test';
       const holdDurationMs = ShadeBar.calculateHoldDuration(text);
-      const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
+      const totalDurationMs = ShadeBar.plan(holdDurationMs).total * 1000;
 
       const baseHSL = { h: 220, s: 79, l: 64 };
 
@@ -119,8 +119,8 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
       // Use short duration for faster test
       const text = 'Hi'; // 2 words = 400ms, but minHoldMs = 3000ms
       const holdDurationMs = ShadeBar.calculateHoldDuration(text); // Should be 3000ms (minimum)
-      const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
-      // Total: 1000 + 3000 + 1000 = 5000ms = 5 seconds
+      const totalDurationMs = ShadeBar.plan(holdDurationMs).total * 1000;
+      // Total: 500 + 150 + 3000 + 350 + 500 = 4500ms
 
       const baseHSL = { h: 220, s: 79, l: 64 };
 
@@ -149,7 +149,7 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
     it('should handle frame-by-frame updates and finish together', () => {
       const text = 'Quick';
       const holdDurationMs = ShadeBar.calculateHoldDuration(text);
-      const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
+      const totalDurationMs = ShadeBar.plan(holdDurationMs).total * 1000;
 
       const baseHSL = { h: 220, s: 79, l: 64 };
 
@@ -187,31 +187,31 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
   describe('Phase Transitions', () => {
     it('should transition curtain phases at correct times', () => {
       const holdDurationMs = 3000; // 3 seconds
-      const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
-      // Total: 1000 + 3000 + 1000 = 5000ms
+      const totalDurationMs = ShadeBar.plan(holdDurationMs).total * 1000;
+      // Total: 500 + 150 + 3000 + 350 + 500 = 4500ms
 
       const baseHSL = { h: 220, s: 79, l: 64 };
       const curtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs);
 
-      // Curtains close in the first half of the entry and open in the last
-      // half of the exit (config.shade.curtainMoveShare = 0.5)
+      // Curtains close over the text's 500ms enter and open over the last
+      // 500ms, once the text has left (config.shade.curtainMoveMs)
       expect(curtain.phase).toBe('enter');
 
       curtain.setTime(0.25);
       expect(curtain.phase).toBe('enter');
 
-      // Band closed at 0.5s, before the text is fully in
+      // Band closed at 0.5s, as the text lands
       curtain.setTime(0.5);
       expect(curtain.phase).toBe('hold');
 
-      // Still closed at 4.4s while the text exits
-      curtain.setTime(4.4);
+      // Still closed at 3.9s while the text exits (3.65s-4.0s)
+      curtain.setTime(3.9);
       expect(curtain.phase).toBe('hold');
 
-      curtain.setTime(4.5);
+      curtain.setTime(4.0);
       expect(curtain.phase).toBe('exit');
 
-      curtain.setTime(5.0);
+      curtain.setTime(4.5);
       expect(curtain.active).toBe(false);
     });
   });
@@ -219,7 +219,7 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
   describe('Centerline Meeting', () => {
     it('should have curtains overlap slightly at centerline during hold phase', () => {
       const holdDurationMs = 3000;
-      const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
+      const totalDurationMs = ShadeBar.plan(holdDurationMs).total * 1000;
 
       const baseHSL = { h: 220, s: 79, l: 64 };
 
@@ -247,7 +247,7 @@ describe('CurtainBar and ShadeBar Synchronization', () => {
 
     it('should have correct target heights with intentional overlap', () => {
       const holdDurationMs = 3000;
-      const totalDurationMs = config.shade.durations.entryMs + holdDurationMs + config.shade.durations.exitMs;
+      const totalDurationMs = ShadeBar.plan(holdDurationMs).total * 1000;
 
       const baseHSL = { h: 220, s: 79, l: 64 };
 

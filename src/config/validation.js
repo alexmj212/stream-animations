@@ -390,41 +390,16 @@ export function validateShadeConfig(shade) {
   if (shade.text) {
     const text = shade.text;
 
-    // Validate font string
-    if (typeof text.font !== 'string' || text.font.trim() === '') {
-      console.warn('Config validation: config.shade.text.font must be a non-empty string. Using default: "bold 96px Jost"');
-      allValid = false;
-    }
-
     // Validate color string
     if (typeof text.color !== 'string' || text.color.trim() === '') {
       console.warn('Config validation: config.shade.text.color must be a non-empty string. Using default: "#ffffff"');
       allValid = false;
     }
 
-    // Validate shadow properties
-    if (text.shadow) {
-      const shadow = text.shadow;
-
-      if (typeof shadow.blur !== 'number' || shadow.blur < 0) {
-        console.warn(`Config validation: config.shade.text.shadow.blur must be >= 0, got ${shadow.blur}. Using default: 8`);
-        allValid = false;
-      }
-
-      if (typeof shadow.offsetX !== 'number') {
-        console.warn(`Config validation: config.shade.text.shadow.offsetX must be a number, got ${shadow.offsetX}. Using default: 4`);
-        allValid = false;
-      }
-
-      if (typeof shadow.offsetY !== 'number') {
-        console.warn(`Config validation: config.shade.text.shadow.offsetY must be a number, got ${shadow.offsetY}. Using default: 4`);
-        allValid = false;
-      }
-
-      if (typeof shadow.color !== 'string' || shadow.color.trim() === '') {
-        console.warn('Config validation: config.shade.text.shadow.color must be a non-empty string. Using default: "rgba(0, 0, 0, 0.6)"');
-        allValid = false;
-      }
+    // Validate line height (em)
+    if (typeof text.lineHeight !== 'number' || text.lineHeight < 1 || text.lineHeight > 2) {
+      console.warn(`Config validation: config.shade.text.lineHeight must be between 1 and 2, got ${text.lineHeight}. Using default: 1.15`);
+      allValid = false;
     }
   }
 
@@ -444,26 +419,12 @@ export function validateShadeConfig(shade) {
       allValid = false;
     }
 
-    // Validate scrollSpeedPxPerSec (positive number)
-    if (typeof timing.scrollSpeedPxPerSec !== 'number' || timing.scrollSpeedPxPerSec <= 0) {
-      console.warn(`Config validation: config.shade.timing.scrollSpeedPxPerSec must be > 0, got ${timing.scrollSpeedPxPerSec}. Using default: 300`);
-      allValid = false;
-    }
   }
 
-  // Validate durations
-  if (shade.durations) {
-    const durations = shade.durations;
-
-    if (typeof durations.entryMs !== 'number' || durations.entryMs < 100 || durations.entryMs > 10000) {
-      console.warn(`Config validation: config.shade.durations.entryMs must be between 100 and 10000, got ${durations.entryMs}. Using default: 1000`);
-      allValid = false;
-    }
-
-    if (typeof durations.exitMs !== 'number' || durations.exitMs < 100 || durations.exitMs > 10000) {
-      console.warn(`Config validation: config.shade.durations.exitMs must be between 100 and 10000, got ${durations.exitMs}. Using default: 1000`);
-      allValid = false;
-    }
+  // Validate the curtains' close/open time
+  if (typeof shade.curtainMoveMs !== 'number' || shade.curtainMoveMs < 100 || shade.curtainMoveMs > 2000) {
+    console.warn(`Config validation: config.shade.curtainMoveMs must be between 100 and 2000, got ${shade.curtainMoveMs}. Using default: 500`);
+    allValid = false;
   }
 
   return allValid;

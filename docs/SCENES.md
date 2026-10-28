@@ -9,7 +9,7 @@ live in `src/config/config.js`.
 |---|---|---|---|
 | stinger | Curtain-style scene transition: slanted and horizontal bars sweep across | OBS `transitionStart` or `obsSourceActiveChanged` window events (listeners registered at load to catch the first scene change); `?autoplay=true` plays once on load | `color`, `scheme`, `colormode`, `duration`, `seed`, `autoplay`, `perf` |
 | sidebar | Slide-in notification panel with animated bars and text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
-| shade | Raid/alert banner: semi-transparent curtains with large scrolling text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
+| shade | Raid/alert banner: semi-transparent curtains close round a still line of large text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
 | followers | Always-on follower-goal bar, top left; the notifications toast grows out of its right end | Always on; polls MIU's Developer API (`GET :8911/api/v2/counters/followercount`) every 5 s, or a `followers` window event | `goal`, `goalstep`, `label`, `count`, `source`, `api`, `counter`, `style`, `filllayout`, `scheme`, `perf` |
 | notifications | Toast bar that grows out of the right end of the follower-goal bar (top left), shows one line of text, and slides back in. Rebuilt from the OBS "Notifications" scene (color sources, Move filters and a mask plugin that broke in OBS 33) | Plays on load (OBS reloads it when the source is shown) | `text`, `duration` (default grows with long text), `seed` (streaks), `style`, `colorlayout`, `scheme`, `perf` |
 | background | Continuous loop of drifting bars on two canvas layers | Always running | `color`, `speed`, `density` (default 8), `perf` |
@@ -31,9 +31,17 @@ moves or changes size in MIU, update those numbers. Its colors run along the
 bar (`config.notifications.colorLayout`), because the screen-fixed gradient
 the other scenes use is all violet at the top of the screen.
 
-Long sidebar `text` shrinks to fit inside the panel (down to 75% of its
-size), then wraps to two lines, then ends in an ellipsis
-(`config.sidebar.text`).
+Sidebar and shade text holds still for its reading time (200 ms a word,
+never under 3 s); `duration` is a minimum, so OBS's `duration=3000` still
+works and gives a longer alert when the text needs it (4 s sidebar, 4.5 s
+shade). The sidebar's @name is 56px over the 40px action on an ink
+nameplate, and a long name shrinks to 75%; text without a name shrinks, then
+wraps to two lines, then ends in an ellipsis (`config.sidebar.text`). The
+shade's line shrinks from 96px to 72px to fit title-safe, then wraps to two
+lines (`config.shade`). OBS's Sidescreen Alert hides the source after 7 s
+and Fullscreen Alert after 10 s (their move filters' `end_delay`), so each
+scene stops short of that (`timing.maxTotalMs`): past about 29 words
+(sidebar) or 41 (shade) the hold is cut instead. Raise both together.
 
 Mix It Up draws avatars and props over the sidebar in OBS (its Mixitup
 source sits above Sidescreen Alert). Their positions live in

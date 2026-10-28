@@ -31,8 +31,9 @@ npm run motion:export -- stinger --color=#ff6600 --duration=1000
 ```
 
 ### Sidebar
-Bars slide in from the right, hold over the right 20% with the text, and
-slide out, ending exactly at `duration`.
+Bars slide in from the right, hold over the right 20% with the text on an
+ink nameplate, and slide out. The text holds still for its reading time;
+`duration` is the shortest the whole alert can be, never a cut.
 
 **URL**: `sidebar/index.html?color=#hexvalue&text=Now+Playing&duration=5000` (`seed` as above)
 
