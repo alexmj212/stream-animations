@@ -210,10 +210,10 @@ export const SCENARIOS = [
     keyframeSpanMs: 5000,
     markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
     // The body while the toast is out, inside its slanted ends
-    region: { x0: 0.25, x1: 0.78, y0: 0.03, y1: 0.065 },
+    region: { x0: 0.31, x1: 0.78, y0: 0.03, y1: 0.065 },
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -294,7 +294,7 @@ export const SCENARIOS = [
     markers: [{ at: 1150, label: 'landed' }],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       // The follow lands before the first frame runs, so the first paint
       // already animates: one count, and one idle once it has landed
       debugEvents: { start: 1, count: 1, idle: 1 },
