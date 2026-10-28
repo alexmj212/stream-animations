@@ -189,7 +189,7 @@ canvas, with what a viewer sees:
   line. Long text shrinks, then wraps, then ellipses, in that order: the
   rule and its 75% floor live in [MOTION.md](MOTION.md). The notifications
   toast is the exception: its bar grows to fit the line and the text stays
-  still (MOTION.md Learnings, 2026-10-28, #31).
+  still (MOTION.md Learnings, 2026-10-28, #31, built in #32).
 - **TYPE-7** (target) Fonts are bundled into the single-file build, never fetched at
   runtime. A browser source that loads before Google Fonts answers, or
   offline, falls back to Arial for the whole alert.
