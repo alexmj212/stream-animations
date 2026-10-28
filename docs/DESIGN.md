@@ -216,7 +216,7 @@ fine within COMP-7. The ones worth knowing are listed under the table.
 |---|---|---|---|
 | Goal bar | x 36-560, y 26-75 | Follower goal | AJ's pick: it stays put (#62) |
 | Music box | x 19-481, y 0-130 | Waveform, now playing | Draws under the goal bar |
-| Toast lane | x 560-1824, y 26-74 | Notifications toast, hype train banner, ad warning | AJ, 2026-10-28: the banners show in the toast's place, and a toast plays over a banner. The ad wins if both banners are up. Banner text at 32px caps in AJ's original look: the hue-cycling "HYPE TRAIN" marquee with sparkles (teal with `?cycle=0`), and black scrolling text on orange (11:1). The scroll is exempt from MOTION-1 and TIME-1. During a hype train, the original 4px hue-cycling border also runs round the frame at 50% |
+| Toast lane | x 560-1824, y 26-74; banners x 560-1920 | Notifications toast, hype train banner, ad warning | AJ, 2026-10-28: the banners show in the toast's place, and a toast plays over a banner. They run from the follower bar's end to the frame edge, as the toast grows from the bar; only their scrolling line passes title-safe, under the toast's SAFE-1 exemption. The ad wins if both banners are up. Banner text at 32px caps in AJ's original look: the hue-cycling "HYPE TRAIN" marquee with sparkles (teal with `?cycle=0`), and black scrolling text on orange (11:1). The scroll is exempt from MOTION-1 and TIME-1. During a hype train, the original 4px hue-cycling border also runs round the frame at 50% |
 | Remote | x 496-546, y 83-133 | Remote holder | Out of the toast's path, right of chat |
 | Jail | x 496-622, y 140-211 | Jail slideshow | Below the remote |
 | Chat column | x 18-488, y 127-537 | Chat, with the discoball pig behind it (x 43-491, y 130-469) | Our text stays off it (KEEP-1) |
@@ -542,6 +542,9 @@ applies unchanged. Tokens: `config.design.vertical`.
     the scaled 16:9 panel covered the camera half and ran under the app's
     buttons). One alert per zone: the toast and the sidebar share the
     seam, so they queue (ALERT-1).
+  - The hype train banner and the ad warning show on vertical too, in the
+    portrait toast's place on the seam (x 60-940, y 660-740, a ~57px
+    line), and a toast plays over them as on 16:9 (AJ, 2026-10-28, #86).
   - The raid shade (tier 3) may cover AJ, but its words still fit inside
     x 60-940 (880px): shrink, then wrap, as on 16:9 (TYPE-6).
 - **V-REUSE-1** One page serves both canvases where it can: a portrait
