@@ -188,7 +188,7 @@ overlap, except for the accepted overlaps listed under the table.
 | Goal bar | x 36-560, y 26-75 | Follower goal | AJ's pick: it stays put (#62) |
 | Music box | x 19-481, y 0-130 | Waveform, now playing | Draws under the goal bar |
 | Toast lane | x 560-1824, y 26-74 | Notifications toast | One toast at a time |
-| Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up |
+| Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up. Text at 32px caps (a 44px Jost 700 line) on an ink plate at full opacity |
 | Remote | x 496-546, y 83-133 | Remote holder | Out of the toast's path, right of chat |
 | Jail | x 496-622, y 140-211 | Jail slideshow | Below the banner lane |
 | Chat column | x 18-488, y 127-537 | Chat only | No gag or decoration behind it (KEEP-1) |
@@ -208,9 +208,9 @@ Accepted overlaps:
   sidebar to leave. Clippy, the iPhone text and Life points can still land
   during a sidebar; they're brief (3-10 s), and queueing them is open.
 
-Open: the Starting and BRB song line (x 0-651, y 1037-1094) runs off the
-frame under the player controls and repeats now playing. It's due to be
-hidden in OBS, pending design review.
+The Starting and BRB song line (x 0-651, y 1037-1094) ran off the frame
+under the player controls and repeated now playing, so it's hidden on both
+scenes (design review, 2026-10-28).
 
 ![Everything that can appear on the 16:9 canvas, drawn at once before the fixes: persistent in blue, alerts in orange, gags in pink, thirds in teal](design/everything-map.jpg)
 
