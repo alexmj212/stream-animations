@@ -569,12 +569,39 @@ export const config = {
       sizePx: 42,                 // Matches the follower bar (AJ, 2026-10-28, #40)
       strokePx: 4,                // Black outline (OBS Stroke filter)
       padding: 24,                // Room kept clear at each end of the body
-      // Long text: shrink down to minScale, then grow the bar (geometry.
-      // maxEndX), then, only if it still doesn't fit, scroll it during the
+      // Long text: grow the bar (geometry.maxEndX), then shrink down to
+      // minScale, then, only if it still doesn't fit, scroll it during the
       // hold: show the start, glide to the end, show the end (design review,
-      // 2026-10-28: a static line reads best, scroll is the last resort)
+      // 2026-10-28: a static line reads best, scroll is the last resort).
+      // Growing first keeps a real 7-word follow line at 42px, above
+      // TYPE-1's 40px floor; shrinking first took it to 37.8px (QA, #75)
+      // Portrait (vertical.geometry) has maxEndX equal to endX, so there the
+      // bar can't grow and long text goes straight to shrinking (B1, #72)
       minScale: 0.55,             // 23px: the 21-word harness line still fits whole in Jost; 0.6 scrolls
       scrollPauseMs: 800          // Still at each end of a scroll
+    },
+
+    // Portrait layout for the Aitum Vertical canvas (1080x1920), watched on
+    // phones: picked when the page is taller than wide, or with
+    // ?layout=vertical. AJ's pick B1 (2026-10-28, DESIGN.md V-TYPE-1 and
+    // V-LAYOUT-1): one line at 56px on the camera/game seam
+    // (config.design.vertical.seamY), across the phone-safe width (x 60-940),
+    // with no goal bar to grow from. A long line shrinks to 45px and then
+    // scrolls; the bar never grows past the safe box. Unlisted keys come
+    // from geometry and text above
+    vertical: {
+      refWidth: 1080,             // Geometry below is px on the 1080-wide canvas
+      geometry: {
+        top: 660,                 // seamY 700 minus half the height
+        height: 80,               // 56px Jost with its stroke and room above and below
+        startX: 60,               // Phone-safe left edge (vertical.safe.leftPx)
+        endX: 940,                // Phone-safe right edge (1080 - safe.rightPx)
+        maxEndX: 940              // No growing: the right 140px is the apps' button column
+      },
+      text: {
+        sizePx: 56,               // V-TYPE-1 floor is 48; 56 reads at 20pt on a phone
+        minScale: 0.8             // 45px, then scroll (B1's named exception)
+      }
     }
   },
 

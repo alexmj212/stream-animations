@@ -131,14 +131,15 @@ export function scrollOffsetAt(seg, scrollPx, pause, t) {
 
 /**
  * Extra bar length (px at 1920 wide) a line needs: enough for it to fit at
- * the smallest text scale, capped so the bar's front stops at maxEndX.
- * @param {number} widthAtMinScale - the line's width at minScale (px)
+ * full size, capped so the bar's front stops at maxEndX. The bar grows
+ * before the text shrinks.
+ * @param {number} width - the line's width at full size (px)
  * @param {number} room - room for text in the standard bar (px)
  * @param {number} maxExtra - most the bar may grow (px)
  * @returns {number} px, 0 when the line already fits
  */
-export function extraLengthFor(widthAtMinScale, room, maxExtra) {
-    return Math.max(0, Math.min(Math.ceil(widthAtMinScale - room), maxExtra));
+export function extraLengthFor(width, room, maxExtra) {
+    return Math.max(0, Math.min(Math.ceil(width - room), maxExtra));
 }
 
 /**
