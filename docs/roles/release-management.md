@@ -20,6 +20,9 @@ stinger video files.
   a PR passes the gate below, merge it and ship it. Only a design decision
   goes to AJ, and always with mocks or before and after frames to compare,
   never as a yes/no question. A peer thread asking is not a design decision.
+  Cutting a release, tagging it and deploying it never need AJ's permission
+  either (AJ, 2026-10-28: "you don't need my permission to cut a release
+  and deploy"). That covers the Defiant thread's tag and GitHub release.
 - **Versioning.** `package.json` `version` and a `vX.Y.Z` git tag per release.
 - **Changelog.** `CHANGELOG.md`, newest first, 2 to 5 lines per release in
   stream terms (what viewers or AJ will notice), each linking its PR.
@@ -75,18 +78,13 @@ stinger video files.
    with them: cloud sessions can't push tags (the git proxy refuses, 403) or
    create releases.
 7. **Verify on stream** after every release, through the thread with Remote
-   Control on Defiant, while AJ isn't live. Check
-   https://alexmj212.dev/stream-animations/version.json shows the release,
+   Control on Defiant, while AJ isn't live. Run `npm run pages:smoke --
+   https://alexmj212.dev/stream-animations/ <sha7>` with the commit Pages last
+   deployed (the release merge, or main's HEAD if anything merged since),
    use Refresh cache on each scene's browser source, and screenshot one with
    `&debug=build` added (then remove it) to confirm OBS runs the new build.
    If the release changes OBS settings, such as a stinger Transition Point,
    put the before and after to AJ first: OBS settings are AJ's, not code.
-   **Until AJ updates them**, three Mix It Up commands (Fullscreen Alert,
-   Sidescreen Alert, Couch Color) write the old WSL `dist/` URLs back into
-   OBS, so also pull and rebuild the WSL clone on Defiant (`git pull --ff-only
-   && npm ci && npm run build`) on every release. If the pull refuses or the
-   build stamp reads `-dirty`, sort out the clone's local changes first;
-   never force it. Drop this once they point at Pages.
 8. Run the `improve` skill before you finish.
 
 **Version numbers:** minor for new scenes, features or a visible style change;
@@ -118,6 +116,7 @@ dependencies straight to it.
 | 2026-10-28 | Pixelbot's `next` branch exists because every Pixelbot merge deploys a server with ~1 min downtime. Here only epcot deploys and nothing goes down, so squash to `main` directly | Pixelbot `docs/DEPLOYMENT.md` | release flow | active |
 | 2026-10-28 | AJ doesn't want to approve code merges or releases. Gate on CI, Code review, Design review and QA, then ship. Ask AJ only for design choices, with frames to compare | AJ in project chat, 2026-10-28 | merging, releases | active |
 | 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | superseded by the Pages row below |
-| 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a loader that fetches the build uncached on every load. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active, except the WSL rebuild in step 7 until Mix It Up points at Pages |
+| 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a loader that fetches the build uncached on every load. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active. Since 2026-10-28 the Mix It Up commands and the stinger transition load Pages too, so the interim WSL rebuild is gone |
 | 2026-10-28 | Cloud sessions can't push tags or create GitHub releases; the Defiant session, which has AJ's git credentials, does both | v2.0.0 release | releases | active |
 | 2026-10-28 | Mix It Up commands can rewrite OBS source URLs when they fire. Check them before declaring a source switch done | Pages switch, Defiant thread | OBS changes | active |
+| 2026-10-28 | Tags, GitHub releases and deploys don't wait on AJ. v2.1.0's tag sat waiting for a "go" that AJ said isn't needed. Say so in every hand-off to the Defiant thread | AJ in project chat, 2026-10-28 | releases | active |
