@@ -6,6 +6,7 @@
 | [MOTION.md](MOTION.md) | The shared motion style: timing, brightness, shapes, text |
 | [PERFORMANCE.md](PERFORMANCE.md) | Frame and memory budgets, benchmarking |
 | [VALIDATION.md](VALIDATION.md) | How motion is verified (the motion harness) |
+| [OBS.md](OBS.md) | How the scenes are wired into the live OBS setup, and how to inspect it |
 | [DECISIONS.md](DECISIONS.md) | Past decisions and why, newest first |
 | [IMPROVING.md](IMPROVING.md) | How agents improve themselves: the loop, Learnings, audits |
 | [roles/](roles/) | One charter per role thread |
