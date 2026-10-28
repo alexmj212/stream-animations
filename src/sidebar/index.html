@@ -90,6 +90,8 @@
       import { DirtyRectTracker } from "../shared/dirtyRect.js";
       import { config } from "../config/config.js";
       import { registerProbe, sampleBar, createRandom, seedFromURL } from "../shared/motion.js";
+      import { createDebug } from "../shared/debug.js";
+      const debug = createDebug('sidebar');
 
       // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
@@ -170,8 +172,12 @@
       let startTimestamp = null;
       function animate(timestamp) {
         if (showPerf) perfMonitor.recordFrame();
+        debug.frame(timestamp);
 
-        if (startTimestamp === null) startTimestamp = timestamp;
+        if (startTimestamp === null) {
+          startTimestamp = timestamp;
+          debug.mark('start', { bars: bars.length });
+        }
         const elapsed = (timestamp - startTimestamp) / 1000;
 
         clearCanvas(ctx, canvas, dirtyTracker);
@@ -196,11 +202,13 @@
           requestAnimationFrame(animate);
         } else {
           console.log('[Sidebar] Animation complete - one-shot finished');
+          debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
         }
       }
 
       // Page Visibility API - reload when page becomes visible to get fresh animation
       document.addEventListener('visibilitychange', () => {
+        debug.mark('visibilitychange', { hidden: document.hidden });
         if (!document.hidden) {
           console.log('[Sidebar] Page became visible - reloading for fresh animation');
           location.reload();

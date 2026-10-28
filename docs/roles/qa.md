@@ -62,10 +62,20 @@ is right (Code review), merging and merge order (Release management).
 step 3 on `main` (all scenes, stinger export) and send pass or fail. That
 pass gates the release.
 
-**Owed manual checks** that the cloud can't do. List them in every
-release verdict until someone does them on AJ's machine: the exported WebM
-in a real OBS Stinger transition, `obsSourceActiveChanged` in a real OBS
-browser source, and the 8-hour soak.
+**Measure, don't ask** (AJ, 2026-10-28). When a check needs a signal the
+scene doesn't give, add one with the shared debug convention
+(`src/shared/debug.js`; `docs/VALIDATION.md`, "Debug signals") and assert
+it in the harness. Asking AJ to watch the stream is the last resort.
+
+**OBS-only checks.** The cloud now covers the double-trigger logic: the
+stinger scenario fires `transitionStart` and `obsSourceActiveChanged`
+together and asserts one start. Three checks still need real OBS on AJ's
+machine, run by a Remote Control session with `?debug=events,frames&debugReport=`
+and `npm run debug:collect`, not by AJ: the exported WebM in a real OBS
+Stinger transition, `obsSourceActiveChanged` arriving in a real browser
+source (check the collector's `obsSourceActiveChanged` and `start` events),
+and the 8-hour soak (frame stats every 60s, no growth in long frames). List
+whichever are still owed in every release verdict.
 
 ## Coordination
 

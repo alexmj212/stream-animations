@@ -36,6 +36,7 @@
         import { DirtyRectTracker } from '../shared/dirtyRect.js';
         import { config } from '../config/config.js';
         import { registerProbe, sampleBar, createRandom, seedFromURL } from '../shared/motion.js';
+        import { createDebug } from '../shared/debug.js';
 
         // Get parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -43,6 +44,7 @@
         const showPerf = urlParams.get('perf') === 'true';
         const baseColor = getColorFromURL();
         const baseHSL = hexToHSL(baseColor);
+        const debug = createDebug('stinger');
 
         // Setup performance monitoring
         const perfMonitor = new PerformanceMonitor(60, 60);
@@ -119,6 +121,7 @@
         // frame can never push the cut point or the end off schedule.
         function animate(timestamp) {
             if (showPerf) perfMonitor.recordFrame();
+            debug.frame(timestamp);
 
             if (startTimestamp === null) startTimestamp = timestamp;
             const elapsed = (timestamp - startTimestamp) / 1000;
@@ -144,6 +147,7 @@
             } else {
                 // Animation complete, reset state for next transition
                 animationStarted = false;
+                debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
             }
         }
 
@@ -154,13 +158,16 @@
 
         function play(source) {
             const now = performance.now();
+            debug.mark('trigger', { source });
             if (animationStarted && now - lastPlayAt < 250) {
+                debug.mark('ignored', { source });
                 console.log(`[Stinger] ${source} ignored - transition already started`);
                 return;
             }
             lastPlayAt = now;
             console.log(`[Stinger] ${source} - starting transition`);
             generateBars();
+            debug.mark('start', { source, durationMs, bars: bars.length });
             startTimestamp = null; // restart the clock on the next frame
             if (!animationStarted) {
                 animationStarted = true;
@@ -174,6 +181,7 @@
         // obsSourceActiveChanged: OBS browser sources fire this when the source
         // goes live (e.g. the stinger lives in a scene that is switched to).
         lifecycle.addEventListener(window, 'obsSourceActiveChanged', (event) => {
+            debug.mark('obsSourceActiveChanged', { active: !!event.detail?.active });
             if (event.detail?.active) play('obsSourceActiveChanged');
         });
         // ?autoplay=true plays once on load (previewing, recording)

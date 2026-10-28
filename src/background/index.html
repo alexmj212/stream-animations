@@ -50,6 +50,8 @@
         import { DirtyRectTracker } from '../shared/dirtyRect.js';
         import { config } from '../config/config.js';
         import { registerProbe, sampleBar } from '../shared/motion.js';
+        import { createDebug } from '../shared/debug.js';
+        const debug = createDebug('background');
 
         // Get parameters from URL with config defaults
         const urlParams = new URLSearchParams(window.location.search);
@@ -177,6 +179,7 @@
         // Animation loop with delta-time
         function animate(timestamp) {
             if (showPerf) perfMonitor.recordFrame();
+            debug.frame(timestamp);
 
             // Calculate delta-time in seconds
             const deltaTime = deltaTimer.update(timestamp);

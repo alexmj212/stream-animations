@@ -45,6 +45,8 @@
       import { PerformanceOverlay } from '../shared/perfOverlay.js';
       import { DirtyRectTracker } from '../shared/dirtyRect.js';
       import { registerProbe, createRandom, seedFromURL } from '../shared/motion.js';
+      import { createDebug } from '../shared/debug.js';
+      const debug = createDebug('shade');
 
       // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
@@ -176,10 +178,14 @@
         let startTimestamp = null;
         function animate(timestamp) {
           if (showPerf) perfMonitor.recordFrame();
+          debug.frame(timestamp);
 
           // Absolute time since the first frame: text and curtains stay in
           // lock-step and on schedule even if frames are dropped
-          if (startTimestamp === null) startTimestamp = timestamp;
+          if (startTimestamp === null) {
+            startTimestamp = timestamp;
+            debug.mark('start', { components: components.length });
+          }
           const elapsed = (timestamp - startTimestamp) / 1000;
 
           clearCanvas(ctx, canvas, dirtyTracker);
@@ -207,6 +213,7 @@
             requestAnimationFrame(animate);
           } else {
             console.log('[Shade] Animation complete');
+            debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
           }
         }
 

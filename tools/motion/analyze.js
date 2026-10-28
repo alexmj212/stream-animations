@@ -175,7 +175,7 @@ export function workStats(frames) {
  * Evaluate a scenario's checks against a capture.
  * @returns {Array<{name, pass, detail}>}
  */
-export function evaluate(spec, frames) {
+export function evaluate(spec, frames, debug = null) {
   const results = [];
   const timeline = coverageTimeline(frames, spec.coverage);
   const tracks = buildTracks(frames);
@@ -274,6 +274,20 @@ export function evaluate(spec, frames) {
       name: 'Frame CPU budget',
       pass: stats.p95 <= checks.workP95Ms,
       detail: `update+draw p50 ${stats.p50.toFixed(2)}ms, p95 ${stats.p95.toFixed(2)}ms, max ${stats.max.toFixed(2)}ms (budget p95 ≤ ${checks.workP95Ms}ms)`
+    });
+  }
+
+  if (checks.debugEvents) {
+    const counts = {};
+    for (const e of debug?.events || []) counts[e.name] = (counts[e.name] || 0) + 1;
+    const want = Object.entries(checks.debugEvents);
+    const bad = want.filter(([name, n]) => (counts[name] || 0) !== n);
+    results.push({
+      name: 'Scene events',
+      pass: !!debug && bad.length === 0,
+      detail: !debug
+        ? 'no debug data - scene does not call createDebug()'
+        : want.map(([name, n]) => `${name} ${counts[name] || 0}/${n}`).join(', ')
     });
   }
 

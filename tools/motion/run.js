@@ -77,6 +77,8 @@ async function capture(browser, baseUrl, scenario, seed) {
   const params = new URL(scenario.url, 'http://x');
   if (flags.color) params.searchParams.set('color', String(flags.color).startsWith('#') ? flags.color : `#${flags.color}`);
   params.searchParams.set('seed', String(seed));
+  // Scene events (src/shared/debug.js) for the debugEvents check
+  params.searchParams.set('debug', 'events');
   const url = `${baseUrl}${params.pathname}${params.search}`;
   await page.goto(url, { waitUntil: 'load' });
 
@@ -87,6 +89,10 @@ async function capture(browser, baseUrl, scenario, seed) {
     // Give module scripts a moment to register their listeners
     await waitFor(page, () => document.readyState === 'complete');
     await page.evaluate((name) => window.dispatchEvent(new Event(name)), scenario.start.event);
+    // Extra triggers in the same instant, e.g. OBS firing obsSourceActiveChanged too
+    for (const extra of scenario.start.also || []) {
+      await page.evaluate(({ event, detail }) => window.dispatchEvent(new CustomEvent(event, { detail })), extra);
+    }
   }
 
   const dt = 1000 / fps;
@@ -118,8 +124,9 @@ async function capture(browser, baseUrl, scenario, seed) {
     }
   }
 
+  const debug = await page.evaluate((name) => window.__debug?.[name]?.snapshot() ?? null, scenario.name);
   await page.close();
-  return { frames, errors, shots: shotFiles };
+  return { frames, errors, shots: shotFiles, debug };
 }
 
 async function main() {
@@ -135,14 +142,14 @@ async function main() {
     for (const scenario of scenarios) {
       for (const seed of seeds) {
         const t0 = Date.now();
-        const { frames, errors, shots: shotFiles } = await capture(browser, baseUrl, scenario, seed);
+        const { frames, errors, shots: shotFiles, debug } = await capture(browser, baseUrl, scenario, seed);
         // Velocity estimates on uneven frames are noisy; jitter runs check
         // timing and coverage only. Frames can be up to 3x nominal, so the
         // usual 2-frame duration tolerance becomes 2 of the longest frames.
         const spec = jitter
           ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 2 * 3 * 1000 / fps } }
           : { ...scenario, fps };
-        const { results, timeline, tracks } = evaluate(spec, frames);
+        const { results, timeline, tracks } = evaluate(spec, frames, debug);
         results.unshift({
           name: 'No page errors',
           pass: errors.length === 0,
