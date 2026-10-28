@@ -26,7 +26,7 @@ motion checks).
 
 The notifications toast lines up with the MIU "Follow Goal" overlay
 (`config.notifications.geometry`, measured on the OBS program at 1920x1080:
-top 26, height 48, right edge at x 451, -15 degree lean). If the follow bar
+top 26, height 48, right edge at x 560, -15 degree lean). If the follow bar
 moves or changes size in MIU, update those numbers. Its colors run along the
 bar (`config.notifications.colorLayout`), because the screen-fixed gradient
 the other scenes use is all violet at the top of the screen.
@@ -45,7 +45,7 @@ access) and read the JSON in its `Commands` table: an Overlay action's
 `OverlayItemV3` holds `XPosition`/`YPosition` (percent when `PositionType`
 is 1) and `Width`/`Height` (0 = natural size).
 
-The followers bar and the notifications toast meet at x 451 (1920 wide):
+The followers bar and the notifications toast meet at x 560 (1920 wide):
 `config.followers.geometry` and `config.notifications.geometry` share top,
 height, that edge and the -15 deg lean, and a unit test fails if they drift.
 The followers scene only draws when the count changes (or for a rare idle
