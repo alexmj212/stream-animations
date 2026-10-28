@@ -85,7 +85,10 @@ tools/loopcut.sh --help     # frame-exact loop cuts from OBS recordings
 - **Config**: tunable numbers live in `src/config/config.js` with a comment
   saying why; don't hard-code them in a scene.
 - **Timing** is in milliseconds or per-second rates, never per frame. Use
-  delta time so scenes look the same at 30, 60 and 120 Hz.
+  delta time so scenes look the same at 30, 60 and 120 Hz. Legacy exceptions,
+  not to be copied: `config.stinger.timing.fps` and `config.sidebar.timing.fps`
+  (60) and the sidebar hold `velocityMin/Max` in px/frame. Convert them when
+  you next touch that code.
 - **Testable math**: put animation math in pure functions
   (`src/shared/animations/`) and unit-test it; classes hold state.
 - **Rendering**: cache expensive drawing in offscreen canvases; use `hsla()`
