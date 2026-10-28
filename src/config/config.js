@@ -14,7 +14,7 @@ export const config = {
     // Brightness multiplier (0.8 = 20% reduction for visual harmony)
     brightness: 0.8,
 
-    // Share of slanted bars, kept when bars respawn (MOTION.md: ~40/60)
+    // 40% slanted, 60% horizontal; kept when bars respawn
     slantedShare: 0.4,
     // Random spawn positions tried per bar; the one farthest from the bars
     // already on screen wins, so the layout stays balanced
@@ -306,6 +306,12 @@ export const config = {
       entryMs: 1000,              // Entry animation duration
       exitMs: 1000                // Exit animation duration
     },
+
+    // Curtains close in the first half of the entry and open in the last
+    // half of the exit, so the band is covered before the text reaches it
+    // and after it has gone; the text is also clipped to the curtains
+    curtainMoveShare: 0.5,
+    clipTextToCurtains: true,
 
     // Curtain configuration
     curtains: {

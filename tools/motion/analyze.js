@@ -233,6 +233,23 @@ export function evaluate(spec, frames) {
     });
   }
 
+  if (checks.probeMax) {
+    const { field, max, label } = checks.probeMax;
+    const hits = [];
+    for (const f of frames) {
+      for (const s of f.samples || []) {
+        if (s[field] != null && s[field] > max) hits.push({ t: f.t, id: s.id, value: s[field] });
+      }
+    }
+    results.push({
+      name: label,
+      pass: hits.length === 0,
+      detail: hits.length === 0
+        ? `${field} stays at or under ${max} on every frame`
+        : `${hits.length} frames over ${max}, e.g. ${hits.slice(0, 3).map(h => `${h.id} @${Math.round(h.t)}ms ${field}=${+h.value.toFixed(3)}`).join('; ')}`
+    });
+  }
+
   if (checks.noVelocitySteps) {
     const all = [];
     for (const [id, track] of tracks) {

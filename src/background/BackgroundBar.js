@@ -50,8 +50,9 @@ export class BackgroundBar extends AnimatedBar {
             this.lightness = Math.max(35, baseLightness * brightness);
         }
 
-        // Opacity range (0.4-0.7 = 40%-70%)
-        this.maxOpacity = this.random() * 0.3 + 0.4;
+        const { opacity, slanted, horizontal } = config.background;
+        const between = (min, max) => min + this.random() * (max - min);
+        this.maxOpacity = between(opacity.min, opacity.max);
         this.currentOpacity = 0; // Start invisible
 
         // Random direction
@@ -59,22 +60,18 @@ export class BackgroundBar extends AnimatedBar {
 
         if (this.type === 'slanted') {
             // White bars are smaller, colored bars have more variation
-            if (this.isWhite) {
-                this.width = this.random() * 100 + 50;
-            } else {
-                this.width = this.random() * 400 + 200;
-            }
-            this.angle = 15; // Slight clockwise angle
+            this.width = this.isWhite
+                ? between(slanted.whiteBarWidthMin, slanted.whiteBarWidthMax)
+                : between(slanted.coloredBarWidthMin, slanted.coloredBarWidthMax);
+            this.angle = slanted.angle;
             this.y = 0; // Start at top, extend full height
         } else {
-            this.width = this.canvas.width + 400;
+            this.width = this.canvas.width + config.background.offscreen.horizontalWidth;
             // White bars are smaller
-            if (this.isWhite) {
-                this.height = this.random() * 30 + 20;
-            } else {
-                this.height = this.random() * 60 + 40;
-            }
-            this.skew = -15; // Negative skew angle
+            this.height = this.isWhite
+                ? between(horizontal.whiteBarHeightMin, horizontal.whiteBarHeightMax)
+                : between(horizontal.coloredBarHeightMin, horizontal.coloredBarHeightMax);
+            this.skew = horizontal.skewAngle;
             this.y = this.random() * this.canvas.height; // Random vertical position
         }
 

@@ -1,5 +1,6 @@
 import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { config } from '../config/config.js';
+import { hermite } from '../shared/motion.js';
 
 /**
  * CurtainBar - Semi-transparent curtain overlay with animated horizontal bars
@@ -54,12 +55,12 @@ export class CurtainBar extends AnimatedBar {
     this.phaseStartTime = 0;
 
     // Phase durations (milliseconds to seconds for update() calculations)
-    this.enterDuration = config.shade.durations.entryMs / 1000;
-    this.exitDuration = config.shade.durations.exitMs / 1000;
+    const share = config.shade.curtainMoveShare;
+    this.enterDuration = config.shade.durations.entryMs * share / 1000;
+    this.exitDuration = config.shade.durations.exitMs * share / 1000;
 
-    // Hold duration fills remaining time (totalDuration - enter - exit)
-    const enterExitMs = config.shade.durations.entryMs + config.shade.durations.exitMs;
-    this.holdDuration = (totalDurationMs - enterExitMs) / 1000;
+    // Hold fills the rest, so the curtains still end at totalDurationMs
+    this.holdDuration = totalDurationMs / 1000 - this.enterDuration - this.exitDuration;
 
     // Initial position (offscreen)
     if (position === 'top') {
@@ -71,7 +72,6 @@ export class CurtainBar extends AnimatedBar {
     }
 
     this.y = this.startY; // Current Y position
-    this.exitStartY = 0; // Will be set when entering exit phase
 
     // Initialize horizontal bars inside curtain
     this.bars = [];
@@ -92,21 +92,21 @@ export class CurtainBar extends AnimatedBar {
 
     for (let i = 0; i < barCount; i++) {
       // Mix of slanted (vertical) and horizontal bars (60% slanted, 40% horizontal like stinger)
-      const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
+      const type = this.random() > 0.6 ? 'slanted' : 'horizontal';
 
       const bar = {
         type: type,
-        direction: Math.random() > 0.5 ? 1 : -1, // Both L-R and R-L (or up-down for slanted)
+        direction: this.random() > 0.5 ? 1 : -1, // Both L-R and R-L (or up-down for slanted)
       };
 
       // Visual properties (match stinger/sidebar randomization pattern)
-      bar.isWhite = Math.random() > 0.7; // 30% white bars
+      bar.isWhite = this.random() > 0.7; // 30% white bars
 
       if (type === 'slanted') {
         // Slanted bars (vertical bars with rotation)
 
         // Position within curtain area (X position random across curtain width)
-        bar.x = Math.random() * this.canvas.width;
+        bar.x = this.random() * this.canvas.width;
 
         // Angle matches stinger pattern
         bar.angle = config.stinger.slanted.angle; // 15 degrees clockwise
@@ -116,18 +116,18 @@ export class CurtainBar extends AnimatedBar {
           bar.hue = 0;
           bar.saturation = 0;
           bar.lightness = 100 * config.shade.brightness;
-          bar.width = Math.random() * (config.stinger.slanted.whiteBarWidthMax - config.stinger.slanted.whiteBarWidthMin)
+          bar.width = this.random() * (config.stinger.slanted.whiteBarWidthMax - config.stinger.slanted.whiteBarWidthMin)
                     + config.stinger.slanted.whiteBarWidthMin; // 40-120px
         } else {
           // Colored bar with randomized hue variation
-          const hueVariation = (Math.random() - 0.5) * config.stinger.color.hueVariation; // ±20 from base
-          const lightnessVariation = (Math.random() - 0.5) * config.stinger.color.lightnessVariation; // ±15 from base
+          const hueVariation = (this.random() - 0.5) * config.stinger.color.hueVariation; // ±20 from base
+          const lightnessVariation = (this.random() - 0.5) * config.stinger.color.lightnessVariation; // ±15 from base
 
           bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
           bar.saturation = this.baseHSL.s;
           const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
           bar.lightness = Math.max(10, baseLightness * config.shade.brightness);
-          bar.width = Math.random() * (config.stinger.slanted.coloredBarWidthMax - config.stinger.slanted.coloredBarWidthMin)
+          bar.width = this.random() * (config.stinger.slanted.coloredBarWidthMax - config.stinger.slanted.coloredBarWidthMin)
                     + config.stinger.slanted.coloredBarWidthMin; // 150-450px
         }
 
@@ -153,7 +153,7 @@ export class CurtainBar extends AnimatedBar {
 
         // Speed for horizontal movement (traverse canvas width in 2-4 seconds like StingerBar)
         const totalTraversalDistance = this.canvas.width + bar.width + 400; // Full screen + bar width + buffers
-        bar.speed = totalTraversalDistance / (2 + Math.random() * 2);
+        bar.speed = totalTraversalDistance / (2 + this.random() * 2);
 
       } else {
         // Horizontal bars (original pattern)
@@ -175,18 +175,18 @@ export class CurtainBar extends AnimatedBar {
           bar.hue = 0;
           bar.saturation = 0;
           bar.lightness = 100 * config.shade.brightness;
-          bar.height = Math.random() * (config.stinger.horizontal.whiteBarHeightMax - config.stinger.horizontal.whiteBarHeightMin)
+          bar.height = this.random() * (config.stinger.horizontal.whiteBarHeightMax - config.stinger.horizontal.whiteBarHeightMin)
                      + config.stinger.horizontal.whiteBarHeightMin; // 20-50px
         } else {
           // Colored bar with randomized hue variation
-          const hueVariation = (Math.random() - 0.5) * config.stinger.color.hueVariation; // ±20 from base
-          const lightnessVariation = (Math.random() - 0.5) * config.stinger.color.lightnessVariation; // ±15 from base
+          const hueVariation = (this.random() - 0.5) * config.stinger.color.hueVariation; // ±20 from base
+          const lightnessVariation = (this.random() - 0.5) * config.stinger.color.lightnessVariation; // ±15 from base
 
           bar.hue = (this.baseHSL.h + hueVariation + 360) % 360;
           bar.saturation = this.baseHSL.s;
           const baseLightness = Math.max(20, Math.min(80, this.baseHSL.l + lightnessVariation));
           bar.lightness = Math.max(10, baseLightness * config.shade.brightness);
-          bar.height = Math.random() * (config.stinger.horizontal.coloredBarHeightMax - config.stinger.horizontal.coloredBarHeightMin)
+          bar.height = this.random() * (config.stinger.horizontal.coloredBarHeightMax - config.stinger.horizontal.coloredBarHeightMin)
                      + config.stinger.horizontal.coloredBarHeightMin; // 40-100px
         }
 
@@ -201,101 +201,76 @@ export class CurtainBar extends AnimatedBar {
         bar.x = bar.direction === 1 ? -bar.width : this.canvas.width;
 
         // Speed to traverse canvas in 2-3 seconds
-        bar.speed = (this.canvas.width + 400) / (2 + Math.random());
+        bar.speed = (this.canvas.width + 400) / (2 + this.random());
       }
 
       // Opacity variation (match stinger/sidebar pattern)
-      bar.opacity = Math.random() * (config.stinger.opacity.max - config.stinger.opacity.min)
+      bar.opacity = this.random() * (config.stinger.opacity.max - config.stinger.opacity.min)
                   + config.stinger.opacity.min; // 0.6-1.0
 
+      bar.x0 = bar.x;
       this.bars.push(bar);
     }
   }
 
   /**
-   * Update curtain position and bar positions
-   *
-   * Three-phase animation:
-   * - Enter: Curtain moves from offscreen to target position using easeInOutCubic
-   * - Hold: Static position at targetY (no movement)
-   * - Exit: Curtain returns to offscreen using easeInOutCubic
-   *
-   * Bars animate continuously throughout all phases with wrapping.
-   *
+   * Curtain position at time t (seconds since start). The curtain arrives
+   * fast and settles (leaves at 2x average speed, lands at rest), holds still,
+   * then accelerates away - velocity is zero at both hold boundaries, so the
+   * hand-offs are seamless.
+   */
+  curtainYAt(t) {
+    if (t < this.enterDuration) {
+      const d = this.enterDuration;
+      return hermite(this.startY, this.targetY, 2 * (this.targetY - this.startY) / d, 0, d, t);
+    }
+    const exitStart = this.enterDuration + this.holdDuration;
+    if (t < exitStart) return this.targetY;
+    const d = this.exitDuration;
+    return hermite(this.targetY, this.startY, 0, 2 * (this.startY - this.targetY) / d, d, t - exitStart);
+  }
+
+  /**
+   * Inner bar x at time t: constant speed with wrap-around, computed in
+   * closed form from the bar's spawn position so it never drifts.
+   */
+  barXAt(bar, t) {
+    const W = this.canvas.width;
+    if (bar.type === 'slanted') {
+      // Wrap range: center from -width/2-200 to W+width/2+200
+      const lo = -bar.width / 2 - 200;
+      const span = W + bar.width + 400;
+      const raw = bar.x0 + bar.speed * bar.direction * t - lo;
+      return lo + ((raw % span) + span) % span;
+    }
+    // Horizontal: left edge from -width-200 to W+200
+    const lo = -bar.width - 200;
+    const span = W + bar.width + 400;
+    const raw = bar.x0 + bar.speed * bar.direction * t - lo;
+    return lo + ((raw % span) + span) % span;
+  }
+
+  /** Set absolute time (seconds) - preferred over update() */
+  setTime(t) {
+    this.elapsedTime = t;
+    const exitStart = this.enterDuration + this.holdDuration;
+    if (t >= exitStart + this.exitDuration) {
+      this.active = false;
+      this.y = this.startY;
+      return;
+    }
+    this.phase = t < this.enterDuration ? 'enter' : t < exitStart ? 'hold' : 'exit';
+    this.y = this.curtainYAt(t);
+    for (const bar of this.bars) bar.x = this.barXAt(bar, t);
+  }
+
+  /**
+   * Advance by deltaTime seconds (kept for callers/tests; setTime is exact)
    * @param {number} deltaTime - Time elapsed since last frame in seconds
    */
   update(deltaTime) {
     if (!this.active) return;
-
-    this.elapsedTime += deltaTime;
-    const phaseTime = this.elapsedTime - this.phaseStartTime;
-
-    // Update curtain position based on current phase
-    if (this.phase === 'enter') {
-      const progress = Math.min(phaseTime / this.enterDuration, 1);
-      const easedProgress = this.easeInOutCubic(progress);
-      this.y = this.startY + (this.targetY - this.startY) * easedProgress;
-
-      if (progress >= 1) {
-        this.phase = 'hold';
-        this.phaseStartTime = this.elapsedTime;
-      }
-    } else if (this.phase === 'hold') {
-      // Static position during hold phase (CONTEXT: no breathing or motion)
-      this.y = this.targetY;
-
-      if (phaseTime >= this.holdDuration) {
-        this.phase = 'exit';
-        this.phaseStartTime = this.elapsedTime;
-        this.exitStartY = this.y;
-      }
-    } else if (this.phase === 'exit') {
-      const progress = Math.min(phaseTime / this.exitDuration, 1);
-      const easedProgress = this.easeInOutCubic(progress);
-
-      // Return to offscreen position
-      this.y = this.exitStartY + (this.startY - this.exitStartY) * easedProgress;
-
-      if (progress >= 1) {
-        this.active = false;
-      }
-    }
-
-    // Update bars continuously (animate throughout enter/hold/exit)
-    this.bars.forEach(bar => {
-      if (bar.type === 'slanted') {
-        // Slanted bars move horizontally (left or right depending on direction)
-        // Like StingerBar slanted bars, they traverse the canvas width
-        bar.x += bar.speed * bar.direction * deltaTime;
-
-        // Wrap around when bar completely exits screen horizontally
-        // Slanted bars are drawn with rotation, need to account for bar width
-        // Moving right (direction 1): wrap when bar center exceeds right edge + buffer
-        if (bar.direction === 1 && bar.x - bar.width/2 > this.canvas.width + 200) {
-          bar.x = -bar.width/2 - 200; // Reset to fully offscreen left
-        }
-        // Moving left (direction -1): wrap when bar center goes past left edge - buffer
-        else if (bar.direction === -1 && bar.x + bar.width/2 < -200) {
-          bar.x = this.canvas.width + bar.width/2 + 200; // Reset to fully offscreen right
-        }
-      } else {
-        // Horizontal bars move left or right
-        bar.x += bar.speed * bar.direction * deltaTime;
-
-        // Wrap around when bar fully exits screen
-        // Bar is drawn from x to x+width (fillRect at translate x)
-        // Moving right (direction 1): wrap when LEFT edge (x) exceeds right screen edge
-        // Add buffer (+200px) to ensure bar is completely offscreen before wrapping
-        if (bar.direction === 1 && bar.x > this.canvas.width + 200) {
-          bar.x = -bar.width - 200; // Reset to fully offscreen left (right edge at x=-200)
-        }
-        // Moving left (direction -1): wrap when RIGHT edge (x+width) goes past left screen edge
-        // Subtract buffer (-200px) to ensure bar is completely offscreen before wrapping
-        else if (bar.direction === -1 && bar.x + bar.width < -200) {
-          bar.x = this.canvas.width + 200; // Reset to fully offscreen right (left edge at canvas.width+200)
-        }
-      }
-    });
+    this.setTime(this.elapsedTime + deltaTime);
   }
 
   /**
@@ -394,8 +369,14 @@ export class CurtainBar extends AnimatedBar {
 
       // AnimatedBar.drawBar checks this.type to determine rotation vs skew
       // Temporarily set type to match the bar being drawn
+      // Each inner bar keeps its own gradient cache. They used to share the
+      // curtain's single cache (keyed only by width), so bars of different
+      // colors/types reused each other's gradient or rebuilt it every frame.
       const savedType = this.type;
       this.type = bar.type;
+      this._gradient = bar._gradient;
+      this._gradientKey = bar._gradientKey;
+      this._gradientFlip = bar._gradientFlip;
 
       this.drawBar(
         bar.x,
@@ -409,6 +390,10 @@ export class CurtainBar extends AnimatedBar {
         angleOrSkew,
         true // withShadow
       );
+
+      bar._gradient = this._gradient;
+      bar._gradientKey = this._gradientKey;
+      bar._gradientFlip = this._gradientFlip;
 
       // Restore original type
       this.type = savedType;
