@@ -80,7 +80,8 @@ export const SCENARIOS = [
       fullCoverAtMs: 600,
       fullCoverMinMs: 200,
       noVelocitySteps: true
-      // CPU is stinger-cpu's job (the CPU check needs ~200 drawn frames)
+      // No CPU check: one 1.2 s run is too few frames for p95 (QA, #65); the
+      // 16:9 stinger scenarios hold the CPU budget
     }
   },
   {
