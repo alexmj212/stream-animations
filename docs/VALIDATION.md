@@ -20,6 +20,7 @@ is built and checked.
 | `npm run motion -- --fps=30` | Step at another frame rate (OBS browser sources are often set to 30) |
 | `npm run motion -- --no-shots` | Skip keyframe screenshots (about 2x faster) |
 | `npm run motion -- --dump` | Also write every frame's raw data to `capture.json` |
+| `npm run motion -- --jitter` | Uneven frame times, like a loaded OBS. Checks timing and coverage still hold; skips the smoothness and CPU checks |
 | `npm run motion:export -- stinger` | Render to a transparent WebM for OBS (see below) |
 | `npm run bench` | Real-time FPS and Canvas 2D hot paths (complements the harness) |
 
@@ -117,6 +118,13 @@ It prints the OBS settings, including the Transition Point measured from the
 frames where the screen is fully covered (the middle of that window, about
 50% of the duration). Requires `ffmpeg` on PATH, or set `FFMPEG`. Output goes
 to `exports/` (gitignored).
+
+## Scenarios
+
+`stinger`, `sidebar` and `shade` are checked for timing, coverage and smooth
+motion. `background` is checked for smooth motion and CPU. `epcot` has no
+motion probe; it is a CPU regression guard (p95 at most 20ms, measured
+around 10ms).
 
 ## Adding a scenario
 

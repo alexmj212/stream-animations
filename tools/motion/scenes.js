@@ -16,6 +16,7 @@
  *   regionCover              - {x0,x1,y0,y1 (fractions), fromMs, toMs, label}
  *   noVelocitySteps          - no isolated velocity jumps in probe tracks
  *   workP95Ms                - p95 update+draw CPU time per frame
+ *   probeMax                 - {field, max, label}: a probe sample field never exceeds max
  */
 
 const COLOR = '%23ff6600';
@@ -66,6 +67,7 @@ export const SCENARIOS = [
     checks: {
       totalDurationMs: 5000,
       endsClear: true,
+      probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
       noVelocitySteps: true,
       workP95Ms: 4
     }
@@ -81,6 +83,20 @@ export const SCENARIOS = [
     checks: {
       noVelocitySteps: true,
       workP95Ms: 4
+    }
+  },
+  {
+    // Continuous light show: no motion probe; this guards per-frame cost.
+    // fps=60 so every stepped frame renders (the scene's own default caps at 30).
+    name: 'epcot',
+    url: '/src/epcot/index.html?panel=false&fps=60',
+    start: 'load',
+    captureMs: 3000,
+    keyframes: [0.5, 1],
+    keyframeSpanMs: 3000,
+    markers: [],
+    checks: {
+      workP95Ms: 20
     }
   }
 ];
