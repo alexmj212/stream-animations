@@ -19,6 +19,22 @@ import { hermite, stratified } from '../shared/motion.js';
 import { config } from '../config/config.js';
 
 const OFFSCREEN = 300;
+/** px a curtain reaches past the screen's far edge on a tall canvas. */
+const CURTAIN_EDGE_OVERLAP = 50;
+
+/**
+ * How far off screen a slanted bar or curtain waits and leaves. A slanted
+ * bar is 1.5x the canvas height and reaches 1.05H below its anchor, so its
+ * bottom leans H*1.05*sin(angle) (+5px drop shadow) toward the start side.
+ * At 1920x1080 that's under OFFSCREEN; on the 1080x1920 vertical canvas it
+ * isn't, and the bars popped in already on screen (PR #66, 2026-10-28).
+ * @param {number} height - Canvas height (px)
+ * @param {number} angle - Rotation angle (degrees)
+ * @returns {number} px
+ */
+export function slantedOffscreen(height, angle) {
+    return Math.max(OFFSCREEN, height * 1.05 * Math.abs(Math.sin(angle * Math.PI / 180)) + 5);
+}
 
 export class StingerBar extends AnimatedBar {
     /**
@@ -81,8 +97,9 @@ export class StingerBar extends AnimatedBar {
             this.y = 0;
             const center = L.targetX ?? W * (0.2 + this.random() * 0.6);
             this.targetX = center - this.width / 2;
-            this.startX = this.direction === 1 ? -this.width - OFFSCREEN : W + OFFSCREEN;
-            this.farX = this.direction === 1 ? W + OFFSCREEN : -this.width - OFFSCREEN;
+            const off = slantedOffscreen(this.canvas.height, this.angle);
+            this.startX = this.direction === 1 ? -this.width - off : W + off;
+            this.farX = this.direction === 1 ? W + off : -this.width - off;
         } else {
             this.width = W + 400;
             this.height = L.height ?? (this.isWhite ? this.random() * 30 + 20 : this.random() * 60 + 40);
@@ -168,10 +185,17 @@ export class StingerBar extends AnimatedBar {
         const T = this.totalDuration;
         this.isBackground = true;
         this.isWhite = false;
-        this.width = W * 0.75;
+        // 3/4 of the width, or wider on a tall canvas (the Aitum Vertical
+        // 1080x1920 one), where the 15° slant pulls the right curtain's
+        // bottom edge back off the screen: its far edge at the bottom sits
+        // at W/2 + width/cos - H*tan, so it must reach W plus the overlap
+        const rad = this.angle * Math.PI / 180;
+        const H = this.canvas.height;
+        this.width = Math.max(W * 0.75, (W / 2 + H * Math.tan(rad) + CURTAIN_EDGE_OVERLAP) * Math.cos(rad));
         this.opacity = 1.0;
         this.direction = side === 'left' ? 1 : -1;
-        this.startX = side === 'left' ? -this.width - OFFSCREEN : W + OFFSCREEN;
+        const off = slantedOffscreen(H, this.angle);
+        this.startX = side === 'left' ? -this.width - off : W + off;
         // Curtains overlap by ~50px at the seam (see geometry in README)
         this.targetX = side === 'left' ? W / 2 - this.width : W / 2;
         this.exitX = this.startX;

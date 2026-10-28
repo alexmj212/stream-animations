@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
-import { StingerBar, planStinger } from '../../src/stinger/StingerBar.js';
+import { StingerBar, planStinger, slantedOffscreen } from '../../src/stinger/StingerBar.js';
 import { createRandom } from '../../src/shared/motion.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
@@ -292,6 +292,54 @@ describe('StingerBar phase transitions', () => {
               expect(bar.x + skew).toBeLessThanOrEqual(0);
               expect(bar.x + bar.width - skew).toBeGreaterThanOrEqual(1920);
             }
+          }
+        }
+      }
+    });
+
+    it('curtains cover the screen edge to edge on wide and tall canvases', () => {
+      // The Aitum Vertical canvas runs this stinger at 1080x1920, where the
+      // 15° slant pulled the right curtain's bottom corner on screen (QA
+      // export 2026-10-28: 95.9% coverage at the cut, never 100%)
+      const tan = Math.tan(15 * Math.PI / 180);
+      const cos = Math.cos(15 * Math.PI / 180);
+      for (const [W, H] of [[1920, 1080], [1080, 1920]]) {
+        const canvas = createMockCanvas(W, H);
+        const ctx = createMockContext(canvas);
+        const [left, right] = planStinger(ctx, canvas, { h: 24, s: 100, l: 50 }, 1200, createRandom(1));
+        left.setTime(0.5);
+        right.setTime(0.5);
+        // Far edge of the right curtain at the bottom of the screen, and
+        // near edge of the left curtain at the top
+        expect(right.x + right.width / cos - H * tan).toBeGreaterThanOrEqual(W);
+        expect(left.x).toBeLessThanOrEqual(0);
+        // Seam overlap holds too, at the top and bottom
+        const sin = Math.sin(15 * Math.PI / 180);
+        for (const Y of [0, H]) {
+          const leftEdge = left.x + left.width * cos - (Y - left.width * sin) * tan;
+          const rightEdge = right.x - Y * tan;
+          expect(leftEdge - rightEdge).toBeGreaterThan(20);
+        }
+      }
+    });
+
+    it('slanted bars and curtains start fully off screen on wide and tall canvases', () => {
+      // On 1080x1920 the slant's lean used to put bars on screen at t=0, so
+      // they popped in (motion harness stinger-vertical, 2026-10-28)
+      const sin = Math.sin(15 * Math.PI / 180);
+      expect(slantedOffscreen(1080, 15)).toBe(300); // 16:9 unchanged
+      for (const [W, H] of [[1920, 1080], [1080, 1920]]) {
+        for (let seed = 1; seed <= 20; seed++) {
+          const canvas = createMockCanvas(W, H);
+          const ctx = createMockContext(canvas);
+          const bars = planStinger(ctx, canvas, { h: 24, s: 100, l: 50 }, 1200, createRandom(seed))
+            .filter(b => b.type === 'slanted');
+          for (const bar of bars) {
+            bar.setTime(0);
+            // Bottom of the bar leans left by 1.05H*sin; its top-right
+            // corner reaches width*cos + 0.45H*sin right of the anchor
+            if (bar.x > 0) expect(bar.x - 1.05 * H * sin - 5).toBeGreaterThanOrEqual(W);
+            else expect(bar.x + bar.width + 0.45 * H * sin).toBeLessThanOrEqual(0);
           }
         }
       }

@@ -31,13 +31,8 @@ force now.
 
 | Rule | Target | Ships today |
 |---|---|---|
-| MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shared entry/exit 1000/1000ms on `easeInOutCubic` ([MOTION.md](MOTION.md), Timing); the sidebar splits its `duration` 25/50/25 |
-| TYPE-1 | Alert text 56px and up | Sidebar 29px; shade 96px |
-| TYPE-3 | Ink stroke 0.08em + soft shadow | Shade: 96px with a soft shadow, no stroke ([MOTION.md](MOTION.md), Look); sidebar: a black text-shadow outline |
-| TYPE-7 | Fonts bundled into the build | Jost from Google Fonts at runtime, or the machine's installed Jost |
-| CUT-2 | At most 300ms of static full cover | 30% of `duration`: 300ms at the default 1000ms, 600ms at OBS's `duration=2000` |
-| TIME-1 | The hold alone meets reading time | The sidebar's hold is 50% of `duration` (1.5s at OBS's 3000ms) |
-| SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | OBS-placed text (goal bar, scene titles) at 20-30px from the edges |
+| MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shade and sidebar ship it (#33-#35); the other scenes keep their own timings ([MOTION.md](MOTION.md), Timing) |
+| SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | Two exemptions, AJ's call on 2026-10-28 ([MOTION.md](MOTION.md) Learnings): the goal bar and notifications toast keep their place in the top margin (#40, text size only), and the OBS scene titles and BRB collage stay as they are (#39, #42). New text gets no exemption |
 
 **Scope** is the OBS program output (AJ, 2026-10-28): every scene, alert,
 widget and transition a viewer sees. Control UIs that never reach the
@@ -169,11 +164,17 @@ canvas, with what a viewer sees:
 | `headline` | 56 | 37 | 11.4 | Tier 2 alerts (sidebar), scene titles |
 | `label` | 40 | 27 | 8.1 | Persistent widgets (goal, notifications) |
 
-- **TYPE-1** (target for alerts) Nothing a viewer must read is under 40px
-  (`minPx`). Alert text is 56px and up. Today's sidebar text is 29px: 6px on a phone.
+- **TYPE-1** Nothing a viewer must read is under 40px (`minPx`). Alert
+  text is 56px and up; a short action line set with it (the sidebar's
+  "CHECK OUT") may be `label` 40px (#34).
+  One exception: the notifications toast draws at 42px, but a very long
+  custom line (about 20 words) shrinks to 23px (`notifications.text.minScale`)
+  so it holds still and whole for its reading time. TIME-1 wins over TYPE-1
+  there, and the harness reports it as a TYPE-1 warning, not a failure.
+  Design review accepted it in #62 (2026-10-28); don't re-file it.
 - **TYPE-2** Uppercase, tracking +2% (`trackingEm`). Usernames keep their
   letters but render in caps like everything else.
-- **TYPE-3** (target) Text over anything that moves takes the recipe: an ink stroke
+- **TYPE-3** Text over anything that moves takes the recipe: an ink stroke
   of 0.08em (never under 3px, so 2px survives a 720p encode), painted
   under the fill, plus a soft ink shadow 0.04em down-right. Text on a solid
   plate needs only the plate.
@@ -190,9 +191,11 @@ canvas, with what a viewer sees:
   rule and its 75% floor live in [MOTION.md](MOTION.md). The notifications
   toast is the exception: its bar grows to fit the line and the text stays
   still (MOTION.md Learnings, 2026-10-28, #31, built in #32).
-- **TYPE-7** (target) Fonts are bundled into the single-file build, never fetched at
+- **TYPE-7** Fonts are bundled into the single-file build, never fetched at
   runtime. A browser source that loads before Google Fonts answers, or
-  offline, falls back to Arial for the whole alert.
+  offline, falls back to Arial for the whole alert. Text scenes link
+  `src/shared/fonts/jost.css` (Jost 700 and 700 italic, Latin and Latin
+  Extended), which the build inlines (#41).
 - **TYPE-8** The words are stable: the on-screen text and the chat headline
   for the same event say the same thing.
 
@@ -254,7 +257,7 @@ canvas, with what a viewer sees:
   to spare either side, and the cut is at 50% of the URL's `duration`. The
   URL duration and OBS's Transition point change together (the vault's Alert &
   Transition Wiring note; [SCENES.md](SCENES.md)).
-- **CUT-2** (target) The full cover is a moment, not a hold: at most 300ms of static
+- **CUT-2** The full cover is a moment, not a hold: at most 300ms of static
   cover (`staticCoverMaxMs`), with the bars still moving through it. The
   whole stinger is 800-1500ms; the cut lands on its busiest frame.
 - **CUT-3** Motion keeps its direction through the cut, so the eye reads one
@@ -286,7 +289,7 @@ canvas, with what a viewer sees:
 
 ### Timing
 
-- **TIME-1** (target for the sidebar) Reading time: the hold, still and fully on screen, is at least
+- **TIME-1** Reading time: the hold, still and fully on screen, is at least
   200ms a word and never under 3s ([MOTION.md](MOTION.md), Timing). Enter
   and exit don't count. An alert whose `duration` can't fit enter + hold +
   exit grows its duration; it never cuts the hold.
@@ -344,6 +347,47 @@ Design rules that keep them:
 - **PERF-3** Prefer a recorded loop for an always-on look that doesn't
   react to anything (the epcot recording is the model).
 
+## Vertical canvas
+
+The Aitum Vertical canvas (1080x1920) feeds clips for Shorts, Reels and
+TikTok, so its viewers are on a phone, with the app's own buttons and
+captions drawn over the frame (AJ, 2026-10-28). It has its own safe area
+and type floor; the rest of this bible (colour, slant, motion, timing)
+applies unchanged. Tokens: `config.design.vertical`.
+
+| Token | Value | On a 390pt phone |
+|---|---|---|
+| `vertical.safe` | top 220, bottom 440, left 60, right 140 | text box x 60-940, y 220-1480 |
+| `vertical.type.sizes` | hero 112, display 80, headline 64, label 48 | 40, 29, 23, 17pt |
+| `vertical.type.minPx` | 48 | 17pt |
+| `vertical.seamY` | 700 | camera above, game below |
+
+- **V-SAFE-1** Every word sits inside the phone-safe box. The top 220px
+  holds the app's status and tabs, the bottom 440px its captions, channel
+  and sound, and the right 140px its like/comment/share column. The
+  numbers are the strictest of the current platform guides (TikTok's right
+  column 120, captions 320-370) plus a margin; recheck them when an app
+  redesigns. Bars and fills may still bleed to the edges.
+- **V-TYPE-1** Nothing a viewer must read is under 48px (17pt on a phone).
+  A 16:9 page scaled onto the vertical canvas fails this (the toast lands
+  at about 34px), so an alert gets a portrait layout or a native
+  1080x1920 source rather than a scaled copy of the 16:9 one.
+  One exception, AJ's pick B1 (2026-10-28): the vertical toast is one line
+  at 56px, and a long line shrinks to 45px and then scrolls during its
+  hold, as the 16:9 toast's last resort does. That trades V-TYPE-1 and
+  TIME-1 for a single line; the harness reports it as a warning, not a
+  failure. Don't re-file it.
+- **V-LAYOUT-1** Alerts sit on the camera/game seam or inside the game
+  half, never over AJ's face in the camera half. The toast spans the safe
+  width on the seam in one line at 56px (AJ's pick, B1), with no goal bar to grow from (there's no goal bar on
+  vertical). The raid shade uses its own native 1080x1920 source, where
+  the page already wraps the name to fit.
+- **V-REUSE-1** One page serves both canvases where it can: a portrait
+  layout is picked from the viewport (or a URL param), not a second copy
+  of the scene.
+
+![Portrait toast options on the phone-safe box (mock, 2026-10-28). AJ picked B1: one line at 56px, shrinking to 45px and then scrolling](design/vertical-toast.jpg)
+
 ## Scenes at a glance
 
 | Scene | Tier | Zone | Type | Motion | Notes |
@@ -354,7 +398,7 @@ Design rules that keep them:
 | vtuber | 1 | Content | none | Idle | Never under an alert's text |
 | goal bar | 1 | Top-left, title-safe | `label` 40px | Still; swap on change | Rebuild in progress (Follower widget thread) |
 | notifications bar | 1 | Top band | `label` 40px | One toast at a time | AJ chose "A Creative", PR #27 |
-| sidebar | 2 | Right panel, text at 78% | `headline` 56px | Enter, hold, exit | Text inside the panel ([MOTION.md](MOTION.md)) |
+| sidebar | 2 | Right panel, text at 78% | `headline` 56px name, `label` 40px action | Enter, hold, exit | Text on an ink nameplate, right edge on title-safe (#34) |
 | shade | 3 | Full screen | `hero` 96px | Enter, hold, exit | Text still and whole during the hold |
 | stinger | T | Full screen | none | 800-1500ms | CUT rules |
 
@@ -380,6 +424,8 @@ capture when OBS adds layers on top. Cite the rule id for each finding.
    (FLASH-1, 2).
 10. No long dark gradients, no full-screen noise (ENC-1, 3).
 11. Within the frame budget (PERF; the harness and `npm run bench`).
+12. On the vertical canvas: words inside the phone-safe box, 48px or
+    more, off AJ's face (V-SAFE-1, V-TYPE-1, V-LAYOUT-1).
 
 ## Making designs
 

@@ -599,24 +599,14 @@ describe('shade config validation', () => {
   const validShadeConfig = {
     brightness: 0.8,
     text: {
-      font: 'bold 96px Jost',
       color: '#ffffff',
-      shadow: {
-        blur: 8,
-        offsetX: 4,
-        offsetY: 4,
-        color: 'rgba(0, 0, 0, 0.6)'
-      }
+      lineHeight: 1.15
     },
     timing: {
       readingSpeedMsPerWord: 200,
-      minHoldMs: 3000,
-      scrollSpeedPxPerSec: 300
+      minHoldMs: 3000
     },
-    durations: {
-      entryMs: 1000,
-      exitMs: 1000
-    }
+    curtainMoveMs: 500
   };
 
   it('validateShadeConfig accepts valid config', () => {
@@ -639,39 +629,6 @@ describe('shade config validation', () => {
     expect(result).toBe(false);
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       expect.stringContaining('brightness must be between 0 and 1')
-    );
-    consoleWarnSpy.mockRestore();
-  });
-
-  it('validateShadeConfig validates font string', () => {
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const config = { ...validShadeConfig, text: { ...validShadeConfig.text, font: '' } };
-    const result = validateShadeConfig(config);
-    expect(result).toBe(false);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('text.font must be a non-empty string')
-    );
-    consoleWarnSpy.mockRestore();
-  });
-
-  it('validateShadeConfig validates shadow properties', () => {
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const config = {
-      ...validShadeConfig,
-      text: {
-        ...validShadeConfig.text,
-        shadow: {
-          blur: -5,
-          offsetX: 4,
-          offsetY: 4,
-          color: 'rgba(0, 0, 0, 0.6)'
-        }
-      }
-    };
-    const result = validateShadeConfig(config);
-    expect(result).toBe(false);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('shadow.blur must be >= 0')
     );
     consoleWarnSpy.mockRestore();
   });
@@ -704,29 +661,25 @@ describe('shade config validation', () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it('validateShadeConfig validates scrollSpeedPxPerSec positive', () => {
+  it('validateShadeConfig validates text lineHeight', () => {
     const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const config = {
-      ...validShadeConfig,
-      timing: { ...validShadeConfig.timing, scrollSpeedPxPerSec: -100 }
-    };
+    const config = { ...validShadeConfig, text: { ...validShadeConfig.text, lineHeight: 3 } };
     const result = validateShadeConfig(config);
     expect(result).toBe(false);
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('scrollSpeedPxPerSec must be > 0')
+      expect.stringContaining('text.lineHeight must be between 1 and 2')
     );
     consoleWarnSpy.mockRestore();
   });
 
-  it('validateShadeConfig validates durations', () => {
+  it('validateShadeConfig validates curtainMoveMs', () => {
     const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const config = {
-      ...validShadeConfig,
-      durations: { entryMs: 50, exitMs: 20000 }
-    };
+    const config = { ...validShadeConfig, curtainMoveMs: 50 };
     const result = validateShadeConfig(config);
     expect(result).toBe(false);
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('curtainMoveMs must be between 100 and 2000')
+    );
     consoleWarnSpy.mockRestore();
   });
 });

@@ -12,8 +12,9 @@ while the scene cuts, then it all slides away.
 **URL**: `stinger/index.html?color=#hexvalue&duration=1000`
 
 - `duration` - total length in ms (default 1000). The stinger lasts exactly
-  this long: bars arrive over the first 35%, the screen is fully covered
-  through the middle 30%, and bars leave over the last 35%. **Cut point: 50%
+  this long: bars arrive over the first 45%, hold through the middle
+  10%, and leave over the last 45%; the screen is fully covered around the
+  middle. **Cut point: 50%
   of the duration.**
 - `seed` - pin the bar layout (integer). Without it every transition gets a
   fresh layout, always balanced across the screen.
@@ -30,8 +31,9 @@ npm run motion:export -- stinger --color=#ff6600 --duration=1000
 ```
 
 ### Sidebar
-Bars slide in from the right, hold over the right 20% with the text, and
-slide out, ending exactly at `duration`.
+Bars slide in from the right, hold over the right 20% with the text on an
+ink nameplate, and slide out. The text holds still for its reading time;
+`duration` is the shortest the whole alert can be, never a cut.
 
 **URL**: `sidebar/index.html?color=#hexvalue&text=Now+Playing&duration=5000` (`seed` as above)
 
@@ -39,7 +41,7 @@ slide out, ending exactly at `duration`.
 A toast bar that grows out of the right end of the follower-goal bar (top
 left), shows one line of text and slides back in. Rebuilt from the OBS
 "Notifications" scene. Long text never loses words: it shrinks to 70%, then
-the bar grows toward the right edge (up to x 1890), and only a line too long
+the bar grows toward the right edge (up to x 1824, title-safe), and only a line too long
 even for that scrolls during the hold. The default duration stretches so the
 text holds at 200 ms a word.
 

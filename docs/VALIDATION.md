@@ -14,7 +14,7 @@ is built and checked.
 | Command | What it does |
 |---|---|
 | `npm run motion` | Every scenario, layout seeds 1-3. Exit code 1 if any check fails. |
-| `npm run motion -- stinger sidebar` | Only these scenarios |
+| `npm run motion -- stinger sidebar` | Only these scenes, with their variants (`notifications` also runs `notifications-long` and `-scroll`). An exact scenario name such as `notifications-long` runs just that one |
 | `npm run motion -- --seeds=1,2,3,4,5,6` | More layouts (scenes with random layouts should pass on all of them) |
 | `npm run motion -- --color=00b3ff` | Another base color |
 | `npm run motion -- --params=scheme=mono` | Extra URL params on every scene, to mock a look without editing `scenes.js` |
@@ -42,7 +42,7 @@ wall-clock time:
 - `requestAnimationFrame` callbacks queue and only run when the harness calls
   `__motion.step(dt)`; `performance.now()` and `Date.now()` return virtual time
 - `Math.random` is seeded (`?seed=`), so runs are reproducible
-- CSS animations (sidebar text) are paused and advanced in lock-step
+- CSS animations are paused and advanced in lock-step
 
 So every frame is rendered at an exact timestamp no matter how slow the
 machine or the screenshotting is. After each step the harness reads the
@@ -66,7 +66,7 @@ Defined per scenario in `tools/motion/scenes.js`.
 | Fully covers the screen at the cut point | Canvas fully opaque at `fullCoverAtMs` for at least `fullCoverMinMs` | Curtains that don't overlap, a phase that ends before the cut |
 | Covers *region* | A region (fractions of the screen) is opaque on every frame of a window | Panel positioned from the wrong property, slanted edge not accounted for |
 | Smooth motion | No isolated velocity jumps on any on-screen object | A phase hand-off that resets velocity (ease to a stop, then snap to a drift) |
-| Frame CPU budget | p95 of update+draw time ≤ `workP95Ms` | Per-frame allocation, cache thrash, too many objects drawn |
+| Frame CPU budget | p95 of update+draw time ≤ `workP95Ms`, over at least 200 drawn frames (`MIN_CPU_FRAMES`); fewer fails the check, since p95 of a short capture is one slow frame | Per-frame allocation, cache thrash, too many objects drawn; a scenario too short to measure |
 | Text over *panel* | Every canvas pixel under a text element's on-screen box (`textBox.selector`) is opaque through a window | Long text hanging off the slanted panel over the stream |
 | Scene events | The scene's debug events (`?debug=events`) match `debugEvents` counts exactly | A trigger that restarts the scene, a scene that never marks `end` |
 | Design rules (SAFE-1, SAFE-3, TYPE-1, TIME-1, CUT-2, FLASH-1, FLASH-2) | The bible's machine-checkable rules ([DESIGN.md](DESIGN.md)), from `tools/motion/designRules.js`. Placement and size read the text box (a probe sample with `box`, `fontPx`, `words`, or `textBox.selector`) through `holdMs`; CUT-2 and FLASH read a 16x9 luminance grid, taken in a second, untimed pass of the same seed so it can't touch the CPU numbers | Text in the screen margin or under the player controls, type under the floor, text that never stops long enough to read, a stinger sitting covered and still, strobing |
@@ -76,6 +76,10 @@ reports ⚠ and doesn't fail the run: those are DESIGN.md's "Today vs target"
 gaps, closed by each scene's audit issue. Rules listed in the scenario's
 `design.fail` fail the run. When an audit issue lands, move its rule into
 `fail` in the same PR. Never take a rule out of `fail` to get green.
+A ⚠ should mean a gap someone still owes. Where a rule can't apply (an
+exemption AJ or design review made, or a widget that never moves, where
+TIME-1 only measures the capture), leave it out of `rules`, with a comment
+naming the decision, so the warnings that remain are real.
 
 ### Smooth motion, precisely
 
@@ -159,7 +163,13 @@ to `exports/` (gitignored).
 ## Scenarios
 
 `stinger`, `sidebar` and `shade` are checked for timing, coverage and smooth
-motion. `background` is checked for smooth motion and CPU. `epcot` has no
+motion. `sidebar-name` and `shade-raid` load the alerts as OBS sends them
+(`duration=3000`), and `sidebar-long` and `shade-long` check that long text
+fits; all of them enforce SAFE-1, TYPE-1 and TIME-1, so the text can't go
+back to moving during its hold. `stinger-vertical` runs the stinger at 1080x1920, the size OBS's
+Aitum Vertical canvas renders it at: a slanted bar's 15° lean reaches
+further on a tall canvas, which once left a corner uncovered at the cut
+and let bars pop in on screen (PR #66). `background` is checked for smooth motion and CPU. `epcot` has no
 motion probe; it is a CPU regression guard (p95 at most 20ms, measured
 around 10ms).
 
@@ -168,6 +178,9 @@ frame CPU budget over five follows, two seconds apart (`events`), because
 one follow draws only about 70 frames and p95 of so few is one GC pause
 away from failing (issue #50). The same goes for any scene that draws only
 on change: give its CPU check enough drawn frames, never a higher budget.
+`stinger-cpu` does the same for the stinger: six 1200ms transitions 1.5s
+apart (about 440 drawn frames), since one transition draws about 74 and
+its p95 failed once on a cold-JIT frame (PR #63).
 
 ### Recording the epcot loop
 
@@ -189,4 +202,5 @@ inf dB (identical, seamless)` and exits 1 if the loop doesn't close.
 Add an entry to `SCENARIOS` in `tools/motion/scenes.js`: the URL with fixed
 params, how it starts (`'load'` or `{ event: 'transitionStart' }`), how long
 to capture, keyframes for the filmstrip, chart markers, and the checks that
-define correct for that scene. Then run `npm run motion -- <name> --seeds=1,2,3,4,5,6`.
+define correct for that scene. A scenario for another canvas size (the
+1080x1920 vertical canvas) sets `viewport: { width, height }`. Then run `npm run motion -- <name> --seeds=1,2,3,4,5,6`.

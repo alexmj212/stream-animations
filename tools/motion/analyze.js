@@ -164,6 +164,13 @@ export function percentile(values, p) {
   return sorted[idx];
 }
 
+/**
+ * Fewest drawn frames a Frame CPU check accepts. Under ~200 the p95 is one of
+ * the few worst frames, and a cold-JIT or GC frame fails it (issue #50, PR #63;
+ * Code review's idea on #65, 2026-10-28).
+ */
+export const MIN_CPU_FRAMES = 200;
+
 export function workStats(frames) {
   const w = frames.filter(f => f.ran > 0).map(f => f.workMs);
   return {
@@ -289,10 +296,13 @@ export function evaluate(spec, frames, debug = null) {
 
   if (checks.workP95Ms != null) {
     const stats = workStats(frames);
+    const enough = stats.frames >= MIN_CPU_FRAMES;
     results.push({
       name: 'Frame CPU budget',
-      pass: stats.p95 <= checks.workP95Ms,
-      detail: `update+draw p50 ${stats.p50.toFixed(2)}ms, p95 ${stats.p95.toFixed(2)}ms, max ${stats.max.toFixed(2)}ms (budget p95 ≤ ${checks.workP95Ms}ms)`
+      pass: enough && stats.p95 <= checks.workP95Ms,
+      detail: enough
+        ? `update+draw p50 ${stats.p50.toFixed(2)}ms, p95 ${stats.p95.toFixed(2)}ms, max ${stats.max.toFixed(2)}ms over ${stats.frames} frames (budget p95 ≤ ${checks.workP95Ms}ms)`
+        : `only ${stats.frames} drawn frames, need ${MIN_CPU_FRAMES}: p95 of so few is one slow frame away from failing. Check CPU in a longer scenario (see followers-cpu, stinger-cpu)`
     });
   }
 

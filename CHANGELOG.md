@@ -4,6 +4,40 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.4.1 - 2026-10-28
+
+- Stinger on the vertical (1080x1920) canvas: the slanted bars now start
+  fully off screen instead of popping in partway down. The 16:9 stinger
+  is unchanged. ([#69])
+
+## v2.4.0 - 2026-10-28
+
+- Alerts: the shade and sidebar text now holds still and whole while
+  viewers read it, for 200ms a word and never under 3s, instead of
+  scrolling. The shade line sits centred and wraps to two lines when it's
+  long. The sidebar shows the @name large on a dark nameplate, with the
+  action in reading order. OBS's `duration` is now a minimum, so nothing
+  changes in OBS or Mix It Up. A very long alert stops at 6.8s in the
+  sidebar and 9.8s in the shade, before OBS hides the source. An alert
+  too long for two lines now reads on without gaps and ends in "…".
+  ([#58], [#64])
+- Goal bar and toast: the text is bigger, 42px instead of 32px, in the same
+  top-left spot. The goal bar now reaches x560 so the count fits, and the
+  toast grows out from there. ([#62])
+- Stinger on the vertical (1080x1920) canvas: the curtains now cover the
+  whole screen at the cut, instead of leaving a wedge at the bottom right.
+  The 16:9 stinger is unchanged. ([#66])
+- Text scenes carry their own copy of Jost, so a browser source that
+  loads offline or before the font arrives no longer falls back to
+  Arial. ([#60])
+
+## v2.3.0 - 2026-10-28
+
+- Stinger: runs at 1200ms with the cut at 600ms, as AJ picked. The bars
+  hold still for a shorter time while they cover the screen (45/10/45
+  instead of 35/30/35), so the transition never sits frozen for more than
+  about 270ms. OBS was already set to 1200ms. ([#56])
+
 ## v2.2.3 - 2026-10-28
 
 - Followers: a new follow no longer stutters the stream (its slowest frame
@@ -94,3 +128,10 @@ release (`npm run motion:export -- stinger` renders your own).
 [#32]: https://github.com/alexmj212/stream-animations/pull/32
 [#47]: https://github.com/alexmj212/stream-animations/pull/47
 [#52]: https://github.com/alexmj212/stream-animations/pull/52
+[#56]: https://github.com/alexmj212/stream-animations/pull/56
+[#58]: https://github.com/alexmj212/stream-animations/pull/58
+[#60]: https://github.com/alexmj212/stream-animations/pull/60
+[#62]: https://github.com/alexmj212/stream-animations/pull/62
+[#64]: https://github.com/alexmj212/stream-animations/pull/64
+[#66]: https://github.com/alexmj212/stream-animations/pull/66
+[#69]: https://github.com/alexmj212/stream-animations/pull/69

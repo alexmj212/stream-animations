@@ -6,7 +6,7 @@
  *
  * Usage:
  *   npm run motion                         # every scenario, seeds 1-3
- *   npm run motion -- stinger              # one scenario
+ *   npm run motion -- stinger              # one scene, with its variants (scene: 'stinger')
  *   npm run motion -- stinger --seeds=7    # specific layout seed(s)
  *   npm run motion -- --fps=30             # step at another frame rate
  *   npm run motion -- --no-shots           # skip keyframe screenshots (faster)
@@ -49,10 +49,23 @@ const jitter = !!flags.jitter;
 const width = Number(flags.width || 1920);
 const height = Number(flags.height || 1080);
 
-const scenarios = names.length ? SCENARIOS.filter(s => names.includes(s.name)) : SCENARIOS;
+// A name matches a scenario or a scene, so `notifications` also runs
+// notifications-long and -scroll: running one name used to skip a scene's
+// variants and miss their failures (Code review, PR #56)
+const scenarios = names.length ? SCENARIOS.filter(s => names.includes(s.name) || names.includes(s.scene)) : SCENARIOS;
 if (scenarios.length === 0) {
   console.error(`Unknown scenario(s): ${names.join(', ')}. Available: ${SCENARIOS.map(s => s.name).join(', ')}`);
   process.exit(2);
+}
+
+/**
+ * Viewport for a scenario: its own `viewport` (e.g. the 1080x1920 Aitum
+ * Vertical canvas), else --width/--height.
+ * @param {Object} scenario
+ * @returns {{width: number, height: number}}
+ */
+function viewportFor(scenario) {
+  return scenario.viewport ?? { width, height };
 }
 
 async function waitFor(page, fn, timeoutMs = 8000) {
@@ -73,7 +86,7 @@ async function waitFor(page, fn, timeoutMs = 8000) {
  */
 async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) {
   const page = await browser.newPage();
-  await page.setViewport({ width, height, deviceScaleFactor: 1 });
+  await page.setViewport({ ...viewportFor(scenario), deviceScaleFactor: 1 });
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
   page.on('console', msg => {
@@ -135,7 +148,7 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
     }
     const d = jitter ? dt * (0.5 + jitterRandom() * 2.5) : dt;
     elapsed += d;
-    const frame = await page.evaluate((d, region, textSelector, grid) => {
+    const frame = await page.evaluate((d, region, textSelector, grid, gapAlpha) => {
       const r = window.__motion.step(d);
       r.pixels = window.__motion.pixelStats(2, region, grid);
       // textBox: canvas gaps under the on-screen part of a text element
@@ -149,7 +162,7 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
         const y0 = Math.max(0, b.top) / H;
         const y1 = Math.min(H, b.bottom) / H;
         r.pixels.textGaps = x1 > x0 && y1 > y0
-          ? window.__motion.pixelStats(2, { x0, x1, y0, y1 }).regionGaps
+          ? window.__motion.pixelStats(2, { x0, x1, y0, y1 }, false, gapAlpha).regionGaps
           : null;
         // The same box as a text sample for the design rules: drawn font
         // size (computed size times any transform scale) and word count
@@ -162,7 +175,7 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
         });
       }
       return r;
-    }, d, scenario.region || null, scenario.textBox?.selector || null, grid);
+    }, d, scenario.region || null, scenario.textBox?.selector || null, grid, scenario.checks?.textOverPanel?.minAlpha ?? 250);
     frames.push(frame);
 
     while (shots && !grid && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
@@ -213,8 +226,7 @@ async function main() {
         const spec = jitter
           ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 2 * 3 * 1000 / fps } }
           : { ...scenario, fps };
-        spec.width = width;
-        spec.height = height;
+        Object.assign(spec, viewportFor(scenario));
         const { results, timeline, tracks } = evaluate(spec, frames, debug);
         results.unshift({
           name: 'No page errors',
