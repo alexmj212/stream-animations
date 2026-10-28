@@ -254,9 +254,20 @@ export class NotificationBar extends AnimatedBar {
         ];
     }
 
-    /** Right edge text may paint to: the room's edge while scrolling, else the body's. */
+    /**
+     * Mid-height x span a scrolling line is clipped to: its room plus half
+     * the padding each side, so italic overhangs and the slanted clip edge
+     * don't shave the first and last letters.
+     * @returns {[number, number]}
+     */
+    scrollClip() {
+        const slack = config.notifications.text.padding * this.canvas.width / REF_WIDTH / 2 + this.geo.lean;
+        return [this.textRoomLeft - slack, this.textRoomLeft + this.textRoom + slack];
+    }
+
+    /** Right edge text may paint to: the scroll clip while scrolling, else the body's. */
     textClipRight() {
-        return this.scrollPx > 0 ? this.textRoomLeft + this.textRoom + this.geo.lean : this.geo.startX + this.bodyExtent + this.geo.lean;
+        return this.scrollPx > 0 ? this.scrollClip()[1] + this.geo.lean : this.geo.startX + this.bodyExtent + this.geo.lean;
     }
 
     getBoundingBox() {
@@ -307,7 +318,8 @@ export class NotificationBar extends AnimatedBar {
             ctx.clip();
             if (this.scrollPx > 0) {
                 // A scrolling line stays inside its room, not under the body's ends
-                this.slab(this.textRoomLeft, this.textRoomLeft + this.textRoom, this.geo.top, this.geo.height);
+                const [x0, x1] = this.scrollClip();
+                this.slab(x0, x1, this.geo.top, this.geo.height);
                 ctx.clip();
             }
             if (this.wipeX !== null) {
