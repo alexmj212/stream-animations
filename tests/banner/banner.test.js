@@ -21,7 +21,8 @@ describe('banner geometry', () => {
     it('is the toast lane, from the follower bar to the frame edge, y 26-74 (AJ, #86)', () => {
         const g = bannerGeometry(1920, b.lane);
         expect(g.x).toBe(560);
-        expect(g.x + g.width).toBe(1920);
+        // The leaning end's bottom corner still reaches the frame edge
+        expect(g.x + g.width - g.lean).toBeGreaterThanOrEqual(1920);
         expect(g.y).toBe(26);
         expect(g.y + g.height).toBe(74);
         expect(g.mid).toBe(50);
@@ -29,7 +30,7 @@ describe('banner geometry', () => {
 
     it('touches the follower bar and runs all the way across (AJ, #86)', () => {
         expect(b.lane.x).toBe(config.followers.geometry.rightX);
-        expect(b.lane.x + b.lane.width).toBe(1920);
+        expect(b.lane.x + b.lane.width - bannerGeometry(1920, b.lane).lean).toBeGreaterThanOrEqual(1920);
     });
 
     it('scales with the canvas', () => {
@@ -67,8 +68,9 @@ describe('vertical layout (AJ, #86)', () => {
         const g = bannerGeometry(1080, l.lane, l.refWidth);
         const n = config.notifications.vertical.geometry;
         expect(g.k).toBe(1);
-        expect(g.x).toBe(0);
-        expect(g.x + g.width).toBe(1080);
+        // Both leaning ends fall off the frame
+        expect(g.x + g.lean).toBeLessThanOrEqual(0);
+        expect(g.x + g.width - g.lean).toBeGreaterThanOrEqual(1080);
         expect(l.textClip.x).toBe(n.startX);
         expect(l.textClip.x + l.textClip.width).toBe(n.endX);
         expect(g.y).toBe(n.top);

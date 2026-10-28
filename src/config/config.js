@@ -672,7 +672,9 @@ export const config = {
     // toast's top-margin exemption (SAFE-1). A toast plays over it (OBS
     // order); only the hype train's optional screen border
     // (kinds.hype.border) draws outside this box
-    lane: { x: 560, y: 26, width: 1360, height: 48, skewAngle: -15 },
+    // (width 1370: the right end's lean runs past the frame edge, so the
+    // bottom-right corner reaches it too)
+    lane: { x: 560, y: 26, width: 1370, height: 48, skewAngle: -15 },
     // Portrait (Aitum Vertical, 1080x1920): picked when the page is taller
     // than wide, or with ?layout=vertical. AJ (2026-10-28, #86): "These
     // should also show on the vertical layout". In the vertical toast's
@@ -685,7 +687,8 @@ export const config = {
       // runs edge to edge on the seam (the toast's y and height); the
       // scrolling words show only inside the phone-safe width (`textClip`),
       // clear of the apps' button column on the right (V-SAFE-1)
-      lane: { x: 0, y: 660, width: 1080, height: 80, skewAngle: -15 },
+      // 20px past each edge, so the leaning ends fall off the frame
+      lane: { x: -20, y: 660, width: 1120, height: 80, skewAngle: -15 },
       textClip: { x: 60, width: 880 },  // = notifications.vertical.geometry startX-endX
       capPx: 40,
       // The seam is shared: the portrait toast and sidebar hold the seam lock
