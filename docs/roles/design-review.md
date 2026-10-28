@@ -62,7 +62,7 @@ thread is recreated.
 1. Read `docs/MOTION.md`, this charter's Learnings, and the PR's own
    before/after frames if it has them.
 2. Check out the PR and run the harness on at least three seeds per changed
-   scene: `npm run motion -- <scene> --seeds=1,2,3` . Copy `tools/motion-results/<scene>` aside after each
+   scene: `npm run motion -- <scene> --seeds=1,2,3`. Copy `tools/motion-results/<scene>` aside after each
    run: the next run wipes the folder.
 3. Look at the keyframes composited over a dark, stream-like backdrop, not only
    the checkerboard. Check balance, hierarchy, text legibility, the stinger's
