@@ -32,6 +32,7 @@
     "bench": "node tools/benchmark/run.js",
     "motion": "node tools/motion/run.js",
     "motion:export": "node tools/motion/export.js",
+    "design:figures": "node tools/design/figures.js",
     "motion:compare": "node tools/motion/compare.js",
     "debug:collect": "node tools/debug/collect.js",
     "pages:stage": "npm run build && bash tools/pages/stage.sh",

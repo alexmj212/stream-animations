@@ -7,7 +7,8 @@ charter here: `<role>.md`, ending with a Learnings table in the format from
 | Role | Charter | Owns |
 |---|---|---|
 | Code review | `code-review.md` | Reviewing every PR for correctness and the "Always improve" rule |
-| Design review | `design-review.md` | The look of every scene and `docs/MOTION.md` |
+| Design system (📺 Rotom) | `design-system.md` | The stream bible (`docs/DESIGN.md`), `config.design` tokens, direction and new designs, design audits |
+| Design review | `design-review.md` | The design gate on visual PRs, judged against the bible, and `docs/MOTION.md` |
 | Release management | `release-management.md` | How changes reach `main`, Pages and OBS; merge order |
 | QA | `qa.md` | Verifying changes with the motion harness (`docs/VALIDATION.md`) and keeping the tests healthy |
 

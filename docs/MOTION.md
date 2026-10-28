@@ -2,7 +2,9 @@
 
 What the scenes should look and feel like, so a new or changed animation
 matches the rest. Values live in `src/config/config.js`; this doc says why.
-Sources in brackets. Owned by the design review role.
+Sources in brackets. Owned by the design review role. The full design
+system (safe areas, type scale, contrast, alert tiers, accessibility) is the
+bible, [DESIGN.md](DESIGN.md), which links here for these decisions.
 
 ## Look
 
