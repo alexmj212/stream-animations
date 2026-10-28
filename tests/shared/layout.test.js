@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { miuItemRect, overlapArea, coveredFraction } from '../../src/shared/layout.js';
+import { miuItemRect, overlapArea, coveredFraction, fitText } from '../../src/shared/layout.js';
 import { config } from '../../src/config/config.js';
 
 describe('miuItemRect', () => {
@@ -44,5 +44,19 @@ describe('sidebar text vs the Mix It Up images', () => {
         const zones = miuZones.items.map(i => miuItemRect(i, 1920, 1080, miuZones.pad));
         const band = { x: 0, y: text.centerY * 1080 - 30, width: 1920, height: 60 };
         expect(coveredFraction(band, zones)).toBe(0);
+    });
+});
+
+describe('fitText', () => {
+    it('leaves text that fits alone', () => {
+        expect(fitText(400, 500, 0.75)).toEqual({ scale: 1, lines: 1 });
+    });
+
+    it('shrinks down to minScale to stay on one line', () => {
+        expect(fitText(600, 500, 0.75)).toEqual({ scale: 500 / 600, lines: 1 });
+    });
+
+    it('wraps to two lines at minScale once shrinking is not enough', () => {
+        expect(fitText(1000, 500, 0.75)).toEqual({ scale: 0.75, lines: 2 });
     });
 });

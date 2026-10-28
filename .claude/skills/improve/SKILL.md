@@ -31,6 +31,7 @@ Take the one or two answers that would save the most next time:
 | A doc that misled me | fix the doc (`docs-check` knows where things live) |
 | A judgment call or AJ preference | a Learnings row in the owning role's charter (`docs/roles/`; message that role's thread), or `docs/MOTION.md` for style |
 | A whole missing routine | a new skill, in its own PR |
+| A change to hosting, OBS/MIU wiring, the release flow, team rules or an AJ design decision | update the matching note in AJ's vault (`F:\exogenesis`, see `CLAUDE.md`), through a thread with Defiant folder access (2026-10-28, #26) |
 
 Prefer the higher rows: a check enforces itself, a note only helps when read.
 

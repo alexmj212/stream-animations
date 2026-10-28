@@ -49,3 +49,20 @@ export function coveredFraction(rect, zones) {
     if (area <= 0) return 0;
     return zones.reduce((m, z) => Math.max(m, overlapArea(rect, z) / area), 0);
 }
+
+/**
+ * How to fit a single line of text into `maxWidth`: shrink it down to
+ * `minScale` of its size, then wrap to two lines at `minScale`. Anything
+ * still longer is clamped with an ellipsis by the caller's CSS.
+ *
+ * @param {number} naturalWidth - Text width on one line at full size (px)
+ * @param {number} maxWidth - Room available (px)
+ * @param {number} minScale - Smallest font scale before wrapping (0-1)
+ * @returns {{scale: number, lines: 1|2}}
+ */
+export function fitText(naturalWidth, maxWidth, minScale) {
+    if (naturalWidth <= maxWidth) return { scale: 1, lines: 1 };
+    const scale = maxWidth / naturalWidth;
+    if (scale >= minScale) return { scale, lines: 1 };
+    return { scale: minScale, lines: 2 };
+}

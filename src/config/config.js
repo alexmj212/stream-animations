@@ -205,7 +205,11 @@ export const config = {
     // Text line. Its vertical centre sat at 2/3 of the height, right under
     // the Mix It Up images below (AJ's bug report, 2026-10-28)
     text: {
-      centerY: 0.78               // Fraction of viewport height; clears every miuZones item
+      centerY: 0.78,              // Fraction of viewport height; clears every miuZones item
+      // Long text stays inside the panel (design review, 2026-10-28): shrink
+      // to fit, then wrap to two lines, with an ellipsis only past that
+      minScale: 0.75,             // Smallest font scale before wrapping
+      panelPadding: 0.0125        // Gap from the panel's slanted edge, fraction of width (24px @ 1920)
     },
 
     // Where Mix It Up draws images while the sidebar plays. The Mixitup
@@ -215,6 +219,9 @@ export const config = {
     // overlay px, and "natural size" Twitch avatars are 300px. Update this
     // list when a command that fires Sidescreen Alert gains or moves an image.
     // tests/shared/layout.test.js and the motion harness fail on overlap.
+    // Not listed: Lechonk Jump (Resub). It draws on its own Lechonk overlay
+    // source, which only exists in the Vtuber scene, mirrored and scaled so
+    // it lands bottom-left (checked in OBS's scene JSON, 2026-10-28).
     miuZones: {
       pad: 0.05,                  // Each side grows 5% of the size: AnimateCSS bounce-in overshoot
       items: [

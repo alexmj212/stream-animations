@@ -22,6 +22,10 @@ the old single-hue look. See the root README for `scheme` and `colormode`.
 random layout so the same stinger or sidebar plays every time (recording,
 motion checks).
 
+Long sidebar `text` shrinks to fit inside the panel (down to 75% of its
+size), then wraps to two lines, then ends in an ellipsis
+(`config.sidebar.text`).
+
 Mix It Up draws avatars and props over the sidebar in OBS (its Mixitup
 source sits above Sidescreen Alert). Their positions live in
 `config.sidebar.miuZones`; keep that list in step with the MIU commands that

@@ -60,12 +60,20 @@
         color: white;
         text-shadow: -0.15625vw -0.15625vw 0 #000, 0 -0.15625vw 0 #000, 0.15625vw -0.15625vw 0 #000, -0.15625vw 0 0 #000, 0.15625vw 0 0 #000, -0.15625vw 0.15625vw 0 #000, 0 0.15625vw 0 #000, 0.15625vw 0.15625vw 0 #000,
           0.208vw 0.208vw 0 rgba(0, 0, 0, 0.6), 0.26vw 0.26vw 0 rgba(0, 0, 0, 0.4), 0.3125vw 0.3125vw 0 rgba(0, 0, 0, 0.2);
-        max-width: 38vw; /* Cap width so long strings can't bleed past the safe area */
+        max-width: 38vw; /* Replaced by fitSidebarText(): the room inside the panel */
         text-align: right;
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
         animation: slideText var(--duration) cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      }
+
+      /* Too long even at config.sidebar.text.minScale: two lines. The
+         ellipsis past that is added by fitSidebarText(), because Chromium
+         clips the -webkit-line-clamp ellipsis on right-aligned text */
+      #sidebarText.wrap {
+        white-space: normal;
+        line-height: 1.15;
       }
 
       /* Hold position: text-shadow needs ~10px breathing room past the rightmost
@@ -96,7 +104,7 @@
       import { getColorFromURL, hexToHSL } from "../shared/colors.js";
       import { paletteFromURL } from "../shared/palette.js";
       import { setupCanvas, clearCanvas } from "../shared/canvas.js";
-      import { SidebarBar, planSidebar } from "./SidebarBar.js";
+      import { SidebarBar, planSidebar, panelLeftAt } from "./SidebarBar.js";
       import { PerformanceMonitor } from "../shared/performance.js";
       import { PerformanceStorage } from "../shared/perfStorage.js";
       import { PerformanceOverlay } from "../shared/perfOverlay.js";
@@ -105,7 +113,7 @@
       import { config } from "../config/config.js";
       import { registerProbe, sampleBar, createRandom, seedFromURL } from "../shared/motion.js";
       import { createDebug } from "../shared/debug.js";
-      import { miuItemRect, coveredFraction } from "../shared/layout.js";
+      import { miuItemRect, coveredFraction, fitText } from "../shared/layout.js";
       const debug = createDebug('sidebar');
 
       // Get parameters from URL
@@ -121,9 +129,46 @@
 
       // Setup text element
       const textElement = document.getElementById("sidebarText");
-      textElement.textContent = text.toUpperCase();
+      const fullText = text.toUpperCase();
+      textElement.textContent = fullText;
       textElement.style.setProperty("--duration", `${durationMs}ms`);
       textElement.style.setProperty("--text-y", String(config.sidebar.text.centerY));
+
+      // Keep the text inside the panel: the room runs from the panel's
+      // slanted edge (measured at the top of a two-line block, where the
+      // panel is narrowest) to the text's hold position, right: 2.6vw
+      function fitSidebarText() {
+        const { centerY, minScale, panelPadding } = config.sidebar.text;
+        const W = window.innerWidth;
+        textElement.textContent = fullText;
+        textElement.classList.remove("wrap");
+        textElement.style.fontSize = "";
+        textElement.style.maxWidth = "none";
+        const style = getComputedStyle(textElement);
+        const fontPx = parseFloat(style.fontSize);
+        const naturalWidth = textElement.scrollWidth;
+        const blockTop = centerY * window.innerHeight - fontPx * 1.15;
+        const maxWidth = W * (1 - 0.026 - panelPadding) - panelLeftAt(W, blockTop);
+        // 4px slack: glyph widths don't scale exactly with the font size
+        const fit = fitText(naturalWidth, maxWidth - 4, minScale);
+        textElement.style.fontSize = `${fontPx * fit.scale}px`;
+        textElement.style.maxWidth = `${Math.floor(maxWidth)}px`;
+        if (fit.lines === 2) textElement.style.width = `${Math.floor(maxWidth)}px`;
+        else textElement.style.width = "";
+        textElement.classList.toggle("wrap", fit.lines === 2);
+        if (fit.lines === 2) {
+          // Last resort: drop words until two lines hold, ending in an ellipsis
+          const maxHeight = fontPx * fit.scale * 1.15 * 2 + 1;
+          const words = fullText.split(" ");
+          while (words.length > 1 && textElement.scrollHeight > maxHeight) {
+            words.pop();
+            textElement.textContent = `${words.join(" ")}…`;
+          }
+        }
+        debug.mark("textFit", { naturalWidth, maxWidth: Math.round(maxWidth), scale: +fit.scale.toFixed(3), lines: fit.lines });
+      }
+      fitSidebarText();
+      document.fonts?.ready.then(fitSidebarText);
 
       // Setup performance monitoring
       const perfMonitor = new PerformanceMonitor(60, 60);
