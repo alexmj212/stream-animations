@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="390" viewBox="0 0 980 390">
+            <rect width="980" height="390" fill="#0d0e11"/>
+            <rect x="40" y="60" width="240" height="240" fill="none" stroke="#3a3d48" stroke-width="2"/>
+            <path d="M40 300 C 119.2 60 203.20000000000002 60 280 60" fill="none" stroke="#ff8c1e" stroke-width="5"/><text x="40" y="40" fill="#e8e8ee" font-family="Jost, sans-serif" font-weight="700" font-size="22">ENTER</text>
+            <text x="40" y="335" fill="#a8a8b8" font-family="Jost, sans-serif" font-size="18">arrivals · 500 ms</text>
+            <text x="40" y="360" fill="#a8a8b8" font-family="monospace" font-size="15">cubic-bezier(0.33, 1, 0.68, 1)</text>
+            <rect x="370" y="60" width="240" height="240" fill="none" stroke="#3a3d48" stroke-width="2"/>
+            <path d="M370 300 C 446.8 300 530.8 300 610 60" fill="none" stroke="#ff8c1e" stroke-width="5"/><text x="370" y="40" fill="#e8e8ee" font-family="Jost, sans-serif" font-weight="700" font-size="22">EXIT</text>
+            <text x="370" y="335" fill="#a8a8b8" font-family="Jost, sans-serif" font-size="18">departures · 350 ms</text>
+            <text x="370" y="360" fill="#a8a8b8" font-family="monospace" font-size="15">cubic-bezier(0.32, 0, 0.67, 0)</text>
+            <rect x="700" y="60" width="240" height="240" fill="none" stroke="#3a3d48" stroke-width="2"/>
+            <path d="M700 300 C 856 300 784 60 940 60" fill="none" stroke="#ff8c1e" stroke-width="5"/><text x="700" y="40" fill="#e8e8ee" font-family="Jost, sans-serif" font-weight="700" font-size="22">MOVE</text>
+            <text x="700" y="335" fill="#a8a8b8" font-family="Jost, sans-serif" font-size="18">crossing the screen · 700 ms</text>
+            <text x="700" y="360" fill="#a8a8b8" font-family="monospace" font-size="15">cubic-bezier(0.65, 0, 0.35, 1)</text>
+          </svg>

@@ -703,6 +703,100 @@ export const config = {
     tipLightness: -22
   },
 
+  // Design tokens from the stream bible (docs/DESIGN.md, design system
+  // role, 2026-10-28). Every value is on the 1920x1080 OBS canvas. Scenes
+  // adopt them as their audit issues land; until then a scene's own block
+  // above may still differ. src/shared/design.js and design.test.js read
+  // these, so a token change that breaks a contrast pair fails CI.
+  design: {
+    canvas: { width: 1920, height: 1080, unitPx: 8 }, // Spacing comes in multiples of 8px
+
+    // SMPTE ST 2046-1 safe areas, as an inset from each edge. Viewers on a
+    // phone, a TV with overscan or Twitch's player chrome lose the edges
+    safe: {
+      actionInset: 0.035,         // 67px x 38px: nothing that matters past here
+      titleInset: 0.05            // 96px x 54px: every word and number sits inside
+    },
+
+    grid: { columns: 12, marginPx: 96, gutterPx: 24 }, // Margin = title-safe x
+
+    // Twitch's player draws its controls over the bottom of the video on
+    // hover and tap; nothing a viewer must read lives there
+    playerChromeTop: 0.92,
+
+    type: {
+      family: 'Jost',
+      weight: 700,
+      // A 1.33 (perfect fourth) scale. Phone column: px a viewer actually
+      // sees with the video 390px wide in portrait (x 0.203)
+      sizes: {
+        hero: 96,                 // Full-screen alerts (shade): 19.5px on a phone
+        display: 72,              // A name that is the point of the alert: 14.6px
+        headline: 56,             // Side alerts (sidebar), titles on scene cards: 11.4px
+        label: 40                 // Widgets (goal, notifications): 8.1px, the floor
+      },
+      minPx: 40,                  // Nothing a viewer must read is smaller: 27px at 720p
+      trackingEm: 0.02,           // Uppercase Jost needs a little air at small sizes
+      // Text over anything that moves gets a hard ink stroke and a soft
+      // shadow falling down-right (the one light, top-left)
+      strokeEm: 0.08,             // 4.5px at 56px; never under strokeMinPx
+      strokeMinPx: 3,             // 2px once a 720p encode halves it: still survives 4:2:0
+      shadowOffsetEm: 0.04,
+      shadowBlurEm: 0.08,
+      shadowAlpha: 0.6
+    },
+
+    color: {
+      white: '#ffffff',
+      ink: '#14061f',             // The dark text and stroke colour: Illuminations violet at 4% lightness
+      brightness: 0.8,            // Same multiplier as every scene's palette (MOTION.md, Look)
+      // Tested text pairs. bg 'stopN' = config.epcot.palettes.illuminations[N]
+      // at `brightness`. min 4.5 = any size, 3 = display sizes (56px+) only.
+      // A new pair goes here first; design.test.js holds them.
+      textPairs: [
+        { text: 'white', bg: 'stop0', min: 4.5 },
+        { text: 'white', bg: 'stop1', min: 4.5 },
+        { text: 'white', bg: 'stop2', min: 4.5 },
+        { text: 'white', bg: 'stop3', min: 4.5 },
+        { text: 'white', bg: 'stop4', min: 4.5 },
+        { text: 'white', bg: 'stop5', min: 3 },    // Orange: display sizes, with the stroke
+        { text: 'ink', bg: 'stop5', min: 4.5 },
+        { text: 'ink', bg: 'stop6', min: 4.5 },    // Amber: white fails (2.7), ink only
+        { text: 'white', bg: 'ink', min: 4.5 }
+      ]
+    },
+
+    // Motion tokens. Enter decelerates, exit accelerates, a move across the
+    // screen eases both ends. MOTION.md keeps each scene's decided timings
+    motion: {
+      ease: {
+        enter: [0.33, 1, 0.68, 1],  // easeOutCubic: arrives fast, settles
+        exit: [0.32, 0, 0.67, 0],   // easeInCubic: leaves accelerating
+        move: [0.65, 0, 0.35, 1]    // easeInOutCubic: the scenes' existing curve
+      },
+      durationMs: {
+        micro: 150,               // A colour or value swap in place
+        exit: 350,                // Leaving is quicker than arriving
+        enter: 500,               // An alert or widget arriving
+        move: 700,                // A bar crossing the screen
+        stagger: 60               // Between siblings arriving (5 bars = 240ms spread)
+      },
+      settleMs: 150,              // A beat of stillness after an arrival before text starts to read
+      staticCoverMaxMs: 300       // Stinger: longest the screen sits fully covered and still
+    },
+
+    alerts: {
+      gapMs: 500,                 // Space between two alerts in one zone
+      maxConcurrent: 1            // One alert per zone; the next waits
+    },
+
+    // Photosensitivity (WCAG 2.3.1 / ITU-R BT.1702 / Ofcom)
+    flash: {
+      maxPerSecond: 3,            // Flashes (a >10% luminance swing and back) over 25% of the screen
+      fullFieldMaxPerSecond: 1    // A full-screen swing (the stinger) at most once a second
+    }
+  },
+
   /**
    * Performance optimization configuration
    *
