@@ -54,7 +54,7 @@ thread that owns the work; don't route through the coordinator.
 | QA | A look problem a machine could catch (balance, coverage, contrast): ask for a harness check |
 | Release management | A one-line verdict per PR: approve, approve with follow-ups, or changes requested |
 | Adopt Pixelbot's self-improvement approach | Changes to the charter format, `improve`, or `docs/IMPROVING.md` |
-| Design system ("Create the stream design system bible") | A PR needs a rule the bible (`docs/DESIGN.md`) lacks; a review finding that should become a rule. Design review judges PRs against the bible and cites its rules. One source of truth: rules live in one place and are linked, not copied (AJ created the role 2026-10-28) |
+| Design system ("Create the stream design system bible") | A PR needs a rule the bible (`docs/DESIGN.md`, being created by that thread) lacks; a review finding that should become a rule. Design review judges PRs against the bible and cites its rules. One source of truth: rules live in one place and are linked, not copied (AJ created the role 2026-10-28) |
 
 Thread links live in project memory (`MEMORY.md`), since ids change if a
 thread is recreated.
