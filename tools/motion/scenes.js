@@ -195,9 +195,9 @@ export const SCENARIOS = [
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4000, label: 'open' }, { at: 4500, label: 'end' }],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      // KEEP-1 warns: the band and its text cross the chat column (x 18-488);
-      // OBS stacks the shade above chat. Rotom/AJ to call it (QA, 2026-10-28)
-      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4500,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -217,9 +217,9 @@ export const SCENARIOS = [
     keyframeSpanMs: 4500,
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4500, label: 'end' }],
     checks: {
-      // KEEP-1 warns: the band and its text cross the chat column (x 18-488);
-      // OBS stacks the shade above chat. Rotom/AJ to call it (QA, 2026-10-28)
-      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4500,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -241,9 +241,9 @@ export const SCENARIOS = [
     keyframeSpanMs: 4700,
     markers: [{ at: 500, label: 'hold' }, { at: 3850, label: 'exit' }, { at: 4700, label: 'end' }],
     checks: {
-      // KEEP-1 warns: the band and its text cross the chat column (x 18-488);
-      // OBS stacks the shade above chat. Rotom/AJ to call it (QA, 2026-10-28)
-      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3850], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3850], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4700,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -465,8 +465,9 @@ export const SCENARIOS = [
       // rule only measured this 2s capture (Design review, 2026-10-28)
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      // KEEP-1 warns: the goal bar sits on the music info box's waveform
-      // (x 19-481, y 0-124). Rotom/AJ to call it (QA, 2026-10-28)
+      // KEEP-1 warns by design: the goal bar sits on the music info box's
+      // waveform (x 19-481, y 0-124). Accepted while the waveform draws under
+      // the bar's solid plate (Rotom on #79, 2026-10-28; AJ's place, #62)
       design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       // The follow lands before the first frame runs, so the first paint
       // already animates: one count, and one idle once it has landed

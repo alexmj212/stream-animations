@@ -141,7 +141,10 @@ read from OBS's scene file. Every keyframe draws them as dashed mock layers
 on top (`--no-keepout` hides them), so a shot looks like the stream, and
 KEEP-1 checks that held text stays off every layer marked to keep clear. The
 mocks draw on top of everything, which isn't always OBS's order: the shade
-stacks above chat. When a source in OBS's Alerts or Information Box moves,
+stacks above chat. Two calls from Rotom (#79): the shade, a tier 3 takeover,
+may cover chat, so its scenarios leave KEEP-1 out; the goal bar on the music
+waveform is accepted while the waveform draws under its plate, so followers
+keeps KEEP-1 as a warning. When a source in OBS's Alerts or Information Box moves,
 update `keepOut` (AJ, 2026-10-28: "you're not testing the layout with chat
 present", "...with music playing"). No scene reacts to audio, so music only
 matters as a layer.
