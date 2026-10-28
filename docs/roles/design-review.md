@@ -26,6 +26,18 @@ a new scene's style). Bring side-by-side frames, strips or a
 `motion:export` video, and a recommendation. Tell release management to hold
 the PR while AJ decides.
 
+## Priorities
+
+Spend review effort where AJ's stream actually shows it (AJ, 2026-10-28):
+
+1. **epcot**: the main background. AJ records it and plays the recording on
+   stream (`tools/loopcut.sh`), so the loop seam and the recorded look
+   matter more than live CPU. It has no harness scenario yet; review it from
+   the dev server or a recording.
+2. **stinger, sidebar, shade**: used on stream; full review routine.
+3. **background** (bar background): rarely used. A light check (three seeds,
+   no density deep-dives) is enough unless AJ says otherwise.
+
 It does not own the harness or its thresholds (`docs/VALIDATION.md`, the
 `motion-*` skills) or code quality. Those belong to the threads below.
 
@@ -50,14 +62,13 @@ thread is recreated.
 1. Read `docs/MOTION.md`, this charter's Learnings, and the PR's own
    before/after frames if it has them.
 2. Check out the PR and run the harness on at least three seeds per changed
-   scene: `npm run motion -- <scene> --seeds=1,2,3` (background: eight seeds,
-   its layouts vary most). Copy `tools/motion-results/<scene>` aside after each
+   scene: `npm run motion -- <scene> --seeds=1,2,3` . Copy `tools/motion-results/<scene>` aside after each
    run: the next run wipes the folder.
 3. Look at the keyframes composited over a dark, stream-like backdrop, not only
    the checkerboard. Check balance, hierarchy, text legibility, the stinger's
    cut frame, and nothing visible before the start or after the end
    (the visual checklist in `motion-verify`, step 3).
-4. For ambient scenes (background, epcot), measure visual weight per seed:
+4. For random layouts, measure visual weight per seed:
    share of the frame covered and left/right balance. Variance across seeds
    matters as much as the average.
 5. Separate findings into: blocking (breaks the look on stream), requested
@@ -72,5 +83,5 @@ thread is recreated.
 |---|---|---|---|---|
 | 2026-10-28 | Phase changes need continuous velocity; easing each phase's position separately makes visible speed jumps | shade v1.1, three iterations (05-03) | any multi-phase motion | active |
 | 2026-10-28 | URL-based color coordination across scenes didn't work out; don't retry it without a new idea | v1.1 out-of-scope list | color work | active |
-| 2026-10-28 | Background layouts are random per seed, so one seed's keyframes can't judge density: PR #2's 8-bar default ranged from 19% to 81% of the frame covered across seeds 1-8, and 5 of 8 seeds put 3x more on one half than the other | PR #2 review, harness seeds 1-8 at t=8s | background, any random layout | active |
+| 2026-10-28 | Background layouts are random per seed, so one seed's keyframes can't judge density: PR #2's 8-bar default ranged from 19% to 81% of the frame covered across seeds 1-8, and 5 of 8 seeds put 3x more on one half than the other | PR #2 review, harness seeds 1-8 at t=8s | any random layout | active; background itself is low priority since 2026-10-28 |
 | 2026-10-28 | Review keyframes over a dark backdrop as well as the checkerboard; the checkerboard hides how loud a translucent bar is | PR #2 review | all scenes | active |
