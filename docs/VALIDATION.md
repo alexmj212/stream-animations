@@ -165,8 +165,13 @@ fixes and `today`'s box before them, plus the pairs that can be up together.
 else as a labelled box, and `report.md` with each overlap and placement
 break. Design review gated pairs 1, 2, 5 and 6 as rule fixes, so
 `tests/tools/composition.test.js` holds them to `KNOWN_OVERLAPS`: a new
-overlap fails CI, and so does a known one that stops happening. When OBS or
-MIU moves a source, update its box there.
+overlap fails CI, and so does a known one that stops happening. The boxes are kept by hand
+from OBS and MIU reads, and nothing checks them against the live stream, so
+the test holds the plan: when OBS or MIU moves a source, update its box
+there. `overlaps()` is stricter than the bible's COMP-7 on purpose: from
+boxes alone it can't tell whether readable text is actually hidden, so any
+overlap with a readable element or a camera counts until someone accepts it
+in `KNOWN_OVERLAPS` with the call that allowed it (Code review, #84).
 
 ## Building motion that passes
 
