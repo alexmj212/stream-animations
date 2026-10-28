@@ -172,27 +172,45 @@ Sources: [Restream, rule of thirds](https://restream.io/learn/what-is/rule-of-th
   toggle has a home in the zone plan below. Two things that can be on
   screen together never share a zone, unless one is a tier 3 takeover.
   The full inventory (boxes and triggers, from OBS, Mix It Up and the
-  Stream Deck) lives in the project files at `composition/inventory.md`,
-  and the harness's everything-visible frames hold the pairs to it
-  (KEEP-1).
+  Stream Deck) lives in the project files at `composition/inventory.md`.
+  QA's everything-visible harness frames (`npm run motion:compose`, coming
+  with QA's PR after #79) will hold the pairs to it. Until then, KEEP-1
+  checks only our text against chat and music.
 
 ### Zone plan (16:9)
 
 Where each thing lives once the composition fixes land (design review,
-2026-10-28). Boxes are canvas px.
+2026-10-28). Boxes are canvas px. Zones that can be up at the same time don't
+overlap, except for the accepted overlaps listed under the table.
 
 | Zone | Box | Holds | Rule |
 |---|---|---|---|
-| Status corner | x 19-560, y 0-134 | Goal bar, music waveform, now playing | AJ's pick: the goal bar stays put (#62) |
+| Goal bar | x 36-560, y 26-75 | Follower goal | AJ's pick: it stays put (#62) |
+| Music box | x 19-481, y 0-130 | Waveform, now playing | Draws under the goal bar |
 | Toast lane | x 560-1824, y 26-74 | Notifications toast | One toast at a time |
 | Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up |
-| Under the goal bar | x 496-622, y 83-211 | Remote holder (y 83-133), jail (y 140-211) | Out of the toast's path, right of chat |
+| Remote | x 496-546, y 83-133 | Remote holder | Out of the toast's path, right of chat |
+| Jail | x 496-622, y 140-211 | Jail slideshow | Below the banner lane |
 | Chat column | x 18-488, y 127-537 | Chat only | No gag or decoration behind it (KEEP-1) |
-| Top-right corner | x 1530-1824, y 64-320 | Discoball on camera scenes | Balances the left cluster (COMP-4) |
-| Right third | x 1280-1824, y 140-942 | Sidebar, MIU avatars, Pixel Guess (from y 140) | Mix It Up keep-out still applies to our text |
-| Bottom-right corner | x 1148-1824, y 600-942 | One gag at a time: Lechonk (after the sidebar), Clippy, iPhone text, Life points | Ends 8px above the badge |
+| Right third | x 1312-1824, y 140-640 | MIU avatars, Pixel Guess (from y 140), discoball (x 1530-1824, y 140-396) | Mix It Up keep-out still applies to our text |
+| Sidebar | right side, text on its nameplate at 78% | Tier 2 alerts | MOTION.md, sidebar text at 78% |
+| Bottom-right corner | x 1312-1824, y 650-942 | One gag at a time: Lechonk (after the sidebar), Clippy, iPhone text, Life points | Ends 8px above the badge |
 | Badge | x 1613-1840, y 950-985 | Pride Guild | Above the player controls |
-| Lower band | x 70-1304, y 788-994 | Discord heads (ends at 994), Exobot (x 70-436) | Nothing readable below y 994 (SAFE-3) |
+| Lower band | x 70-1304, y 788-994 | Exobot (x 70-436), Discord heads (x 440-1304) | Nothing readable below y 994 (SAFE-3) |
+
+Accepted overlaps:
+- The goal bar sits on the music box's waveform. The waveform draws under
+  the bar (AJ's pick, #62; KEEP-1 reports it as a warning).
+- Now playing ends at y 130, and chat starts at y 127: a 3px seam in OBS.
+- The discoball is decoration with no text, so MIU avatars and Pixel Guess
+  may draw over it.
+- The sidebar and the bottom-right gags take turns. Lechonk waits for the
+  sidebar to leave. Clippy, the iPhone text and Life points can still land
+  during a sidebar; they're brief (3-10 s), and queueing them is open.
+
+Open: the Starting and BRB song line (x 0-651, y 1037-1094) runs off the
+frame under the player controls and repeats now playing. It's due to be
+hidden in OBS, pending design review.
 
 ![Everything that can appear on the 16:9 canvas, drawn at once before the fixes: persistent in blue, alerts in orange, gags in pink, thirds in teal](design/everything-map.jpg)
 
