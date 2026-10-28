@@ -186,7 +186,8 @@ export function evaluate(spec, frames) {
     const expected = checks.totalDurationMs;
     const tolerance = checks.durationToleranceMs ?? 2 * frameMs;
     const actual = timeline.lastVisibleMs === null ? null : timeline.lastVisibleMs + frameMs;
-    const pass = actual !== null && Math.abs(actual - expected) <= tolerance;
+    // 1e-6: frame times are sums of 1000/fps, so exactly 2 frames off can land a hair over
+    const pass = actual !== null && Math.abs(actual - expected) <= tolerance + 1e-6;
     results.push({
       name: 'Finishes on time',
       pass,
