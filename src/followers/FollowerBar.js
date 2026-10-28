@@ -185,6 +185,7 @@ export class FollowerBar {
         cc.fillText(text, pad, pad + ascent);
         this.textCache = cache;
         this.textKey = text;
+        this.fontPx = px;
         this.textWidth = m.width;
         this.textRoom = room;
         // Optically centred on the bar (ink box, not the em box)
@@ -266,7 +267,14 @@ export class FollowerBar {
         return [
             { id: 'fill', x: this.fillX, y: mid, phase, onscreen: true, count: this.shown.count,
                 // px of text that wouldn't fit the bar (must stay 0)
-                overflow: this.textWidth ? Math.max(0, this.textWidth - this.textRoom) : 0 }
+                overflow: this.textWidth ? Math.max(0, this.textWidth - this.textRoom) : 0 },
+            // Drawn text for the design rules (tools/motion/designRules.js)
+            ...(this.textCache ? [{
+                id: 'text', x: this.textX, y: this.textY, phase, onscreen: true,
+                box: { x: this.textX, y: this.textY, width: this.textCache.width, height: this.textCache.height },
+                fontPx: this.fontPx,
+                words: this.textKey.split(/\s+/).filter(Boolean).length
+            }] : [])
         ];
     }
 }

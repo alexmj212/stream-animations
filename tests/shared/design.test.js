@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { relativeLuminance, contrastRatio, shadeHex, designColor, safeRect } from '../../src/shared/design.js';
+import { relativeLuminance, contrastRatio, shadeHex, designColor, safeRect, safeAreaGuides } from '../../src/shared/design.js';
 import { config } from '../../src/config/config.js';
 
 const design = config.design;
@@ -63,5 +63,16 @@ describe('safe areas', () => {
 
     it('scales to a 720p frame', () => {
         expect(safeRect('title', design, 1280, 720)).toEqual({ x: 64, y: 36, width: 1152, height: 648 });
+    });
+});
+
+describe('safeAreaGuides (?debug=safe)', () => {
+    it('draws the same rectangles as safeRect, as fractions of the frame', () => {
+        const [action, title, player] = safeAreaGuides(design);
+        const px = (g) => ({ x: Math.round(g.left * 1920), y: Math.round(g.top * 1080), width: Math.round(g.width * 1920), height: Math.round(g.height * 1080) });
+        expect(px(action)).toEqual(safeRect('action', design));
+        expect(px(title)).toEqual(safeRect('title', design));
+        expect(player.top).toBe(design.playerChromeTop);
+        expect(player.top + player.height).toBeCloseTo(1);
     });
 });

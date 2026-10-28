@@ -25,6 +25,10 @@
  *                              field never exceeds max
  *   textOverPanel            - {fromMs, toMs, label}: with `textBox: {selector}`, every
  *                              pixel under the text element's on-screen box is opaque
+ *   design                   - {rules, fail}: the bible's machine-checkable rules
+ *                              (tools/motion/designRules.js). Rules not in `fail` only
+ *                              warn (⚠) until the scene meets them; then add them to
+ *                              `fail`, and never take one out to get green
  */
 
 const COLOR = '%23ff6600';
@@ -41,6 +45,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 1500,
     markers: [{ at: 750, label: 'cut' }, { at: 1500, label: 'end' }],
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['CUT-2', 'FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] },
       totalDurationMs: 1500,
       endsClear: true,
       fullCoverAtMs: 750,
@@ -61,6 +67,8 @@ export const SCENARIOS = [
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     textBox: { selector: '#sidebarText' },
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1250, 3750], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -87,6 +95,8 @@ export const SCENARIOS = [
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     textBox: { selector: '#sidebarText' },
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1250, 3750], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -109,6 +119,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 5000,
     markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'exit' }, { at: 5000, label: 'end' }],
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -128,6 +140,8 @@ export const SCENARIOS = [
     // The body while the toast is out, inside its slanted ends
     region: { x0: 0.25, x1: 0.78, y0: 0.03, y1: 0.065 },
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -155,6 +169,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 7000,
     markers: [{ at: 7000, label: 'end' }],
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['SAFE-3', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 7000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -180,6 +196,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 11400,
     markers: [{ at: 11400, label: 'end' }],
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 10000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 11400,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -203,6 +221,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 2000,
     markers: [{ at: 1150, label: 'landed' }],
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
       // The follow lands before the first frame runs, so the first paint
       // already animates: one count, and one idle once it has landed
       debugEvents: { start: 1, count: 1, idle: 1 },
@@ -220,6 +240,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 8000,
     markers: [],
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] },
       noVelocitySteps: true,
       workP95Ms: 4
     }
@@ -235,6 +257,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 3000,
     markers: [],
     checks: {
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] },
       workP95Ms: 20
     }
   }

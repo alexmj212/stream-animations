@@ -243,7 +243,12 @@ export class NotificationBar extends AnimatedBar {
                 overflow: textOn ? Math.max(0, this.textWidth - this.textRoom - this.scrollPx) : 0,
                 // px of text showing where the body isn't fully out yet (must stay 0)
                 bare: textOn ? Math.max(0, Math.min(this.textX + this.textDx + this.textCache.width, this.textClipRight())
-                    - (startX + this.bodyExtent)) : 0
+                    - (startX + this.bodyExtent)) : 0,
+                // Drawn text for the design rules (tools/motion/designRules.js),
+                // clipped to the scroll window while a long line scrolls
+                box: this.textBox(),
+                fontPx: config.notifications.text.sizePx * this.canvas.width / REF_WIDTH * this.textScale,
+                words: this.text.split(/\s+/).filter(Boolean).length
             },
             ...(this.wipeX !== null ? [{ id: 'wipe', x: this.wipeX, y: mid, phase: this.phase, onscreen: true }] : []),
             ...this.streaks.map((st, i) => ({
@@ -265,6 +270,18 @@ export class NotificationBar extends AnimatedBar {
     scrollClip() {
         const slack = config.notifications.text.padding * this.canvas.width / REF_WIDTH / 2 + this.geo.lean;
         return [this.textRoomLeft - slack, this.textRoomLeft + this.textRoom + slack];
+    }
+
+    /** On-screen box of the drawn line, clipped to the scroll window while scrolling. */
+    textBox() {
+        let x0 = this.textX + this.textDx;
+        let x1 = x0 + this.textCache.width;
+        if (this.scrollPx > 0) {
+            const [c0, c1] = this.scrollClip();
+            x0 = Math.max(x0, c0);
+            x1 = Math.min(x1, c1);
+        }
+        return { x: x0, y: this.textY, width: Math.max(0, x1 - x0), height: this.textCache.height };
     }
 
     /** Right edge text may paint to: the scroll clip while scrolling, else the body's. */

@@ -164,7 +164,13 @@
 
         registerProbe('shade', () => [
           ...[topCurtain, bottomCurtain].filter(c => c.active).map(c => ({ id: `curtain-${c.position}`, x: 0, y: c.y, phase: c.phase })),
-          ...(shadeBar.active ? [{ id: 'text', x: shadeBar.x, y: shadeBar.y, onscreen: shadeBar.x < canvas.width && shadeBar.x + shadeBar.textWidth > 0, bare: shadeBar.bareFraction() }] : [])
+          ...(shadeBar.active ? [{
+            id: 'text', x: shadeBar.x, y: shadeBar.y, onscreen: shadeBar.x < canvas.width && shadeBar.x + shadeBar.textWidth > 0, bare: shadeBar.bareFraction(),
+            // Drawn text for the design rules (tools/motion/designRules.js)
+            box: { x: shadeBar.x, y: shadeBar.y - shadeBar.actualAscent, width: shadeBar.textWidth, height: shadeBar.actualAscent + shadeBar.actualDescent },
+            fontPx: parseFloat(/(\d+(?:\.\d+)?)px/.exec(config.shade.text.font)?.[1]),
+            words: text.split(/\s+/).filter(Boolean).length
+          }] : [])
         ]);
 
         /**

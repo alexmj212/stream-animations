@@ -3,8 +3,11 @@
  * unit tested in tests/tools/motionAnalyze.test.js.
  *
  * A capture is an array of frames:
- *   { t, workMs, pixels: {opaque, visible, regionGaps?}, samples: [{id, x, y?, phase?, onscreen?}] }
+ *   { t, workMs, pixels: {opaque, visible, regionGaps?, grid?}, samples: [{id, x, y?, phase?, onscreen?, box?}] }
  */
+
+import { config } from '../../src/config/config.js';
+import { evaluateDesignRules } from './designRules.js';
 
 /** Group probe samples into per-object tracks: id -> [{t, x, y, phase, onscreen}] */
 export function buildTracks(frames) {
@@ -305,6 +308,11 @@ export function evaluate(spec, frames, debug = null) {
         ? 'no debug data - scene does not call createDebug()'
         : want.map(([name, n]) => `${name} ${counts[name] || 0}/${n}`).join(', ')
     });
+  }
+
+  // The bible's machine-checkable rules (docs/DESIGN.md), warn-only unless listed in `fail`
+  if (checks.design) {
+    results.push(...evaluateDesignRules(checks.design, frames, config.design, spec.width ?? 1920, spec.height ?? 1080, frameMs));
   }
 
   return { results, timeline, tracks };
