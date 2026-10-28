@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
-import { StingerBar } from '../../src/stinger/StingerBar.js';
+import { StingerBar, planStinger } from '../../src/stinger/StingerBar.js';
+import { createRandom } from '../../src/shared/motion.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
 describe('StingerBar phase transitions', () => {
@@ -188,73 +189,128 @@ describe('StingerBar phase transitions', () => {
   });
 
   describe('timing behavior', () => {
-    it('should transition from in to pause phase at expected time', () => {
+    const make = (type = 'slanted', duration = 1000, layout = {}) => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
-      const baseHSL = { h: 180, s: 50, l: 50 };
+      return new StingerBar(ctx, canvas, type, 0, 5, { h: 180, s: 50, l: 50 }, duration, { layout, random: createRandom(99) });
+    };
 
-      const bar = new StingerBar(ctx, canvas, 'slanted', 0, 5, baseHSL, 1000, {});
-
-      const inDuration = bar.inDuration;
-
-      // Simulate to just before in->pause transition (account for start delay)
-      const startDelay = bar.startDelay / 60; // Convert frames to seconds
-      let elapsed = 0;
-      while (elapsed < startDelay + inDuration - 0.05) {
-        bar.update(0.016);
-        elapsed += 0.016;
-      }
-
-      // Should still be in 'in' phase
+    it('switches phases exactly at the shared timeline boundaries', () => {
+      const bar = make('slanted', 1000);
+      bar.setTime(bar.inEnd - 0.001);
       expect(bar.phase).toBe('in');
-
-      // Advance past transition point
-      while (elapsed < startDelay + inDuration + 0.1) {
-        bar.update(0.016);
-        elapsed += 0.016;
-      }
-
-      // Should now be in 'pause' phase
+      bar.setTime(bar.inEnd + 0.001);
       expect(bar.phase).toBe('pause');
+      bar.setTime(bar.outStart - 0.001);
+      expect(bar.phase).toBe('pause');
+      bar.setTime(bar.outStart + 0.001);
+      expect(bar.phase).toBe('out');
     });
 
-    it('should transition from pause to out phase at expected time', () => {
+    it('phases add up to exactly the requested duration', () => {
+      for (const duration of [600, 1000, 1500, 3000]) {
+        const bar = make('slanted', duration);
+        expect(bar.outEnd).toBeCloseTo(duration / 1000, 6);
+        bar.setTime(duration / 1000 - 0.001);
+        expect(bar.active).toBe(true);
+        bar.setTime(duration / 1000);
+        expect(bar.active).toBe(false);
+      }
+    });
+
+    it('holds the cut point (50%) inside every bar\'s pause window', () => {
+      for (let i = 0; i < 20; i++) {
+        const bar = make(i % 2 ? 'slanted' : 'horizontal', 1500, { inDelay: 0.2, inEndScale: 0.85, exitDelay: 0.15 });
+        expect(bar.inEnd).toBeLessThanOrEqual(0.75);
+        expect(bar.outStart).toBeGreaterThanOrEqual(0.75);
+      }
+    });
+
+    it('is velocity-continuous across phase changes', () => {
+      for (const type of ['slanted', 'horizontal']) {
+        const bar = make(type, 1500, { reverseOnExit: type === 'slanted' });
+        const eps = 1e-4;
+        for (const boundary of [bar.inEnd, bar.outStart]) {
+          const before = (bar.positionAt(boundary - eps) - bar.positionAt(boundary - 2 * eps)) / eps;
+          const after = (bar.positionAt(boundary + 2 * eps) - bar.positionAt(boundary + eps)) / eps;
+          expect(Math.abs(after - before)).toBeLessThan(5);
+        }
+      }
+    });
+
+    it('update(dt) and setTime(t) agree', () => {
+      const a = make('slanted', 1000);
+      const b = make('slanted', 1000);
+      for (let i = 0; i < 30; i++) a.update(1 / 60);
+      b.setTime(30 / 60);
+      expect(a.x).toBeCloseTo(b.x, 6);
+    });
+  });
+
+  describe('planStinger', () => {
+    const plan = (seed, duration = 1500) => {
       const canvas = createMockCanvas(1920, 1080);
       const ctx = createMockContext(canvas);
-      const baseHSL = { h: 180, s: 50, l: 50 };
+      return planStinger(ctx, canvas, { h: 24, s: 100, l: 50 }, duration, createRandom(seed));
+    };
 
-      const bar = new StingerBar(ctx, canvas, 'slanted', 0, 5, baseHSL, 1000, {});
+    it('is deterministic for a seed', () => {
+      const a = plan(7).map(b => [b.type, b.targetX, b.y, b.isWhite]);
+      const b = plan(7).map(b => [b.type, b.targetX, b.y, b.isWhite]);
+      expect(a).toEqual(b);
+    });
 
-      const inDuration = bar.inDuration;
-      const pauseDuration = bar.pauseDuration;
-      const startDelay = bar.startDelay / 60;
-
-      // Fast-forward to pause phase
-      let elapsed = 0;
-      while (elapsed < startDelay + inDuration + 0.05) {
-        bar.update(0.016);
-        elapsed += 0.016;
+    it('always has two curtains first, 6 accents, ≥2 white, 2-3 slanted', () => {
+      for (let seed = 1; seed <= 50; seed++) {
+        const bars = plan(seed);
+        expect(bars.slice(0, 2).every(b => b.isBackground)).toBe(true);
+        const accents = bars.slice(2);
+        expect(accents.length).toBe(6);
+        expect(accents.filter(b => b.isWhite).length).toBeGreaterThanOrEqual(2);
+        const slanted = accents.filter(b => b.type === 'slanted').length;
+        expect(slanted).toBeGreaterThanOrEqual(2);
+        expect(slanted).toBeLessThanOrEqual(3);
       }
+    });
 
-      expect(bar.phase).toBe('pause');
-
-      // Simulate to just before pause->out transition
-      while (elapsed < startDelay + inDuration + pauseDuration - 0.05) {
-        bar.update(0.016);
-        elapsed += 0.016;
+    it('spreads horizontal bars over the height (no clumping)', () => {
+      for (let seed = 1; seed <= 50; seed++) {
+        const ys = plan(seed).filter(b => b.type === 'horizontal').map(b => b.y).sort((x, y) => x - y);
+        const span = ys[ys.length - 1] - ys[0];
+        expect(span).toBeGreaterThan(1080 * 0.3);
       }
+    });
 
-      // Should still be in 'pause' phase
-      expect(bar.phase).toBe('pause');
-
-      // Advance past transition point
-      while (elapsed < startDelay + inDuration + pauseDuration + 0.1) {
-        bar.update(0.016);
-        elapsed += 0.016;
+    it('horizontal bars span the whole screen through the hold at any duration', () => {
+      const tan = Math.abs(Math.tan(15 * Math.PI / 180));
+      for (const duration of [1000, 1500, 3000, 5000, 8000]) {
+        for (let seed = 1; seed <= 50; seed++) {
+          for (const bar of plan(seed, duration).filter(b => b.type === 'horizontal')) {
+            for (let t = bar.inEnd; t <= bar.outStart; t += (bar.outStart - bar.inEnd) / 10) {
+              bar.setTime(t);
+              const skew = tan * bar.height / 2;
+              expect(bar.x + skew).toBeLessThanOrEqual(0);
+              expect(bar.x + bar.width - skew).toBeGreaterThanOrEqual(1920);
+            }
+          }
+        }
       }
+    });
 
-      // Should now be in 'out' phase
-      expect(bar.phase).toBe('out');
+    it('curtains meet with overlap so the seam never shows', () => {
+      const [left, right] = plan(1);
+      left.setTime(0.75);
+      right.setTime(0.75);
+      // Right edge of the left curtain vs left edge of the right curtain, at
+      // the top and bottom of the screen (both slant 15°)
+      const tan = Math.tan(15 * Math.PI / 180);
+      const cos = Math.cos(15 * Math.PI / 180);
+      const sin = Math.sin(15 * Math.PI / 180);
+      for (const Y of [0, 1080]) {
+        const leftEdge = left.x + left.width * cos - (Y - left.width * sin) * tan;
+        const rightEdge = right.x - Y * tan;
+        expect(leftEdge - rightEdge).toBeGreaterThan(20);
+      }
     });
   });
 
