@@ -78,10 +78,29 @@ export class BannerLane {
             uc.shadowColor = this.look.glow.color;
             uc.shadowBlur = this.look.glow.blurEm * px;
         }
+        const ty = config.design.type;
+        const stroke = this.look.stroke ? Math.max(ty.strokeMinPx * k, ty.strokeEm * px) : 0;
+        // The line starts `stroke` in, so its stroke isn't cut at the repeat's left edge
+        const x0 = stroke;
+        const paint = (fill) => {
+            if (fill) uc.fillText(this.text, x0, baseline);
+            else uc.strokeText(this.text, x0, baseline);
+            if (this.look.separator) {
+                if (fill) uc.fillText(this.look.separator, x0 + textW + gap, baseline);
+                else uc.strokeText(this.look.separator, x0 + textW + gap, baseline);
+            }
+            if (this.look.sparkles) drawSparkles(uc, x0 + textW + gap, height / 2, cap, fill);
+        };
+        if (stroke > 0) {
+            // TYPE-3: the ink stroke under the fill (twice the width: the fill covers the inner half)
+            uc.strokeStyle = config.design.color.ink;
+            uc.lineWidth = stroke * 2;
+            uc.lineJoin = 'round';
+            paint(false);
+            uc.shadowColor = 'transparent';
+        }
         uc.fillStyle = this.look.textColor;
-        uc.fillText(this.text, 0, baseline);
-        if (this.look.separator) uc.fillText(this.look.separator, textW + gap, baseline);
-        if (this.look.sparkles) drawSparkles(uc, textW + gap, height / 2, cap);
+        paint(true);
         this.unitCache = unit;
         this.textInk = { top: baseline - cap, height: cap };
     }
@@ -157,24 +176,25 @@ function sparkleClusterWidth(cap) {
  * The OBS banner's "✦✧" cluster as shapes (an emoji font isn't bundled,
  * TYPE-7): three four-point stars, each with two small ones beside it.
  */
-function drawSparkles(ctx, x, mid, cap) {
+function drawSparkles(ctx, x, mid, cap, fill = true) {
     for (let i = 0; i < 3; i++) {
         const cx = x + 0.55 * cap + i * 1.1 * cap;
-        star(ctx, cx, mid, 0.55 * cap);
-        star(ctx, cx + 0.5 * cap, mid - 0.45 * cap, 0.2 * cap);
-        star(ctx, cx + 0.42 * cap, mid + 0.5 * cap, 0.16 * cap);
+        star(ctx, cx, mid, 0.55 * cap, fill);
+        star(ctx, cx + 0.5 * cap, mid - 0.45 * cap, 0.2 * cap, fill);
+        star(ctx, cx + 0.42 * cap, mid + 0.5 * cap, 0.16 * cap, fill);
     }
 }
 
-/** A filled four-point star with concave sides, radius r. */
-function star(ctx, cx, cy, r) {
+/** A four-point star with concave sides, radius r: filled, or stroked for the ink edge. */
+function star(ctx, cx, cy, r, fill = true) {
     ctx.beginPath();
     ctx.moveTo(cx, cy - r);
     ctx.quadraticCurveTo(cx, cy, cx + r, cy);
     ctx.quadraticCurveTo(cx, cy, cx, cy + r);
     ctx.quadraticCurveTo(cx, cy, cx - r, cy);
     ctx.quadraticCurveTo(cx, cy, cx, cy - r);
-    ctx.fill();
+    if (fill) ctx.fill();
+    else ctx.stroke();
 }
 
 function hexToRgba(hex, a) {

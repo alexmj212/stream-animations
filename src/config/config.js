@@ -679,6 +679,10 @@ export const config = {
         // A soft dark glow under the letters, like the OBS Glow filter, so
         // white still reads over the bright wall (option B)
         glow: { color: 'rgba(0, 40, 40, 0.8)', blurEm: 0.15 },
+        // The shared ink stroke (config.design.type, TYPE-3) under the
+        // letters and sparkles: white on the teal strip over the bright wall
+        // measured ~1.5:1 without it (QA and design review on #86)
+        stroke: true,
         sparkles: true,           // The ✦✧ cluster between repeats, drawn as shapes
         separator: '',
         gapEm: 1.2                // Space each side of the sparkles
@@ -690,6 +694,7 @@ export const config = {
         fillAlpha: 1,
         textColor: '#000000',
         glow: null,
+        stroke: false,            // Black on an opaque plate needs no stroke (TYPE-3)
         sparkles: false,
         separator: '-',           // "ADS MAY BE PLAYING - ADS MAY BE PLAYING - ..."
         gapEm: 0.3                // A word space each side of the dash, as in OBS
