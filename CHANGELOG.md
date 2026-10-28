@@ -12,9 +12,11 @@ minor for new scenes, features or a visible style change, patch for fixes.
   follower-goal bar, shows `?text=` in the Illuminations palette and shrinks
   back. It replaces the old OBS Notifications scene, whose mask plugin broke
   in OBS 33. Mix It Up's Show Toast now passes `text=`. ([#27])
-- Followers: a new follower-goal bar ("946 / 1000 GOOBERS") that replaces
-  Mix It Up's Follow Goal widget. It reads Mix It Up's follower counter
-  from the local API and sweeps up on each follow. ([#29])
+- Followers: a new follower-goal bar ("946 / 1000 GOOBERS") built to
+  replace Mix It Up's Follow Goal widget. It reads Mix It Up's follower
+  counter from the local API and sweeps up on each follow. OBS keeps the
+  widget until a live check shows the Pages page can reach that API.
+  ([#29])
 
 ## v2.1.2 - 2026-10-28
 
