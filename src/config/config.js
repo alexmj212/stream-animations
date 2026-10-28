@@ -219,6 +219,9 @@ export const config = {
     // overlay px, and "natural size" Twitch avatars are 300px. Update this
     // list when a command that fires Sidescreen Alert gains or moves an image.
     // tests/shared/layout.test.js and the motion harness fail on overlap.
+    // Not listed: Lechonk Jump (Resub). It draws on its own Lechonk overlay
+    // source, which only exists in the Vtuber scene, mirrored and scaled so
+    // it lands bottom-left (checked in OBS's scene JSON, 2026-10-28).
     miuZones: {
       pad: 0.05,                  // Each side grows 5% of the size: AnimateCSS bounce-in overshoot
       items: [
