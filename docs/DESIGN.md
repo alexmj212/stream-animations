@@ -34,7 +34,6 @@ force now.
 | MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shared entry/exit 1000/1000ms on `easeInOutCubic` ([MOTION.md](MOTION.md), Timing); the sidebar splits its `duration` 25/50/25 |
 | TYPE-1 | Alert text 56px and up | Sidebar 29px; shade 96px |
 | TYPE-3 | Ink stroke 0.08em + soft shadow | Shade: 96px with a soft shadow, no stroke ([MOTION.md](MOTION.md), Look); sidebar: a black text-shadow outline |
-| TYPE-7 | Fonts bundled into the build | Jost from Google Fonts at runtime, or the machine's installed Jost |
 | TIME-1 | The hold alone meets reading time | The sidebar's hold is 50% of `duration` (1.5s at OBS's 3000ms) |
 | SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | Two exemptions, AJ's call on 2026-10-28 ([MOTION.md](MOTION.md) Learnings): the goal bar and notifications toast keep their place in the top margin (#40, text size only), and the OBS scene titles and BRB collage stay as they are (#39, #42). New text gets no exemption |
 
@@ -189,9 +188,11 @@ canvas, with what a viewer sees:
   rule and its 75% floor live in [MOTION.md](MOTION.md). The notifications
   toast is the exception: its bar grows to fit the line and the text stays
   still (MOTION.md Learnings, 2026-10-28, #31, built in #32).
-- **TYPE-7** (target) Fonts are bundled into the single-file build, never fetched at
+- **TYPE-7** Fonts are bundled into the single-file build, never fetched at
   runtime. A browser source that loads before Google Fonts answers, or
-  offline, falls back to Arial for the whole alert.
+  offline, falls back to Arial for the whole alert. Text scenes link
+  `src/shared/fonts/jost.css` (Jost 700 and 700 italic, Latin and Latin
+  Extended), which the build inlines (#41).
 - **TYPE-8** The words are stable: the on-screen text and the chat headline
   for the same event say the same thing.
 
