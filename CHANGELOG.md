@@ -18,7 +18,10 @@ release (`npm run motion:export -- stinger` renders your own).
   is balanced across the screen (`?seed=N` pins one). Also plays on
   `obsSourceActiveChanged` and `?autoplay=true`. ([#2])
 - Sidebar: ends exactly at `duration` and fully covers its panel. ([#2])
+- Shade: the curtains now lead the text in and out, and the text stays on
+  the curtains throughout. ([#6])
 - Background: bars appear on screen instead of creeping in from off-screen,
   turn smoothly, and spread evenly; default density is now 8. ([#2])
 
 [#2]: https://github.com/alexmj212/stream-animations/pull/2
+[#6]: https://github.com/alexmj212/stream-animations/pull/6
