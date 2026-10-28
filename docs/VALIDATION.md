@@ -81,6 +81,13 @@ exemption AJ or design review made, or a widget that never moves, where
 TIME-1 only measures the capture), leave it out of `rules`, with a comment
 naming the decision, so the warnings that remain are real.
 
+**Test the text that really arrives** (Design review, 2026-10-28). Every
+text scenario family keeps one variant with a realistic message: a follow
+or raid with a Twitch username, as OBS and Mix It Up send it (`sidebar-name`,
+`shade-raid`, `notifications-name`, `notifications-vertical-name`). A short
+sample string like "Thanks for the follow friend" skips the shrink and
+scroll paths the common case takes.
+
 ### Smooth motion, precisely
 
 For each tracked object, velocity is taken per frame and Δv between frames.
