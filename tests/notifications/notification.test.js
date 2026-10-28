@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     notificationDurationMs, planNotificationTimeline, extentAt, textStateAt, streakFrontAt, wipeAt
 } from '../../src/shared/animations/notification.js';
-import { planStreaks, notificationGeometry, resolveColorLayout, NotificationBar } from '../../src/notifications/NotificationBar.js';
+import { planStreaks, fitStreaksToText, notificationGeometry, resolveColorLayout, NotificationBar } from '../../src/notifications/NotificationBar.js';
 import { createRandom } from '../../src/shared/motion.js';
 import { config } from '../../src/config/config.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
@@ -125,6 +125,35 @@ describe('streaks', () => {
             expect(y).toBeGreaterThanOrEqual(slotTop);
             expect(y).toBeLessThanOrEqual(slotTop + slot);
         });
+    });
+});
+
+describe('fitStreaksToText', () => {
+    const tl = planNotificationTimeline(5000, timing, wipeMs);
+    const geo = notificationGeometry(1920);
+    const c = config.notifications.flair.streaks;
+
+    for (const textRight of [900, 1200, 1500]) {
+        it(`keeps every streak tail clear of text ending at ${textRight}px, through the hold`, () => {
+            for (let seed = 1; seed <= 6; seed++) {
+                const streaks = planStreaks(tl, geo, 1, createRandom(seed));
+                fitStreaksToText(streaks, textRight, 1);
+                for (const s of streaks) {
+                    // Leftmost painted px at rest; drift only moves it right
+                    expect(s.rest - s.length - s.lean).toBeGreaterThanOrEqual(textRight + c.textGap - 1e-9);
+                    expect(s.length).toBeGreaterThanOrEqual(c.minVisible - 1e-9);
+                }
+            }
+        });
+    }
+
+    it('is idempotent and re-fits from the planned values', () => {
+        const a = planStreaks(tl, geo, 1, createRandom(2));
+        fitStreaksToText(a, 1500, 1);
+        fitStreaksToText(a, 900, 1);
+        const b = planStreaks(tl, geo, 1, createRandom(2));
+        fitStreaksToText(b, 900, 1);
+        expect(a.map(s => [s.rest, s.length])).toEqual(b.map(s => [s.rest, s.length]));
     });
 });
 

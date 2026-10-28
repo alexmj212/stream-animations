@@ -134,7 +134,9 @@ export const SCENARIOS = [
       regionCover: { fromMs: 1000, toMs: 4000, label: 'the toast body while out' },
       probeMax: [
         { field: 'overflow', max: 0, label: 'Text fits the body' },
-        { field: 'bare', max: 0, label: 'Text only over the body' }
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        // Streaks never cross the text while it shows (Design review, PR #27)
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
       ],
       noVelocitySteps: true,
       workP95Ms: 4
@@ -157,7 +159,9 @@ export const SCENARIOS = [
       endsClear: true,
       probeMax: [
         { field: 'overflow', max: 0, label: 'Text fits the body' },
-        { field: 'bare', max: 0, label: 'Text only over the body' }
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        // Streaks never cross the text while it shows (Design review, PR #27)
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
       ],
       noVelocitySteps: true,
       workP95Ms: 4

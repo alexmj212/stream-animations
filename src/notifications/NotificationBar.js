@@ -175,6 +175,8 @@ export class NotificationBar extends AnimatedBar {
         cc.fillStyle = '#fff';
         cc.fillText(shown, pad, pad + ascent);
         this.textCache = cache;
+        this.textInk = { right: this.textX + pad + m.width + stroke, top: this.textY, bottom: this.textY + cache.height };
+        if (this.streaks) fitStreaksToText(this.streaks, this.textInk.right, this.canvas.width / REF_WIDTH);
         this.textShown = shown;
         this.textWidth = m.width;
         this.textRoom = room;
@@ -226,7 +228,13 @@ export class NotificationBar extends AnimatedBar {
                 bare: textOn ? Math.max(0, this.textX + this.textDx + this.textCache.width - (startX + this.bodyExtent)) : 0
             },
             ...(this.wipeX !== null ? [{ id: 'wipe', x: this.wipeX, y: mid, phase: this.phase, onscreen: true }] : []),
-            ...this.streaks.map((st, i) => ({ id: `streak-${i}`, x: st.front, y: st.y, phase: this.phase, onscreen: st.front - st.home > 1 }))
+            ...this.streaks.map((st, i) => ({
+                id: `streak-${i}`, x: st.front, y: st.y, phase: this.phase, onscreen: st.front - st.home > 1,
+                // px of streak inside the text box while the text shows (must stay 0)
+                overText: textOn && st.y < this.textInk.bottom && st.y + st.height > this.textInk.top
+                    ? Math.max(0, Math.min(st.front, this.textInk.right) - Math.max(startX, st.front - st.length) + 2 * st.lean)
+                    : 0
+            }))
         ];
     }
 
@@ -363,7 +371,9 @@ export function planStreaks(timeline, geo, k, random) {
             outEnd: T - random() * (T - outStart) * 0.25,
             y: yMid - height / 2,
             height,
+            lean: -Math.tan(config.notifications.geometry.skewAngle * Math.PI / 180) * height / 2,
             length: (c.lengthMin + random() * (c.lengthMax - c.lengthMin)) * k,
+            planned: null,
             white: i === 0,
             front: geo.startX
         };
@@ -373,4 +383,24 @@ export function planStreaks(timeline, geo, k, random) {
 function hexToRgba(hex, alpha) {
     const n = parseInt(hex.replace('#', ''), 16);
     return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/**
+ * Keep the streaks out of the text while it shows (design review, PR #27):
+ * at rest each streak's tail stays at least `textGap` right of the text's
+ * ink, moving its rest point out and shortening it where needed. Holds
+ * through the hold too, because streaks drift rightwards. Deterministic,
+ * and safe to call again when the text is re-measured (web font loaded).
+ * @param {Array} streaks - from planStreaks(); mutated
+ * @param {number} textRight - screen x of the text's right ink edge
+ * @param {number} k - canvas width / 1920
+ */
+export function fitStreaksToText(streaks, textRight, k) {
+    const c = config.notifications.flair.streaks;
+    const clear = textRight + c.textGap * k;
+    for (const st of streaks) {
+        st.planned ??= { rest: st.rest, length: st.length };
+        st.rest = Math.max(st.planned.rest, clear + c.minVisible * k + 2 * st.lean);
+        st.length = Math.min(st.planned.length, st.rest - clear - 2 * st.lean);
+    }
 }

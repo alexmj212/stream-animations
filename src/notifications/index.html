@@ -29,6 +29,7 @@
       import { paletteFromURL } from "../shared/palette.js";
       import { setupCanvas, clearCanvas } from "../shared/canvas.js";
       import { NotificationBar, resolveColorLayout } from "./NotificationBar.js";
+      import { AnimatedBar } from "../shared/AnimatedBar.js";
       import { notificationDurationMs } from "../shared/animations/notification.js";
       import { PerformanceMonitor } from "../shared/performance.js";
       import { PerformanceStorage } from "../shared/perfStorage.js";
@@ -71,9 +72,11 @@
 
       const lifecycle = new AnimationLifecycle();
       lifecycle.onCleanup(() => {
-        if (NotificationBar.cacheCleanupInterval) {
-          clearInterval(NotificationBar.cacheCleanupInterval);
-          NotificationBar.cacheCleanupInterval = null;
+        // The interval lives on the base class; clearing it through the
+        // subclass would only shadow it (Code review, PR #27)
+        if (AnimatedBar.cacheCleanupInterval) {
+          clearInterval(AnimatedBar.cacheCleanupInterval);
+          AnimatedBar.cacheCleanupInterval = null;
         }
       });
 
@@ -81,10 +84,11 @@
       const style = urlParams.get("style") || config.notifications.style;
       const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
       const toast = new NotificationBar(ctx, canvas, { text, durationMs, palette: palette.stops, colorLayout, style, random: createRandom(seed) });
-      debug.mark('textFit', { shown: toast.textShown, scale: +toast.textScale.toFixed(3), room: Math.round(toast.textRoom) });
+      const markFit = (font) => debug.mark('textFit', { font, shown: toast.textShown, scale: +toast.textScale.toFixed(3), room: Math.round(toast.textRoom) });
+      markFit('fallback');
       // The line first renders in a fallback font; redo it in Jost once
       // loaded (the text only shows after the bar is out, so it's in time)
-      document.fonts?.ready.then(() => toast.buildText());
+      document.fonts?.ready.then(() => { toast.buildText(); markFit('loaded'); });
       registerProbe('notifications', () => toast.probeSamples());
 
       // One-shot on load: OBS reloads the page each time the source is shown.

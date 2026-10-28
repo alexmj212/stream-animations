@@ -435,7 +435,12 @@ export const config = {
         exitStagger: 0.3,         // Leave up to this share into the retract
         driftMin: 4,              // px/s rightward while holding
         driftMax: 12,
-        alpha: 0.85
+        alpha: 0.85,
+        // Streaks stay clear of the text while it shows (design review, PR
+        // #27): their tails end this far right of its ink, and at least
+        // minVisible px of each streak stays on show
+        textGap: 16,              // px
+        minVisible: 60            // px
       },
       // Lit rims along the top and bottom edges, like the follower bar's
       // white outline
