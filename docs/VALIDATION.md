@@ -218,6 +218,16 @@ clear of the player controls, and then holds still (SAFE-1, SAFE-3, TYPE-1,
 TIME-1). It draws about 60 frames once and none after, so it has no CPU
 check: the debug `idle` event proves it stops.
 
+`banner-hype` and `banner-ad` check the banner lane (#85): the probe's
+`outsideLane` must stay 0 (plate and text inside x 560-1824, y 84-132) and
+`capShort` 0 (capitals at least 32px, measured from the drawn font), the
+plate region must be opaque (full-opacity ink), and every rule a new scene
+meets is enforced. `banner-hype` fires one `bannerGlint` event on the
+virtual clock (`glint=0` turns off the page's real-time interval) and
+checks the page goes idle again. `banner-long` scrolls a custom line inside
+the lane and carries the scene's CPU check, since a still banner draws only
+its entrance.
+
 ### Recording the epcot loop
 
 On stream, epcot plays as a pre-recorded looping video, so changes to the

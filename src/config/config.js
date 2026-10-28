@@ -638,6 +638,72 @@ export const config = {
     }
   },
 
+  // Banner lane (issue #85): the hype train banner and the ad warning, which
+  // were OBS groups (colour strips, a GDI+ text scroll, Move filters) whose
+  // text couldn't be enlarged without breaking the groups' crop. One page,
+  // ?kind=hype|ad, one OBS browser source per kind; MIU shows and hides
+  // them as it did the groups. The ad source sits above the hype one in OBS,
+  // and both plates fill the same lane, so the ad wins when both are up
+  banner: {
+    // DESIGN.md, Composition, zone plan: directly under the toast lane,
+    // x 560-1824 (the goal bar's right end to title-safe's right edge),
+    // y 84-132. Everything the page draws stays inside this box, slanted
+    // ends included
+    lane: { x: 560, y: 84, width: 1264, height: 48 },
+    skewAngle: -15,               // GEO-1, the same lean as the toast above it
+    kinds: {
+      hype: {
+        text: 'HYPE TRAIN',       // What the old scroll said, without the emoji sparkles
+        // Illuminations along the lane (one band, MOTION.md Learnings #27):
+        // the whole palette, violet at the goal bar to amber at the front
+        stops: [0, 6],
+        glintEveryMs: 12000       // A light band now and then while the train runs; 0 = off
+      },
+      ad: {
+        text: 'ADS MAY BE PLAYING',
+        // The warm end only, so the warning keeps the orange viewers know
+        // from the old banner, now as an accent on the ink plate (#85)
+        stops: [4, 6],
+        glintEveryMs: 0           // A warning, not a celebration: it holds still
+      }
+    },
+    // ?scheme=mono: the accent stripe in the old OBS colours
+    classic: { hype: '#b00bee', ad: '#ffa500' },
+    brightness: 0.8,              // Same multiplier as every scene (MOTION.md, Look)
+    plate: {
+      // Ink at full opacity (TYPE-3: text on a solid plate needs only the plate)
+      alpha: 1,
+      stripePx: 4,                // Palette stripe along the plate's bottom edge (GEO-3: 4px)
+      tipWidth: 40,               // White tip at the front, like the toast's (GEO-4: 40-120)
+      glint: { ms: 900, bandPx: 80, alpha: 0.3 }
+    },
+    text: {
+      font: '"Jost", Arial, sans-serif',
+      weight: 700,
+      // Rotom (#85, Composition zone plan): 32px caps, about a 44px Jost 700
+      // line. The font size is derived from the loaded font's cap height so
+      // the caps measure exactly this (TYPE-1: the line is over 40px)
+      capPx: 32,
+      padding: 24,                // Room each end, inside the plate and clear of the tip
+      // A line wider than its room scrolls inside the lane: still at each
+      // end, then an eased glide across and back (no jump back to the start)
+      scrollPauseMs: 1500,
+      scrollPxPerSec: 100         // Average glide speed (MOTION-5: under a tenth of the screen a second)
+    },
+    timing: {
+      // DESIGN.md MOTION-1/-4: the stripe leads out from the goal bar's end,
+      // the plate follows a stagger behind, then the words arrive once it has
+      // settled. No exit here: OBS hides the source (its Hide transition
+      // fades it, see SCENES.md)
+      stripeMs: 500,              // design.motion.durationMs.enter, on ease.enter
+      plateDelayMs: 60,           // design.motion.durationMs.stagger
+      plateMs: 500,
+      textDelayMs: 150,           // design.motion.settleMs
+      textMs: 350,
+      textSlidePx: 24
+    }
+  },
+
   // Epcot scene configuration (flattened tetrahedron grid, real-3D shading)
   epcot: {
     // Base triangle side length in pixels

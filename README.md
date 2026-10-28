@@ -79,6 +79,18 @@ source loads, then holds still. A long title shrinks, then takes two lines.
 
 **URL**: `title/index.html?text=WELCOME`
 
+### Banner lane
+The hype train banner and the ad warning, in the lane under the goal bar
+toast: 32px caps on an ink plate with an Illuminations stripe, inside
+x 560-1824, y 84-132. One OBS browser source per kind, shown and hidden by
+Mix It Up; the ad source sits above the hype one, so it wins when both are up.
+
+**URL**: `banner/index.html?kind=hype` (`kind`, `text`, `glint`, `scheme`)
+
+- `kind` - `hype` (default: "HYPE TRAIN", the whole palette, a glint every 12 s) or `ad` ("ADS MAY BE PLAYING", the warm end, no glint)
+- `text` - Replace the line (set in caps); a line too long for the lane scrolls inside it
+- `glint` - ms between light bands, `0` for none (default per kind)
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 
@@ -202,6 +214,7 @@ src/
   notifications/ - Toast bar out of the follower-goal bar
   followers/    - Follower-goal bar (count from MIU's Developer API)
   title/        - Scene title card (WELCOME, BRB, ENDING)
+  banner/       - Hype train banner and ad warning (banner lane)
   background/   - Background loop
   epcot/        - Spaceship Earth lattice
 tests/          - Vitest suites, one folder per scene

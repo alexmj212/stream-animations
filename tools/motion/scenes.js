@@ -531,6 +531,83 @@ export const SCENARIOS = [
     }
   },
   {
+    // Banner lane (issue #85): the hype train banner slides in under the
+    // toast and holds still. Everything stays inside the lane, x 560-1824,
+    // y 84-132, with 32px caps on an ink plate at full opacity (DESIGN.md,
+    // Composition zone plan; TYPE-1, TYPE-3). glint=0: the harness fires the
+    // glint itself, on its virtual clock
+    name: 'banner-hype',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=hype&color=${COLOR}&glint=0`,
+    start: 'load',
+    events: [{ at: 2500, event: 'bannerGlint' }],
+    captureMs: 4500,
+    keyframes: [0.03, 0.08, 0.13, 0.2, 0.3, 0.6],
+    keyframeSpanMs: 4500,
+    markers: [{ at: 560, label: 'plate in' }, { at: 1060, label: 'words in' }, { at: 2500, label: 'glint' }],
+    // The plate inside its slanted ends: opaque ink, never see-through
+    region: { x0: 0.302, x1: 0.936, y0: 0.08, y1: 0.12 },
+    checks: {
+      // A new scene meets every rule it can be checked against
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1100, 4500], fail: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1, glint: 1, idle: 2 },
+      regionCover: { fromMs: 700, toMs: 4500, label: 'the ink plate, at full opacity' },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside the banner lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 32px' },
+        { field: 'overflow', max: 0, label: 'Whole line shown' }
+      ],
+      noVelocitySteps: true
+    }
+  },
+  {
+    // The ad warning: same lane and plate, the warm end of the palette, no
+    // glint. It ends at x 1824; the OBS group ran to the frame edge (#85)
+    name: 'banner-ad',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=ad&color=${COLOR}`,
+    start: 'load',
+    captureMs: 4500,
+    keyframes: [0.08, 0.3],
+    keyframeSpanMs: 4500,
+    region: { x0: 0.302, x1: 0.936, y0: 0.08, y1: 0.12 },
+    checks: {
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1100, 4500], fail: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1, idle: 1 },
+      regionCover: { fromMs: 700, toMs: 4500, label: 'the ink plate, at full opacity' },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside the banner lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 32px' },
+        { field: 'overflow', max: 0, label: 'Whole line shown' }
+      ],
+      noVelocitySteps: true
+    }
+  },
+  {
+    // A custom line too long for the lane scrolls inside it, back and forth
+    // with rests at each end, and never leaves it. It draws every frame, so
+    // it also carries the scene's frame-CPU check (~480 drawn frames)
+    name: 'banner-long',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=hype&color=${COLOR}&glint=0&text=Hype+train+level+five+thanks+to+every+single+goober+in+chat+tonight`,
+    start: 'load',
+    captureMs: 8000,
+    keyframes: [0.2, 0.5, 0.8],
+    keyframeSpanMs: 8000,
+    checks: {
+      // No TIME-1: a line that has to scroll isn't still (TYPE-6: scroll is the last resort)
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [1100, 8000], fail: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1 },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside the banner lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 32px' },
+        { field: 'overflow', max: 0, label: 'Whole line shown' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
     name: 'background',
     url: `/src/background/index.html?color=${COLOR}`,
     start: 'load',
