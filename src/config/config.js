@@ -459,8 +459,11 @@ export const config = {
       bodyShort: 53,              // The dark body stops this far short of the front (OBS: 1532 vs 1587)
       tipWidth: 37,               // White tip riding the front (OBS "Block 1": 37px)
       // Long text grows the bar past endX, up to here, rather than losing
-      // words (design review, 2026-10-28: a thank-you keeps the giver's name)
-      maxEndX: 1890
+      // words (design review, 2026-10-28: a thank-you keeps the giver's name).
+      // Title-safe's right edge (DESIGN.md SAFE-1), so the text stays inside
+      // it and the leaning top corner inside action-safe (1853); 1890 ran
+      // past both on the live check of v2.2.1
+      maxEndX: 1824
     },
 
     // Brightness multiplier shared by every scene (docs/MOTION.md)
