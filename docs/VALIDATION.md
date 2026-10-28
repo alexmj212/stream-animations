@@ -22,6 +22,7 @@ is built and checked.
 | `npm run motion -- --dump` | Also write every frame's raw data to `capture.json` |
 | `npm run motion -- --jitter` | Uneven frame times, like a loaded OBS. Checks timing and coverage still hold; skips the smoothness and CPU checks |
 | `npm run motion:export -- stinger` | Render to a transparent WebM for OBS (see below) |
+| `npm run motion:export -- epcot --loop` | Render one seamless epcot loop to MP4 (see below) |
 | `npm run bench` | Real-time FPS and Canvas 2D hot paths (complements the harness) |
 
 Report: `tools/motion-results/index.html` (gitignored). Per run it shows the
@@ -42,7 +43,9 @@ wall-clock time:
 
 So every frame is rendered at an exact timestamp no matter how slow the
 machine or the screenshotting is. After each step the harness reads the
-canvas alpha (coverage) and the scene's probe (object positions).
+canvas alpha (coverage) and the scene's probe (object positions). Scenes
+that stack full-size layer canvases (background) are read as one image: the
+layers' alpha composited at each pixel (source-over).
 
 Scenes opt in to motion tracking with `registerProbe()` from
 `src/shared/motion.js`. It is a no-op unless the harness is present, so
@@ -125,6 +128,21 @@ to `exports/` (gitignored).
 motion. `background` is checked for smooth motion and CPU. `epcot` has no
 motion probe; it is a CPU regression guard (p95 at most 20ms, measured
 around 10ms).
+
+### Recording the epcot loop
+
+On stream, epcot plays as a pre-recorded looping video, so changes to the
+scene only reach the stream once the loop is re-recorded:
+
+```
+npm run motion:export -- epcot --loop --fps=30          # 48s 1080p30 MP4
+npm run motion:export -- epcot --loop=24 --speed=0.5    # explicit period/speed
+```
+
+`--loop` renders exactly one period (`loopPeriod / speed` seconds, from
+`config.epcot` unless overridden) as an opaque H.264 MP4, then renders the
+frame one period after the first and compares them. It prints `Seam: PSNR
+inf dB (identical, seamless)` and exits 1 if the loop doesn't close.
 
 ## Adding a scenario
 
