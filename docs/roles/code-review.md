@@ -39,7 +39,8 @@ change (Design review), harness checks and test health (QA).
    check, doc fix or Learnings row)? A PR that hit a snag and left nothing
    durable is a finding (seed rule from the self-improvement thread,
    2026-10-28).
-5. Post **one** verdict per round as a GitHub review (inline comments for
+5. Post **one** verdict per round (*Ready* or *Needs changes*; *Needs AJ's
+   call* only for design, see below) as a GitHub review (inline comments for
    line findings, the verdict in the body), ending with the attribution
    footer. Format is in `steward`. Blocking findings first; mark the rest
    "non-blocking".
@@ -49,10 +50,13 @@ change (Design review), harness checks and test health (QA).
    which findings it resolved.
 8. Run the `improve` skill before you finish.
 
-**Needs AJ's call** is for taste, anything viewers will notice that the PR
-didn't announce, a changed default, a raised budget, or a change to how OBS
-is set up. Name the question in one line so AJ can answer without reading the
-diff.
+**Ship without asking (AJ, 2026-10-28).** Code changes don't wait on AJ.
+Release management merges once CI, Code review, Design review and QA pass.
+Code questions (behavior, triggers, defaults, budgets, OBS wiring) are
+decided by the role threads: Code review recommends, and the owning thread
+or Release management decides. **Needs AJ's call** is only for design
+decisions AJ can judge from frames or mocks. Route those through Design
+review with the comparison attached, never as a diff to read.
 
 ## Coordination
 
@@ -76,3 +80,4 @@ owning thread when work touches yours; send review findings straight to it.
 | 2026-10-28 | A new trigger on a one-shot scene (stinger `obsSourceActiveChanged`) changes when it plays in OBS. Ask whether it can double-fire with an existing trigger | PR #2 review | scene triggers | active |
 | 2026-10-28 | Every PR is opened as AJ's account, and GitHub refuses Approve or Request changes on your own PR. Submit reviews as Comment and put the verdict in the body | PR #2 review | posting verdicts | active |
 | 2026-10-28 | Don't subscribe to PR activity on another thread's PR. Its events go to one session only, so subscribing takes them from the author. Authors message this thread when they push | PR #1 / #2 review | re-reviews | active |
+| 2026-10-28 | A code behavior question (should `obsSourceActiveChanged` start the stinger?) isn't AJ's call. Recommend an answer and let the owning thread decide. Ask AJ only for design, with frames | AJ, 2026-10-28; PR #2 trigger question | verdicts | active |
