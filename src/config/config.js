@@ -388,7 +388,8 @@ export const config = {
       top: 26,                    // = notifications.geometry.top
       height: 48,                 // = notifications.geometry.height
       leftX: 36,                  // Left edge at mid-height (MIU bar: ~x 30-42)
-      rightX: 451,                // = notifications.geometry.startX: the toast starts here
+      rightX: 560,                // = notifications.geometry.startX: the toast starts here.
+                                  // Long enough for "1000 / 1000 GOOBERS" at 42px (AJ, 2026-10-28, #40)
       skewAngle: -15              // = notifications.geometry.skewAngle
     },
 
@@ -456,7 +457,7 @@ export const config = {
       font: '"Jost", Arial, sans-serif',
       style: 'italic',            // Same face as the toast text
       weight: 700,
-      sizePx: 32,
+      sizePx: 42,                 // AJ's pick on #40 (2026-10-28): bigger text, same place
       strokePx: 4,
       padding: 18                 // Room kept clear at each end
     }
@@ -473,7 +474,7 @@ export const config = {
     geometry: {
       top: 26,                    // Follower bar's top edge (measured on the OBS program)
       height: 48,                 // Follower bar's height, so the toast reads as its extension
-      startX: 451,                // Follower bar's right edge at mid-height: the toast grows from here
+      startX: 560,                // Follower bar's right edge at mid-height: the toast grows from here
       endX: 1590,                 // Toast's front at mid-height when out (OBS: 1587-1591)
       skewAngle: -15,             // Same lean as the follower bar and the house horizontal bars
       bodyShort: 53,              // The dark body stops this far short of the front (OBS: 1532 vs 1587)
@@ -565,14 +566,14 @@ export const config = {
       font: '"Jost", Arial, sans-serif',
       style: 'italic',            // OBS: Jost Bold Italic, like the follower bar
       weight: 700,
-      sizePx: 32,                 // Cap height ~half the bar, like the follower bar's text
+      sizePx: 42,                 // Matches the follower bar (AJ, 2026-10-28, #40)
       strokePx: 4,                // Black outline (OBS Stroke filter)
       padding: 24,                // Room kept clear at each end of the body
       // Long text: shrink down to minScale, then grow the bar (geometry.
       // maxEndX), then, only if it still doesn't fit, scroll it during the
       // hold: show the start, glide to the end, show the end (design review,
       // 2026-10-28: a static line reads best, scroll is the last resort)
-      minScale: 0.7,
+      minScale: 0.55,             // 23px: the 21-word harness line still fits whole in Jost; 0.6 scrolls
       scrollPauseMs: 800          // Still at each end of a scroll
     }
   },
