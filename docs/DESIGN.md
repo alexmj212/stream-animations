@@ -202,8 +202,9 @@ each of them, not only on Just Chatting.
 
 In the Full view the room is gone, so the left column holds chat, the
 discoball pig and AJ, top to bottom. The toast, banner lane, MIU avatars,
-sidebar and gags land on the game for a few seconds; that's accepted.
-Exobot lands on AJ's chest, under the face.
+sidebar and gags land on the game for a few seconds, the gag corner on the
+game's bottom-right where a HUD often sits; that's accepted. Exobot's top
+edge (y 788) reaches AJ's chin and beard, below the eyes, for a TTS line.
 
 ### Zone plan (16:9)
 
