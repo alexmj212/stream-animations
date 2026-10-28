@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Follower Goal</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import { paletteFromURL } from "../shared/palette.js";
+      import { setupCanvas, clearCanvas } from "../shared/canvas.js";
+      import { FollowerBar } from "./FollowerBar.js";
+      import { FollowerSource } from "./source.js";
+      import { goalFor, parseCount } from "../shared/animations/followers.js";
+      import { PerformanceMonitor } from "../shared/performance.js";
+      import { PerformanceStorage } from "../shared/perfStorage.js";
+      import { PerformanceOverlay } from "../shared/perfOverlay.js";
+      import { AnimationLifecycle } from "../shared/lifecycle.js";
+      import { config } from "../config/config.js";
+      import { registerProbe } from "../shared/motion.js";
+      import { createDebug } from "../shared/debug.js";
+      const debug = createDebug('followers');
+
+      // Always on. ?count= seeds the bar; MIU's Developer API keeps it
+      // current (src/followers/source.js). ?goal=, ?goalstep= and ?label=
+      // match MIU's goal settings.
+      const urlParams = new URLSearchParams(window.location.search);
+      const cfg = config.followers;
+      const intParam = (name) => parseCount(urlParams.get(name));
+      const baseGoal = intParam("goal") || cfg.goal;
+      const goalStep = intParam("goalstep") ?? cfg.goalStep;
+      const label = urlParams.get("label") ?? cfg.label;
+      const style = urlParams.get("style") || cfg.style;
+      const fillLayout = urlParams.get("filllayout") || cfg.fillLayout;
+      const showPerf = urlParams.get("perf") === "true";
+      const palette = paletteFromURL();
+      debug.mark('palette', { scheme: palette.scheme, style, fillLayout });
+
+      const perfMonitor = new PerformanceMonitor(60, 60);
+      if (showPerf) {
+        const perfOverlay = new PerformanceOverlay(perfMonitor, new PerformanceStorage(50), {
+          position: 'bottom-right',
+          opacity: 0.9,
+          scene: 'followers'
+        });
+        perfMonitor.enable();
+        perfOverlay.setupHotkey();
+        perfOverlay.startSession();
+        perfOverlay.show();
+        perfOverlay.exposeAPI();
+        window.addEventListener('beforeunload', () => perfOverlay.endSession());
+      }
+
+      const canvas = document.getElementById("canvas");
+      const ctx = setupCanvas(canvas, { alpha: true });
+      const lifecycle = new AnimationLifecycle();
+      const now = () => performance.now() / 1000;
+
+      let bar = null;
+      let goalOverride = null;   // a `followers` event may carry its own goal
+      const goalOf = (count) => goalFor(count, goalOverride ?? baseGoal, goalStep);
+
+      // Draw only when something changes: idle costs no frames at all
+      let frameQueued = false;
+      function requestDraw() {
+        if (frameQueued || !bar) return;
+        frameQueued = true;
+        requestAnimationFrame(frame);
+      }
+      function frame(timestamp) {
+        frameQueued = false;
+        if (showPerf) perfMonitor.recordFrame();
+        debug.frame(timestamp);
+        bar.setTime(timestamp / 1000);
+        clearCanvas(ctx, canvas);
+        bar.draw();
+        if (bar.animating) requestDraw();
+        else debug.mark('idle', { count: bar.shown.count });
+      }
+
+      function show(count, animate) {
+        const goal = goalOf(count);
+        if (!bar) {
+          bar = new FollowerBar(ctx, canvas, { palette: palette.stops, style, fillLayout, label, count, goal });
+          registerProbe('followers', () => bar.probeSamples());
+          debug.mark('start', { count, goal });
+        } else {
+          bar.setCount(count, goal, now(), animate);
+        }
+        requestDraw();
+      }
+
+      const source = new FollowerSource({
+        config: cfg.source,
+        mode: urlParams.get("source") === "url" ? "url" : "miu",
+        api: urlParams.get("api"),
+        counter: urlParams.get("counter"),
+        signal: lifecycle.signal,
+        debug,
+        onCount: (count, info) => {
+          if (info.goal) goalOverride = info.goal;
+          // With nothing painted yet (no stored count, no ?count=) the first
+          // count appears as is; after that every change sweeps
+          show(count, bar !== null);
+        }
+      });
+
+      // Paint at once from the last count this browser saw (else ?count=).
+      // When MIU sets ?count= on the URL (?source=url), the page reloads, so
+      // a new ?count= sweeps up from the stored one
+      const fromUrl = intParam("count");
+      const initial = source.stored() ?? fromUrl;
+      if (initial !== null) {
+        source.last = initial;
+        show(initial, false);
+      }
+      if (fromUrl !== null) source.emit(fromUrl, { via: 'url' });
+      source.start();
+
+      // A resize clears the canvas: rebuild sizes and repaint
+      lifecycle.addEventListener(window, 'resize', () => {
+        if (!bar) return;
+        bar.resize();
+        requestDraw();
+      });
+      // Jost is installed on Defiant, as for the other scenes (no web font).
+      // If it isn't ready at the first paint, redo the line once it is
+      const t = cfg.text;
+      Promise.resolve(document.fonts?.load(`${t.style} ${t.weight} ${t.sizePx}px ${t.font}`)).catch(() => {}).then(() => {
+        if (!bar) return;
+        bar.buildText(true);
+        requestDraw();
+      });
+
+      // Idle glint now and then (?style=creative)
+      if (style === 'creative' && cfg.timing.glintEveryMs > 0) {
+        const glint = setInterval(() => {
+          if (!bar || document.hidden) return;
+          bar.startGlint(now());
+          requestDraw();
+        }, cfg.timing.glintEveryMs);
+        lifecycle.onCleanup(() => clearInterval(glint));
+      }
+    </script>
+  </body>
+</html>

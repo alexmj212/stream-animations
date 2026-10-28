@@ -193,6 +193,25 @@ export const SCENARIOS = [
     }
   },
   {
+    name: 'followers',
+    // Always on: paints 946 at load, then a follow arrives as the event
+    // obs-browser's emit_event would send; the sweep runs and 947 lands
+    url: `/src/followers/index.html?color=${COLOR}&source=url&count=946`,
+    start: { event: 'followers', also: [{ event: 'followers', detail: { count: 947 } }] },
+    captureMs: 2000,
+    keyframes: [0.05, 0.15, 0.3, 0.45, 0.6, 0.9],
+    keyframeSpanMs: 2000,
+    markers: [{ at: 1150, label: 'landed' }],
+    checks: {
+      // The follow lands before the first frame runs, so the first paint
+      // already animates: one count, and one idle once it has landed
+      debugEvents: { start: 1, count: 1, idle: 1 },
+      probeMax: { field: 'overflow', max: 0, label: 'Text fits the bar' },
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
     name: 'background',
     url: `/src/background/index.html?color=${COLOR}`,
     start: 'load',

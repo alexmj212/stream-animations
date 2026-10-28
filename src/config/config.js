@@ -357,6 +357,91 @@ export const config = {
     }
   },
 
+  // Followers scene: the always-on follower-goal bar, top left ("946 / 1000
+  // GOOBERS"). Replaces the Mix It Up "Follow Goal" widget (an MIU counter
+  // goal on counter `followercount`, read from Defiant 2026-10-28). The
+  // notifications toast grows out of its right end, so top, height, right
+  // edge and lean must equal config.notifications.geometry (a unit test
+  // holds them together).
+  followers: {
+    geometry: {
+      top: 26,                    // = notifications.geometry.top
+      height: 48,                 // = notifications.geometry.height
+      leftX: 36,                  // Left edge at mid-height (MIU bar: ~x 30-42)
+      rightX: 451,                // = notifications.geometry.startX: the toast starts here
+      skewAngle: -15              // = notifications.geometry.skewAngle
+    },
+
+    // Brightness multiplier shared by every scene (docs/MOTION.md)
+    brightness: 0.8,
+
+    // ?goal= and ?label= defaults, as MIU had them (one segment, 1000)
+    goal: 1000,
+    label: 'GOOBERS',
+    // ?goalstep=: once the goal is reached, roll on to the next multiple of
+    // this. 0 keeps the goal and shows the count past it on a full bar
+    goalStep: 0,
+
+    // Where the count comes from (src/followers/source.js). MIU's
+    // Developer API (Services > Developer API, port 8911) serves the same
+    // counter its widget used; MIU sets it to $streamfollowercount at launch
+    // and on every follow. Polling a local API keeps every secret out of
+    // this public repo. ?count= seeds the bar (and is the whole source with
+    // ?source=url, for when MIU sets the OBS URL instead).
+    source: {
+      api: 'http://localhost:8911/api/v2/counters/',
+      counter: 'followercount',
+      pollMs: 5000,               // A follow shows within 5 s; one tiny local GET each time
+      maxBackoffMs: 60000,        // MIU closed: back off to one try a minute
+      timeoutMs: 2000,
+      storageKey: 'followers:last' // Last count, so a reload paints at once
+    },
+
+    // ?style=: 'creative' (sweep and tip on a change, glint now and then)
+    // or 'clean' (the fill and number just ease to the new count)
+    style: 'creative',
+
+    // The OBS-era colors (?scheme=mono): MIU widget gradient and border
+    classic: {
+      fill: ['#412e4d', '#b00bee', '#e6d3f5'],
+      body: 'rgba(20, 6, 30, 0.55)',
+      rim: '#ffffff'
+    },
+
+    // Body behind the fill: dark and see-through, like the toast body
+    bodyAlpha: 0.55,
+    bodyLightness: -38,           // Palette lightness offset for the body
+    rim: { width: 2, alpha: 0.85 },   // MIU bar: 1 px white border
+    tipWidth: 10,                 // White tip on the fill's front, like the toast's
+    // ?filllayout=: how the Illuminations palette lies on the fill. 'ramp'
+    // runs the whole palette over the goal (violet at zero, amber at the
+    // goal), so the color itself says how close it is; 'screen' is the
+    // other scenes' top-to-bottom gradient, nearly all violet up here.
+    // 'screen' by default (2026-10-28 mocks, design/followers/): it matches
+    // the other scenes and hands over cleanly to the toast, which starts
+    // violet; 'ramp' ends amber right where the toast starts dark violet
+    fillLayout: 'screen',
+
+    timing: {
+      sweepMs: 900,               // Light band along the bar on a change
+      fillDelayMs: 250,           // The fill and number start behind the band...
+      fillMs: 900,                // ...and land as it leaves
+      glintEveryMs: 90000,        // Idle glint (creative); 0 = off. Rare, so idle stays free
+      glintMs: 700
+    },
+    sweep: { bandPx: 70, alpha: 0.8 },
+    glint: { bandPx: 40, alpha: 0.35 },
+
+    text: {
+      font: '"Jost", Arial, sans-serif',
+      style: 'italic',            // Same face as the toast text
+      weight: 700,
+      sizePx: 32,
+      strokePx: 4,
+      padding: 18                 // Room kept clear at each end
+    }
+  },
+
   // Notifications scene: a toast bar that grows out of the right end of the
   // follower-goal bar (the MIU "Follow Goal" overlay, top left) with a line
   // of text. Rebuilt from AJ's OBS "Notifications" scene (color sources,
@@ -813,6 +898,100 @@ export const config = {
     // so the white text reads
     bodyLightness: -10,
     tipLightness: -22
+  },
+
+  // Design tokens from the stream bible (docs/DESIGN.md, design system
+  // role, 2026-10-28). Every value is on the 1920x1080 OBS canvas. Scenes
+  // adopt them as their audit issues land; until then a scene's own block
+  // above may still differ. src/shared/design.js and design.test.js read
+  // these, so a token change that breaks a contrast pair fails CI.
+  design: {
+    canvas: { width: 1920, height: 1080, unitPx: 8 }, // Spacing comes in multiples of 8px
+
+    // SMPTE ST 2046-1 safe areas, as an inset from each edge. Viewers on a
+    // phone, a TV with overscan or Twitch's player chrome lose the edges
+    safe: {
+      actionInset: 0.035,         // 67px x 38px: nothing that matters past here
+      titleInset: 0.05            // 96px x 54px: every word and number sits inside
+    },
+
+    grid: { columns: 12, marginPx: 96, gutterPx: 24 }, // Margin = title-safe x
+
+    // Twitch's player draws its controls over the bottom of the video on
+    // hover and tap; nothing a viewer must read lives there
+    playerChromeTop: 0.92,
+
+    type: {
+      family: 'Jost',
+      weight: 700,
+      // A 1.33 (perfect fourth) scale. Phone column: px a viewer actually
+      // sees with the video 390px wide in portrait (x 0.203)
+      sizes: {
+        hero: 96,                 // Full-screen alerts (shade): 19.5px on a phone
+        display: 72,              // A name that is the point of the alert: 14.6px
+        headline: 56,             // Side alerts (sidebar), titles on scene cards: 11.4px
+        label: 40                 // Widgets (goal, notifications): 8.1px, the floor
+      },
+      minPx: 40,                  // Nothing a viewer must read is smaller: 27px at 720p
+      trackingEm: 0.02,           // Uppercase Jost needs a little air at small sizes
+      // Text over anything that moves gets a hard ink stroke and a soft
+      // shadow falling down-right (the one light, top-left)
+      strokeEm: 0.08,             // 4.5px at 56px; never under strokeMinPx
+      strokeMinPx: 3,             // 2px once a 720p encode halves it: still survives 4:2:0
+      shadowOffsetEm: 0.04,
+      shadowBlurEm: 0.08,
+      shadowAlpha: 0.6
+    },
+
+    color: {
+      white: '#ffffff',
+      ink: '#14061f',             // The dark text and stroke colour: Illuminations violet at 4% lightness
+      brightness: 0.8,            // Same multiplier as every scene's palette (MOTION.md, Look)
+      // Tested text pairs. bg 'stopN' = config.epcot.palettes.illuminations[N]
+      // at `brightness`, shaded on HSL lightness like the scenes. min 4.5 = any size, 3 = display sizes (56px+) only.
+      // A new pair goes here first; design.test.js holds them.
+      textPairs: [
+        { text: 'white', bg: 'stop0', min: 4.5 },
+        { text: 'white', bg: 'stop1', min: 4.5 },
+        { text: 'white', bg: 'stop2', min: 4.5 },
+        { text: 'white', bg: 'stop3', min: 4.5 },
+        { text: 'white', bg: 'stop4', min: 4.5 },
+        { text: 'white', bg: 'stop5', min: 3 },    // Orange: display sizes, with the stroke
+        { text: 'ink', bg: 'stop5', min: 4.5 },
+        { text: 'ink', bg: 'stop6', min: 4.5 },    // Amber: white fails (2.1), ink only
+        { text: 'white', bg: 'ink', min: 4.5 }
+      ]
+    },
+
+    // Motion tokens. Enter decelerates, exit accelerates, a move across the
+    // screen eases both ends. MOTION.md keeps each scene's decided timings
+    motion: {
+      ease: {
+        enter: [0.33, 1, 0.68, 1],  // easeOutCubic: arrives fast, settles
+        exit: [0.32, 0, 0.67, 0],   // easeInCubic: leaves accelerating
+        move: [0.65, 0, 0.35, 1]    // easeInOutCubic: the scenes' existing curve
+      },
+      durationMs: {
+        micro: 150,               // A colour or value swap in place
+        exit: 350,                // Leaving is quicker than arriving
+        enter: 500,               // An alert or widget arriving
+        move: 700,                // A bar crossing the screen
+        stagger: 60               // Between siblings arriving (5 bars = 240ms spread)
+      },
+      settleMs: 150,              // A beat of stillness after an arrival before text starts to read
+      staticCoverMaxMs: 300       // Stinger: longest the screen sits fully covered and still
+    },
+
+    alerts: {
+      gapMs: 500,                 // Space between two alerts in one zone
+      maxConcurrent: 1            // One alert per zone; the next waits
+    },
+
+    // Photosensitivity (WCAG 2.3.1 / ITU-R BT.1702 / Ofcom)
+    flash: {
+      maxPerSecond: 3,            // Flashes (a >10% luminance swing and back) over 25% of the screen
+      fullFieldMaxPerSecond: 1    // A full-screen swing (the stinger) at most once a second
+    }
   },
 
   /**

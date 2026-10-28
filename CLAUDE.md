@@ -77,6 +77,7 @@ All docs live in `docs/` (index: `docs/README.md`). The root `README.md` is the
 user-facing overview and the full URL parameter reference.
 
 - `docs/SCENES.md`: each scene, its entry point, URL params and OBS setup
+- `docs/DESIGN.md`: the stream bible, how everything on stream looks and moves, with rule ids, tokens (`config.design`) and do/don't figures; owned by the design system role (Rotom)
 - `docs/MOTION.md`: the shared motion style (timing, brightness, bar shapes, text); follow it for any visual change; owned by design review
 - `docs/PERFORMANCE.md`: frame and memory budgets, how to benchmark
 - `docs/VALIDATION.md`: how motion is built and verified with the motion harness
