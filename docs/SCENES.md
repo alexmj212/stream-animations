@@ -12,6 +12,7 @@ live in `src/config/config.js`.
 | shade | Raid/alert banner: semi-transparent curtains close round a still line of large text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
 | followers | Always-on follower-goal bar, top left; the notifications toast grows out of its right end | Always on; polls MIU's Developer API (`GET :8911/api/v2/counters/followercount`) every 5 s, or a `followers` window event | `goal`, `goalstep`, `label`, `count`, `source`, `api`, `counter`, `style`, `filllayout`, `scheme`, `perf` |
 | notifications | Toast bar that grows out of the right end of the follower-goal bar (top left), shows one line of text, and slides back in. Rebuilt from the OBS "Notifications" scene (color sources, Move filters and a mask plugin that broke in OBS 33) | Plays on load (OBS reloads it when the source is shown) | `text`, `duration` (default grows with long text), `seed` (streaks), `style`, `colorlayout`, `scheme`, `perf` |
+| title | Scene title card (WELCOME, BRB, ENDING): one line of 96px Jost on a slanted ink plate, bottom-left inside title-safe; replaces the OBS text sources (design audit #39) | Plays on load: the plate slides in, the words follow, then it holds still and draws nothing | `text` (default `WELCOME`) |
 | background | Continuous loop of drifting bars on two canvas layers | Always running | `color`, `speed`, `density` (default 8), `perf` |
 | epcot | Spaceship Earth lattice with lit bulbs, patterns and overlays; deployed to GitHub Pages on push to `main` | Always running | Many; see the root README |
 
@@ -60,6 +61,12 @@ The followers scene only draws when the count changes (or for a rare idle
 glint), so idle it runs no frames. It needs MIU's Developer API on (MIU >
 Services > Developer API); the API answers with `Access-Control-Allow-Origin: *`
 (MIU 1.8.203, 2026-10-28), so the Pages URL can read it from OBS.
+
+The title card fits its line like the shade: 96px, shrinking to 72px,
+then two lines (down to 56px), and its plate grows upward for a second line
+so the bottom edge stays above Twitch's player controls (`config.title`).
+It never animates after the entrance, so it costs nothing for the rest of
+the scene.
 
 ## Shared code
 
