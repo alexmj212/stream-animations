@@ -4,6 +4,13 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.6.1 - 2026-10-28
+
+- Goal bar toast (16:9): a line too long for the standard bar now grows the
+  bar first and keeps the text at full size, so a follow with a username
+  reads at 42px instead of shrinking to 38px. The text only shrinks once
+  the bar is at its longest. ([#76])
+
 ## v2.6.0 - 2026-10-28
 
 - Toast on the vertical (1080x1920) canvas: a portrait layout, AJ's pick
@@ -155,3 +162,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#69]: https://github.com/alexmj212/stream-animations/pull/69
 [#70]: https://github.com/alexmj212/stream-animations/pull/70
 [#72]: https://github.com/alexmj212/stream-animations/pull/72
+[#76]: https://github.com/alexmj212/stream-animations/pull/76
