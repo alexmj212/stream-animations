@@ -4,7 +4,8 @@
  * toast with the line scrolling across it as a marquee. Hype is a
  * translucent teal strip with white text and sparkles; the ad is black
  * text on a solid orange plate. It sits in the toast's own lane (AJ, #86),
- * with the toast's leaning ends. The rule fixes over the OBS groups: 32px
+ * with the toast's leaning ends; on the vertical canvas, in the portrait
+ * toast's place on the seam. The rule fixes over the OBS groups: 32px
  * caps, and the strip and text stay inside the lane (x 560-1920, y 26-74).
  * The hype train's optional 4px screen border is the one thing drawn
  * outside it, at the canvas edges (?border=0 drops it).
@@ -15,7 +16,7 @@
  */
 import { config } from '../config/config.js';
 import { cubicBezier } from '../shared/animations/alertText.js';
-import { bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, hueAt } from '../shared/animations/banner.js';
+import { bannerLayout, bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, hueAt } from '../shared/animations/banner.js';
 
 const easeEnter = cubicBezier(config.design.motion.ease.enter);
 
@@ -28,6 +29,8 @@ export class BannerLane {
      * @param {string} [options.text] - ?text=; the kind's line by default
      * @param {boolean} [options.cycle=true] - ?cycle=0 holds the kind's fixed colour
      * @param {boolean} [options.border=true] - ?border=0 drops the screen border
+     * @param {string|null} [options.layout] - ?layout=vertical|wide; by default a
+     *   page taller than wide (the Aitum Vertical source) gets the portrait lane
      */
     constructor(ctx, canvas, options) {
         this.ctx = ctx;
@@ -37,6 +40,7 @@ export class BannerLane {
         this.text = (options.text || this.look.text).trim().toUpperCase();
         this.cycle = options.cycle !== false ? this.look.hueCycle : null;
         this.border = options.border !== false ? this.look.border : null;
+        this.requestedLayout = options.layout || null;
         this.hue = null;
         this.tMs = 0;
         this.reveal = 0;
@@ -46,7 +50,8 @@ export class BannerLane {
 
     /** Geometry and the repeat, rendered once. Call again on resize or once the font loads. */
     build() {
-        this.geo = bannerGeometry(this.canvas.width, config.banner.lane);
+        this.layout = bannerLayout(this.canvas.width, this.canvas.height, this.requestedLayout, config.banner);
+        this.geo = bannerGeometry(this.canvas.width, this.layout.lane, this.layout.refWidth);
         this.stripFill = hexToRgba(this.look.fill, this.look.fillAlpha);
         this.buildUnit();
     }
@@ -63,7 +68,7 @@ export class BannerLane {
             return m.measureText(s);
         };
         const probePx = 100;
-        const px = fontPxForCap(t.capPx * k, measure('H', probePx).actualBoundingBoxAscent, probePx);
+        const px = fontPxForCap(this.layout.capPx * k, measure('H', probePx).actualBoundingBoxAscent, probePx);
         this.fontPx = px;
         this.capPx = measure('H', px).actualBoundingBoxAscent;
         const textW = measure(this.text, px).width;
@@ -196,7 +201,7 @@ export class BannerLane {
                 box,
                 fontPx: this.fontPx,
                 // Rotom's target (#85): capitals at least capPx tall (must stay 0)
-                capShort: Math.max(0, config.banner.text.capPx * geo.k - this.capPx),
+                capShort: Math.max(0, this.layout.capPx * geo.k - this.capPx),
                 outsideLane: on ? outside({ x: box.x, y: box.y, right: box.x + box.width, bottom: box.y + box.height }) : 0,
                 words: this.text.split(/\s+/).filter(Boolean).length
             }

@@ -673,6 +673,17 @@ export const config = {
     // order); only the hype train's optional screen border
     // (kinds.hype.border) draws outside this box
     lane: { x: 560, y: 26, width: 1360, height: 48, skewAngle: -15 },
+    // Portrait (Aitum Vertical, 1080x1920): picked when the page is taller
+    // than wide, or with ?layout=vertical. AJ (2026-10-28, #86): "These
+    // should also show on the vertical layout". In the vertical toast's
+    // place (config.notifications.vertical): on the camera/game seam, across
+    // the phone-safe width, so every word stays inside V-SAFE-1. Caps sized
+    // so the line is ~57px, over V-TYPE-1's 48px floor, like the toast's 56
+    vertical: {
+      refWidth: 1080,             // Lane below is px on the 1080-wide canvas
+      lane: { x: 60, y: 660, width: 880, height: 80, skewAngle: -15 },  // = notifications.vertical.geometry
+      capPx: 40
+    },
     kinds: {
       hype: {
         text: 'HYPE TRAIN',

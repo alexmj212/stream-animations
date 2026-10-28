@@ -85,13 +85,14 @@ source loads, then holds still. A long title shrinks, then takes two lines.
 The hype train banner and the ad warning, in the goal bar toast's own place
 (from the follower bar's end at x 560 to the right edge, y 26-74, with the
 toast's leaning ends; a toast plays over it),
-in AJ's original OBS look with 32px caps: a
+in AJ's original OBS look with 32px caps (on the vertical canvas, in the
+portrait toast's place on the seam): a
 teal strip with a scrolling "HYPE TRAIN ✦✧" marquee, or black "ADS MAY BE
 PLAYING -" scrolling on an orange plate. One OBS browser source per kind,
 shown and hidden by Mix It Up; the ad source sits above the hype one, so it
 wins when both are up.
 
-**URL**: `banner/index.html?kind=hype` (`kind`, `text`, `cycle`, `border`)
+**URL**: `banner/index.html?kind=hype` (`kind`, `text`, `cycle`, `border`, `layout`)
 
 - `kind` - `hype` (default) or `ad`
 - `text` - Replace the line (set in caps)

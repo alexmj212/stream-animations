@@ -47,6 +47,9 @@
       // border (hype only: the ad has neither)
       const cycle = urlParams.get("cycle") !== "0";
       const border = urlParams.get("border") !== "0";
+      // ?layout=vertical|wide; by default a page taller than wide (the
+      // 1080x1920 Aitum Vertical source) gets the portrait lane
+      const layout = urlParams.get("layout");
       debug.mark('kind', { kind });
 
       const canvas = document.getElementById("canvas");
@@ -71,7 +74,8 @@
       document.fonts.load(`${t.weight} 44px ${t.font}`)
         .catch(() => {})
         .then(() => {
-          banner = new BannerLane(ctx, canvas, { kind, text, cycle, border });
+          banner = new BannerLane(ctx, canvas, { kind, text, cycle, border, layout });
+          debug.mark('layout', { layout: banner.layout.name });
           registerProbe('banner', () => banner.probeSamples());
           debug.mark('start', { kind, text: banner.text });
           requestAnimationFrame(frame);

@@ -680,6 +680,30 @@ export const SCENARIOS = [
     }
   },
   {
+    // The hype banner on the Aitum Vertical canvas (AJ, #86): in the
+    // portrait toast's place on the camera/game seam, every word inside the
+    // phone-safe box, at a ~57px line (V-TYPE-1)
+    name: 'banner-vertical',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=hype`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.05, 0.5, 0.9],
+    keyframeSpanMs: 6000,
+    markers: [{ at: 500, label: 'strip in' }],
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1, layout: 1 },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside the portrait lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 40px' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
     name: 'background',
     url: `/src/background/index.html?color=${COLOR}`,
     start: 'load',

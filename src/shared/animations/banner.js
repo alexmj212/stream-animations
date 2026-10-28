@@ -16,15 +16,31 @@ export function resolveBannerKind(requested, kinds) {
 }
 
 /**
+ * The layout for this page size: 'vertical' (the Aitum Vertical canvas)
+ * when asked for or when the page is taller than wide, else 'wide'.
+ * @param {number} width
+ * @param {number} height
+ * @param {string|null} requested - ?layout= value ('vertical' | 'wide')
+ * @param {Object} banner - config.banner
+ * @returns {{name: string, refWidth: number, lane: Object, capPx: number}}
+ */
+export function bannerLayout(width, height, requested, banner) {
+    const vertical = requested === 'vertical' || (requested !== 'wide' && height > width);
+    if (!vertical) return { name: 'wide', refWidth: 1920, lane: banner.lane, capPx: banner.text.capPx };
+    return { name: 'vertical', refWidth: banner.vertical.refWidth, lane: banner.vertical.lane, capPx: banner.vertical.capPx };
+}
+
+/**
  * The lane box on a canvas of this width (px).
  * The ends lean by `skewAngle` like the toast's: `lean` is how far the top
  * edge sits right of the mid-height x (and the bottom edge left of it).
  * @param {number} width - Canvas width
- * @param {{x: number, y: number, width: number, height: number, skewAngle?: number}} lane - px on 1920, x at mid-height
+ * @param {{x: number, y: number, width: number, height: number, skewAngle?: number}} lane - px on refWidth, x at mid-height
+ * @param {number} [refWidth=1920] - Canvas width the lane is measured on
  * @returns {{k: number, x: number, y: number, width: number, height: number, mid: number, lean: number}}
  */
-export function bannerGeometry(width, lane) {
-    const k = width / 1920;
+export function bannerGeometry(width, lane, refWidth = 1920) {
+    const k = width / refWidth;
     return {
         lean: -Math.tan((lane.skewAngle || 0) * Math.PI / 180) * lane.height * k / 2,
         k,

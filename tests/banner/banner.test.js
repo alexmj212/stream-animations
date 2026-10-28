@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, resolveBannerKind, hueAt } from '../../src/shared/animations/banner.js';
+import { bannerLayout, bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, resolveBannerKind, hueAt } from '../../src/shared/animations/banner.js';
 import { cubicBezier } from '../../src/shared/animations/alertText.js';
 import { contrastRatio } from '../../src/shared/design.js';
 import { config } from '../../src/config/config.js';
@@ -51,6 +51,39 @@ describe('banner geometry', () => {
 
     it('has no lean without a skewAngle', () => {
         expect(bannerGeometry(1920, { x: 0, y: 0, width: 10, height: 48 }).lean).toBeCloseTo(0);
+    });
+});
+
+describe('vertical layout (AJ, #86)', () => {
+    it('picks portrait for a page taller than wide, or ?layout=', () => {
+        expect(bannerLayout(1080, 1920, null, b).name).toBe('vertical');
+        expect(bannerLayout(1920, 1080, null, b).name).toBe('wide');
+        expect(bannerLayout(1920, 1080, 'vertical', b).name).toBe('vertical');
+        expect(bannerLayout(1080, 1920, 'wide', b).name).toBe('wide');
+    });
+
+    it('sits in the portrait toast\'s place on the seam', () => {
+        const l = bannerLayout(1080, 1920, null, b);
+        const g = bannerGeometry(1080, l.lane, l.refWidth);
+        const n = config.notifications.vertical.geometry;
+        expect(g.k).toBe(1);
+        expect(g.x).toBe(n.startX);
+        expect(g.x + g.width).toBe(n.endX);
+        expect(g.y).toBe(n.top);
+        expect(g.height).toBe(n.height);
+        expect(g.mid).toBe(config.design.vertical.seamY);
+    });
+
+    it('keeps every word inside the phone-safe box (V-SAFE-1)', () => {
+        const { lane } = bannerLayout(1080, 1920, null, b);
+        const safe = config.design.vertical.safe;
+        expect(lane.x).toBeGreaterThanOrEqual(safe.leftPx);
+        expect(lane.x + lane.width).toBeLessThanOrEqual(1080 - safe.rightPx);
+    });
+
+    it('sizes the caps over the phone floor (V-TYPE-1)', () => {
+        const { capPx } = bannerLayout(1080, 1920, null, b);
+        expect(fontPxForCap(capPx, 70, 100)).toBeGreaterThanOrEqual(config.design.vertical.type.minPx);
     });
 });
 
