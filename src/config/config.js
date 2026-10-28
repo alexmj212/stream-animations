@@ -642,40 +642,44 @@ export const config = {
   // were OBS groups (colour strips, a GDI+ text scroll, Move filters) whose
   // text couldn't be enlarged without breaking the groups' crop. One page,
   // ?kind=hype|ad, one OBS browser source per kind; MIU shows and hides
-  // them as it did the groups. The ad source sits above the hype one in OBS,
-  // and both plates fill the same lane, so the ad wins when both are up
+  // them as it did the groups. AJ (2026-10-28, #86): "I liked the overall
+  // design of my original implementation", so each kind keeps the OBS look
+  // (strip colour, scrolling marquee, sparkles) and only the rule fixes
+  // change: the lane and the 32px caps. The ad source sits above the hype
+  // one in OBS and its plate is opaque, so the ad wins when both are up
   banner: {
     // DESIGN.md, Composition, zone plan: directly under the toast lane,
     // x 560-1824 (the goal bar's right end to title-safe's right edge),
-    // y 84-132. Everything the page draws stays inside this box, slanted
-    // ends included
+    // y 84-132. Everything the page draws stays inside this box
     lane: { x: 560, y: 84, width: 1264, height: 48 },
-    skewAngle: -15,               // GEO-1, the same lean as the toast above it
     kinds: {
       hype: {
-        text: 'HYPE TRAIN',       // What the old scroll said, without the emoji sparkles
-        // Illuminations along the lane (one band, MOTION.md Learnings #27):
-        // the whole palette, violet at the goal bar to amber at the front
-        stops: [0, 6],
-        glintEveryMs: 12000       // A light band now and then while the train runs; 0 = off
+        text: 'HYPE TRAIN',
+        // OBS "Hype Train Banner": a translucent teal strip (measured on the
+        // program over the wall, 2026-10-28: about 0.35) with white text and
+        // sparkles. 0.6 so the white letters hold up over the bright wall
+        // (option B on design-review/banner/original-look-A-vs-B.png)
+        fill: '#3fdfd1',
+        fillAlpha: 0.6,
+        textColor: '#ffffff',
+        // A soft dark glow under the letters, like the OBS Glow filter, so
+        // white still reads over the bright wall (option B)
+        glow: { color: 'rgba(0, 40, 40, 0.8)', blurEm: 0.15 },
+        sparkles: true,           // The ✦✧ cluster between repeats, drawn as shapes
+        separator: '',
+        gapEm: 1.2                // Space each side of the sparkles
       },
       ad: {
         text: 'ADS MAY BE PLAYING',
-        // The warm end only, so the warning keeps the orange viewers know
-        // from the old banner, now as an accent on the ink plate (#85)
-        stops: [4, 6],
-        glintEveryMs: 0           // A warning, not a celebration: it holds still
+        // OBS "Ad Banner": black Jost on a solid orange plate
+        fill: '#ffaa00',
+        fillAlpha: 1,
+        textColor: '#000000',
+        glow: null,
+        sparkles: false,
+        separator: '-',           // "ADS MAY BE PLAYING - ADS MAY BE PLAYING - ..."
+        gapEm: 0.3                // A word space each side of the dash, as in OBS
       }
-    },
-    // ?scheme=mono: the accent stripe in the old OBS colours
-    classic: { hype: '#b00bee', ad: '#ffa500' },
-    brightness: 0.8,              // Same multiplier as every scene (MOTION.md, Look)
-    plate: {
-      // Ink at full opacity (TYPE-3: text on a solid plate needs only the plate)
-      alpha: 1,
-      stripePx: 4,                // Palette stripe along the plate's bottom edge (GEO-3: 4px)
-      tipWidth: 40,               // White tip at the front, like the toast's (GEO-4: 40-120)
-      glint: { ms: 900, bandPx: 80, alpha: 0.3 }
     },
     text: {
       font: '"Jost", Arial, sans-serif',
@@ -684,23 +688,14 @@ export const config = {
       // line. The font size is derived from the loaded font's cap height so
       // the caps measure exactly this (TYPE-1: the line is over 40px)
       capPx: 32,
-      padding: 24,                // Room each end, inside the plate and clear of the tip
-      // A line wider than its room scrolls inside the lane: still at each
-      // end, then an eased glide across and back (no jump back to the start)
-      scrollPauseMs: 1500,
-      scrollPxPerSec: 100         // Average glide speed (MOTION-5: under a tenth of the screen a second)
+      trackingEm: 0.06            // The OBS text's open spacing
     },
+    // The marquee scrolls right to left at a constant speed, as the OBS
+    // Scroll filter did (AJ's look; MOTION.md Learnings records the
+    // exemption from MOTION-1's still text)
+    scrollPxPerSec: 120,
     timing: {
-      // DESIGN.md MOTION-1/-4: the stripe leads out from the goal bar's end,
-      // the plate follows a stagger behind, then the words arrive once it has
-      // settled. No exit here: OBS hides the source (its Hide transition
-      // fades it, see SCENES.md)
-      stripeMs: 500,              // design.motion.durationMs.enter, on ease.enter
-      plateDelayMs: 60,           // design.motion.durationMs.stagger
-      plateMs: 500,
-      textDelayMs: 150,           // design.motion.settleMs
-      textMs: 350,
-      textSlidePx: 24
+      revealMs: 500               // The strip wipes in from the goal bar's end (design.motion.durationMs.enter, ease.enter)
     }
   },
 

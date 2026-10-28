@@ -219,14 +219,11 @@ TIME-1). It draws about 60 frames once and none after, so it has no CPU
 check: the debug `idle` event proves it stops.
 
 `banner-hype` and `banner-ad` check the banner lane (#85): the probe's
-`outsideLane` must stay 0 (plate and text inside x 560-1824, y 84-132) and
-`capShort` 0 (capitals at least 32px, measured from the drawn font), the
-plate region must be opaque (full-opacity ink), and every rule a new scene
-meets is enforced. `banner-hype` fires one `bannerGlint` event on the
-virtual clock (`glint=0` turns off the page's real-time interval) and
-checks the page goes idle again. `banner-long` scrolls a custom line inside
-the lane and carries the scene's CPU check, since a still banner draws only
-its entrance.
+`outsideLane` must stay 0 (strip and text inside x 560-1824, y 84-132) and
+`capShort` 0 (capitals at least 32px, measured from the drawn font), and
+the ad plate must be opaque. The marquee scrolls for as long as the banner
+is up, so TIME-1 is left out (AJ's exemption, MOTION.md Learnings) and each
+carries a CPU check over ~360 drawn frames.
 
 ### Recording the epcot loop
 

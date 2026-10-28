@@ -1,17 +1,18 @@
 /**
- * Banner lane (issue #85): the hype train banner or the ad warning, a line
- * of 32px caps on a slanted ink plate under the notifications toast, with
- * an Illuminations stripe along its bottom edge and a white tip at the
- * front, as the toast has.
+ * Banner lane (issue #85): the hype train banner or the ad warning, in AJ's
+ * original OBS look (#86): a strip across the lane under the notifications
+ * toast with the line scrolling across it as a marquee. Hype is a
+ * translucent teal strip with white text and sparkles; the ad is black
+ * text on a solid orange plate. The rule fixes over the OBS groups: 32px
+ * caps, and nothing past the lane (x 560-1824, y 84-132).
  *
- * Shown for as long as OBS shows the source, so after the entrance the page
- * only draws for an occasional glint or a line that has to scroll. Motion is
- * pure functions of time (src/shared/animations/banner.js).
+ * One repeat of the line (text, gap, sparkles or separator, gap) is drawn
+ * once offscreen; each frame tiles it across the lane at the scroll offset.
+ * Motion is pure functions of time (src/shared/animations/banner.js).
  */
 import { config } from '../config/config.js';
 import { cubicBezier } from '../shared/animations/alertText.js';
-import { bannerGeometry, bannerEnterAt, bannerScrollAt, fontPxForCap, glintAt } from '../shared/animations/banner.js';
-import { shadeStops, paletteGradient } from '../shared/palette.js';
+import { bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies } from '../shared/animations/banner.js';
 
 const easeEnter = cubicBezier(config.design.motion.ease.enter);
 
@@ -22,240 +23,158 @@ export class BannerLane {
      * @param {Object} options
      * @param {string} options.kind - 'hype' | 'ad' (resolveBannerKind)
      * @param {string} [options.text] - ?text=; the kind's line by default
-     * @param {Array|null} [options.palette] - palette stops; null = the OBS colours
      */
     constructor(ctx, canvas, options) {
         this.ctx = ctx;
         this.canvas = canvas;
         this.kind = options.kind;
-        this.kindConfig = config.banner.kinds[this.kind];
-        this.text = (options.text || this.kindConfig.text).trim().toUpperCase();
-        this.palette = options.palette ?? null;
-        this.state = bannerEnterAt(0, config.banner.timing, easeEnter);
+        this.look = config.banner.kinds[this.kind];
+        this.text = (options.text || this.look.text).trim().toUpperCase();
         this.tMs = 0;
-        this.scrollDx = 0;
-        this.glintStart = null;
-        this.glint = null;
+        this.reveal = 0;
+        this.offset = 0;
         this.build();
     }
 
-    /** Geometry, fills and the line, rendered once. Call again on resize or once the font loads. */
+    /** Geometry and the repeat, rendered once. Call again on resize or once the font loads. */
     build() {
-        const b = config.banner;
-        this.geo = bannerGeometry(this.canvas.width, b.lane, b.skewAngle);
-        this.buildFills();
-        this.buildText();
+        this.geo = bannerGeometry(this.canvas.width, config.banner.lane);
+        this.stripFill = hexToRgba(this.look.fill, this.look.fillAlpha);
+        this.buildUnit();
     }
 
-    buildFills() {
-        const ctx = this.ctx;
-        const b = config.banner;
-        const { x0, x1 } = this.geo;
-        this.plateFill = hexToRgba(config.design.color.ink, b.plate.alpha);
-        if (this.palette) {
-            const [from, to] = this.kindConfig.stops;
-            const stops = shadeStops(this.palette.slice(from, to + 1), { brightness: b.brightness, floor: 10 });
-            this.stripeFill = paletteGradient(ctx, stops, [x0, 0, x1, 0]);
-            const white = Math.round(100 * b.brightness);
-            this.tipFill = `hsl(0, 0%, ${white}%)`;
-            this.bandWhite = (a) => `hsla(0, 0%, ${white}%, ${a})`;
-        } else {
-            this.stripeFill = b.classic[this.kind];
-            this.tipFill = '#ffffff';
-            this.bandWhite = (a) => `rgba(255, 255, 255, ${a})`;
-        }
-        this.bandFill = null;
-    }
-
-    /** Fit the font to the cap height and render the line offscreen. */
-    buildText() {
+    /** Fit the font to the cap height and render one repeat of the line offscreen. */
+    buildUnit() {
         const t = config.banner.text;
-        const { k, x0, x1, top, height } = this.geo;
-        const tracking = config.design.type.trackingEm;
+        const { k, height } = this.geo;
         const fontAt = (px) => `${t.weight} ${px}px ${t.font}`;
         const m = document.createElement('canvas').getContext('2d');
         const measure = (s, px) => {
             m.font = fontAt(px);
-            m.letterSpacing = `${px * tracking}px`;
+            m.letterSpacing = `${px * t.trackingEm}px`;
             return m.measureText(s);
         };
         const probePx = 100;
         const px = fontPxForCap(t.capPx * k, measure('H', probePx).actualBoundingBoxAscent, probePx);
         this.fontPx = px;
         this.capPx = measure('H', px).actualBoundingBoxAscent;
-        const metrics = measure(this.text, px);
-        const ascent = metrics.actualBoundingBoxAscent;
-        const descent = metrics.actualBoundingBoxDescent;
-        const pad = Math.ceil(px * 0.1);
-        const line = document.createElement('canvas');
-        line.width = Math.ceil(metrics.width + 2 * pad);
-        line.height = Math.ceil(ascent + descent + 2 * pad);
-        const lc = line.getContext('2d');
-        lc.font = fontAt(px);
-        lc.letterSpacing = `${px * tracking}px`;
-        lc.textBaseline = 'alphabetic';
-        lc.fillStyle = config.design.color.white;
-        lc.fillText(this.text, pad, pad + ascent);
-        this.lineCache = line;
-        this.linePad = pad;
-        this.textWidth = metrics.width;
-
-        // The room: inside the plate's padding, clear of the white tip
-        const p = config.banner.plate;
-        this.roomLeft = x0 + t.padding * k;
-        this.roomRight = x1 - (p.tipWidth + t.padding) * k;
-        const room = this.roomRight - this.roomLeft;
-        this.scrollPx = Math.max(0, Math.ceil(this.textWidth - room));
-        this.textX = this.scrollPx > 0 ? this.roomLeft : this.roomLeft + (room - this.textWidth) / 2;
-        // Caps centred on the ink above the stripe
-        const inkMid = top + (height - p.stripePx * k) / 2;
-        this.textY = inkMid - (ascent + descent) / 2;
+        const textW = measure(this.text, px).width;
+        const sepW = this.look.separator ? measure(this.look.separator, px).width : 0;
+        const cap = this.capPx;
+        const sparkW = this.look.sparkles ? sparkleClusterWidth(cap) : 0;
+        const gap = this.look.gapEm * px;
+        // A repeat: TEXT, gap, separator or sparkles, gap
+        this.unitWidth = Math.ceil(textW + gap + sepW + sparkW + gap);
+        const unit = document.createElement('canvas');
+        unit.width = this.unitWidth;
+        unit.height = Math.ceil(height);
+        const uc = unit.getContext('2d');
+        uc.font = fontAt(px);
+        uc.letterSpacing = `${px * t.trackingEm}px`;
+        uc.textBaseline = 'alphabetic';
+        // Caps centred on the lane
+        const baseline = height / 2 + cap / 2;
+        if (this.look.glow) {
+            uc.shadowColor = this.look.glow.color;
+            uc.shadowBlur = this.look.glow.blurEm * px;
+        }
+        uc.fillStyle = this.look.textColor;
+        uc.fillText(this.text, 0, baseline);
+        if (this.look.separator) uc.fillText(this.look.separator, textW + gap, baseline);
+        if (this.look.sparkles) drawSparkles(uc, textW + gap, height / 2, cap);
+        this.unitCache = unit;
+        this.textInk = { top: baseline - cap, height: cap };
     }
 
     /** @param {number} tMs - Since the banner started */
     setTime(tMs) {
         this.tMs = tMs;
-        this.state = bannerEnterAt(tMs, config.banner.timing, easeEnter);
-        this.scrollDx = this.state.done ? bannerScrollAt(tMs - this.state.textInMs, this.scrollPx, config.banner.text) : 0;
-        this.glint = null;
-        if (this.glintStart !== null) {
-            this.glint = glintAt(tMs - this.glintStart, config.banner.plate.glint.ms);
-            if (this.glint === null) this.glintStart = null;
-        }
-        this.phase = this.state.done ? 'hold' : 'in';
+        this.reveal = revealAt(tMs, config.banner.timing.revealMs, easeEnter);
+        this.offset = marqueeOffsetAt(tMs, this.unitWidth, config.banner.scrollPxPerSec * this.geo.k);
+        this.phase = this.reveal < 1 ? 'in' : 'hold';
     }
 
-    /**
-     * Start a light band along the plate (only once the banner is in).
-     * @param {number} tMs - Now, on setTime's clock: the page may have been idle since the last frame
-     */
-    startGlint(tMs) {
-        if (this.state.done && this.glintStart === null) this.glintStart = tMs;
-    }
-
-    /** Whether the next frame differs from this one. */
-    get animating() {
-        return !this.state.done || this.glintStart !== null || this.scrollPx > 0;
-    }
-
-    /**
-     * Path of a slab from x0 to x1 (screen x at the plate's mid-height),
-     * rows top to top + h, leaning like the plate.
-     */
-    slab(x0, x1, top, h) {
-        const { mid, lean, height } = this.geo;
-        const slope = 2 * lean / height;
-        const at = (x, y) => x + slope * (mid - y);
-        const ctx = this.ctx;
-        ctx.beginPath();
-        ctx.moveTo(at(x0, top), top);
-        ctx.lineTo(at(x1, top), top);
-        ctx.lineTo(at(x1, top + h), top + h);
-        ctx.lineTo(at(x0, top + h), top + h);
-        ctx.closePath();
+    /** Only the lane is ever painted, so only the lane is cleared. */
+    clear() {
+        const { x, y, width, height } = this.geo;
+        this.ctx.clearRect(Math.floor(x), Math.floor(y), Math.ceil(width) + 1, Math.ceil(height) + 1);
     }
 
     draw() {
-        const { ctx, geo, state } = this;
-        const { x0, length, top, height, k } = geo;
-        const p = config.banner.plate;
-        if (state.stripe <= 0) return;
+        const { ctx, geo } = this;
+        if (this.reveal <= 0) return;
+        const w = geo.width * this.reveal;
         ctx.save();
-        // Nothing paints outside the plate's full shape, so nothing leaves the lane
-        this.slab(x0, x0 + length, top, height);
+        ctx.beginPath();
+        ctx.rect(geo.x, geo.y, w, geo.height);
         ctx.clip();
-        const plateFront = x0 + state.plate * length;
-        if (state.plate > 0) {
-            ctx.fillStyle = this.plateFill;
-            this.slab(x0, plateFront, top, height);
-            ctx.fill();
-        }
-        const stripe = p.stripePx * k;
-        ctx.fillStyle = this.stripeFill;
-        this.slab(x0, x0 + state.stripe * length, top + height - stripe, stripe);
-        ctx.fill();
-        if (this.glint !== null) this.drawGlint(this.glint);
-        if (state.plate > 0) {
-            ctx.fillStyle = this.tipFill;
-            this.slab(Math.max(x0, plateFront - p.tipWidth * k), plateFront, top, height);
-            ctx.fill();
-        }
-        if (state.textAlpha > 0) {
-            ctx.beginPath();
-            ctx.rect(this.roomLeft, top, this.roomRight - this.roomLeft, height);
-            ctx.clip();
-            ctx.globalAlpha = state.textAlpha; // drawImage has no hsla equivalent
-            ctx.drawImage(this.lineCache, Math.round(this.textX - this.scrollDx + state.textDx - this.linePad), Math.round(this.textY - this.linePad));
-        }
+        ctx.fillStyle = this.stripFill;
+        ctx.fillRect(geo.x, geo.y, w, geo.height);
+        const start = Math.round(geo.x - this.offset);
+        const n = marqueeCopies(geo.width, this.unitWidth);
+        for (let i = 0; i < n; i++) ctx.drawImage(this.unitCache, start + i * this.unitWidth, Math.round(geo.y));
         ctx.restore();
-    }
-
-    /** A light band along the plate, bright at its leading edge. */
-    drawGlint(share) {
-        const ctx = this.ctx;
-        const { x0, length, lean, top, height, k } = this.geo;
-        const w = config.banner.plate.glint.bandPx * k;
-        const x = x0 - lean + share * (length + 2 * lean + w);
-        // One gradient, built from 0 to its leading edge and moved with
-        // translate, instead of a new gradient every frame (Code review, #48)
-        if (!this.bandFill) {
-            const a = config.banner.plate.glint.alpha;
-            const g = ctx.createLinearGradient(-w, 0, 0, 0);
-            g.addColorStop(0, this.bandWhite(0));
-            g.addColorStop(0.8, this.bandWhite(a * 0.5));
-            g.addColorStop(1, this.bandWhite(a));
-            this.bandFill = g;
-        }
-        ctx.save();
-        ctx.translate(x, 0);
-        ctx.fillStyle = this.bandFill;
-        this.slab(-w, 0, top, height);
-        ctx.fill();
-        ctx.restore();
-    }
-
-    /** Drawn text box: the line clipped to its room. */
-    textBox() {
-        const x = this.textX - this.scrollDx + this.state.textDx;
-        const x0 = Math.max(x, this.roomLeft);
-        const x1 = Math.min(x + this.textWidth, this.roomRight);
-        const h = this.lineCache.height - 2 * this.linePad;
-        return { x: x0, y: this.textY, width: Math.max(0, x1 - x0), height: h };
     }
 
     /** Probe samples for the motion harness (tools/motion/scenes.js, banner-*). */
     probeSamples() {
-        const { geo, state } = this;
-        const lane = geo.box;
-        const plateFront = geo.x0 + state.plate * geo.length;
-        const stripeFront = geo.x0 + state.stripe * geo.length;
-        // Everything drawn is clipped to the plate's shape; report the drawn
-        // extents anyway so a change to the clip can't hide an overhang
-        const drawn = { x: geo.x0 - geo.lean, y: geo.top, right: Math.max(plateFront, stripeFront) + geo.lean, bottom: geo.top + geo.height };
-        const box = this.textBox();
-        const outside = (b) => Math.max(0, lane.x - b.x, lane.y - b.y,
-            b.right - (lane.x + lane.width), b.bottom - (lane.y + lane.height));
-        const textOn = state.textAlpha > 0;
+        const { geo } = this;
+        const w = geo.width * this.reveal;
+        const on = this.reveal > 0;
+        // Everything is clipped to the revealed strip; report the extents
+        // anyway so a change to the clip can't hide an overhang
+        const lane = { x: geo.x, y: geo.y, right: geo.x + geo.width, bottom: geo.y + geo.height };
+        const outside = (b) => Math.max(0, lane.x - b.x, lane.y - b.y, b.right - lane.right, b.bottom - lane.bottom);
+        const box = { x: geo.x, y: geo.y + this.textInk.top, width: w, height: this.textInk.height };
         return [
-            { id: 'stripe', x: stripeFront, y: geo.mid, phase: this.phase, onscreen: state.stripe > 0 },
             {
-                id: 'plate', x: plateFront, y: geo.mid, phase: this.phase, onscreen: state.plate > 0,
-                // px the drawn plate reaches outside the lane (must stay 0)
-                outsideLane: state.stripe > 0 ? outside(drawn) : 0
+                id: 'strip', x: geo.x + w, y: geo.mid, phase: this.phase, onscreen: on,
+                // px the strip reaches outside the lane (must stay 0)
+                outsideLane: on ? outside({ x: geo.x, y: geo.y, right: geo.x + w, bottom: geo.y + geo.height }) : 0
             },
             {
-                id: 'text', x: this.textX - this.scrollDx + state.textDx, y: geo.mid, phase: this.phase, onscreen: textOn,
+                // The marquee as one line: x runs on continuously (no wrap), so
+                // the velocity check sees the scroll's steady speed
+                id: 'text', x: geo.x - this.tMs * config.banner.scrollPxPerSec * geo.k / 1000, y: geo.mid,
+                phase: this.phase, onscreen: on,
                 box,
                 fontPx: this.fontPx,
                 // Rotom's target (#85): capitals at least capPx tall (must stay 0)
                 capShort: Math.max(0, config.banner.text.capPx * geo.k - this.capPx),
-                outsideLane: textOn ? outside({ x: box.x, y: box.y, right: box.x + box.width, bottom: box.y + box.height }) : 0,
-                // px of the line never shown once fully scrolled (must stay 0)
-                overflow: Math.max(0, this.textWidth - (this.roomRight - this.roomLeft) - this.scrollPx),
+                outsideLane: on ? outside({ x: box.x, y: box.y, right: box.x + box.width, bottom: box.y + box.height }) : 0,
                 words: this.text.split(/\s+/).filter(Boolean).length
             }
         ];
     }
+}
+
+/** Width of the sparkle cluster for this cap height. */
+function sparkleClusterWidth(cap) {
+    return 3.5 * cap;
+}
+
+/**
+ * The OBS banner's "✦✧" cluster as shapes (an emoji font isn't bundled,
+ * TYPE-7): three four-point stars, each with two small ones beside it.
+ */
+function drawSparkles(ctx, x, mid, cap) {
+    for (let i = 0; i < 3; i++) {
+        const cx = x + 0.55 * cap + i * 1.1 * cap;
+        star(ctx, cx, mid, 0.55 * cap);
+        star(ctx, cx + 0.5 * cap, mid - 0.45 * cap, 0.2 * cap);
+        star(ctx, cx + 0.42 * cap, mid + 0.5 * cap, 0.16 * cap);
+    }
+}
+
+/** A filled four-point star with concave sides, radius r. */
+function star(ctx, cx, cy, r) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.quadraticCurveTo(cx, cy, cx + r, cy);
+    ctx.quadraticCurveTo(cx, cy, cx, cy + r);
+    ctx.quadraticCurveTo(cx, cy, cx - r, cy);
+    ctx.quadraticCurveTo(cx, cy, cx, cy - r);
+    ctx.fill();
 }
 
 function hexToRgba(hex, a) {

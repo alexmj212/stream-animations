@@ -27,8 +27,7 @@
     <canvas id="canvas"></canvas>
 
     <script type="module">
-      import { setupCanvas, clearCanvas } from "../shared/canvas.js";
-      import { paletteFromURL } from "../shared/palette.js";
+      import { setupCanvas } from "../shared/canvas.js";
       import { BannerLane } from "./BannerLane.js";
       import { resolveBannerKind } from "../shared/animations/banner.js";
       import { AnimationLifecycle } from "../shared/lifecycle.js";
@@ -37,15 +36,14 @@
       import { createDebug } from "../shared/debug.js";
       const debug = createDebug('banner');
 
-      // ?kind=hype|ad picks the line and accent; ?text= overrides the line.
+      // ?kind=hype|ad picks the line and look; ?text= overrides the line.
       // One OBS browser source per kind, shown and hidden by Mix It Up. The
-      // banner slides in when the source is shown, then holds still: no
-      // frames while idle except a rare glint (hype) or a line that scrolls
+      // strip wipes in when the source is shown, and the line scrolls across
+      // it for as long as it's up, as the OBS banners did (AJ, #86)
       const urlParams = new URLSearchParams(window.location.search);
       const kind = resolveBannerKind(urlParams.get("kind"), config.banner.kinds);
       const text = urlParams.get("text");
-      const palette = paletteFromURL();
-      debug.mark('kind', { kind, scheme: palette.scheme });
+      debug.mark('kind', { kind });
 
       const canvas = document.getElementById("canvas");
       const ctx = setupCanvas(canvas, { alpha: true });
@@ -53,23 +51,15 @@
 
       let banner = null;
       let startMs = null;
-      let frameQueued = false;
-      function requestDraw() {
-        if (frameQueued || !banner) return;
-        frameQueued = true;
-        requestAnimationFrame(frame);
-      }
       function frame(timestamp) {
-        frameQueued = false;
         debug.frame(timestamp);
         if (startMs === null) startMs = timestamp;
-        const wasIn = banner.state.done;
+        const wasIn = banner.reveal >= 1;
         banner.setTime(timestamp - startMs);
-        clearCanvas(ctx, canvas);
+        banner.clear();
         banner.draw();
-        if (!wasIn && banner.state.done) debug.mark('in', { text: banner.text, fontPx: +banner.fontPx.toFixed(1), capPx: +banner.capPx.toFixed(1), scrollPx: banner.scrollPx });
-        if (banner.animating) requestDraw();
-        else debug.mark('idle');
+        if (!wasIn && banner.reveal >= 1) debug.mark('in', { text: banner.text, fontPx: +banner.fontPx.toFixed(1), capPx: +banner.capPx.toFixed(1), unitPx: banner.unitWidth });
+        requestAnimationFrame(frame);
       }
 
       // Wait for Jost (bundled, TYPE-7): the font size comes from its cap height
@@ -77,40 +67,19 @@
       document.fonts.load(`${t.weight} 44px ${t.font}`)
         .catch(() => {})
         .then(() => {
-          banner = new BannerLane(ctx, canvas, { kind, text, palette: palette.stops });
+          banner = new BannerLane(ctx, canvas, { kind, text });
           registerProbe('banner', () => banner.probeSamples());
           debug.mark('start', { kind, text: banner.text });
-          requestDraw();
+          requestAnimationFrame(frame);
         });
 
-      // A light band now and then while the hype train runs. ?glint=ms
-      // overrides the kind's interval (0 = off; the harness turns it off and
-      // fires a `bannerGlint` window event instead, on its virtual clock)
-      function glint() {
-        if (!banner || startMs === null || document.hidden) return;
-        banner.startGlint(performance.now() - startMs);
-        debug.mark('glint');
-        requestDraw();
-      }
-      const glintParam = urlParams.get("glint");
-      const every = glintParam !== null && glintParam.trim() !== '' && Number.isFinite(Number(glintParam))
-        ? Number(glintParam)
-        : config.banner.kinds[kind].glintEveryMs;
-      if (every > 0) {
-        const timer = setInterval(glint, every);
-        lifecycle.onCleanup(() => clearInterval(timer));
-      }
-      lifecycle.addEventListener(window, 'bannerGlint', glint);
-
-      // A resize clears the canvas: rebuild sizes and repaint
+      // A resize clears the canvas: rebuild sizes
       lifecycle.addEventListener(window, 'resize', () => {
-        if (!banner) return;
-        banner.build();
-        requestDraw();
+        if (banner) banner.build();
       });
 
       // OBS hides the source when the hype train or the ad break ends; shown
-      // again, the banner slides in afresh, as the toast does
+      // again, the strip wipes in afresh, as the toast does
       document.addEventListener('visibilitychange', () => {
         debug.mark('visibilitychange', { hidden: document.hidden });
         if (!document.hidden) location.reload();

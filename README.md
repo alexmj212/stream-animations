@@ -81,15 +81,16 @@ source loads, then holds still. A long title shrinks, then takes two lines.
 
 ### Banner lane
 The hype train banner and the ad warning, in the lane under the goal bar
-toast: 32px caps on an ink plate with an Illuminations stripe, inside
-x 560-1824, y 84-132. One OBS browser source per kind, shown and hidden by
-Mix It Up; the ad source sits above the hype one, so it wins when both are up.
+toast (x 560-1824, y 84-132), in AJ's original OBS look with 32px caps: a
+teal strip with a scrolling "HYPE TRAIN ✦✧" marquee, or black "ADS MAY BE
+PLAYING -" scrolling on an orange plate. One OBS browser source per kind,
+shown and hidden by Mix It Up; the ad source sits above the hype one, so it
+wins when both are up.
 
-**URL**: `banner/index.html?kind=hype` (`kind`, `text`, `glint`, `scheme`)
+**URL**: `banner/index.html?kind=hype` (`kind`, `text`)
 
-- `kind` - `hype` (default: "HYPE TRAIN", the whole palette, a glint every 12 s) or `ad` ("ADS MAY BE PLAYING", the warm end, no glint)
-- `text` - Replace the line (set in caps); a line too long for the lane scrolls inside it
-- `glint` - ms between light bands, `0` for none (default per kind)
+- `kind` - `hype` (default) or `ad`
+- `text` - Replace the line (set in caps)
 
 ### Background Animation
 Subtle continuously looping background with drifting bars.
