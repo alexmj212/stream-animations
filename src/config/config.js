@@ -1067,6 +1067,36 @@ export const config = {
       seamY: 700                  // Camera above, game below (Chatting/Game (vrt)); a toast sits on it
     },
 
+    // Keep-out layers: what OBS always draws over our scenes, in px on each
+    // canvas (AJ, 2026-10-28: "you're not testing the layout with chat
+    // present", "...with music playing"). Read from Archive_1.json saved on
+    // Defiant 2026-10-28 16:38 by the Align vertical layout thread
+    // (/mnt/project-files/qa/chat-music/). The motion harness fails text on a
+    // keepClear layer (KEEP-1) and draws every layer as a mock in keyframes.
+    // Update when a source in OBS's Alerts / Information Box moves.
+    keepOut: {
+      main: [
+        // MIU chat overlay (800x700 page at 0.586), every scene nesting Alerts.
+        // The Sidebar-group reading is up to 14px smaller; this is the larger
+        { label: 'chat', kind: 'chat', x: 18, y: 127, width: 470, height: 410,
+          mock: ['aspiritualbumpit: that raid was huge', 'goober_42: GOOBERS GOOBERS', 'nightowl: hi chat!', 'exobot: !commands', 'pixelpup: lets goooo'] },
+        // Information Box > Music: phandasm waveform from BG Music (moves
+        // only while music plays) with the Tuna now-playing line under it
+        // (Jost 72 scaled to ~31px, scrolls at 50px/s past 1080 wide)
+        { label: 'music waveform', kind: 'music', x: 19, y: 0, width: 462, height: 124, mock: [] },
+        { label: 'now playing', kind: 'music', x: 19, y: 89, width: 462, height: 41, mock: ['Artist Name - A Fairly Long Track Title'] },
+        // Starting and BRB only: a full-width waveform (text may cross a
+        // moving waveform) and the song line bottom-left, off the bottom edge
+        { label: 'Starting/BRB waveform', kind: 'music', x: 0, y: 540, width: 1920, height: 540, keepClear: false, mock: [] },
+        { label: 'Starting/BRB song', kind: 'music', x: 0, y: 1037, width: 651, height: 43, mock: ['Artist Name - A Fairly Long Track Title'] }
+      ],
+      // No chat and no now-playing text on the vertical canvas; the waveform
+      // on Starting/BRB/Ending (vrt) sits under the phone captions (V-SAFE-1)
+      vertical: [
+        { label: 'waveform', kind: 'music', x: 0, y: 1616, width: 1080, height: 304, keepClear: false, mock: [] }
+      ]
+    },
+
     // Motion tokens. Enter decelerates, exit accelerates, a move across the
     // screen eases both ends. MOTION.md keeps each scene's decided timings
     motion: {
