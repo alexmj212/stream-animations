@@ -5,6 +5,7 @@ import {
 import { planStreaks, fitStreaksToText, notificationGeometry, resolveColorLayout, NotificationBar } from '../../src/notifications/NotificationBar.js';
 import { createRandom } from '../../src/shared/motion.js';
 import { config } from '../../src/config/config.js';
+import { safeRect } from '../../src/shared/design.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
 const timing = config.notifications.timing;
@@ -247,5 +248,15 @@ describe('long text', () => {
         const g = config.notifications.geometry;
         const geo = notificationGeometry(1920, g.maxEndX - g.endX);
         expect(geo.startX + geo.leadLength).toBeCloseTo(g.maxEndX, 6);
+    });
+
+    it('the grown bar stays inside the safe areas (DESIGN.md SAFE-1, SAFE-2)', () => {
+        const g = config.notifications.geometry;
+        const geo = notificationGeometry(1920, g.maxEndX - g.endX);
+        const front = geo.startX + geo.leadLength;
+        const title = safeRect('title', config.design);
+        const action = safeRect('action', config.design);
+        expect(front).toBeLessThanOrEqual(title.x + title.width);
+        expect(front + geo.lean).toBeLessThanOrEqual(action.x + action.width);
     });
 });
