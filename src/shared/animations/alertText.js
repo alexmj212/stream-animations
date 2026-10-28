@@ -188,6 +188,34 @@ export function ellipsize(line, measure, maxWidth) {
 }
 
 /**
+ * The shade's text room and sizes for a canvas. 16:9 uses title-safe and
+ * the house sizes. Portrait (taller than wide, the vertical canvas) uses
+ * the phone-safe box, which is off-centre (the apps' button column takes
+ * the right 140px), and the phone floor (DESIGN.md V-SAFE-1, V-TYPE-1;
+ * design review, 2026-10-28: "@TESTRAIDER RAID!!" ran to x 1010).
+ *
+ * @param {number} width - Canvas width (px)
+ * @param {number} height - Canvas height (px)
+ * @param {object} design - config.design
+ * @returns {{left: number, right: number, sizes: {hero: number, display: number, minPx: number}}}
+ *   left/right: the text's edges (px), before any stroke
+ */
+export function shadeTextBox(width, height, design) {
+    const { hero, display } = design.type.sizes;
+    if (height > width) {
+        const v = design.vertical;
+        const k = width / v.canvas.width;
+        return {
+            left: v.safe.leftPx * k,
+            right: width - v.safe.rightPx * k,
+            sizes: { hero, display, minPx: Math.max(design.type.minPx, v.type.minPx * k) }
+        };
+    }
+    const safeX = Math.round(width * design.safe.titleInset);
+    return { left: safeX, right: width - safeX, sizes: { hero, display, minPx: design.type.minPx } };
+}
+
+/**
  * Fit the shade's line (issue #33): `hero` on one line, shrinking to fit
  * down to `display`, then two lines at `display` (name / action, else the
  * most even break), shrinking again only if a line still overflows, never

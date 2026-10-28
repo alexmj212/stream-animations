@@ -35,7 +35,9 @@ Bars slide in from the right, hold over the right 20% with the text on an
 ink nameplate, and slide out. The text holds still for its reading time;
 `duration` is the shortest the whole alert can be, never a cut.
 
-**URL**: `sidebar/index.html?color=#hexvalue&text=Now+Playing&duration=5000` (`seed` as above)
+**URL**: `sidebar/index.html?color=#hexvalue&text=Now+Playing&duration=5000` (`seed` as above, `layout`)
+
+- `layout` - `vertical` (the portrait shoutout for the 1080x1920 vertical canvas: "CHECK OUT" at 48px over the name at 64px on an ink plate whose bottom sits on the camera/game seam, text inside x 60-940, no bars) or `wide` (16:9). Default: `vertical` when the page is taller than wide. In portrait the sidebar and the notifications toast take turns on the seam (a Web Lock between the two pages)
 
 ### Notifications
 A toast bar that grows out of the right end of the follower-goal bar (top
