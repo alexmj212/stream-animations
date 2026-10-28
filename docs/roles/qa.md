@@ -84,7 +84,7 @@ that owns the work; don't route through the coordinator.
 
 | Date | Learning | Evidence | Applies to | Status |
 |---|---|---|---|---|
-| 2026-10-28 | Pixel checks read only the largest canvas, so they missed the background's second layer canvas, where most of its bars are. Coverage measured 2-12% where screenshots showed 30-70%. `pixelStats` now takes the max alpha over every canvas of that size | QA branch, background seeds 1-8 | harness pixel checks; multi-canvas scenes | active |
+| 2026-10-28 | Pixel checks read only the largest canvas, so they missed the background's second layer canvas, where most of its bars are. Coverage measured 2-12% where screenshots showed 30-70%. `pixelStats` now composites the alpha of every canvas of that size | QA branch, background seeds 1-8 | harness pixel checks; multi-canvas scenes | active |
 | 2026-10-28 | All checks passed on PR #6 while the shade text sat over a fully open band at 250ms and 4750ms. Only the keyframes showed it. Look at the frames of every changed scene | PR #6 at caefe19; fixed in 491c906 with a "Text only over curtains" check | step 4 | active |
 | 2026-10-28 | At 120fps the duration check failed on float error when the end was exactly 2 frames early (16.6667 > 16.6667). It now compares with `tolerance + 1e-6`. Run changed scenes at 30 and 120fps, not only 60 | PR #2 run, `--fps=120`; fixed in 1b7d345 | tolerance checks | active |
 | 2026-10-28 | A new harness check can be unable to fail (shade's first `bareFraction()` returned 0 whenever clipping was on). Show each new check failing once before trusting it | Code review of PR #6 | step 6 | active |

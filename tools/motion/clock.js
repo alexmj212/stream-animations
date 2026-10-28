@@ -79,9 +79,9 @@ export function installVirtualClock(seed) {
      */
     pixelStats(stride = 2, region = null) {
       // Scenes can stack full-size layer canvases (background has two), so
-      // read every canvas the size of the largest and take the highest alpha
-      // per pixel. Measuring one layer missed most of the background's bars
-      // (QA, 2026-10-28).
+      // read every canvas the size of the largest and composite their alpha
+      // per pixel (source-over: 1 - prod(1 - a_i)). Measuring one layer
+      // missed most of the background's bars (QA, 2026-10-28).
       const canvases = [...document.querySelectorAll('canvas')]
         .sort((x, y) => y.width * y.height - x.width * x.height);
       const canvas = canvases[0];
@@ -90,7 +90,7 @@ export function installVirtualClock(seed) {
       const layers = canvases
         .filter(c => c.width === width && c.height === height)
         .map(c => c.getContext('2d').getImageData(0, 0, width, height).data);
-      const alphaAt = i => layers.reduce((m, d) => (d[i] > m ? d[i] : m), 0);
+      const alphaAt = i => 255 - layers.reduce((t, d) => t * (255 - d[i]) / 255, 255);
       let opaque = 0;
       let visible = 0;
       let total = 0;
