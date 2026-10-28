@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
-import { StingerBar, planStinger } from '../../src/stinger/StingerBar.js';
+import { StingerBar, planStinger, slantedOffscreen } from '../../src/stinger/StingerBar.js';
 import { createRandom } from '../../src/shared/motion.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
@@ -319,6 +319,28 @@ describe('StingerBar phase transitions', () => {
           const leftEdge = left.x + left.width * cos - (Y - left.width * sin) * tan;
           const rightEdge = right.x - Y * tan;
           expect(leftEdge - rightEdge).toBeGreaterThan(20);
+        }
+      }
+    });
+
+    it('slanted bars and curtains start fully off screen on wide and tall canvases', () => {
+      // On 1080x1920 the slant's lean used to put bars on screen at t=0, so
+      // they popped in (motion harness stinger-vertical, 2026-10-28)
+      const sin = Math.sin(15 * Math.PI / 180);
+      expect(slantedOffscreen(1080, 15)).toBe(300); // 16:9 unchanged
+      for (const [W, H] of [[1920, 1080], [1080, 1920]]) {
+        for (let seed = 1; seed <= 20; seed++) {
+          const canvas = createMockCanvas(W, H);
+          const ctx = createMockContext(canvas);
+          const bars = planStinger(ctx, canvas, { h: 24, s: 100, l: 50 }, 1200, createRandom(seed))
+            .filter(b => b.type === 'slanted');
+          for (const bar of bars) {
+            bar.setTime(0);
+            // Bottom of the bar leans left by 1.05H*sin; its top-right
+            // corner reaches width*cos + 0.45H*sin right of the anchor
+            if (bar.x > 0) expect(bar.x - 1.05 * H * sin - 5).toBeGreaterThanOrEqual(W);
+            else expect(bar.x + bar.width + 0.45 * H * sin).toBeLessThanOrEqual(0);
+          }
         }
       }
     });

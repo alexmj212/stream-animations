@@ -12,6 +12,7 @@
  *   { event: 'name' }        - dispatch window event `name` once ready
  *   { event, also: [{event, detail}] } - ...then these in the same instant
  * events: [{at, event, detail}]  - later triggers, dispatched at `at` ms of virtual time
+ * viewport: {width, height}  - render at this size instead of --width/--height
  * checks (all optional):
  *   totalDurationMs          - last visible frame must end here (±durationToleranceMs)
  *   endsClear                - final frame fully transparent
@@ -77,6 +78,30 @@ export const SCENARIOS = [
       debugEvents: { start: 6, end: 6 },
       noVelocitySteps: true,
       workP95Ms: 4
+    }
+  },
+  {
+    // The Aitum Vertical canvas runs the same stinger at 1080x1920 (OBS
+    // plugin_config/vertical-canvas). Its curtains left a corner uncovered
+    // at the cut there and no check ran portrait (PR #66, 2026-10-28)
+    name: 'stinger-vertical',
+    scene: 'stinger',
+    url: `/src/stinger/index.html?color=${COLOR}&duration=1200`,
+    viewport: { width: 1080, height: 1920 },
+    start: { event: 'transitionStart' },
+    captureMs: 2200,
+    keyframes: [0.3, 0.5, 0.7],
+    keyframeSpanMs: 1200,
+    markers: [{ at: 600, label: 'cut' }, { at: 1200, label: 'end' }],
+    checks: {
+      design: { rules: ['CUT-2', 'FLASH-1', 'FLASH-2'], fail: ['CUT-2', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 1200,
+      endsClear: true,
+      fullCoverAtMs: 600,
+      fullCoverMinMs: 200,
+      noVelocitySteps: true
+      // No CPU check: one 1.2 s run is too few frames for p95 (QA, #65); the
+      // 16:9 stinger scenarios hold the CPU budget
     }
   },
   {
