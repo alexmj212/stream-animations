@@ -7,7 +7,14 @@ description: How to open, review and drive a stream-animations pull request to m
 
 Merging to `main` runs the tests and deploys the epcot scene to GitHub Pages
 (`.github/workflows/pages.yml`). The other scenes reach OBS when AJ rebuilds
-them locally. There is no PR CI yet, so the checks below are on you.
+them locally. Every PR runs `.github/workflows/motion.yml`: unit tests plus the motion
+harness, with the report uploaded as an artifact. PRs go straight to `main`
+(no release branch: only epcot deploys, with no downtime; see
+`docs/roles/release-management.md`).
+
+Reviews come from the role threads (`docs/roles/README.md`): code review on
+every PR, design review and QA on visual changes, release management on
+anything that changes how work ships. Ask them by messaging their threads.
 
 ## Opening a PR
 
@@ -28,7 +35,7 @@ them locally. There is no PR CI yet, so the checks below are on you.
 ```bash
 npm test -- --run      # what the Pages workflow runs
 npm run build          # every scene still builds to a single file
-npm run motion         # changed visuals: the motion harness (docs/VALIDATION.md)
+npm run motion         # the motion harness, as CI runs it (docs/VALIDATION.md)
 ```
 
 Put all of a round's fixes in one push.

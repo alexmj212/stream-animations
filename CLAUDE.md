@@ -19,12 +19,32 @@ wrong, and turn the answer into one durable change:
 - a script for a routine you repeated (add it to `repeat-routines`),
 - a step in a skill, a test or a check that catches the mistake next time,
 - a doc fix where a doc misled you,
-- a Learnings entry in your role's charter (`docs/roles/`).
+- a Learnings entry in the charter of the role that owns the area (`docs/roles/`).
 
 Make small ones in the same PR; propose bigger ones to AJ. Every rule you add
 names its date and source, so the next agent knows why it exists and when it
 stops applying. Delete rules and process that no longer earn their keep. How
 this works in detail: the `improve` skill and `docs/IMPROVING.md`.
+
+## Work together
+
+AJ (2026-10-28): all threads coordinate with each other. The permanent role
+threads are code review, design review, release management and QA
+(`docs/roles/README.md`); everything else is a work thread.
+
+- **Before you start**, check whether another thread owns the files or the
+  area you are about to change. Agree on who owns which paths, and keep off the
+  other thread's paths.
+- **When your work affects another thread**, message that thread directly:
+  a shared file, a convention it documents, a PR that will conflict with
+  its PR, or a learning for its charter.
+- **Route reviews to the roles**: a PR with visual changes goes to design
+  review and QA, every PR goes to code review, and anything that changes how
+  work ships goes to release management.
+- **Lessons go to the owner**: send a learning to the thread whose charter
+  owns it. Don't edit another role's charter yourself.
+- Message only when there's something to act on. Status updates belong in
+  your own thread.
 
 ## Where things are documented
 
@@ -32,12 +52,12 @@ All docs live in `docs/` (index: `docs/README.md`). The root `README.md` is the
 user-facing overview and the full URL parameter reference.
 
 - `docs/SCENES.md`: each scene, its entry point, URL params and OBS setup
-- `docs/MOTION.md`: the shared motion style (timing, brightness, bar shapes, text); follow it for any visual change
+- `docs/MOTION.md`: the shared motion style (timing, brightness, bar shapes, text); follow it for any visual change; owned by design review
 - `docs/PERFORMANCE.md`: frame and memory budgets, how to benchmark
-- `docs/VALIDATION.md`: how motion is verified (owned by the motion validation harness work)
+- `docs/VALIDATION.md`: how motion is built and verified with the motion harness
 - `docs/DECISIONS.md`: past decisions and why, newest first
 - `docs/IMPROVING.md`: the self-improvement loop and the Learnings format
-- `docs/roles/`: one charter per role thread (motion design, QA, performance, review)
+- `docs/roles/`: one charter per permanent role thread (code review, design review, release management, QA)
 
 ## Commands
 
@@ -46,6 +66,8 @@ npm install
 npm run dev                 # Vite dev server; open /src/<scene>/index.html
 npm test -- --run           # vitest, single run (CI runs this)
 npm run build               # every scene to a single-file HTML
+npm run motion              # motion harness: renders and checks every scene (docs/VALIDATION.md)
+npm run motion:export -- stinger  # transparent video of a scene for OBS
 npm run bench               # headless benchmark, see docs/PERFORMANCE.md
 tools/loopcut.sh --help     # frame-exact loop cuts from OBS recordings
 ```
@@ -56,6 +78,7 @@ tools/loopcut.sh --help     # frame-exact loop cuts from OBS recordings
 - `repeat-routines`: one-command scripts for routines agents keep redoing
 - `docs-check`: catch doc drift after a source change (a commit hook prompts it)
 - `improve`: the end-of-task retro that turns lessons into durable changes
+- `motion-create` and `motion-verify`: building and checking motion (with `docs/VALIDATION.md`)
 
 ## Conventions
 

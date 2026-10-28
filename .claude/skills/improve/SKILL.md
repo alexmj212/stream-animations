@@ -29,7 +29,7 @@ Take the one or two answers that would save the most next time:
 | A mistake a machine can catch | a test, a harness check, or a config validation |
 | A step I missed in a routine | a line in the skill that owns the routine |
 | A doc that misled me | fix the doc (`docs-check` knows where things live) |
-| A judgment call or AJ preference | a Learnings row in your role charter (`docs/roles/`), or `docs/MOTION.md` for style |
+| A judgment call or AJ preference | a Learnings row in the owning role's charter (`docs/roles/`; message that role's thread), or `docs/MOTION.md` for style |
 | A whole missing routine | propose a new skill to AJ |
 
 Prefer the higher rows: a check enforces itself, a note only helps when read.

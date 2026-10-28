@@ -2,7 +2,7 @@
 
 What the scenes should look and feel like, so a new or changed animation
 matches the rest. Values live in `src/config/config.js`; this doc says why.
-Sources in brackets.
+Sources in brackets. Owned by the design review role.
 
 ## Look
 
@@ -21,8 +21,11 @@ Sources in brackets.
 ## Timing
 
 - **Shared defaults**: entry 1000 ms, exit 1000 ms, hold 2000 ms, eased with
-  `easeInOutCubic`. Scenes override only with a reason (the background fades
-  over 2000 ms because it is ambient). [v1.0 timing patterns]
+  `easeInOutCubic`, for sidebar and shade. Scenes override only with a
+  reason: the background fades over 2000 ms because it is ambient, and the
+  stinger splits its `?duration` 35% in, 30% full cover, 35% out, so OBS
+  cuts at the 50% mark while the screen is covered (`config.stinger`).
+  [v1.0 timing patterns; motion harness PR #2]
 - **Reading pace**: text holds 200 ms per word (5 words a second), never less
   than 3 s. Count words, not characters. [05-02]
 - **No jumps between phases**: motion that crosses a phase boundary is
