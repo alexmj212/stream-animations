@@ -36,6 +36,7 @@
         import { AnimationLifecycle } from '../shared/lifecycle.js';
         import { DirtyRectTracker } from '../shared/dirtyRect.js';
         import { config } from '../config/config.js';
+        import { registerProbe, sampleBar } from '../shared/motion.js';
 
         // Get parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -167,7 +168,10 @@
             });
 
             bars.push(...tempBars);
+            bars.forEach((bar, i) => { bar.probeId = bar.isBackground ? `curtain-${i}` : `${bar.type}-${i}`; });
         }
+
+        registerProbe('stinger', () => bars.filter(b => b.active).map(b => sampleBar(b, b.probeId)));
 
         // Save session on page unload
         window.addEventListener('beforeunload', () => {

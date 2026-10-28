@@ -22,7 +22,9 @@ export default defineConfig(({ mode }) => {
       {
         name: 'move-index-html',
         closeBundle() {
-          if (mode) {
+          // Only scene builds produce dist/<scene>/src/<scene>/index.html; the
+          // dev server (mode 'development') has nothing to move.
+          if (['stinger', 'background', 'sidebar', 'shade', 'epcot'].includes(mode)) {
             const oldPath = resolve(__dirname, `dist/${mode}/src/${mode}/index.html`);
             const newPath = resolve(__dirname, `dist/${mode}/index.html`);
             const tempDir = resolve(__dirname, `dist/${mode}/src`);

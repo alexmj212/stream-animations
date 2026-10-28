@@ -26,7 +26,9 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "bench": "node tools/benchmark/run.js"
+    "bench": "node tools/benchmark/run.js",
+    "motion": "node tools/motion/run.js",
+    "motion:export": "node tools/motion/export.js"
   },
   "keywords": [
     "obs",

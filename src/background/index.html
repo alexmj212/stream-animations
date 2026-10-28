@@ -49,6 +49,7 @@
         import { AnimationLifecycle } from '../shared/lifecycle.js';
         import { DirtyRectTracker } from '../shared/dirtyRect.js';
         import { config } from '../config/config.js';
+        import { registerProbe, sampleBar } from '../shared/motion.js';
 
         // Get parameters from URL with config defaults
         const urlParams = new URLSearchParams(window.location.search);
@@ -153,6 +154,12 @@
                 foregroundBars.push(bar);
             }
         }
+
+        let nextProbeId = 0;
+        const probeId = (bar) => (bar.probeId ??= `bar-${nextProbeId++}`);
+        registerProbe('background', () => [...backgroundBars, ...foregroundBars]
+            .filter(b => b.active)
+            .map(b => sampleBar(b, probeId(b))));
 
         // Track if bars need re-sorting
         let bgNeedsSort = true;

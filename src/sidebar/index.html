@@ -90,6 +90,7 @@
       import { AnimationLifecycle } from "../shared/lifecycle.js";
       import { DirtyRectTracker } from "../shared/dirtyRect.js";
       import { config } from "../config/config.js";
+      import { registerProbe, sampleBar } from "../shared/motion.js";
 
       // Get parameters from URL
       const urlParams = new URLSearchParams(window.location.search);
@@ -208,6 +209,8 @@
 
       // Sort bars by zIndex
       bars.sort((a, b) => a.zIndex - b.zIndex);
+      bars.forEach((bar, i) => { bar.probeId = bar.isBackground ? 'background' : `${bar.type}-${i}`; });
+      registerProbe('sidebar', () => bars.filter(b => b.active).map(b => sampleBar(b, b.probeId)));
 
       // Save session on page unload
       window.addEventListener('beforeunload', () => {
