@@ -79,7 +79,8 @@ stinger video files.
    create releases.
 7. **Verify on stream** after every release, through the thread with Remote
    Control on Defiant, while AJ isn't live. Run `npm run pages:smoke --
-   https://alexmj212.dev/stream-animations/ <sha7>` against the merge commit,
+   https://alexmj212.dev/stream-animations/ <sha7>` with the commit Pages last
+   deployed (the release merge, or main's HEAD if anything merged since),
    use Refresh cache on each scene's browser source, and screenshot one with
    `&debug=build` added (then remove it) to confirm OBS runs the new build.
    If the release changes OBS settings, such as a stinger Transition Point,
