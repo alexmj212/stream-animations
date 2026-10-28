@@ -85,3 +85,4 @@ thread is recreated.
 | 2026-10-28 | URL-based color coordination across scenes didn't work out; don't retry it without a new idea | v1.1 out-of-scope list | color work | active |
 | 2026-10-28 | Background layouts are random per seed, so one seed's keyframes can't judge density: PR #2's 8-bar default ranged from 19% to 81% of the frame covered across seeds 1-8, and 5 of 8 seeds put 3x more on one half than the other | PR #2 review, harness seeds 1-8 at t=8s | any random layout | active; background itself is low priority since 2026-10-28 |
 | 2026-10-28 | Review keyframes over a dark backdrop as well as the checkerboard; the checkerboard hides how loud a translucent bar is | PR #2 review | all scenes | active |
+| 2026-10-28 | Check a PR's visual claim against the frames, not its description: #6 said curtains covered the band before the text, but the text band was 87% open at 250ms | PR #6 review | all scenes | active |
