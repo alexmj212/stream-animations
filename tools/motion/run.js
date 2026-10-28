@@ -78,6 +78,9 @@ async function capture(browser, baseUrl, scenario, seed) {
   });
 
   await page.evaluateOnNewDocument(`(${installVirtualClock.toString()})(${seed});`);
+  // Every run starts from empty storage: the followers scene paints its last
+  // stored count, which would leak from one seed's run into the next
+  await page.evaluateOnNewDocument(() => { try { localStorage.clear(); } catch { /* blocked storage */ } });
   const params = new URL(scenario.url, 'http://x');
   if (flags.color) params.searchParams.set('color', String(flags.color).startsWith('#') ? flags.color : `#${flags.color}`);
   // --params=a=1&b=2: extra scene params, e.g. to mock a look without
