@@ -169,7 +169,11 @@ fits; all of them enforce SAFE-1, TYPE-1 and TIME-1, so the text can't go
 back to moving during its hold. `stinger-vertical` runs the stinger at 1080x1920, the size OBS's
 Aitum Vertical canvas renders it at: a slanted bar's 15° lean reaches
 further on a tall canvas, which once left a corner uncovered at the cut
-and let bars pop in on screen (PR #66). `background` is checked for smooth motion and CPU. `epcot` has no
+and let bars pop in on screen (PR #66). `notifications-vertical` and
+`notifications-vertical-long` check the portrait toast against the phone
+rules V-SAFE-1 and V-TYPE-1 (DESIGN.md, Vertical canvas); the long line's
+45px and scroll are B1's named exception, so V-TYPE-1 and TIME-1 only warn
+there. `background` is checked for smooth motion and CPU. `epcot` has no
 motion probe; it is a CPU regression guard (p95 at most 20ms, measured
 around 10ms).
 

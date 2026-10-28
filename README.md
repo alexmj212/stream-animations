@@ -45,10 +45,11 @@ the bar grows toward the right edge (up to x 1824, title-safe), and only a line 
 even for that scrolls during the hold. The default duration stretches so the
 text holds at 200 ms a word.
 
-**URL**: `notifications/index.html?text=Thanks+for+the+follow` (`duration`, `seed`, `scheme`, `style`, `colorlayout`)
+**URL**: `notifications/index.html?text=Thanks+for+the+follow` (`duration`, `seed`, `scheme`, `style`, `colorlayout`, `layout`)
 
 - `style` - `creative` (default: seeded streaks, lit rims and a light band that writes the text in) or `clean` (the bar alone, text fades in)
 - `colorlayout` - `along` (default: the Illuminations palette runs down the bar, violet to amber), `screen` (the other scenes' top-to-bottom gradient) or `classic` (the old OBS purples; also what `scheme=mono` gives)
+- `layout` - `vertical` (the portrait toast for the 1080x1920 vertical canvas: one 56px line on the camera/game seam) or `wide` (the 16:9 toast off the goal bar). Default: `vertical` when the page is taller than wide
 
 ### Followers
 The always-on follower-goal bar, top left ("946 / 1000 GOOBERS"), replacing

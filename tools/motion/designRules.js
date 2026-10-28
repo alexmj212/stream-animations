@@ -18,7 +18,7 @@ export const GRID_COLS = 16;
 export const GRID_ROWS = 9;
 
 /** Every rule this module checks, in report order. */
-export const DESIGN_RULES = ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'CUT-2', 'FLASH-1', 'FLASH-2'];
+export const DESIGN_RULES = ['SAFE-1', 'SAFE-3', 'TYPE-1', 'V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'CUT-2', 'FLASH-1', 'FLASH-2'];
 
 /** On-screen text boxes per frame: [{t, id, x, y, box, fontPx, words}]. */
 export function textSamples(frames) {
@@ -66,6 +66,35 @@ export function checkPlayerChrome(texts, design, height) {
             : bad.length === 0
                 ? `every text sample ends above y ${Math.round(top)}`
                 : `${bad.length}/${texts.length} reach below y ${Math.round(top)}, e.g. ${fmtBox(bad[0])}`
+    };
+}
+
+/**
+ * V-SAFE-1: on the vertical canvas, every text box inside the phone-safe
+ * box (clear of the apps' top bar, captions and button column).
+ * Insets are px on design.vertical.canvas, scaled to the capture.
+ */
+export function checkPhoneSafe(texts, design, width, height) {
+    const v = design.vertical;
+    const kx = width / v.canvas.width;
+    const ky = height / v.canvas.height;
+    const r = {
+        x: v.safe.leftPx * kx,
+        y: v.safe.topPx * ky,
+        width: width - (v.safe.leftPx + v.safe.rightPx) * kx,
+        height: height - (v.safe.topPx + v.safe.bottomPx) * ky
+    };
+    const bad = texts.filter(s => !inside(s.box, r));
+    const span = `x ${Math.round(r.x)}-${Math.round(r.x + r.width)}, y ${Math.round(r.y)}-${Math.round(r.y + r.height)}`;
+    return {
+        rule: 'V-SAFE-1',
+        name: 'V-SAFE-1 Text inside the phone-safe box',
+        pass: texts.length > 0 && bad.length === 0,
+        detail: texts.length === 0
+            ? 'no text box reported'
+            : bad.length === 0
+                ? `all ${texts.length} text samples inside ${span}`
+                : `${bad.length}/${texts.length} outside ${span}, e.g. ${fmtBox(bad[0])}`
     };
 }
 
@@ -251,6 +280,12 @@ export function evaluateDesignRules(opts, frames, design, width, height, frameMs
     if (want.has('SAFE-1')) all.push(checkTitleSafe(held, design, width, height));
     if (want.has('SAFE-3')) all.push(checkPlayerChrome(held, design, height));
     if (want.has('TYPE-1')) all.push(checkTypeFloor(held, opts.minPx ?? design.type.minPx));
+    if (want.has('V-SAFE-1')) all.push(checkPhoneSafe(held, design, width, height));
+    if (want.has('V-TYPE-1')) {
+        // The phone floor, in px on the 1080-wide vertical canvas
+        const r = checkTypeFloor(held, design.vertical.type.minPx * width / design.vertical.canvas.width);
+        all.push({ ...r, rule: 'V-TYPE-1', name: r.name.replace('TYPE-1', 'V-TYPE-1') });
+    }
     if (want.has('TIME-1')) all.push(checkReadingTime(texts, frameMs));
     if (want.has('CUT-2')) all.push(checkStaticCover(frames, design.motion.staticCoverMaxMs));
     if (want.has('FLASH-1') || want.has('FLASH-2')) {

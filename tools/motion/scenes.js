@@ -334,6 +334,62 @@ export const SCENARIOS = [
     }
   },
   {
+    // The portrait toast on the Aitum Vertical canvas (AJ's pick B1,
+    // DESIGN.md V-TYPE-1, V-LAYOUT-1): one line at 56px on the camera/game
+    // seam, inside the phone-safe box
+    name: 'notifications-vertical',
+    scene: 'notifications',
+    url: `/src/notifications/index.html?color=${COLOR}&text=Thanks+for+the+follow+friend`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.1, 0.22, 0.5, 0.9],
+    keyframeSpanMs: 5000,
+    markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
+    // The body while the toast is out, inside its slanted ends
+    region: { x0: 0.12, x1: 0.78, y0: 0.35, y1: 0.375 },
+    checks: {
+      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      regionCover: { fromMs: 1000, toMs: 4000, label: 'the toast body while out' },
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Text fits the body' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
+      noVelocitySteps: true
+      // No CPU check: the 16:9 notifications scenarios hold the budget
+    }
+  },
+  {
+    // A long line in portrait: shrinks to 45px, then scrolls during the
+    // hold. That's B1's named exception to V-TYPE-1 and TIME-1 (DESIGN.md),
+    // so those two only warn here (Rotom, 2026-10-28)
+    name: 'notifications-vertical-long',
+    scene: 'notifications',
+    url: `/src/notifications/index.html?color=${COLOR}&text=Pants+are+officially+off+for+the+rest+of+the+stream+thanks+to+an+incredibly+generous+gift+from+the+goobers+in+chat`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 8000,
+    keyframes: [0.1, 0.3, 0.5, 0.7, 0.9],
+    keyframeSpanMs: 7000,
+    markers: [{ at: 7000, label: 'end' }],
+    checks: {
+      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['V-SAFE-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 7000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Whole line shown' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
+      noVelocitySteps: true
+    }
+  },
+  {
     name: 'followers',
     // Always on: paints 946 at load, then a follow arrives as the event
     // obs-browser's emit_event would send; the sweep runs and 947 lands

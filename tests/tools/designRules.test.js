@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    textSamples, checkTitleSafe, checkPlayerChrome, checkTypeFloor, checkReadingTime,
+    textSamples, checkTitleSafe, checkPhoneSafe, checkPlayerChrome, checkTypeFloor, checkReadingTime,
     checkStaticCover, luminanceTransitions, maxFlashesPerSecond, evaluateDesignRules
 } from '../../tools/motion/designRules.js';
 import { config } from '../../src/config/config.js';
@@ -37,6 +37,22 @@ describe('placement rules', () => {
         const r = checkTitleSafe(textSamples(textFrames(500, still(76, 32, 336, 37))), design, 1920, 1080);
         expect(r.pass).toBe(false);
         expect(r.detail).toMatch(/outside title-safe/);
+    });
+
+    it('V-SAFE-1 keeps text in the phone-safe box on the vertical canvas', () => {
+        // The B1 toast's line on the seam passes; text in the right-hand
+        // button column or under the captions fails
+        expect(checkPhoneSafe(textSamples(textFrames(500, still(100, 670, 760, 50))), design, 1080, 1920).pass).toBe(true);
+        expect(checkPhoneSafe(textSamples(textFrames(500, still(500, 670, 500, 50))), design, 1080, 1920).pass).toBe(false);
+        expect(checkPhoneSafe(textSamples(textFrames(500, still(100, 1500, 400, 50))), design, 1080, 1920).pass).toBe(false);
+    });
+
+    it('V-TYPE-1 holds vertical text to the 48px phone floor', () => {
+        const at = (fontPx) => evaluateDesignRules({ rules: ['V-TYPE-1'], fail: ['V-TYPE-1'] },
+            textFrames(500, still(100, 670), { fontPx }), design, 1080, 1920)[0];
+        expect(at(56).pass).toBe(true);
+        expect(at(45).pass).toBe(false);
+        expect(at(45).name).toMatch(/^V-TYPE-1/);
     });
 
     it('fails SAFE-3 for text under the player controls', () => {

@@ -81,10 +81,14 @@
         }
       });
 
+      // ?layout=vertical|wide; by default a page taller than wide (the
+      // 1080x1920 Aitum Vertical source) gets the portrait toast
+      const layout = urlParams.get("layout");
       // ?style=creative|clean; ?seed=N pins the streak layout
       const style = urlParams.get("style") || config.notifications.style;
       const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
-      const toast = new NotificationBar(ctx, canvas, { text, durationMs, palette: palette.stops, colorLayout, style, random: createRandom(seed) });
+      const toast = new NotificationBar(ctx, canvas, { text, durationMs, palette: palette.stops, colorLayout, style, layout, random: createRandom(seed) });
+      debug.mark('layout', { layout: toast.layout.name });
       const markFit = (font) => debug.mark('textFit', { font, scale: +toast.textScale.toFixed(3), room: Math.round(toast.textRoom), extraPx: toast.extraPx, scrollPx: toast.scrollPx });
       markFit('fallback');
       // The line first renders in a fallback font; redo it in Jost once

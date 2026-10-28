@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     notificationDurationMs, planNotificationTimeline, extentAt, textStateAt, streakFrontAt, wipeAt, scrollOffsetAt, extraLengthFor
 } from '../../src/shared/animations/notification.js';
-import { planStreaks, fitStreaksToText, notificationGeometry, resolveColorLayout, NotificationBar } from '../../src/notifications/NotificationBar.js';
+import { planStreaks, fitStreaksToText, notificationGeometry, notificationLayout, resolveColorLayout, NotificationBar } from '../../src/notifications/NotificationBar.js';
 import { createRandom } from '../../src/shared/motion.js';
 import { config } from '../../src/config/config.js';
 import { safeRect } from '../../src/shared/design.js';
@@ -260,3 +260,29 @@ describe('long text', () => {
         expect(front + geo.lean).toBeLessThanOrEqual(action.x + action.width);
     });
 });
+
+describe('notificationLayout (vertical canvas, AJ pick B1)', () => {
+    it('picks portrait from the canvas shape, and ?layout= forces either', () => {
+        expect(notificationLayout(1920, 1080).name).toBe('wide');
+        expect(notificationLayout(1080, 1920).name).toBe('vertical');
+        expect(notificationLayout(1920, 1080, 'vertical').name).toBe('vertical');
+        expect(notificationLayout(1080, 1920, 'wide').name).toBe('wide');
+    });
+
+    it('16:9 geometry is unchanged by the layout parameter', () => {
+        expect(notificationGeometry(1920, 0, notificationLayout(1920, 1080))).toEqual(notificationGeometry(1920));
+    });
+
+    it('sits on the seam inside the phone-safe width, at the phone type sizes', () => {
+        const v = config.design.vertical;
+        const { geometry: g, text: t } = notificationLayout(1080, 1920);
+        expect(g.top + g.height / 2).toBe(v.seamY);
+        expect(g.startX).toBe(v.safe.leftPx);
+        expect(g.endX).toBe(v.canvas.width - v.safe.rightPx);
+        expect(g.maxEndX).toBe(g.endX);
+        expect(t.sizePx).toBeGreaterThanOrEqual(v.type.minPx);
+        // B1: shrinks to about 45px before scrolling
+        expect(Math.round(t.sizePx * t.minScale)).toBe(45);
+    });
+});
+
