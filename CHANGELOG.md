@@ -4,6 +4,18 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.4.0 - 2026-10-28
+
+- Alerts: the shade and sidebar text now holds still and whole while
+  viewers read it, for 200ms a word and never under 3s, instead of
+  scrolling. The shade line sits centred and wraps to two lines when it's
+  long. The sidebar shows the @name large on a dark nameplate under the
+  action. OBS's `duration` is now a minimum, so nothing changes in OBS or
+  Mix It Up. ([#58])
+- Text scenes carry their own copy of Jost, so a browser source that
+  loads offline or before the font arrives no longer falls back to
+  Arial. ([#60])
+
 ## v2.3.0 - 2026-10-28
 
 - Stinger: runs at 1200ms with the cut at 600ms, as AJ picked. The bars
@@ -102,3 +114,5 @@ release (`npm run motion:export -- stinger` renders your own).
 [#47]: https://github.com/alexmj212/stream-animations/pull/47
 [#52]: https://github.com/alexmj212/stream-animations/pull/52
 [#56]: https://github.com/alexmj212/stream-animations/pull/56
+[#58]: https://github.com/alexmj212/stream-animations/pull/58
+[#60]: https://github.com/alexmj212/stream-animations/pull/60
