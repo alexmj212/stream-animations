@@ -4,6 +4,12 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.1.1 - 2026-10-28
+
+- Sidebar: the text now sits at 78% of the height instead of 67%, so the
+  Mix It Up images (Hug, Pet, Treat, Resubscribed, Shoutout avatars) no
+  longer cover it. ([#17])
+
 ## v2.1.0 - 2026-10-28
 
 - Look: the stinger, sidebar and shade now paint their colored bars with the
@@ -41,3 +47,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#6]: https://github.com/alexmj212/stream-animations/pull/6
 [#11]: https://github.com/alexmj212/stream-animations/pull/11
 [#16]: https://github.com/alexmj212/stream-animations/pull/16
+[#17]: https://github.com/alexmj212/stream-animations/pull/17
