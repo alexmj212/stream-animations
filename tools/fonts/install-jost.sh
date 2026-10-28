@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Install Jost (bold, bold italic) as a local font, so headless Chrome renders
-# scene text in the stream's face. Without it, cloud containers draw canvas
-# text in Arial and mocks look wrong; Defiant has Jost installed for OBS.
+# Install Jost (bold, bold italic) as a local font for pages that don't link
+# the bundled copy (src/shared/fonts/jost.css, #41), such as
+# tools/design/figures.js. The scenes themselves no longer need it.
 # Added 2026-10-28 (follower widget thread): mocks came out in Arial.
 set -euo pipefail
 dir="${HOME}/.fonts"
