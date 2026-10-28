@@ -68,6 +68,13 @@ if (loop) {
   url.searchParams.set('loop', String(loopSeconds));
   url.searchParams.set('speed', String(speed));
   periodMs = loopSeconds / speed * 1000;
+  // A loop must be a whole number of frames, or the clip and the seam
+  // check would be off by a fraction of a frame
+  const frames = periodMs * fps / 1000;
+  if (Math.abs(frames - Math.round(frames)) > 1e-6) {
+    console.error(`--loop: ${(periodMs / 1000).toFixed(3)}s at ${fps}fps is ${frames.toFixed(2)} frames, not a whole number; pick another --fps, --loop or --speed`);
+    process.exit(2);
+  }
 }
 const durationMs = Number(url.searchParams.get('duration')) || null;
 const maxMs = loop ? periodMs : Math.max(scenario.captureMs, (durationMs || 0) + 1000);
