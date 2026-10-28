@@ -12,7 +12,12 @@ minor for new scenes, features or a visible style change, patch for fixes.
   long. The sidebar shows the @name large on a dark nameplate, with the
   action in reading order. OBS's `duration` is now a minimum, so nothing
   changes in OBS or Mix It Up. A very long alert stops at 6.8s in the
-  sidebar and 9.8s in the shade, before OBS hides the source. ([#58])
+  sidebar and 9.8s in the shade, before OBS hides the source. An alert
+  too long for two lines now reads on without gaps and ends in "…".
+  ([#58], [#64])
+- Goal bar and toast: the text is bigger, 42px instead of 32px, in the same
+  top-left spot. The goal bar now reaches x560 so the count fits, and the
+  toast grows out from there. ([#62])
 - Text scenes carry their own copy of Jost, so a browser source that
   loads offline or before the font arrives no longer falls back to
   Arial. ([#60])
@@ -117,3 +122,5 @@ release (`npm run motion:export -- stinger` renders your own).
 [#56]: https://github.com/alexmj212/stream-animations/pull/56
 [#58]: https://github.com/alexmj212/stream-animations/pull/58
 [#60]: https://github.com/alexmj212/stream-animations/pull/60
+[#62]: https://github.com/alexmj212/stream-animations/pull/62
+[#64]: https://github.com/alexmj212/stream-animations/pull/64
