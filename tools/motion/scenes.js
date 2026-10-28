@@ -233,7 +233,9 @@ export const SCENARIOS = [
     region: { x0: 0.31, x1: 0.78, y0: 0.03, y1: 0.065 },
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      // No SAFE-1: the goal bar and toast keep their place in the top margin
+      // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
+      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -262,7 +264,9 @@ export const SCENARIOS = [
     markers: [{ at: 7000, label: 'end' }],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['SAFE-3', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      // No SAFE-1: the goal bar and toast keep their place in the top margin
+      // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
+      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['SAFE-3', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 7000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -289,7 +293,9 @@ export const SCENARIOS = [
     markers: [{ at: 11400, label: 'end' }],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 10000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
+      // No SAFE-1: the goal bar and toast keep their place in the top margin
+      // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
+      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 10000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 11400,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -313,8 +319,12 @@ export const SCENARIOS = [
     keyframeSpanMs: 2000,
     markers: [{ at: 1150, label: 'landed' }],
     checks: {
-      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones.
+      // No TIME-1: the goal bar is always on and its text never moves, so the
+      // rule only measured this 2s capture (Design review, 2026-10-28)
+      // No SAFE-1: the goal bar and toast keep their place in the top margin
+      // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
+      design: { rules: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       // The follow lands before the first frame runs, so the first paint
       // already animates: one count, and one idle once it has landed
       debugEvents: { start: 1, count: 1, idle: 1 },
