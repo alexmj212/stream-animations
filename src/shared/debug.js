@@ -22,6 +22,9 @@
  *           vite.config.js; every snapshot carries the stamp regardless)
  *   zones   draw the screen areas other overlays cover (sidebar: where Mix
  *           It Up puts its images, config.sidebar.miuZones)
+ *   safe    draw the bible's safe areas (docs/DESIGN.md): action-safe,
+ *           title-safe and the strip Twitch's player controls cover. The
+ *           harness checks text against them (tools/motion/designRules.js)
  *
  * Read it from a page, the harness, Playwright or a CDP client:
  *   window.__debug[scene].snapshot()
@@ -30,7 +33,10 @@
  * channels go in DEBUG_CHANNELS and docs/VALIDATION.md.
  */
 
-export const DEBUG_CHANNELS = ['events', 'frames', 'log', 'build', 'zones'];
+import { config } from '../config/config.js';
+import { safeAreaGuides } from './design.js';
+
+export const DEBUG_CHANNELS = ['events', 'frames', 'log', 'build', 'zones', 'safe'];
 
 /** A frame slower than this counts as long (two 60Hz frames, with slack). */
 export const LONG_FRAME_MS = 34;
@@ -152,10 +158,35 @@ export function createDebug(scene, opts = {}) {
         }
     };
 
+    if (channels.has('safe') && typeof document !== 'undefined') drawSafeAreas();
+
     if (typeof window !== 'undefined') {
         window.__debug = window.__debug || {};
         window.__debug[scene] = api;
     }
     api.mark('init', { url: typeof window !== 'undefined' ? window.location.href : '' });
     return api;
+}
+
+/**
+ * ?debug=safe: outline the safe areas over the scene, in % of the viewport
+ * so they follow any OBS source size without a resize handler.
+ */
+function drawSafeAreas() {
+    const draw = () => {
+        for (const g of safeAreaGuides(config.design)) {
+            const el = document.createElement('div');
+            el.className = 'debugSafe';
+            el.textContent = g.label;
+            Object.assign(el.style, {
+                position: 'fixed', zIndex: 2147483646, pointerEvents: 'none', boxSizing: 'border-box',
+                left: `${g.left * 100}%`, top: `${g.top * 100}%`, width: `${g.width * 100}%`, height: `${g.height * 100}%`,
+                border: `2px dashed ${g.color}`, background: g.fill ?? 'transparent',
+                color: g.color, font: 'bold 14px monospace', padding: '2px 6px'
+            });
+            document.body.appendChild(el);
+        }
+    };
+    if (document.body) draw();
+    else document.addEventListener('DOMContentLoaded', draw, { once: true });
 }

@@ -225,7 +225,11 @@ export class NotificationBar extends AnimatedBar {
                 // px of text that wouldn't fit the body (must stay 0)
                 overflow: textOn ? Math.max(0, this.textWidth - this.textRoom) : 0,
                 // px of text showing where the body isn't fully out yet (must stay 0)
-                bare: textOn ? Math.max(0, this.textX + this.textDx + this.textCache.width - (startX + this.bodyExtent)) : 0
+                bare: textOn ? Math.max(0, this.textX + this.textDx + this.textCache.width - (startX + this.bodyExtent)) : 0,
+                // Drawn text for the design rules (tools/motion/designRules.js)
+                box: { x: this.textX + this.textDx, y: this.textY, width: this.textCache.width, height: this.textCache.height },
+                fontPx: config.notifications.text.sizePx * this.canvas.width / REF_WIDTH * this.textScale,
+                words: this.textShown.split(/\s+/).filter(Boolean).length
             },
             ...(this.wipeX !== null ? [{ id: 'wipe', x: this.wipeX, y: mid, phase: this.phase, onscreen: true }] : []),
             ...this.streaks.map((st, i) => ({

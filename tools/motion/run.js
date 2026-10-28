@@ -110,6 +110,9 @@ async function capture(browser, baseUrl, scenario, seed) {
 
   const dt = 1000 / fps;
   const frames = [];
+  // The flash and still-cover rules read a luminance grid per frame
+  const rules = scenario.checks?.design?.rules;
+  const needsGrid = !!scenario.checks?.design && (!rules || rules.some(r => r === 'CUT-2' || r.startsWith('FLASH')));
   const shotTimes = (scenario.keyframes || []).map(k => k * (scenario.keyframeSpanMs || scenario.captureMs));
   const shotFiles = [];
   const dir = resolve(outDir, scenario.name, `seed-${seed}`);
@@ -122,9 +125,13 @@ async function capture(browser, baseUrl, scenario, seed) {
   while (elapsed < scenario.captureMs) {
     const d = jitter ? dt * (0.5 + jitterRandom() * 2.5) : dt;
     elapsed += d;
-    const frame = await page.evaluate((d, region, textSelector) => {
+    const frame = await page.evaluate((d, region, textSelector, grid) => {
       const r = window.__motion.step(d);
-      r.pixels = window.__motion.pixelStats(2, region);
+      // The grid only every 50ms: plenty for 3 flashes a second, and reading it
+      // every frame pushed the background's frame CPU over budget (QA, 2026-10-28)
+      const wantGrid = grid && Math.floor(window.__motion.now() / 50) !== window.__motion.lastGridSlot;
+      if (wantGrid) window.__motion.lastGridSlot = Math.floor(window.__motion.now() / 50);
+      r.pixels = window.__motion.pixelStats(2, region, wantGrid);
       // textBox: canvas gaps under the on-screen part of a text element
       const el = textSelector && document.querySelector(textSelector);
       if (el) {
@@ -138,9 +145,18 @@ async function capture(browser, baseUrl, scenario, seed) {
         r.pixels.textGaps = x1 > x0 && y1 > y0
           ? window.__motion.pixelStats(2, { x0, x1, y0, y1 }).regionGaps
           : null;
+        // The same box as a text sample for the design rules: drawn font
+        // size (computed size times any transform scale) and word count
+        const scale = el.offsetHeight ? b.height / el.offsetHeight : 1;
+        r.samples.push({
+          id: 'text-box', x: b.left, y: b.top, onscreen: b.right > 0 && b.left < W && b.width > 0,
+          box: { x: b.left, y: b.top, width: b.width, height: b.height },
+          fontPx: parseFloat(getComputedStyle(el).fontSize) * scale,
+          words: (el.textContent || '').trim().split(/\s+/).filter(Boolean).length
+        });
       }
       return r;
-    }, d, scenario.region || null, scenario.textBox?.selector || null);
+    }, d, scenario.region || null, scenario.textBox?.selector || null, needsGrid);
     frames.push(frame);
 
     while (shots && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
@@ -179,6 +195,8 @@ async function main() {
         const spec = jitter
           ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 2 * 3 * 1000 / fps } }
           : { ...scenario, fps };
+        spec.width = width;
+        spec.height = height;
         const { results, timeline, tracks } = evaluate(spec, frames, debug);
         results.unshift({
           name: 'No page errors',
@@ -196,7 +214,7 @@ async function main() {
           writeFileSync(resolve(outDir, scenario.name, `seed-${seed}`, 'capture.json'), JSON.stringify({ frames }, null, 1));
         }
         console.log(`${pass ? 'PASS' : 'FAIL'}  ${scenario.name} seed=${seed}  (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
-        for (const r of results) console.log(`  ${r.pass ? '✓' : '✗'} ${r.name}: ${r.detail}`);
+        for (const r of results) console.log(`  ${r.warn ? '⚠' : r.pass ? '✓' : '✗'} ${r.name}: ${r.detail}`);
       }
     }
   } finally {

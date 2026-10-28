@@ -80,3 +80,20 @@ export function safeRect(kind, design, width = design.canvas.width, height = des
     const y = Math.round(height * inset);
     return { x, y, width: width - 2 * x, height: height - 2 * y };
 }
+
+/**
+ * The guides `?debug=safe` draws (src/shared/debug.js), as fractions of the
+ * frame: action-safe, title-safe and the player-controls strip.
+ *
+ * @param {Object} design - config.design
+ * @returns {Array<{label: string, left: number, top: number, width: number, height: number, color: string, fill?: string}>}
+ */
+export function safeAreaGuides(design) {
+    const box = (inset) => ({ left: inset, top: inset, width: 1 - 2 * inset, height: 1 - 2 * inset });
+    const top = design.playerChromeTop;
+    return [
+        { label: 'action-safe', ...box(design.safe.actionInset), color: '#ff3b30' },
+        { label: 'title-safe', ...box(design.safe.titleInset), color: '#ffcc00' },
+        { label: 'player controls', left: 0, top, width: 1, height: 1 - top, color: '#00c8ff', fill: 'rgba(0, 200, 255, 0.15)' }
+    ];
+}

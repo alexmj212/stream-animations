@@ -69,6 +69,13 @@ Defined per scenario in `tools/motion/scenes.js`.
 | Frame CPU budget | p95 of update+draw time ≤ `workP95Ms` | Per-frame allocation, cache thrash, too many objects drawn |
 | Text over *panel* | Every canvas pixel under a text element's on-screen box (`textBox.selector`) is opaque through a window | Long text hanging off the slanted panel over the stream |
 | Scene events | The scene's debug events (`?debug=events`) match `debugEvents` counts exactly | A trigger that restarts the scene, a scene that never marks `end` |
+| Design rules (SAFE-1, SAFE-3, TYPE-1, TIME-1, CUT-2, FLASH-1, FLASH-2) | The bible's machine-checkable rules ([DESIGN.md](DESIGN.md)), from `tools/motion/designRules.js`. Placement and size read the text box (a probe sample with `box`, `fontPx`, `words`, or `textBox.selector`) through `holdMs`; CUT-2 and FLASH read a 16x9 luminance grid sampled every 50ms | Text in the screen margin or under the player controls, type under the floor, text that never stops long enough to read, a stinger sitting covered and still, strobing |
+
+**Warn, then enforce** (issue #43). A design rule a scene doesn't meet yet
+reports ⚠ and doesn't fail the run: those are DESIGN.md's "Today vs target"
+gaps, closed by each scene's audit issue. Rules listed in the scenario's
+`design.fail` fail the run. When an audit issue lands, move its rule into
+`fail` in the same PR. Never take a rule out of `fail` to get green.
 
 ### Smooth motion, precisely
 
@@ -92,7 +99,7 @@ code to verify without asking AJ. Everyone uses one convention,
 | Piece | What it does |
 |---|---|
 | `const debug = createDebug('stinger')` | One recorder per scene. Without `?debug=` it's a frozen no-op, so production pays nothing |
-| `?debug=1` / `all` / `events,frames,log` | Channels. `events`: timestamped `debug.mark(name, data)` calls. `frames`: frame-time count, mean, max, long frames (>34ms), idle gaps. `log`: echo events to the console. `build`: the build stamp on screen. `zones`: the screen areas other overlays cover, drawn over the scene (sidebar: Mix It Up's images, `config.sidebar.miuZones`) |
+| `?debug=1` / `all` / `events,frames,log` | Channels. `events`: timestamped `debug.mark(name, data)` calls. `frames`: frame-time count, mean, max, long frames (>34ms), idle gaps. `log`: echo events to the console. `build`: the build stamp on screen. `zones`: the screen areas other overlays cover, drawn over the scene (sidebar: Mix It Up's images, `config.sidebar.miuZones`). `safe`: the action-safe, title-safe and player-controls guides from `config.design`, on any scene |
 | `window.__debug[scene].snapshot()` | Everything recorded so far, readable from the harness, Playwright or a CDP client |
 | `?debugReport=http://127.0.0.1:9777/` + `npm run debug:collect` | Scenes POST each event, and frame stats every 60s, to a local collector that writes `tools/debug-results/*.jsonl`. Use it for checks inside OBS and soak runs |
 

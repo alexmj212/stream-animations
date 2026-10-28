@@ -71,7 +71,7 @@ function runSection(run, fps) {
     series: [{ name: 'workMs', color: '#59a14f', points: run.frames.filter(f => f.ran).map(f => [f.t, f.workMs]) }]
   });
 
-  const checks = run.results.map(r => `<tr class="${r.pass ? 'ok' : 'bad'}"><td>${r.pass ? '✓' : '✗'}</td><td>${esc(r.name)}</td><td>${esc(r.detail)}</td></tr>`).join('');
+  const checks = run.results.map(r => `<tr class="${r.warn ? 'warn' : r.pass ? 'ok' : 'bad'}"><td>${r.warn ? '⚠' : r.pass ? '✓' : '✗'}</td><td>${esc(r.name)}</td><td>${esc(r.detail)}</td></tr>`).join('');
   const strip = run.shots.map(s => `<div class="shot"><img src="${esc(s.file)}" loading="lazy" alt="${esc(run.scenario)} at ${Math.round(s.at)}ms"><span>${Math.round(s.at)}ms</span></div>`).join('');
 
   return `<section id="${esc(run.scenario)}-${run.seed}">
@@ -99,7 +99,7 @@ a.ok{color:var(--ok)}a.bad{color:var(--bad)}
 section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:20px}
 .badge{font-size:12px;padding:2px 8px;border-radius:4px;color:#fff;vertical-align:2px}.badge.ok{background:var(--ok)}.badge.bad{background:var(--bad)}
 table.checks{border-collapse:collapse;width:100%;margin-bottom:12px}table.checks td{padding:4px 8px;border-top:1px solid var(--line);vertical-align:top}
-tr.ok td:first-child{color:var(--ok)}tr.bad td:first-child{color:var(--bad)}tr.bad td:nth-child(2){font-weight:600}
+tr.ok td:first-child{color:var(--ok)}tr.warn td:first-child{color:#c98a00}tr.bad td:first-child{color:var(--bad)}tr.bad td:nth-child(2){font-weight:600}
 .strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px}
 .shot{flex:0 0 auto;text-align:center;color:var(--muted);font-size:12px}
 .shot img{display:block;width:240px;height:135px;border-radius:4px;border:1px solid var(--line);
