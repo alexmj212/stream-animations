@@ -83,6 +83,10 @@ stinger video files.
    deployed (the release merge, or main's HEAD if anything merged since),
    use Refresh cache on each scene's browser source, and screenshot one with
    `&debug=build` added (then remove it) to confirm OBS runs the new build.
+   The stinger is a transition, not a scene source, so it isn't in that
+   list: reload it by hand (Scene Transitions, toggle a URL param or Refresh
+   cache) on every release that changes it, then fire one transition. Name
+   the stinger in the hand-off so Defiant doesn't miss it.
    If the release changes OBS settings, such as a stinger Transition Point,
    put the before and after to AJ first: OBS settings are AJ's, not code.
 8. Run the `improve` skill before you finish.
@@ -121,3 +125,4 @@ dependencies straight to it.
 | 2026-10-28 | Mix It Up commands can rewrite OBS source URLs when they fire. Check them before declaring a source switch done | Pages switch, Defiant thread | OBS changes | active |
 | 2026-10-28 | Tags, GitHub releases and deploys don't wait on AJ. v2.1.0's tag sat waiting for a "go" that AJ said isn't needed. Say so in every hand-off to the Defiant thread | AJ in project chat, 2026-10-28 | releases | active |
 | 2026-10-28 | A red frame-CPU check isn't a flake until you compare it: read the same scene's p95 in the latest green main run. #48 looked like noise but took followers from 0.3ms to 3.5-4.6ms; send it back to the author, never rerun for green | PR #48 CI, followers seed=3 | merging | active |
+| 2026-10-28 | OBS keeps a loaded browser page across deploys, and the stinger transition sits outside the scene sources that Refresh cache covers. v2.3.0's first OBS check ran the old stinger until Defiant reloaded it | Defiant, v2.3.0 verify | stinger releases | active |

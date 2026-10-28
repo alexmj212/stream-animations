@@ -32,7 +32,6 @@ force now.
 | Rule | Target | Ships today |
 |---|---|---|
 | MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shade and sidebar ship it (#33-#35); the other scenes keep their own timings ([MOTION.md](MOTION.md), Timing) |
-| TYPE-7 | Fonts bundled into the build | Jost from Google Fonts at runtime, or the machine's installed Jost |
 | SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | Two exemptions, AJ's call on 2026-10-28 ([MOTION.md](MOTION.md) Learnings): the goal bar and notifications toast keep their place in the top margin (#40, text size only), and the OBS scene titles and BRB collage stay as they are (#39, #42). New text gets no exemption |
 
 **Scope** is the OBS program output (AJ, 2026-10-28): every scene, alert,
@@ -187,9 +186,11 @@ canvas, with what a viewer sees:
   rule and its 75% floor live in [MOTION.md](MOTION.md). The notifications
   toast is the exception: its bar grows to fit the line and the text stays
   still (MOTION.md Learnings, 2026-10-28, #31, built in #32).
-- **TYPE-7** (target) Fonts are bundled into the single-file build, never fetched at
+- **TYPE-7** Fonts are bundled into the single-file build, never fetched at
   runtime. A browser source that loads before Google Fonts answers, or
-  offline, falls back to Arial for the whole alert.
+  offline, falls back to Arial for the whole alert. Text scenes link
+  `src/shared/fonts/jost.css` (Jost 700 and 700 italic, Latin and Latin
+  Extended), which the build inlines (#41).
 - **TYPE-8** The words are stable: the on-screen text and the chat headline
   for the same event say the same thing.
 
