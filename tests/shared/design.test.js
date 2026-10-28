@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { relativeLuminance, contrastRatio, scaleHex, designColor, safeRect } from '../../src/shared/design.js';
+import { relativeLuminance, contrastRatio, shadeHex, designColor, safeRect } from '../../src/shared/design.js';
 import { config } from '../../src/config/config.js';
 
 const design = config.design;
@@ -13,8 +13,9 @@ describe('contrast math', () => {
         expect(contrastRatio('#777777', '#ffffff')).toBeCloseTo(4.48, 2);
     });
 
-    it('scales colours like the scenes brightness multiplier', () => {
-        expect(scaleHex('#ff8c1e', 0.8)).toBe('#cc7018');
+    it('shades colours like the scenes (HSL lightness, shadeStops)', () => {
+        expect(shadeHex('#ff8c1e', 0.8)).toBe('#e66f00');
+        expect(shadeHex('#ffffff', 1)).toBe('#ffffff');
     });
 });
 

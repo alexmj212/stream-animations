@@ -21,6 +21,24 @@ stream, often on a phone.
   wins until this doc is fixed.
 - Rules carry an id (`SAFE-2`, `TYPE-4`) so reviews and issues can cite them.
 
+### Today vs target
+
+Some rules describe where the stream is going, not what ships today. They
+are **targets**: they gate new work, but a scene that predates them is not
+failed against them until its audit issue lands (and, for a look AJ would
+notice, AJ has picked it from mocks). Everything not in this table is in
+force now.
+
+| Rule | Target | Ships today |
+|---|---|---|
+| MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shared entry/exit 1000/1000ms on `easeInOutCubic` ([MOTION.md](MOTION.md), Timing); the sidebar splits its `duration` 25/50/25 |
+| TYPE-1 | Alert text 56px and up | Sidebar 29px; shade 96px |
+| TYPE-3 | Ink stroke 0.08em + soft shadow | Shade: 96px with a soft shadow, no stroke ([MOTION.md](MOTION.md), Look); sidebar: a black text-shadow outline |
+| TYPE-7 | Fonts bundled into the build | Jost from Google Fonts at runtime, or the machine's installed Jost |
+| CUT-2 | At most 300ms of static full cover | 30% of `duration`: 300ms at the default 1000ms, 600ms at OBS's `duration=2000` |
+| TIME-1 | The hold alone meets reading time | The sidebar's hold is 50% of `duration` (1.5s at OBS's 3000ms) |
+| SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | OBS-placed text (goal bar, scene titles) at 20-30px from the edges |
+
 **Scope** is the OBS program output (AJ, 2026-10-28): every scene, alert,
 widget and transition a viewer sees. Control UIs that never reach the
 program (the discoball lighting desk, the vtuber debug panel, OBS docks) are
@@ -107,17 +125,18 @@ The Illuminations palette is the only colour source for graphics, painted as
 one screen-fixed top-to-bottom gradient, always: AJ's decision, recorded with
 its exceptions (single-band bars take it along their length) in
 [MOTION.md](MOTION.md), Learnings. Every scene applies the 0.8 brightness
-multiplier.
+multiplier to HSL lightness (`shadeStops()`), and the "At 0.8" column is
+that result.
 
 | Stop | Hex | At 0.8 | White on it | Ink on it | Text rule |
 |---|---|---|---|---|---|
-| 0 Violet crown | #7a14e8 | #6110b9 | 9.2:1 | 2.1:1 | White, any size |
+| 0 Violet crown | #7a14e8 | #6110b7 | 9.3:1 | 2.1:1 | White, any size |
 | 1 Purple | #a312c9 | #820ea0 | 8.3:1 | 2.3:1 | White, any size |
-| 2 Magenta | #c90f8a | #a00c6e | 7.6:1 | 2.6:1 | White, any size |
-| 3 Crimson | #d8123c | #ac0e30 | 7.3:1 | 2.7:1 | White, any size |
-| 4 Red-orange | #ef5a24 | #bf481c | 5.1:1 | 3.9:1 | White, any size |
-| 5 Orange | #ff8c1e | #cc7018 | 3.6:1 | 5.5:1 | White at 56px+ with the stroke, or ink |
-| 6 Amber | #ffb85c | #cc9349 | 2.7:1 | 7.3:1 | Ink only |
+| 2 Magenta | #c90f8a | #a10c70 | 7.5:1 | 2.6:1 | White, any size |
+| 3 Crimson | #d8123c | #af0e31 | 7.2:1 | 2.7:1 | White, any size |
+| 4 Red-orange | #ef5a24 | #cc420f | 4.8:1 | 4.0:1 | White, any size |
+| 5 Orange | #ff8c1e | #e66f00 | 3.2:1 | 6.2:1 | White at 56px+ with the stroke, or ink |
+| 6 Amber | #ffb85c | #ff9914 | 2.1:1 | 9.1:1 | Ink only |
 | White | #ffffff | | | 19.5:1 | Accents and text |
 | Ink | #14061f | | 19.5:1 | | Strokes, shadows, dark text, plates |
 
@@ -150,11 +169,11 @@ canvas, with what a viewer sees:
 | `headline` | 56 | 37 | 11.4 | Tier 2 alerts (sidebar), scene titles |
 | `label` | 40 | 27 | 8.1 | Persistent widgets (goal, notifications) |
 
-- **TYPE-1** Nothing a viewer must read is under 40px (`minPx`). Alert text
-  is 56px and up. Today's sidebar text is 29px: 6px on a phone.
+- **TYPE-1** (target for alerts) Nothing a viewer must read is under 40px
+  (`minPx`). Alert text is 56px and up. Today's sidebar text is 29px: 6px on a phone.
 - **TYPE-2** Uppercase, tracking +2% (`trackingEm`). Usernames keep their
   letters but render in caps like everything else.
-- **TYPE-3** Text over anything that moves takes the recipe: an ink stroke
+- **TYPE-3** (target) Text over anything that moves takes the recipe: an ink stroke
   of 0.08em (never under 3px, so 2px survives a 720p encode), painted
   under the fill, plus a soft ink shadow 0.04em down-right. Text on a solid
   plate needs only the plate.
@@ -166,7 +185,7 @@ canvas, with what a viewer sees:
 - **TYPE-6** One line by preference, two at most, about 28 characters a
   line. Long text shrinks, then wraps, then ellipses, in that order: the
   rule and its 75% floor live in [MOTION.md](MOTION.md).
-- **TYPE-7** Fonts are bundled into the single-file build, never fetched at
+- **TYPE-7** (target) Fonts are bundled into the single-file build, never fetched at
   runtime. A browser source that loads before Google Fonts answers, or
   offline, falls back to Arial for the whole alert.
 - **TYPE-8** The words are stable: the on-screen text and the chat headline
@@ -201,7 +220,7 @@ canvas, with what a viewer sees:
 | `durationMs.stagger` | 60 | Between siblings arriving |
 | `settleMs` | 150 | Stillness after an arrival before it counts as readable |
 
-- **MOTION-1** Enter, hold, exit. Every alert arrives (enter), sits still to
+- **MOTION-1** (target timings) Enter, hold, exit. Every alert arrives (enter), sits still to
   be read (hold), and leaves (exit). Exits are quicker than entries. The
   text itself is still for the whole hold: moving text smears in the encode
   and can't be read on a phone.
@@ -230,7 +249,7 @@ canvas, with what a viewer sees:
   to spare either side, and the cut is at 50% of the URL's `duration`. The
   URL duration and OBS's Transition point change together (the vault's Alert &
   Transition Wiring note; [SCENES.md](SCENES.md)).
-- **CUT-2** The full cover is a moment, not a hold: at most 300ms of static
+- **CUT-2** (target) The full cover is a moment, not a hold: at most 300ms of static
   cover (`staticCoverMaxMs`), with the bars still moving through it. The
   whole stinger is 800-1500ms; the cut lands on its busiest frame.
 - **CUT-3** Motion keeps its direction through the cut, so the eye reads one
@@ -262,7 +281,7 @@ canvas, with what a viewer sees:
 
 ### Timing
 
-- **TIME-1** Reading time: the hold, still and fully on screen, is at least
+- **TIME-1** (target for the sidebar) Reading time: the hold, still and fully on screen, is at least
   200ms a word and never under 3s ([MOTION.md](MOTION.md), Timing). Enter
   and exit don't count. An alert whose `duration` can't fit enter + hold +
   exit grows its duration; it never cuts the hold.
@@ -370,3 +389,6 @@ capture when OBS adds layers on top. Cite the rule id for each finding.
 - A look AJ would notice goes to AJ as side-by-side mocks with a
   recommendation (CLAUDE.md, Shipping); everything else ships through
   review.
+- An audit issue that moves a scene toward a target rule (Today vs target)
+  goes through Design review, then to AJ as side-by-side mocks, before
+  anyone builds it. Those issues carry the `design-decision` label.

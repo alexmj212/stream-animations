@@ -90,4 +90,4 @@ project memory (`MEMORY.md`).
 |---|---|---|---|---|
 | 2026-10-28 | Judge legibility at the size viewers get, not the 1080p canvas: 29px text is 19px on a 720p stream and 6px on a phone in portrait | Type-scale figure, `docs/design/type-scale.jpg` | All text | active |
 | 2026-10-28 | Harness frames miss what OBS adds on top: live captures showed the Pride Guild badge drawn over alerts and the Starting text outside title-safe, neither visible in a harness render | Defiant captures 2026-10-28, audit | Audits | active |
-| 2026-10-28 | Measure contrast on the palette after the 0.8 brightness multiplier: it darkens every stop and raises white's contrast (stop 5 goes from 2.3 to 3.6:1) | `tests/shared/design.test.js` | Colour rules | active |
+| 2026-10-28 | Measure contrast on the palette after the 0.8 brightness multiplier: the scenes apply it to HSL lightness (`shadeStops()`), not RGB, and the two differ by up to 0.5:1 on the orange stops (stop 5: 3.2:1, not 3.6) | Code review on PR #30 | Colour rules | active |

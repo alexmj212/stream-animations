@@ -751,7 +751,7 @@ export const config = {
       ink: '#14061f',             // The dark text and stroke colour: Illuminations violet at 4% lightness
       brightness: 0.8,            // Same multiplier as every scene's palette (MOTION.md, Look)
       // Tested text pairs. bg 'stopN' = config.epcot.palettes.illuminations[N]
-      // at `brightness`. min 4.5 = any size, 3 = display sizes (56px+) only.
+      // at `brightness`, shaded on HSL lightness like the scenes. min 4.5 = any size, 3 = display sizes (56px+) only.
       // A new pair goes here first; design.test.js holds them.
       textPairs: [
         { text: 'white', bg: 'stop0', min: 4.5 },
@@ -761,7 +761,7 @@ export const config = {
         { text: 'white', bg: 'stop4', min: 4.5 },
         { text: 'white', bg: 'stop5', min: 3 },    // Orange: display sizes, with the stroke
         { text: 'ink', bg: 'stop5', min: 4.5 },
-        { text: 'ink', bg: 'stop6', min: 4.5 },    // Amber: white fails (2.7), ink only
+        { text: 'ink', bg: 'stop6', min: 4.5 },    // Amber: white fails (2.1), ink only
         { text: 'white', bg: 'ink', min: 4.5 }
       ]
     },

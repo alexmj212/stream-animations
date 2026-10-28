@@ -4,6 +4,9 @@
  * Pure functions, unit-tested in tests/shared/design.test.js.
  */
 
+import { hexToHSL, hslToRgb } from './colors.js';
+import { shadeStops } from './palette.js';
+
 /**
  * WCAG relative luminance of a #rrggbb colour.
  *
@@ -32,16 +35,18 @@ export function contrastRatio(a, b) {
 }
 
 /**
- * Multiply each channel of a #rrggbb colour, the way the scenes apply their
- * brightness multiplier.
+ * Apply a scene brightness multiplier to a #rrggbb colour the way the scenes
+ * do: on HSL lightness, through `shadeStops()` (not on the RGB channels,
+ * which comes out lighter for saturated colours).
  *
  * @param {string} hex
- * @param {number} factor - 0.8 for the scenes' brightness
+ * @param {number} brightness - 0.8 for the scenes' palette
  * @returns {string} '#rrggbb'
  */
-export function scaleHex(hex, factor) {
-    const out = [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * factor));
-    return '#' + out.map(v => Math.min(255, v).toString(16).padStart(2, '0')).join('');
+export function shadeHex(hex, brightness) {
+    const [{ h, s, l }] = shadeStops([hexToHSL(hex)], { brightness });
+    const { r, g, b } = hslToRgb(h, s, l);
+    return '#' + [r, g, b].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -57,7 +62,7 @@ export function designColor(name, design, stops) {
     if (name === 'white' || name === 'ink') return design.color[name];
     const match = /^stop(\d+)$/.exec(name);
     if (!match || !stops[Number(match[1])]) throw new Error(`Unknown design colour: ${name}`);
-    return scaleHex(stops[Number(match[1])], design.color.brightness);
+    return shadeHex(stops[Number(match[1])], design.color.brightness);
 }
 
 /**

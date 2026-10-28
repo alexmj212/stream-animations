@@ -23,7 +23,7 @@ import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { launchBrowser, projectRoot } from '../lib/browser.js';
 import { config } from '../../src/config/config.js';
-import { safeRect, scaleHex } from '../../src/shared/design.js';
+import { safeRect, shadeHex } from '../../src/shared/design.js';
 import { miuItemRect } from '../../src/shared/layout.js';
 
 const flags = Object.fromEntries(process.argv.slice(2).filter(a => a.startsWith('--')).map(a => {
@@ -186,8 +186,8 @@ try {
 
     // 4. Text over video: contrast do and don't
     if (want('contrast')) {
-        const amber = scaleHex(stops[6], D.color.brightness);
-        const orange = scaleHex(stops[5], D.color.brightness);
+        const amber = shadeHex(stops[6], D.color.brightness);
+        const orange = shadeHex(stops[5], D.color.brightness);
         const tile = (label, cls, inner, bgCss) => `<div style="width:620px">
             <div class="cap ${cls}" style="margin:0 0 10px 4px">${label}</div>
             <div style="position:relative;width:620px;height:200px;overflow:hidden;${bgCss}">${inner}</div></div>`;
@@ -196,10 +196,10 @@ try {
         const plain = `font:700 56px Jost;text-transform:uppercase;color:#fff`;
         await shoot(`<div style="display:grid;grid-template-columns:repeat(3,620px);gap:28px 30px;padding:30px">
             ${tile('Don\'t: bare white over bright video', 'dont', word(plain), epcotBg)}
-            ${tile('Don\'t: white on amber (2.7:1)', 'dont', word(plain), `background:${amber}`)}
+            ${tile('Don\'t: white on amber (2.1:1)', 'dont', word(plain), `background:${amber}`)}
             ${tile('Don\'t: thin stroke, dark shadow only', 'dont', word(plain + ';text-shadow:2px 2px 4px rgba(0,0,0,.6)'), epcotBg)}
             ${tile('Do: ink stroke + down-right shadow', 'do', word(textCss(56)), epcotBg)}
-            ${tile('Do: ink text on amber (7.3:1)', 'do', word(`font:700 56px Jost;text-transform:uppercase;color:${D.color.ink}`), `background:${amber}`)}
+            ${tile('Do: ink text on amber (9.1:1)', 'do', word(`font:700 56px Jost;text-transform:uppercase;color:${D.color.ink}`), `background:${amber}`)}
             ${tile('Do: white on a darkened plate', 'do', word(plain), `${epcotBg};box-shadow:inset 0 0 0 1000px rgba(20,6,31,.72)`)}
           </div>`, 1950, 580, 'contrast.jpg');
         void orange;
@@ -207,8 +207,8 @@ try {
 
     // 5. Chroma subsampling: hue-only contrast dies in a 4:2:0 encode
     if (want('chroma')) {
-        const violet = scaleHex(stops[0], D.color.brightness), magenta = scaleHex(stops[2], D.color.brightness);
-        const red = scaleHex(stops[3], D.color.brightness);
+        const violet = shadeHex(stops[0], D.color.brightness), magenta = shadeHex(stops[2], D.color.brightness);
+        const red = shadeHex(stops[3], D.color.brightness);
         const src = await shoot(`<div style="width:1920px;height:1080px;background:${violet};position:relative">
             <div style="position:absolute;left:80px;top:140px;font:700 72px Jost;color:${magenta}">MAGENTA ON VIOLET</div>
             <div style="position:absolute;left:80px;top:300px;font:700 72px Jost;color:${red}">RED ON VIOLET</div>
@@ -229,11 +229,11 @@ try {
 
     // 6. Banding: big slow dark gradients band once encoded
     if (want('banding')) {
-        const ink = D.color.ink, violet = scaleHex(stops[0], 0.45);
+        const ink = D.color.ink, violet = shadeHex(stops[0], 0.45);
         const src = await shoot(`<div style="width:1920px;height:1080px;display:grid;grid-template-columns:1fr 1fr 1fr">
             <div style="background:linear-gradient(90deg, ${ink}, ${violet})"></div>
             <div style="background:linear-gradient(90deg, ${ink}, ${violet})"><canvas id="n" width="640" height="1080"></canvas></div>
-            <div style="background:linear-gradient(90deg, ${ink}, ${scaleHex(stops[0], 0.8)})"></div>
+            <div style="background:linear-gradient(90deg, ${ink}, ${shadeHex(stops[0], 0.8)})"></div>
           </div>
           <script data-run>
             const c = document.getElementById('n'), x = c.getContext('2d'), im = x.createImageData(640, 1080);
