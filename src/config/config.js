@@ -26,7 +26,7 @@ export const config = {
 
     // Bar density and lifecycle
     density: {
-      default: 15,                // Default number of bars
+      default: 8,                 // Default number of bars (all on screen since spawn fix)
       min: 1,                     // Minimum allowed
       max: 50                     // Maximum before performance degrades
     },
