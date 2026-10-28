@@ -33,7 +33,8 @@ AJ (2026-10-28): "for code related things i don't need to see it, just get it
 out the door." Run the most efficient workflow with the fewest approval stops.
 
 - **Code, docs, tooling, tests, performance, process**: don't ask AJ. A PR
-  ships once code review says Ready and CI is green; release management merges
+  ships once code review says Ready and CI is green (plus design review and
+  QA sign-off when it changes visuals); release management merges
   it, in order when PRs overlap. Fix review and QA findings yourself and keep
   going.
 - **Design decisions only** go to AJ: a change in how a scene looks or moves
