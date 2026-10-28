@@ -20,6 +20,8 @@
  *   log     echo events to the console as `[scene:debug] name {data}`
  *   build   show the build stamp on screen (drawn by the build script in
  *           vite.config.js; every snapshot carries the stamp regardless)
+ *   zones   draw the screen areas other overlays cover (sidebar: where Mix
+ *           It Up puts its images, config.sidebar.miuZones)
  *
  * Read it from a page, the harness, Playwright or a CDP client:
  *   window.__debug[scene].snapshot()
@@ -28,7 +30,7 @@
  * channels go in DEBUG_CHANNELS and docs/VALIDATION.md.
  */
 
-export const DEBUG_CHANNELS = ['events', 'frames', 'log', 'build'];
+export const DEBUG_CHANNELS = ['events', 'frames', 'log', 'build', 'zones'];
 
 /** A frame slower than this counts as long (two 60Hz frames, with slack). */
 export const LONG_FRAME_MS = 34;
