@@ -4,6 +4,12 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.2.3 - 2026-10-28
+
+- Followers: a new follow no longer stutters the stream (its slowest frame
+  drops from 20-75ms to about 5ms), and the count holds still as the number
+  ticks instead of shifting sideways. The look is unchanged. ([#52])
+
 ## v2.2.2 - 2026-10-28
 
 - Notifications: a grown bar now stops at the title-safe edge, so its tip
@@ -87,3 +93,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#29]: https://github.com/alexmj212/stream-animations/pull/29
 [#32]: https://github.com/alexmj212/stream-animations/pull/32
 [#47]: https://github.com/alexmj212/stream-animations/pull/47
+[#52]: https://github.com/alexmj212/stream-animations/pull/52
