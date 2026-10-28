@@ -662,11 +662,15 @@ export const config = {
   // change: the lane and the 32px caps. The ad source sits above the hype
   // one in OBS and its plate is opaque, so the ad wins when both are up
   banner: {
-    // DESIGN.md, Composition, zone plan: directly under the toast lane,
-    // x 560-1824 (the goal bar's right end to title-safe's right edge),
-    // y 84-132. The strip and its text stay inside this box; only the hype
-    // train's optional screen border (kinds.hype.border) draws outside it
-    lane: { x: 560, y: 84, width: 1264, height: 48 },
+    // The toast lane itself (config.notifications.geometry): AJ (2026-10-28,
+    // #86) "have the banner show in the same place as the notification
+    // banner when the hype train is happening". x 560-1824 at mid-height
+    // (the goal bar's right end to title-safe's right edge), y 26-74. The
+    // strip's ends lean like the toast's (`skewAngle`), so it meets the
+    // goal bar's slanted end. A toast plays over it (OBS order); the
+    // strip and its text stay inside this box, and only the hype train's
+    // optional screen border (kinds.hype.border) draws outside it
+    lane: { x: 560, y: 26, width: 1264, height: 48, skewAngle: -15 },
     kinds: {
       hype: {
         text: 'HYPE TRAIN',

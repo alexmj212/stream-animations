@@ -3,8 +3,9 @@
  * original OBS look (#86): a strip across the lane under the notifications
  * toast with the line scrolling across it as a marquee. Hype is a
  * translucent teal strip with white text and sparkles; the ad is black
- * text on a solid orange plate. The rule fixes over the OBS groups: 32px
- * caps, and the strip and text stay inside the lane (x 560-1824, y 84-132).
+ * text on a solid orange plate. It sits in the toast's own lane (AJ, #86),
+ * with the toast's leaning ends. The rule fixes over the OBS groups: 32px
+ * caps, and the strip and text stay inside the lane (x 560-1824, y 26-74).
  * The hype train's optional 4px screen border is the one thing drawn
  * outside it, at the canvas edges (?border=0 drops it).
  *
@@ -123,8 +124,9 @@ export class BannerLane {
 
     /** Only the lane (and the border, if any) is ever painted, so only they are cleared. */
     clear() {
-        const { x, y, width, height } = this.geo;
-        this.ctx.clearRect(Math.floor(x), Math.floor(y), Math.ceil(width) + 1, Math.ceil(height) + 1);
+        const { x, y, width, height, lean } = this.geo;
+        const l = Math.ceil(lean) + 1;
+        this.ctx.clearRect(Math.floor(x) - l, Math.floor(y), Math.ceil(width) + 2 * l + 1, Math.ceil(height) + 1);
         if (this.border) for (const r of this.borderRects()) this.ctx.clearRect(...r);
     }
 
@@ -151,14 +153,20 @@ export class BannerLane {
             for (const r of this.borderRects()) ctx.fillRect(...r);
         }
         const w = geo.width * this.reveal;
+        const { x, y, height, lean } = geo;
         ctx.save();
+        // A parallelogram with the toast's lean, so it meets the goal bar's slanted end
         ctx.beginPath();
-        ctx.rect(geo.x, geo.y, w, geo.height);
+        ctx.moveTo(x + lean, y);
+        ctx.lineTo(x + w + lean, y);
+        ctx.lineTo(x + w - lean, y + height);
+        ctx.lineTo(x - lean, y + height);
+        ctx.closePath();
         ctx.clip();
         ctx.fillStyle = this.hue === null ? this.stripFill : this.colour(this.look.fillAlpha);
-        ctx.fillRect(geo.x, geo.y, w, geo.height);
-        const start = Math.round(geo.x - this.offset);
-        const n = marqueeCopies(geo.width, this.unitWidth);
+        ctx.fillRect(x - lean, y, w + 2 * lean, height);
+        const start = Math.round(x - lean - this.offset);
+        const n = marqueeCopies(geo.width + 2 * lean, this.unitWidth);
         for (let i = 0; i < n; i++) ctx.drawImage(this.unitCache, start + i * this.unitWidth, Math.round(geo.y));
         ctx.restore();
     }
@@ -169,7 +177,8 @@ export class BannerLane {
         const w = geo.width * this.reveal;
         const on = this.reveal > 0;
         // Everything is clipped to the revealed strip; report the extents
-        // anyway so a change to the clip can't hide an overhang
+        // anyway so a change to the clip can't hide an overhang. Extents are
+        // at mid-height, where the lane's x is measured (the ends lean)
         const lane = { x: geo.x, y: geo.y, right: geo.x + geo.width, bottom: geo.y + geo.height };
         const outside = (b) => Math.max(0, lane.x - b.x, lane.y - b.y, b.right - lane.right, b.bottom - lane.bottom);
         const box = { x: geo.x, y: geo.y + this.textInk.top, width: w, height: this.textInk.height };

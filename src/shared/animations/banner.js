@@ -17,13 +17,16 @@ export function resolveBannerKind(requested, kinds) {
 
 /**
  * The lane box on a canvas of this width (px).
+ * The ends lean by `skewAngle` like the toast's: `lean` is how far the top
+ * edge sits right of the mid-height x (and the bottom edge left of it).
  * @param {number} width - Canvas width
- * @param {{x: number, y: number, width: number, height: number}} lane - px on 1920
- * @returns {{k: number, x: number, y: number, width: number, height: number, mid: number}}
+ * @param {{x: number, y: number, width: number, height: number, skewAngle?: number}} lane - px on 1920, x at mid-height
+ * @returns {{k: number, x: number, y: number, width: number, height: number, mid: number, lean: number}}
  */
 export function bannerGeometry(width, lane) {
     const k = width / 1920;
     return {
+        lean: -Math.tan((lane.skewAngle || 0) * Math.PI / 180) * lane.height * k / 2,
         k,
         x: lane.x * k,
         y: lane.y * k,

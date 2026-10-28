@@ -18,13 +18,13 @@ describe('banner kind', () => {
 });
 
 describe('banner geometry', () => {
-    it('is the lane of the zone plan, x 560-1824, y 84-132', () => {
+    it('is the toast lane, x 560-1824, y 26-74 (AJ, #86)', () => {
         const g = bannerGeometry(1920, b.lane);
         expect(g.x).toBe(560);
         expect(g.x + g.width).toBe(1824);
-        expect(g.y).toBe(84);
-        expect(g.y + g.height).toBe(132);
-        expect(g.mid).toBe(108);
+        expect(g.y).toBe(26);
+        expect(g.y + g.height).toBe(74);
+        expect(g.mid).toBe(50);
     });
 
     it('ends at title-safe, never at the frame edge (the old ad banner ran to x 1920)', () => {
@@ -36,12 +36,22 @@ describe('banner geometry', () => {
         const g = bannerGeometry(1280, b.lane);
         expect(g.x).toBeCloseTo(560 * 2 / 3);
         expect(g.height).toBeCloseTo(32);
+        expect(g.lean).toBeCloseTo(bannerGeometry(1920, b.lane).lean * 2 / 3);
     });
 
-    it('sits under the toast lane and the goal bar', () => {
+    it('fills the toast\'s own place, with its leaning ends', () => {
         const n = config.notifications.geometry;
-        expect(b.lane.y).toBeGreaterThanOrEqual(n.top + n.height);
+        expect(b.lane.y).toBe(n.top);
+        expect(b.lane.height).toBe(n.height);
         expect(b.lane.x).toBe(n.startX);
+        expect(b.lane.x + b.lane.width).toBe(n.maxEndX);
+        expect(b.lane.skewAngle).toBe(n.skewAngle);
+        // The top edge sits right of mid-height, like the toast's (about 6.4px)
+        expect(bannerGeometry(1920, b.lane).lean).toBeCloseTo(Math.tan(15 * Math.PI / 180) * 24);
+    });
+
+    it('has no lean without a skewAngle', () => {
+        expect(bannerGeometry(1920, { x: 0, y: 0, width: 10, height: 48 }).lean).toBeCloseTo(0);
     });
 });
 

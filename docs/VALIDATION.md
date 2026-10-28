@@ -238,7 +238,7 @@ TIME-1). It draws about 60 frames once and none after, so it has no CPU
 check: the debug `idle` event proves it stops.
 
 `banner-hype` and `banner-ad` check the banner lane (#85): the probe's
-`outsideLane` must stay 0 (strip and text inside x 560-1824, y 84-132) and
+`outsideLane` must stay 0 (strip and text inside x 560-1824, y 26-74) and
 `capShort` 0 (capitals at least 32px, measured from the drawn font), and
 the ad plate must be opaque. The marquee scrolls for as long as the banner
 is up, so TIME-1 is left out (AJ's exemption, MOTION.md Learnings) and each

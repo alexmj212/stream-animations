@@ -624,9 +624,9 @@ export const SCENARIOS = [
   },
   {
     // Banner lane (issue #85), in AJ's original OBS look (#86): the hype
-    // train strip wipes in under the toast and the line scrolls across it.
-    // Everything stays inside the lane, x 560-1824, y 84-132, with 32px caps
-    // (DESIGN.md, Composition zone plan; TYPE-1). No TIME-1: the marquee is
+    // train strip wipes in from the goal bar's end, in the toast's own place
+    // (AJ, #86), and the line scrolls across it. Everything stays inside the
+    // lane, x 560-1824 at mid-height, y 26-74, with 32px caps (TYPE-1). No TIME-1: the marquee is
     // AJ's exemption from still text (MOTION.md Learnings). It draws every
     // frame for as long as it's up, so it carries a CPU check
     name: 'banner-hype',
@@ -639,7 +639,9 @@ export const SCENARIOS = [
     keyframeSpanMs: 6000,
     markers: [{ at: 500, label: 'strip in' }],
     checks: {
-      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      // No SAFE-1: in the toast's place it shares the toast's top-margin
+      // exemption (AJ, #40 and #86; DESIGN.md SAFE-1). SAFE-3 still holds
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       debugEvents: { start: 1, in: 1 },
       probeMax: [
         { field: 'outsideLane', max: 0, label: 'Inside the banner lane' },
@@ -661,9 +663,11 @@ export const SCENARIOS = [
     keyframes: [0.05, 0.5],
     keyframeSpanMs: 6000,
     // The plate once it's in: opaque
-    region: { x0: 0.295, x1: 0.945, y0: 0.08, y1: 0.12 },
+    region: { x0: 0.3, x1: 0.945, y0: 0.03, y1: 0.065 },
     checks: {
-      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      // No SAFE-1: in the toast's place it shares the toast's top-margin
+      // exemption (AJ, #40 and #86; DESIGN.md SAFE-1). SAFE-3 still holds
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       debugEvents: { start: 1, in: 1 },
       regionCover: { fromMs: 500, toMs: 6000, label: 'the ad plate, opaque' },
       probeMax: [
