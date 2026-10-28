@@ -9,8 +9,10 @@ minor for new scenes, features or a visible style change, patch for fixes.
 - Look: the stinger, sidebar and shade now paint their colored bars with the
   epcot ball's Illuminations palette (violet at the top through red to amber
   at the bottom), fixed to the screen. `?color=` no longer recolors them, so
-  Couch Color leaves them alone; `?colormode=shift` or `?scheme=mono` brings
-  back the old single-color look per URL. ([#16])
+  Couch Color leaves them alone. Per URL, `?scheme=mono` (or
+  `?colormode=mono` with a `color`) brings back the old single-color look,
+  and `?colormode=shift` rotates the palette's hues to `color`. The stinger
+  WebMs attached to this release show the new palette. ([#16])
 - Hosting: every scene is served from GitHub Pages behind a loader that
   never serves a stale build, and OBS loads those URLs with the same params.
   `?debug=build` shows which build is running. ([#11])
