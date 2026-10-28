@@ -63,6 +63,7 @@ const { browser } = await launchBrowser({ width, height });
 let frameCount = 0;
 let coverStart = null;
 let coverEnd = null;
+let runStart = null;
 try {
   const page = await browser.newPage();
   await page.setViewport({ width, height, deviceScaleFactor: 1 });
@@ -86,9 +87,16 @@ try {
     }, dt);
     if (pixels.visible > 0) started = true;
     if (pixels.opaque >= 0.999) {
-      // Video frame N shows virtual time (N+1)*dt, so in video time it is t - dt
-      if (coverStart === null) coverStart = t - dt;
-      coverEnd = t - dt;
+      // Video frame N shows virtual time (N+1)*dt, so in video time it is t - dt.
+      // Keep the longest unbroken covered run so the Transition Point can't
+      // land on a frame inside a gap.
+      if (runStart === null) runStart = t - dt;
+      if (coverStart === null || (t - dt) - runStart > coverEnd - coverStart) {
+        coverStart = runStart;
+        coverEnd = t - dt;
+      }
+    } else {
+      runStart = null;
     }
     await page.screenshot({ path: resolve(framesDir, `f${String(frameCount).padStart(5, '0')}.png`), omitBackground: true });
     frameCount++;

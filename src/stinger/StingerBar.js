@@ -96,6 +96,17 @@ export class StingerBar extends AnimatedBar {
         // Hold drift (px/s) in the direction of travel; front bars drift
         // faster for a little parallax depth
         this.drift = L.drift ?? config.stinger.slanted.driftPxPerSec * (0.6 + 0.8 * this.zIndex);
+        if (this.type === 'horizontal') {
+            // A horizontal bar holds spanning the screen; its trailing end has
+            // only ~140-260px of overhang. Cap the drift so that end never
+            // slides on screen during the hold, however long the stinger is.
+            const skewExtent = Math.abs(Math.tan(this.skew * Math.PI / 180)) * this.height / 2;
+            const overhang = this.direction === 1
+                ? -this.targetX - skewExtent
+                : this.targetX + this.width - W - skewExtent;
+            const hold = Math.max(this.outStart - this.inEnd, 1e-6);
+            this.drift = Math.min(this.drift, Math.max(0, overhang - 8) / hold);
+        }
         this.exitX = this.reverseOnExit ? this.startX : this.farX;
 
         this.x = this.startX;

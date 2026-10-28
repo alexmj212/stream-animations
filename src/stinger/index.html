@@ -94,7 +94,6 @@
         let bars = [];
         let startTimestamp = null;
         let animationStarted = false;
-        let transitionCount = 0;
 
         // ?seed=N pins the layout (same stinger every time, e.g. for video
         // export); without it every transition gets a fresh balanced layout.
@@ -102,7 +101,6 @@
 
         function generateBars() {
             const seed = pinnedSeed ?? Math.floor(Math.random() * 2 ** 31);
-            transitionCount++;
             bars = planStinger(ctx, canvas, baseHSL, durationMs, createRandom(seed));
         }
 
@@ -149,7 +147,18 @@
             }
         }
 
+        // One scene switch can deliver more than one trigger (e.g.
+        // transitionStart and obsSourceActiveChanged); a second trigger right
+        // after the first would swap in a new layout a frame in.
+        let lastPlayAt = -Infinity;
+
         function play(source) {
+            const now = performance.now();
+            if (animationStarted && now - lastPlayAt < 250) {
+                console.log(`[Stinger] ${source} ignored - transition already started`);
+                return;
+            }
+            lastPlayAt = now;
             console.log(`[Stinger] ${source} - starting transition`);
             generateBars();
             startTimestamp = null; // restart the clock on the next frame

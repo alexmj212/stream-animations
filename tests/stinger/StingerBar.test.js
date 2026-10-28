@@ -281,6 +281,22 @@ describe('StingerBar phase transitions', () => {
       }
     });
 
+    it('horizontal bars span the whole screen through the hold at any duration', () => {
+      const tan = Math.abs(Math.tan(15 * Math.PI / 180));
+      for (const duration of [1000, 1500, 3000, 5000, 8000]) {
+        for (let seed = 1; seed <= 50; seed++) {
+          for (const bar of plan(seed, duration).filter(b => b.type === 'horizontal')) {
+            for (let t = bar.inEnd; t <= bar.outStart; t += (bar.outStart - bar.inEnd) / 10) {
+              bar.setTime(t);
+              const skew = tan * bar.height / 2;
+              expect(bar.x + skew).toBeLessThanOrEqual(0);
+              expect(bar.x + bar.width - skew).toBeGreaterThanOrEqual(1920);
+            }
+          }
+        }
+      }
+    });
+
     it('curtains meet with overlap so the seam never shows', () => {
       const [left, right] = plan(1);
       left.setTime(0.75);
