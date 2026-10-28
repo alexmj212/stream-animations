@@ -36,10 +36,11 @@ stinger video files.
   2026-10-28), so a merge to `main` is live the next time a source loads.
 - **Never stale.** Pages caches pages for up to 10 minutes and OBS's browser
   caches too (AJ: "make sure that the page isn't cached"). OBS points at
-  `<scene>/`, a small loader that never changes: it reads `version.json`
-  uncached and redirects to that deploy's own copy, `v/<commit>/<scene>/`,
-  keeping the URL params. Every deploy is a new URL, so nothing old can be
-  served from cache.
+  `<scene>/`, a small loader that never changes: on every load and refresh
+  it fetches `latest/<scene>/` uncached and writes it into the page, so the
+  URL and its params stay the ones in OBS. No redirect: OBS reloads a
+  source's current URL, so a redirect target would go stale, then 404 after
+  the next deploy (Code review on #11).
 - **Which build is running:** every build carries `<meta name="build">`
   (version and short commit) and logs it at load; `?debug=build` shows it
   on screen.
@@ -105,4 +106,4 @@ dependencies straight to it.
 | 2026-10-28 | Pixelbot's `next` branch exists because every Pixelbot merge deploys a server with ~1 min downtime. Here only epcot deploys and nothing goes down, so squash to `main` directly | Pixelbot `docs/DEPLOYMENT.md` | release flow | active |
 | 2026-10-28 | AJ doesn't want to approve code merges or releases. Gate on CI, Code review, Design review and QA, then ship. Ask AJ only for design choices, with frames to compare | AJ in project chat, 2026-10-28 | merging, releases | active |
 | 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | superseded by the Pages row below |
-| 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a version loader so a release can't be served stale. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active |
+| 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a loader that fetches the build uncached on every load. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active |
