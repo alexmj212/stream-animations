@@ -18,6 +18,14 @@ whether it is good.
   it moves (`src/` scenes, `src/shared/`, visual values in `src/config/config.js`)
 - Calls on taste: density, visual weight, balance, color, timing feel
 
+This role's sign-off is the gate on visual PRs. AJ, 2026-10-28: code ships
+without AJ's approval; AJ only decides design questions, and only with mocks
+to compare. So decide most look questions here, and put one to AJ only when
+it changes the look AJ would notice on stream (density, color, timing feel,
+a new scene's style). Bring side-by-side frames, strips or a
+`motion:export` video, and a recommendation. Tell release management to hold
+the PR while AJ decides.
+
 It does not own the harness or its thresholds (`docs/VALIDATION.md`, the
 `motion-*` skills) or code quality. Those belong to the threads below.
 
