@@ -54,7 +54,7 @@ thread that owns the work; don't route through the coordinator.
 | QA | A look problem a machine could catch (balance, coverage, contrast): ask for a harness check |
 | Release management | A one-line verdict per PR: approve, approve with follow-ups, or changes requested |
 | Adopt Pixelbot's self-improvement approach | Changes to the charter format, `improve`, or `docs/IMPROVING.md` |
-| Design system ("Create the stream design system bible") | A PR needs a rule the bible (`docs/DESIGN.md`, being created by that thread) lacks; a review finding that should become a rule. Design review judges PRs against the bible and cites its rules. One source of truth: rules live in one place and are linked, not copied (AJ created the role 2026-10-28) |
+| Design system ("Create the stream design system bible") | A PR needs a rule the bible (`docs/DESIGN.md`) lacks; a review finding that should become a rule. Design review judges PRs against the bible and cites its rules. One source of truth: rules live in one place and are linked, not copied (AJ created the role 2026-10-28) |
 
 Thread links live in project memory (`MEMORY.md`), since ids change if a
 thread is recreated.
@@ -93,3 +93,4 @@ thread is recreated.
 | 2026-10-28 | Background layouts are random per seed, so one seed's keyframes can't judge density: PR #2's 8-bar default ranged from 19% to 81% of the frame covered across seeds 1-8, and 5 of 8 seeds put 3x more on one half than the other | PR #2 review, harness seeds 1-8 at t=8s | any random layout | active; background itself is low priority since 2026-10-28 |
 | 2026-10-28 | Review keyframes over a dark backdrop as well as the checkerboard; the checkerboard hides how loud a translucent bar is | PR #2 review | all scenes | active |
 | 2026-10-28 | Check a PR's visual claim against the frames, not its description: #6 said curtains covered the band before the text, but the text band was 87% open at 250ms | PR #6 review | all scenes | active |
+| 2026-10-28 | When a rulebook (the bible) sets targets that differ from what ships, ask for them to be marked as targets, or every current scene fails review against them; moving a scene to a target is a look change for AJ | PR #30 review | rule docs | active |
