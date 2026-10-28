@@ -661,6 +661,41 @@ export const config = {
     }
   },
 
+  // Color layout for the stinger, sidebar and shade. AJ (2026-10-28): "the
+  // same color layout as the illuminations epcot ball on the 3 other
+  // animations". Colored bars are painted from a screen-fixed top-to-bottom
+  // gradient through one of config.epcot.palettes (src/shared/palette.js),
+  // like the ball's static night look. White bars stay white.
+  palette: {
+    default: 'illuminations', // ?scheme= URL param; 'mono' = the single-hue look from before
+    // How a passed ?color= (Mix It Up's Couch Color sends color=$themecolor)
+    // combines with the palette (?colormode= overrides):
+    // 'shift'  - rotate every stop's hue so the anchor stop lands on the
+    //            color's hue: same layout, recolored
+    // 'ignore' - palette stays exact; color= has no effect
+    // 'mono'   - any passed color brings back the single-hue look
+    // Default 'ignore': AJ chose "Always Illuminations" (2026-10-28, PR #16),
+    // so Couch Color no longer recolors these scenes. Design review found
+    // shift turns warm colors such as #ff6600 lime green over epcot.
+    colorMode: 'ignore',
+    // Stop the passed color is matched to. Stop 1 (#a312c9, hue 288) is
+    // within 4 degrees of AJ's theme color #b00bee, so the stream's own
+    // color renders the ball's palette almost exactly.
+    anchorIndex: 1,
+    // Passed colors below this saturation (grays, white) have no real hue,
+    // so they leave the palette unshifted
+    minShiftSaturation: 15,
+    // Per-role lightness offsets on the palette (percentage points, before
+    // each scene's brightness multiplier). Curtains/panels sit darker so
+    // accents read in front of them, as with the single-hue look (base - 25).
+    curtainLightness: -20,
+    // Shade: the semi-transparent curtain body (was base -> base - 20, so
+    // -10 on average), and the solid band behind the text, darker still
+    // so the white text reads
+    bodyLightness: -10,
+    tipLightness: -22
+  },
+
   /**
    * Performance optimization configuration
    *
