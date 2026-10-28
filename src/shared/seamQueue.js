@@ -46,3 +46,22 @@ export function playOnSeam(enabled, play, {
     if (!enabled || !locks) return run();
     return locks.request(SEAM_LOCK, run);
 }
+
+/**
+ * Whether an alert holds the seam right now, for a page that stays up
+ * under the alerts (the portrait banner, #86) and yields to them rather
+ * than taking the lock: a hype train lasts minutes, so holding it would
+ * block every toast and shoutout behind it.
+ *
+ * @param {LockManager} [locks] - navigator.locks by default
+ * @returns {Promise<boolean>} false without Web Locks
+ */
+export async function seamHeld(locks = globalThis.navigator?.locks) {
+    if (!locks?.query) return false;
+    try {
+        const { held = [] } = await locks.query();
+        return held.some(l => l.name === SEAM_LOCK);
+    } catch {
+        return false;
+    }
+}

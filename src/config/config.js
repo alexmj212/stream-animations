@@ -652,6 +652,127 @@ export const config = {
     }
   },
 
+  // Banner lane (issue #85): the hype train banner and the ad warning, which
+  // were OBS groups (colour strips, a GDI+ text scroll, Move filters) whose
+  // text couldn't be enlarged without breaking the groups' crop. One page,
+  // ?kind=hype|ad, one OBS browser source per kind; MIU shows and hides
+  // them as it did the groups. AJ (2026-10-28, #86): "I liked the overall
+  // design of my original implementation", so each kind keeps the OBS look
+  // (strip colour, scrolling marquee, sparkles) and only the rule fixes
+  // change: the lane and the 32px caps. The ad source sits above the hype
+  // one in OBS and its plate is opaque, so the ad wins when both are up
+  banner: {
+    // The toast lane itself (config.notifications.geometry): AJ (2026-10-28,
+    // #86) "have the banner show in the same place as the notification
+    // banner when the hype train is happening", and "extend all the way
+    // across and touch the follow bar". x 560 (the follower bar's end, at
+    // mid-height) to the frame's right edge, y 26-74. The strip's ends lean
+    // like the toast's (`skewAngle`), so it meets the follower bar's slanted
+    // end. Past title-safe (1824) only the scrolling line passes, under the
+    // toast's top-margin exemption (SAFE-1). A toast plays over it (OBS
+    // order); only the hype train's optional screen border
+    // (kinds.hype.border) draws outside this box
+    // (width 1370: the right end's lean runs past the frame edge, so the
+    // bottom-right corner reaches it too)
+    lane: { x: 560, y: 26, width: 1370, height: 48, skewAngle: -15 },
+    // Portrait (Aitum Vertical, 1080x1920): picked when the page is taller
+    // than wide, or with ?layout=vertical. AJ (2026-10-28, #86): "These
+    // should also show on the vertical layout". In the vertical toast's
+    // place (config.notifications.vertical): on the camera/game seam, across
+    // the phone-safe width, so every word stays inside V-SAFE-1. Caps sized
+    // so the line is ~57px, over V-TYPE-1's 48px floor, like the toast's 56
+    vertical: {
+      refWidth: 1080,             // Lane below is px on the 1080-wide canvas
+      // AJ (2026-10-28, #86): "I think they should be full width". The strip
+      // runs edge to edge on the seam (the toast's y and height); the
+      // scrolling words show only inside the phone-safe width (`textClip`),
+      // clear of the apps' button column on the right (V-SAFE-1)
+      // 20px past each edge, so the leaning ends fall off the frame
+      lane: { x: -20, y: 660, width: 1120, height: 80, skewAngle: -15 },
+      textClip: { x: 60, width: 880 },  // = notifications.vertical.geometry startX-endX
+      capPx: 40,
+      // The seam is shared: the portrait toast and sidebar hold the seam lock
+      // (src/shared/seamQueue.js) while they play, and the sidebar plate
+      // (y ~560-700) would sit over the strip's top half. So the banner
+      // fades out while the lock is held and back once it's free, never
+      // taking the lock itself (vertical layout thread, #86)
+      yield: { pollMs: 250, fadeMs: 250 }
+    },
+    kinds: {
+      hype: {
+        text: 'HYPE TRAIN',
+        // OBS "Hype Train Banner": a translucent teal strip (measured on the
+        // program over the wall, 2026-10-28: about 0.35) with white text and
+        // sparkles. 0.6 so the white letters hold up over the bright wall
+        // (option B on design-review/banner/original-look-A-vs-B.png)
+        fill: '#3fdfd1',
+        fillAlpha: 0.6,
+        // The OBS group's colour cycle: its Color Correction swept the hue
+        // shift -180 -> +180 over 10 s and back (Move Value / Move Value 2),
+        // round the base #ffaa00, so strip and border run through the whole
+        // wheel. `fill` is the strip's colour only with ?cycle=0
+        hueCycle: { baseHue: 40, swingDeg: 180, sweepMs: 10000, saturation: 100, lightness: 50 },
+        // The 4px frame around the whole screen the OBS group drew, at the
+        // group's 50% opacity (backup .bak-20261028-124618)
+        border: { px: 4, alpha: 0.5 },
+        textColor: '#ffffff',
+        // A soft dark glow under the letters, like the OBS Glow filter, so
+        // white still reads over the bright wall (option B)
+        glow: { color: 'rgba(0, 40, 40, 0.8)', blurEm: 0.15 },
+        // The shared ink stroke (config.design.type, TYPE-3) under the
+        // letters and sparkles: white on the teal strip over the bright wall
+        // measured ~1.5:1 without it (QA and design review on #86)
+        stroke: true,
+        sparkles: true,           // The ✦✧ cluster between repeats, drawn as shapes
+        separator: '',
+        gapEm: 1.2                // Space each side of the sparkles
+      },
+      ad: {
+        text: 'ADS MAY BE PLAYING',
+        // OBS "Ad Banner": black Jost on an orange plate along the bottom
+        // edge. AJ (2026-10-28, #86): "The ads play notification is too loud
+        // as well, I had it on the bottom of the screen and not opacity 1".
+        // So 16:9 gets its own lane: full width, on the frame's bottom edge
+        // (the OBS group sat at y 1057-1094, half off the frame). That's AJ's
+        // exemption from SAFE-1 and SAFE-3: under the player controls, it's
+        // a quiet notice, not a line viewers must read
+        lane: { x: 0, y: 1032, width: 1920, height: 48, skewAngle: 0 },
+        // The whole banner at the OBS group's Color Correction opacity (its
+        // "Show Ad Banner" Move Value took it to 0.5; the same filter pair is
+        // copied on the hype group). The page fades plate and text together
+        // as one layer (globalAlpha): the text keeps its contrast against the
+        // plate, and both show the stream through at 50%
+        opacity: 0.5,
+        fill: '#ffaa00',
+        fillAlpha: 1,
+        textColor: '#000000',
+        hueCycle: null,
+        border: null,
+        glow: null,
+        stroke: false,            // Black on an opaque plate needs no stroke (TYPE-3)
+        sparkles: false,
+        separator: '-',           // "ADS MAY BE PLAYING - ADS MAY BE PLAYING - ..."
+        gapEm: 0.3                // A word space each side of the dash, as in OBS
+      }
+    },
+    text: {
+      font: '"Jost", Arial, sans-serif',
+      weight: 700,
+      // Rotom (#85, Composition zone plan): 32px caps, about a 44px Jost 700
+      // line. The font size is derived from the loaded font's cap height so
+      // the caps measure exactly this (TYPE-1: the line is over 40px)
+      capPx: 32,
+      trackingEm: 0.06            // The OBS text's open spacing
+    },
+    // The marquee scrolls right to left at a constant speed, as the OBS
+    // Scroll filter did (AJ's look; MOTION.md Learnings records the
+    // exemption from MOTION-1's still text)
+    scrollPxPerSec: 120,
+    timing: {
+      revealMs: 500               // The strip wipes in from the goal bar's end (design.motion.durationMs.enter, ease.enter)
+    }
+  },
+
   // Epcot scene configuration (flattened tetrahedron grid, real-3D shading)
   epcot: {
     // Base triangle side length in pixels

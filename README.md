@@ -81,6 +81,24 @@ source loads, then holds still. A long title shrinks, then takes two lines.
 
 **URL**: `title/index.html?text=WELCOME`
 
+### Banner lane
+The hype train banner and the ad warning, in AJ's original OBS look with
+32px caps. The hype train is a colour-cycling strip with a scrolling "HYPE
+TRAIN ✦✧" marquee in the goal bar toast's own place (from the follower
+bar's end at x 560 to the right edge, y 26-74, with the toast's leaning
+ends; a toast plays over it). The ad warning is black "ADS MAY BE PLAYING -"
+scrolling on an orange plate at half opacity along the bottom edge
+(y 1032-1080, full width). On the vertical canvas both run full width on the
+seam, with the words inside the phone-safe width. One OBS browser source per
+kind, shown and hidden by Mix It Up.
+
+**URL**: `banner/index.html?kind=hype` (`kind`, `text`, `cycle`, `border`, `layout`)
+
+- `kind` - `hype` (default) or `ad`
+- `text` - Replace the line (set in caps)
+- `cycle` - `0` holds the hype strip at a fixed teal; by default it cycles through the colour wheel and back every 20 s, as the OBS group did
+- `border` - `0` drops the hype train's 4px border around the whole screen
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 
@@ -204,6 +222,7 @@ src/
   notifications/ - Toast bar out of the follower-goal bar
   followers/    - Follower-goal bar (count from MIU's Developer API)
   title/        - Scene title card (WELCOME, BRB, ENDING)
+  banner/       - Hype train banner and ad warning (banner lane)
   background/   - Background loop
   epcot/        - Spaceship Earth lattice
 tests/          - Vitest suites, one folder per scene

@@ -623,6 +623,86 @@ export const SCENARIOS = [
     }
   },
   {
+    // Banner lane (issue #85), in AJ's original OBS look (#86): the hype
+    // train strip wipes in from the goal bar's end, in the toast's own place
+    // (AJ, #86), and the line scrolls across it. Everything stays inside the
+    // lane, x 560 (the follower bar's end) to 1920, y 26-74, with 32px caps
+    // (TYPE-1). No TIME-1: the marquee is
+    // AJ's exemption from still text (MOTION.md Learnings). It draws every
+    // frame for as long as it's up, so it carries a CPU check
+    name: 'banner-hype',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=hype`,
+    start: 'load',
+    captureMs: 6000,
+    // 0.6 s, 3 s and 5.4 s: three points on the colour cycle
+    keyframes: [0.02, 0.05, 0.1, 0.5, 0.9],
+    keyframeSpanMs: 6000,
+    markers: [{ at: 500, label: 'strip in' }],
+    checks: {
+      // No SAFE-1: in the toast's place it shares the toast's top-margin
+      // exemption (AJ, #40 and #86; DESIGN.md SAFE-1). SAFE-3 still holds
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1 },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside the banner lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 32px' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    // The ad warning: black text on an orange plate at half opacity along
+    // the bottom edge, full width (AJ, #86: "I had it on the bottom of the
+    // screen and not opacity 1"). No SAFE-1 or SAFE-3: AJ's exemption for
+    // this quiet notice, which sits under the player controls as the OBS
+    // group did. KEEP-1 only warns: on Starting and BRB the strip runs
+    // under the song line bottom-left (x 0-651, y 1037-1080), as the OBS
+    // group did; raised with AJ on #86
+    name: 'banner-ad',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=ad`,
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.05, 0.5],
+    keyframeSpanMs: 6000,
+    checks: {
+      design: { rules: ['KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1 },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside its lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 32px' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    // The hype banner on the Aitum Vertical canvas (AJ, #86): in the
+    // portrait toast's place on the camera/game seam, every word inside the
+    // phone-safe box, at a ~57px line (V-TYPE-1)
+    name: 'banner-vertical',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=hype`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.05, 0.5, 0.9],
+    keyframeSpanMs: 6000,
+    markers: [{ at: 500, label: 'strip in' }],
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1, layout: 1 },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside the portrait lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 40px' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
     name: 'background',
     url: `/src/background/index.html?color=${COLOR}`,
     start: 'load',

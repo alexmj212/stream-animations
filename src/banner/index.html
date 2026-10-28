@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Banner Lane</title>
+    <link rel="stylesheet" href="../shared/fonts/jost.css">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import { setupCanvas } from "../shared/canvas.js";
+      import { BannerLane } from "./BannerLane.js";
+      import { resolveBannerKind } from "../shared/animations/banner.js";
+      import { AnimationLifecycle } from "../shared/lifecycle.js";
+      import { config } from "../config/config.js";
+      import { registerProbe } from "../shared/motion.js";
+      import { seamHeld } from "../shared/seamQueue.js";
+      import { createDebug } from "../shared/debug.js";
+      const debug = createDebug('banner');
+
+      // ?kind=hype|ad picks the line and look; ?text= overrides the line.
+      // One OBS browser source per kind, shown and hidden by Mix It Up. The
+      // strip wipes in when the source is shown, and the line scrolls across
+      // it for as long as it's up, as the OBS banners did (AJ, #86)
+      const urlParams = new URLSearchParams(window.location.search);
+      const kind = resolveBannerKind(urlParams.get("kind"), config.banner.kinds);
+      const text = urlParams.get("text");
+      // ?cycle=0 holds the strip's fixed colour; ?border=0 drops the screen
+      // border (hype only: the ad has neither)
+      const cycle = urlParams.get("cycle") !== "0";
+      const border = urlParams.get("border") !== "0";
+      // ?layout=vertical|wide; by default a page taller than wide (the
+      // 1080x1920 Aitum Vertical source) gets the portrait lane
+      const layout = urlParams.get("layout");
+      debug.mark('kind', { kind });
+
+      const canvas = document.getElementById("canvas");
+      const ctx = setupCanvas(canvas, { alpha: true });
+      const lifecycle = new AnimationLifecycle();
+
+      let banner = null;
+      let startMs = null;
+      function frame(timestamp) {
+        debug.frame(timestamp);
+        if (startMs === null) startMs = timestamp;
+        const wasIn = banner.reveal >= 1;
+        banner.setTime(timestamp - startMs);
+        banner.clear();
+        banner.draw();
+        if (!wasIn && banner.reveal >= 1) debug.mark('in', { text: banner.text, fontPx: +banner.fontPx.toFixed(1), capPx: +banner.capPx.toFixed(1), unitPx: banner.unitWidth });
+        requestAnimationFrame(frame);
+      }
+
+      // Wait for Jost (bundled, TYPE-7): the font size comes from its cap height
+      const t = config.banner.text;
+      document.fonts.load(`${t.weight} 44px ${t.font}`)
+        .catch(() => {})
+        .then(() => {
+          banner = new BannerLane(ctx, canvas, { kind, text, cycle, border, layout });
+          debug.mark('layout', { layout: banner.layout.name });
+          // Portrait: fade out while a toast or sidebar alert plays on the seam
+          if (banner.layout.name === 'vertical') {
+            const poll = setInterval(async () => {
+              const held = await seamHeld();
+              if (held !== banner.seamHeld) debug.mark('seam', { held });
+              banner.seamHeld = held;
+            }, config.banner.vertical.yield.pollMs);
+            lifecycle.onCleanup(() => clearInterval(poll));
+          }
+          registerProbe('banner', () => banner.probeSamples());
+          debug.mark('start', { kind, text: banner.text });
+          requestAnimationFrame(frame);
+        });
+
+      // A resize clears the canvas: rebuild sizes
+      lifecycle.addEventListener(window, 'resize', () => {
+        if (banner) banner.build();
+      });
+
+      // OBS hides the source when the hype train or the ad break ends; shown
+      // again, the strip wipes in afresh, as the toast does
+      document.addEventListener('visibilitychange', () => {
+        debug.mark('visibilitychange', { hidden: document.hidden });
+        if (!document.hidden) location.reload();
+      });
+    </script>
+  </body>
+</html>
