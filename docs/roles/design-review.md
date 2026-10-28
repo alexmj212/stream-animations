@@ -63,9 +63,10 @@ thread is recreated.
 1. Read `docs/MOTION.md`, this charter's Learnings, and the PR's own
    before/after frames if it has them.
 2. Check out the PR and run the harness on at least three seeds per changed
-   scene: `npm run motion -- <scene> --seeds=1,2,3`. Copy `tools/motion-results/<scene>` aside after each
-   run: the next run wipes the folder.
-3. Look at the keyframes composited over a dark, stream-like backdrop, not only
+   scene: `npm run motion -- <scene> --seeds=1,2,3 --out=<name>` (each
+   `--out` keeps its own folder; add `--color=`/`--params=` to mock a
+   variant). Build side-by-side mocks with `npm run motion:compare`.
+3. Look at the keyframes composited over the epcot frame or a dark backdrop, not only
    the checkerboard. Check balance, hierarchy, text legibility, the stinger's
    cut frame, and nothing visible before the start or after the end
    (the visual checklist in `motion-verify`, step 3).
