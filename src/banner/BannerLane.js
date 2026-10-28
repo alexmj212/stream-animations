@@ -4,7 +4,9 @@
  * toast with the line scrolling across it as a marquee. Hype is a
  * translucent teal strip with white text and sparkles; the ad is black
  * text on a solid orange plate. The rule fixes over the OBS groups: 32px
- * caps, and nothing past the lane (x 560-1824, y 84-132).
+ * caps, and the strip and text stay inside the lane (x 560-1824, y 84-132).
+ * The hype train's optional 4px screen border is the one thing drawn
+ * outside it, at the canvas edges (?border=0 drops it).
  *
  * One repeat of the line (text, gap, sparkles or separator, gap) is drawn
  * once offscreen; each frame tiles it across the lane at the scroll offset.

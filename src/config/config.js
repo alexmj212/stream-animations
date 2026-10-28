@@ -664,7 +664,8 @@ export const config = {
   banner: {
     // DESIGN.md, Composition, zone plan: directly under the toast lane,
     // x 560-1824 (the goal bar's right end to title-safe's right edge),
-    // y 84-132. Everything the page draws stays inside this box
+    // y 84-132. The strip and its text stay inside this box; only the hype
+    // train's optional screen border (kinds.hype.border) draws outside it
     lane: { x: 560, y: 84, width: 1264, height: 48 },
     kinds: {
       hype: {
