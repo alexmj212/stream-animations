@@ -146,13 +146,22 @@ Sources: [Restream, rule of thirds](https://restream.io/learn/what-is/rule-of-th
 
 ### Rules
 
-- **COMP-1** The content's focal point sits on a power point or a third
-  line: AJ's eyes on the upper third line (y 360 on 16:9, near the 640
-  line on vertical, just above the 700 seam), the vtuber's head likewise.
-  Dead centre only for a single subject that fills the frame.
+The grid is a guide for general alignment, not a pixel rule (AJ,
+2026-10-28: "the thirds suggest ... making sure that elements generally
+align into the grid, not strictly pixel level"). Something is "on" a line
+when it sits within about one cell of the 12-column grid: 160px across,
+90px down on 16:9. Overlap is fine too. What matters is that nothing
+readable is hidden and AJ's face and the game's centre stay clear.
+
+- **COMP-1** The content's focal point sits near a power point or a third
+  line. AJ's eyes: near the upper third line on Just Chatting (y ~430
+  today, within 90px of 360), near the lower third line in the Full 16:9
+  cutout (about 271, 705), and on the upper third of the camera panel on
+  vertical (y ~235 of the 700px panel). Dead centre only for a single
+  subject that fills the frame.
 - **COMP-2** Zones by role. Persistent widgets (tier 1) anchor to a corner
-  or an edge band, on the title-safe edge. The centre cell (x 640-1280,
-  y 360-720) holds content, never a persistent widget. Lower-third band
+  or an edge band, near the title-safe edge. The centre cell (x 640-1280,
+  y 360-720) holds content, not a persistent widget. The lower band
   (y 720-994) carries names and titles; the side thirds carry side
   alerts.
 - **COMP-3** Coverage. At rest, persistent graphics (goal bar, chat box,
@@ -167,43 +176,63 @@ Sources: [Restream, rule of thirds](https://restream.io/learn/what-is/rule-of-th
   the eye already is, or on the Z path, not in a far corner behind it.
 - **COMP-6** Grouping. A cluster (goal bar + music box + chat) shares one
   left edge on the title-safe line and one gap (multiples of 8).
-- **COMP-7** Everything that can appear has a zone. Every source in
+- **COMP-7** Everything that can appear has a home. Every source in
   OBS, shown or hidden, every MIU overlay and every hotkey or Stream Deck
-  toggle has a home in the zone plan below. Two things that can be on
-  screen together never share a zone, unless one is a tier 3 takeover.
+  toggle has a home in the zone plan below, on every view it shows on.
+  Overlap is allowed. These aren't: readable text over other readable
+  text, anything but a brief alert over AJ's face, anything readable
+  under the player controls (SAFE-3), and two persistent things stacked
+  for good.
   The full inventory (boxes and triggers, from OBS, Mix It Up and the
   Stream Deck) lives in the project files at `composition/inventory.md`.
   QA's everything-visible harness frames (`npm run motion:compose`, coming
   with QA's PR after #79) will hold the pairs to it. Until then, KEEP-1
   checks only our text against chat and music.
 
+### Views (16:9)
+
+The same overlays sit over three different pictures, so check a change on
+each of them, not only on Just Chatting.
+
+| View | Picture | Where AJ is | Thirds read |
+|---|---|---|---|
+| Just Chatting | The whole camera, room included | Centre, eyes at about (1000, 430) | Eyes near the upper line; the room fills the side thirds |
+| Full 16:9 (gameplay) | The epcot loop behind; the game at x 478-1920, y 0-811; the camera with its background removed, bottom-left (Square Camera, Cam BL) | A cutout at about x 0-580, y 612-1080, eyes at about (271, 705) | A loose one-third/two-thirds split: AJ in the left column, the game across the other two |
+| Camera presets (Stream Deck) | Cam BR, Cam MR, Cam Center | See `composition/inventory.md` | Report only |
+
+In the Full view the room is gone, so the left column holds chat, the
+discoball pig and AJ, top to bottom. The toast, banner lane, MIU avatars,
+sidebar and gags land on the game for a few seconds, the gag corner on the
+game's bottom-right where a HUD often sits; that's accepted. Exobot's top
+edge (y 788) reaches AJ's chin and beard, below the eyes, for a TTS line.
+
 ### Zone plan (16:9)
 
 Where each thing lives once the composition fixes land (design review,
-2026-10-28). Boxes are canvas px. Zones that can be up at the same time don't
-overlap, except for the accepted overlaps listed under the table.
+2026-10-28). Boxes are canvas px and are homes, not walls: overlaps are
+fine within COMP-7. The ones worth knowing are listed under the table.
 
 | Zone | Box | Holds | Rule |
 |---|---|---|---|
 | Goal bar | x 36-560, y 26-75 | Follower goal | AJ's pick: it stays put (#62) |
 | Music box | x 19-481, y 0-130 | Waveform, now playing | Draws under the goal bar |
 | Toast lane | x 560-1824, y 26-74 | Notifications toast | One toast at a time |
-| Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up. Text at 32px caps (a 44px Jost 700 line) on an ink plate at full opacity |
+| Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up. Text at 32px caps. Both keep AJ's original look (AJ, 2026-10-28): the teal "HYPE TRAIN" marquee with sparkles on a translucent strip, and black scrolling text on orange (11:1). The scroll is exempt from MOTION-1 and TIME-1 |
 | Remote | x 496-546, y 83-133 | Remote holder | Out of the toast's path, right of chat |
 | Jail | x 496-622, y 140-211 | Jail slideshow | Below the banner lane |
-| Chat column | x 18-488, y 127-537 | Chat only | No gag or decoration behind it (KEEP-1) |
-| Right third | x 1312-1824, y 140-640 | MIU avatars, Pixel Guess (from y 140), discoball (x 1530-1824, y 140-396) | Mix It Up keep-out still applies to our text |
+| Chat column | x 18-488, y 127-537 | Chat, with the discoball pig behind it (x 43-491, y 130-469) | Our text stays off it (KEEP-1) |
+| Right third | x 1312-1824, y 140-640 | MIU avatars, Pixel Guess (from y 140) | Mix It Up keep-out still applies to our text |
 | Sidebar | right side, text on its nameplate at 78% | Tier 2 alerts | MOTION.md, sidebar text at 78% |
 | Bottom-right corner | x 1312-1824, y 650-942 | One gag at a time: Lechonk (after the sidebar), Clippy, iPhone text, Life points | Ends 8px above the badge |
 | Badge | x 1613-1840, y 950-985 | Pride Guild | Above the player controls |
 | Lower band | x 70-1304, y 788-994 | Exobot (x 70-436), Discord heads (x 440-1304) | Nothing readable below y 994 (SAFE-3) |
 
-Accepted overlaps:
+Known overlaps:
 - The goal bar sits on the music box's waveform. The waveform draws under
   the bar (AJ's pick, #62; KEEP-1 reports it as a warning).
 - Now playing ends at y 130, and chat starts at y 127: a 3px seam in OBS.
-- The discoball is decoration with no text, so MIU avatars and Pixel Guess
-  may draw over it.
+- The discoball pig is decoration with no text and sits behind chat on
+  Just Chatting and Full 16:9; chat's stroke keeps it readable.
 - The sidebar and the bottom-right gags take turns. Lechonk waits for the
   sidebar to leave. Clippy, the iPhone text and Life points can still land
   during a sidebar; they're brief (3-10 s), and queueing them is open.
@@ -213,6 +242,8 @@ under the player controls and repeated now playing, so it's hidden on both
 scenes (design review, 2026-10-28).
 
 ![Everything that can appear on the 16:9 canvas, drawn at once before the fixes: persistent in blue, alerts in orange, gags in pink, thirds in teal](design/everything-map.jpg)
+
+![The Full 16:9 gameplay view on the thirds grid: the game across two thirds, AJ's background-free cutout in the left column with eyes near the lower line, and the alert homes outlined](design/full-view-grid.jpg)
 
 ## Depth and layering
 
@@ -561,10 +592,10 @@ capture when OBS adds layers on top. Cite the rule id for each finding.
 11. Within the frame budget (PERF; the harness and `npm run bench`).
 12. On the vertical canvas: words inside the phone-safe box, 48px or
     more, off AJ's face (V-SAFE-1, V-TYPE-1, V-LAYOUT-1).
-13. Composition: the subject on a third line or power point, the new thing
-    in its zone from the zone plan, and no shared zone with anything that can
-    show at the same time, hidden sources and gags included (COMP-1 to
-    COMP-7).
+13. Composition, on Just Chatting and the Full 16:9 view: roughly on the
+    grid (within a cell), the new thing in its home from the zone plan, and
+    no readable text hidden by anything that can show at the same time,
+    hidden sources and gags included (COMP-1 to COMP-7).
 
 ## Making designs
 
