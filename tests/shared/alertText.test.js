@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     cubicBezier, wordCount, readingHoldMs, planAlertText, textOffsetAt,
-    splitNameAction, balancedLines, ellipsize, fitShadeText, fitSidebarText, strokeWidthPx
+    splitNameAction, balancedLines, overflowLines, ellipsize, fitShadeText, fitSidebarText, strokeWidthPx
 } from '../../src/shared/animations/alertText.js';
 import { config } from '../../src/config/config.js';
 
@@ -112,6 +112,19 @@ describe('balancedLines and ellipsize', () => {
     });
 });
 
+describe('overflowLines', () => {
+    it('fills the first line and ellipsizes only the last, so no words drop from the middle', () => {
+        const text = Array.from({ length: 30 }, (_, i) => `w${i}`).join(' ');
+        const lines = overflowLines(text, s => s.length, 40);
+        expect(lines).toHaveLength(2);
+        expect(lines[0].endsWith('…')).toBe(false);
+        expect(lines[1].endsWith('…')).toBe(true);
+        const shown = `${lines[0]} ${lines[1].slice(0, -1)}`.trim();
+        expect(text.startsWith(shown.replace(/\s*\S*$/, ''))).toBe(true);
+        for (const l of lines) expect(l.length).toBeLessThanOrEqual(40);
+    });
+});
+
 describe('fitShadeText', () => {
     const sizes = { hero: 96, display: 72, minPx: 40 };
 
@@ -137,6 +150,8 @@ describe('fitShadeText', () => {
         const fit = fitShadeText('word '.repeat(80).trim(), measure, 1728, sizes);
         expect(fit.px).toBeGreaterThanOrEqual(40);
         for (const line of fit.lines) expect(measure(line, fit.px)).toBeLessThanOrEqual(1728);
+        // Words read on without a gap: only the last line is cut
+        expect(fit.lines[0].endsWith('…')).toBe(false);
     });
 });
 
