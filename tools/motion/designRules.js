@@ -141,7 +141,7 @@ export function checkStaticCover(frames, maxMs, { coverThreshold = 0.999, stillD
     let start = null;
     let prev = null;
     for (const f of frames) {
-        if (!f.pixels?.grid) continue; // sampled every few frames (run.js)
+        if (!f.pixels?.grid) continue;
         const covered = f.pixels.opaque >= coverThreshold;
         if (covered && prev && gridChange(prev.pixels.grid, f.pixels.grid) < stillDelta) {
             if (start === null) start = prev.t;

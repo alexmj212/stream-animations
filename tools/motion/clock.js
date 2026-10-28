@@ -29,31 +29,37 @@ export function installVirtualClock(seed) {
 
   /**
    * Mean relative luminance per cell of a 16x9 grid, the layers composited
-   * source-over onto black in DOM order. Samples every 8th pixel.
+   * source-over onto black in DOM order. Drawn down to 160x90 first, which
+   * is all the grid needs. run.js reads it in its own untimed pass.
    */
-  function luminanceGrid(layers, width, height) {
+  let gridCanvas = null;
+  function luminanceGrid(canvases) {
     const cols = 16;
     const rows = 9;
+    const w = 160;
+    const h = 90;
+    if (!gridCanvas) {
+      gridCanvas = document.createElement('canvas');
+      gridCanvas.width = w;
+      gridCanvas.height = h;
+    }
+    const g = gridCanvas.getContext('2d', { willReadFrequently: true });
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, w, h);
+    for (const c of canvases) g.drawImage(c, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h).data;
     const sum = new Float64Array(cols * rows);
-    const n = new Uint32Array(cols * rows);
-    for (let y = 0; y < height; y += 8) {
-      for (let x = 0; x < width; x += 8) {
-        const i = (y * width + x) * 4;
-        let lum = 0;
-        for (let k = 0; k < layers.length; k++) {
-          const d = layers[k];
-          const a = d[i + 3] / 255;
-          if (a === 0) continue;
-          const l = 0.2126 * LINEAR[d[i]] + 0.7152 * LINEAR[d[i + 1]] + 0.0722 * LINEAR[d[i + 2]];
-          lum = lum * (1 - a) + l * a;
-        }
-        const cell = Math.min(rows - 1, Math.floor(y * rows / height)) * cols + Math.min(cols - 1, Math.floor(x * cols / width));
-        sum[cell] += lum;
-        n[cell]++;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const cell = Math.floor(y * rows / h) * cols + Math.floor(x * cols / w);
+        sum[cell] += 0.2126 * LINEAR[d[i]] + 0.7152 * LINEAR[d[i + 1]] + 0.0722 * LINEAR[d[i + 2]];
       }
     }
+    const per = (w / cols) * (h / rows);
     const out = new Array(cols * rows);
-    for (let c = 0; c < out.length; c++) out[c] = n[c] ? sum[c] / n[c] : 0;
+    for (let c = 0; c < out.length; c++) out[c] = sum[c] / per;
     return out;
   }
 
@@ -156,7 +162,7 @@ export function installVirtualClock(seed) {
         visible: visible / total,
         regionMinAlpha: region ? regionMin : null,
         regionGaps: region ? regionGaps : null,
-        grid: grid ? luminanceGrid(layers, width, height) : null
+        grid: grid ? luminanceGrid([...document.querySelectorAll('canvas')].filter(c => c.width === width && c.height === height)) : null
       };
     }
   };

@@ -64,7 +64,14 @@ async function waitFor(page, fn, timeoutMs = 8000) {
   return false;
 }
 
-async function capture(browser, baseUrl, scenario, seed) {
+/**
+ * Render one scenario and seed. With `grid`, a second, untimed pass reads
+ * the luminance grid on every frame for the flash and still-cover rules:
+ * reading pixels for it inside the timed pass inflated the scenes' frame
+ * CPU (QA, 2026-10-28, PR #48), so that pass's CPU numbers and shots are
+ * thrown away.
+ */
+async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width, height, deviceScaleFactor: 1 });
   const errors = [];
@@ -110,9 +117,6 @@ async function capture(browser, baseUrl, scenario, seed) {
 
   const dt = 1000 / fps;
   const frames = [];
-  // The flash and still-cover rules read a luminance grid per frame
-  const rules = scenario.checks?.design?.rules;
-  const needsGrid = !!scenario.checks?.design && (!rules || rules.some(r => r === 'CUT-2' || r.startsWith('FLASH')));
   const shotTimes = (scenario.keyframes || []).map(k => k * (scenario.keyframeSpanMs || scenario.captureMs));
   const shotFiles = [];
   const dir = resolve(outDir, scenario.name, `seed-${seed}`);
@@ -127,11 +131,7 @@ async function capture(browser, baseUrl, scenario, seed) {
     elapsed += d;
     const frame = await page.evaluate((d, region, textSelector, grid) => {
       const r = window.__motion.step(d);
-      // The grid only every 50ms: plenty for 3 flashes a second, and reading it
-      // every frame pushed the background's frame CPU over budget (QA, 2026-10-28)
-      const wantGrid = grid && Math.floor(window.__motion.now() / 50) !== window.__motion.lastGridSlot;
-      if (wantGrid) window.__motion.lastGridSlot = Math.floor(window.__motion.now() / 50);
-      r.pixels = window.__motion.pixelStats(2, region, wantGrid);
+      r.pixels = window.__motion.pixelStats(2, region, grid);
       // textBox: canvas gaps under the on-screen part of a text element
       const el = textSelector && document.querySelector(textSelector);
       if (el) {
@@ -156,10 +156,10 @@ async function capture(browser, baseUrl, scenario, seed) {
         });
       }
       return r;
-    }, d, scenario.region || null, scenario.textBox?.selector || null, needsGrid);
+    }, d, scenario.region || null, scenario.textBox?.selector || null, grid);
     frames.push(frame);
 
-    while (shots && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
+    while (shots && !grid && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
       const at = shotTimes.shift();
       const file = `t${String(Math.round(at)).padStart(5, '0')}.png`;
       await page.screenshot({ path: resolve(dir, file), omitBackground: true });
@@ -171,6 +171,13 @@ async function capture(browser, baseUrl, scenario, seed) {
   const debug = await page.evaluate((name) => window.__debug?.[name]?.snapshot() ?? null, scenario.scene || scenario.name);
   await page.close();
   return { frames, errors, shots: shotFiles, debug };
+}
+
+/** The flash and still-cover rules need the luminance grid pass. */
+function needsGrid(scenario) {
+  const design = scenario.checks?.design;
+  if (!design) return false;
+  return !design.rules || design.rules.some(r => r === 'CUT-2' || r.startsWith('FLASH'));
 }
 
 async function main() {
@@ -189,6 +196,11 @@ async function main() {
       for (const seed of seeds) {
         const t0 = Date.now();
         const { frames, errors, shots: shotFiles, debug } = await capture(browser, baseUrl, scenario, seed);
+        if (needsGrid(scenario)) {
+          // Same seed, same frame times: the grid lines up frame for frame
+          const { frames: gridFrames } = await capture(browser, baseUrl, scenario, seed, { grid: true });
+          frames.forEach((f, i) => { if (f.pixels && gridFrames[i]?.pixels) f.pixels.grid = gridFrames[i].pixels.grid; });
+        }
         // Velocity estimates on uneven frames are noisy; jitter runs check
         // timing and coverage only. Frames can be up to 3x nominal, so the
         // usual 2-frame duration tolerance becomes 2 of the longest frames.

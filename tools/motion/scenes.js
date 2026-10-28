@@ -240,8 +240,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 8000,
     markers: [],
     checks: {
-      // No design rules: reading its luminance grid pushed the frame CPU check
-      // over budget (QA, 2026-10-28), and its slow bars can't flash
+      // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      design: { rules: ['FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] },
       noVelocitySteps: true,
       workP95Ms: 4
     }
