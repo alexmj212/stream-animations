@@ -217,7 +217,7 @@ fine within COMP-7. The ones worth knowing are listed under the table.
 | Goal bar | x 36-560, y 26-75 | Follower goal | AJ's pick: it stays put (#62) |
 | Music box | x 19-481, y 0-130 | Waveform, now playing | Draws under the goal bar |
 | Toast lane | x 560-1824, y 26-74 | Notifications toast | One toast at a time |
-| Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up. Text at 32px caps (a 44px Jost 700 line) on an ink plate at full opacity |
+| Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up. Text at 32px caps. Both keep AJ's original look (AJ, 2026-10-28): the teal "HYPE TRAIN" marquee with sparkles on a translucent strip, and black scrolling text on orange (11:1). The scroll is exempt from MOTION-1 and TIME-1 |
 | Remote | x 496-546, y 83-133 | Remote holder | Out of the toast's path, right of chat |
 | Jail | x 496-622, y 140-211 | Jail slideshow | Below the banner lane |
 | Chat column | x 18-488, y 127-537 | Chat, with the discoball pig behind it (x 43-491, y 130-469) | Our text stays off it (KEEP-1) |
