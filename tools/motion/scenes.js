@@ -276,6 +276,34 @@ export const SCENARIOS = [
     }
   },
   {
+    name: 'notifications-name',
+    scene: 'notifications',
+    // A follow as it really arrives, with a username: the common case, which
+    // "...friend" never exercised (Design review on #72, 2026-10-28)
+    url: `/src/notifications/index.html?color=${COLOR}&text=Thanks+for+the+follow,+@aspiritualbumpit!+Welcome+in`,
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.26, 0.5],
+    keyframeSpanMs: 5000,
+    markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
+    region: { x0: 0.31, x1: 0.78, y0: 0.03, y1: 0.065 },
+    checks: {
+      // No SAFE-1: AJ's top-margin exemption (#40), as on notifications.
+      // TYPE-1 enforced: before #76 this follow shrank to 37.8px; the bar now
+      // grows first and it draws at 42px
+      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      regionCover: { fromMs: 1000, toMs: 4000, label: 'the toast body while out' },
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Text fits the body' },
+        { field: 'bare', max: 0, label: 'Text only over the body' }
+      ],
+      noVelocitySteps: true
+    }
+  },
+  {
     name: 'notifications-long',
     scene: 'notifications',
     // A long headline shrinks, then grows the bar instead of losing words

@@ -4,6 +4,23 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.6.1 - 2026-10-28
+
+- Goal bar toast (16:9): a line too long for the standard bar now grows the
+  bar first and keeps the text at full size, so a follow with a username
+  reads at 42px instead of shrinking to 38px. The text only shrinks once
+  the bar is at its longest. ([#76])
+
+## v2.6.0 - 2026-10-28
+
+- Toast on the vertical (1080x1920) canvas: a portrait layout, AJ's pick
+  B1. It's one line at 56px on the camera/game seam, inside the phone-safe
+  area, instead of the 16:9 toast scaled down and cut off at the sides. A
+  long line shrinks to 45px and then scrolls. The page picks the layout
+  from its size, and `?layout=vertical|wide` forces one. The 16:9 toast is
+  unchanged. It shows on stream once OBS has a 1080x1920 source for it.
+  ([#72])
+
 ## v2.5.0 - 2026-10-28
 
 - New title card scene for the Starting, BRB and Ending titles: one line
@@ -144,3 +161,5 @@ release (`npm run motion:export -- stinger` renders your own).
 [#66]: https://github.com/alexmj212/stream-animations/pull/66
 [#69]: https://github.com/alexmj212/stream-animations/pull/69
 [#70]: https://github.com/alexmj212/stream-animations/pull/70
+[#72]: https://github.com/alexmj212/stream-animations/pull/72
+[#76]: https://github.com/alexmj212/stream-animations/pull/76
