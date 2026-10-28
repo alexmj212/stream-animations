@@ -80,6 +80,7 @@ export class FollowerBar {
 
     /** Fill styles, built once per size: gradients run along the bar. */
     buildFills() {
+        this.bandFills = null;
         const ctx = this.ctx;
         const f = config.followers;
         const { leftX, rightX } = this.geo;
@@ -149,7 +150,14 @@ export class FollowerBar {
         }
     }
 
-    /** Render the count text into an offscreen canvas, once per string. */
+    /**
+     * Render the count text into an offscreen canvas, once per string.
+     * Digits sit in equal cells (tabular figures, which canvas text can't
+     * ask the font for), so a new count never changes the line's width or
+     * height: the text holds still while the number ticks (QA's text probe
+     * caught 946 -> 947 shifting it ~1.5 px, PR #51). The canvas and the
+     * measuring context are reused, so a rebuild allocates nothing.
+     */
     buildText(force = false) {
         const text = goalText(this.shown.count, this.goal, this.label);
         if (!force && text === this.textKey) return;
@@ -157,36 +165,49 @@ export class FollowerBar {
         const { k, length, lean, leftX, mid } = this.geo;
         const room = length - 2 * (t.padding * k + lean);
         const fontAt = (px) => `${t.style} ${t.weight} ${px}px ${t.font}`;
+        this.measure ??= document.createElement('canvas').getContext('2d');
+        const measure = this.measure;
         let px = t.sizePx * k;
-        const measure = document.createElement('canvas').getContext('2d');
         measure.font = fontAt(px);
-        let m = measure.measureText(text);
+        let layout = tabularLayout(measure, text);
         // A long label shrinks to fit rather than spill past the ends
-        if (m.width > room) {
-            px *= room / m.width;
+        if (layout.width > room) {
+            px *= room / layout.width;
             measure.font = fontAt(px);
-            m = measure.measureText(text);
+            layout = tabularLayout(measure, text);
         }
         const stroke = t.strokePx * k;
-        const ascent = m.actualBoundingBoxAscent;
-        const descent = m.actualBoundingBoxDescent;
+        // Vertical metrics from every digit and the label, not this string,
+        // so the line never moves up or down either
+        const ref = measure.measureText(`0123456789/${this.label}`);
+        const ascent = ref.actualBoundingBoxAscent;
+        const descent = ref.actualBoundingBoxDescent;
         const pad = Math.ceil(stroke + 2);
         const cache = this.textCache ?? document.createElement('canvas');
-        cache.width = Math.ceil(m.width + 2 * pad);
-        cache.height = Math.ceil(ascent + descent + 2 * pad);
+        const w = Math.ceil(layout.width + 2 * pad);
+        const h = Math.ceil(ascent + descent + 2 * pad);
         const cc = cache.getContext('2d');
+        if (cache.width !== w || cache.height !== h) {
+            cache.width = w;
+            cache.height = h;
+        } else {
+            cc.clearRect(0, 0, w, h);
+        }
         cc.font = fontAt(px);
         cc.textBaseline = 'alphabetic';
+        cc.textAlign = 'left';
         cc.lineJoin = 'round';
         cc.lineWidth = stroke * 2;
         cc.strokeStyle = '#000';
-        cc.strokeText(text, pad, pad + ascent);
         cc.fillStyle = '#fff';
-        cc.fillText(text, pad, pad + ascent);
+        // All strokes first, then all fills, so no outline cuts into a neighbour
+        for (const pass of ['strokeText', 'fillText']) {
+            for (const r of layout.runs) cc[pass](r.text, pad + r.x, pad + ascent);
+        }
         this.textCache = cache;
         this.textKey = text;
         this.fontPx = px;
-        this.textWidth = m.width;
+        this.textWidth = layout.width;
         this.textRoom = room;
         // Optically centred on the bar (ink box, not the em box)
         this.textX = Math.round(leftX + length / 2 - cache.width / 2);
@@ -250,12 +271,20 @@ export class FollowerBar {
         ctx.save();
         this.slab(leftX, rightX);
         ctx.clip();
-        const g = ctx.createLinearGradient(x - w, 0, x, 0);
-        g.addColorStop(0, this.bandWhite(0));
-        g.addColorStop(0.8, this.bandWhite(band.alpha * 0.5));
-        g.addColorStop(1, this.bandWhite(band.alpha));
+        // One gradient per band and size, built from 0 to its leading edge
+        // and moved with translate, instead of a new gradient every frame
+        this.bandFills ??= new Map();
+        let g = this.bandFills.get(band);
+        if (!g) {
+            g = ctx.createLinearGradient(-w, 0, 0, 0);
+            g.addColorStop(0, this.bandWhite(0));
+            g.addColorStop(0.8, this.bandWhite(band.alpha * 0.5));
+            g.addColorStop(1, this.bandWhite(band.alpha));
+            this.bandFills.set(band, g);
+        }
+        ctx.translate(x, 0);
         ctx.fillStyle = g;
-        this.slab(x - w, x);
+        this.slab(-w, 0);
         ctx.fill();
         ctx.restore();
     }
@@ -277,4 +306,29 @@ export class FollowerBar {
             }] : [])
         ];
     }
+}
+
+/**
+ * Lay a line out with tabular figures: each digit centred in a cell as wide
+ * as the widest digit, other text in runs measured whole (keeps kerning).
+ * @param {{measureText: Function}} measure - 2D context with the font set
+ * @param {string} text
+ * @returns {{width: number, runs: Array<{text: string, x: number}>}}
+ */
+export function tabularLayout(measure, text) {
+    let cell = 0;
+    for (let d = 0; d <= 9; d++) cell = Math.max(cell, measure.measureText(String(d)).width);
+    const runs = [];
+    let x = 0;
+    for (const part of text.match(/\d|\D+/g) ?? []) {
+        const w = measure.measureText(part).width;
+        if (/\d/.test(part)) {
+            runs.push({ text: part, x: x + (cell - w) / 2 });
+            x += cell;
+        } else {
+            runs.push({ text: part, x });
+            x += w;
+        }
+    }
+    return { width: x, runs };
 }
