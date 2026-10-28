@@ -58,6 +58,16 @@ if (scenarios.length === 0) {
   process.exit(2);
 }
 
+/**
+ * Viewport for a scenario: its own `viewport` (e.g. the 1080x1920 Aitum
+ * Vertical canvas), else --width/--height.
+ * @param {Object} scenario
+ * @returns {{width: number, height: number}}
+ */
+function viewportFor(scenario) {
+  return scenario.viewport ?? { width, height };
+}
+
 async function waitFor(page, fn, timeoutMs = 8000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -76,7 +86,7 @@ async function waitFor(page, fn, timeoutMs = 8000) {
  */
 async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) {
   const page = await browser.newPage();
-  await page.setViewport({ width, height, deviceScaleFactor: 1 });
+  await page.setViewport({ ...viewportFor(scenario), deviceScaleFactor: 1 });
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
   page.on('console', msg => {
@@ -216,8 +226,7 @@ async function main() {
         const spec = jitter
           ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 2 * 3 * 1000 / fps } }
           : { ...scenario, fps };
-        spec.width = width;
-        spec.height = height;
+        Object.assign(spec, viewportFor(scenario));
         const { results, timeline, tracks } = evaluate(spec, frames, debug);
         results.unshift({
           name: 'No page errors',

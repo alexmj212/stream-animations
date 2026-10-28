@@ -162,7 +162,10 @@ to `exports/` (gitignored).
 motion. `sidebar-name` and `shade-raid` load the alerts as OBS sends them
 (`duration=3000`), and `sidebar-long` and `shade-long` check that long text
 fits; all of them enforce SAFE-1, TYPE-1 and TIME-1, so the text can't go
-back to moving during its hold. `background` is checked for smooth motion and CPU. `epcot` has no
+back to moving during its hold. `stinger-vertical` runs the stinger at 1080x1920, the size OBS's
+Aitum Vertical canvas renders it at: a slanted bar's 15° lean reaches
+further on a tall canvas, which once left a corner uncovered at the cut
+and let bars pop in on screen (PR #66). `background` is checked for smooth motion and CPU. `epcot` has no
 motion probe; it is a CPU regression guard (p95 at most 20ms, measured
 around 10ms).
 
@@ -192,4 +195,5 @@ inf dB (identical, seamless)` and exits 1 if the loop doesn't close.
 Add an entry to `SCENARIOS` in `tools/motion/scenes.js`: the URL with fixed
 params, how it starts (`'load'` or `{ event: 'transitionStart' }`), how long
 to capture, keyframes for the filmstrip, chart markers, and the checks that
-define correct for that scene. Then run `npm run motion -- <name> --seeds=1,2,3,4,5,6`.
+define correct for that scene. A scenario for another canvas size (the
+1080x1920 vertical canvas) sets `viewport: { width, height }`. Then run `npm run motion -- <name> --seeds=1,2,3,4,5,6`.
