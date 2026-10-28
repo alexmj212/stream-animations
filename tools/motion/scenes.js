@@ -5,6 +5,8 @@
  * Adding a scene: give it a url, a start mode, how long to capture, and the
  * checks that define "correct" for it. See .claude/skills/motion-verify.
  *
+ * scene: createDebug() name, when it differs from the scenario name (variants)
+ *
  * start:
  *   'load'                   - scene animates on page load
  *   { event: 'name' }        - dispatch window event `name` once ready
@@ -20,6 +22,8 @@
  *   debugEvents              - {name: count}: exact counts of the scene's debug
  *                              events (src/shared/debug.js, ?debug=events)
  *   probeMax                 - {field, max, label}: a probe sample field never exceeds max
+ *   textOverPanel            - {fromMs, toMs, label}: with `textBox: {selector}`, every
+ *                              pixel under the text element's on-screen box is opaque
  */
 
 const COLOR = '%23ff6600';
@@ -54,11 +58,40 @@ export const SCENARIOS = [
     keyframeSpanMs: 5000,
     markers: [{ at: 1250, label: 'hold' }, { at: 3750, label: 'out' }, { at: 5000, label: 'end' }],
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
+    textBox: { selector: '#sidebarText' },
     checks: {
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
       regionCover: { fromMs: 1400, toMs: 3700, label: 'the right 20% while holding' },
+      // Mix It Up draws avatars over the sidebar in OBS (AJ's bug report,
+      // 2026-10-28); zones in config.sidebar.miuZones, view with ?debug=zones
+      probeMax: { field: 'miuCover', max: 0, label: 'Text clear of the Mix It Up images' },
+      // Text never hangs off the panel over the stream (Design review, 2026-10-28)
+      textOverPanel: { fromMs: 1400, toMs: 3700, label: 'the panel while holding' },
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    name: 'sidebar-long',
+    scene: 'sidebar',
+    // A raid thank-you must fit the panel: shrink, then wrap (Design review, 2026-10-28)
+    url: `/src/sidebar/index.html?color=${COLOR}&text=Thank+you+so+much+for+the+huge+raid+everybody+welcome+in&duration=5000`,
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.05, 0.15, 0.25, 0.5, 0.75, 0.85, 0.95],
+    keyframeSpanMs: 5000,
+    markers: [{ at: 1250, label: 'hold' }, { at: 3750, label: 'out' }, { at: 5000, label: 'end' }],
+    region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
+    textBox: { selector: '#sidebarText' },
+    checks: {
+      totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      regionCover: { fromMs: 1400, toMs: 3700, label: 'the right 20% while holding' },
+      // Text never hangs off the panel over the stream (Design review, 2026-10-28)
+      textOverPanel: { fromMs: 1400, toMs: 3700, label: 'the panel while holding' },
       // Mix It Up draws avatars over the sidebar in OBS (AJ's bug report,
       // 2026-10-28); zones in config.sidebar.miuZones, view with ?debug=zones
       probeMax: { field: 'miuCover', max: 0, label: 'Text clear of the Mix It Up images' },

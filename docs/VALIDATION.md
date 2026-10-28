@@ -67,6 +67,7 @@ Defined per scenario in `tools/motion/scenes.js`.
 | Covers *region* | A region (fractions of the screen) is opaque on every frame of a window | Panel positioned from the wrong property, slanted edge not accounted for |
 | Smooth motion | No isolated velocity jumps on any on-screen object | A phase hand-off that resets velocity (ease to a stop, then snap to a drift) |
 | Frame CPU budget | p95 of update+draw time ≤ `workP95Ms` | Per-frame allocation, cache thrash, too many objects drawn |
+| Text over *panel* | Every canvas pixel under a text element's on-screen box (`textBox.selector`) is opaque through a window | Long text hanging off the slanted panel over the stream |
 | Scene events | The scene's debug events (`?debug=events`) match `debugEvents` counts exactly | A trigger that restarts the scene, a scene that never marks `end` |
 
 ### Smooth motion, precisely

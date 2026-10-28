@@ -233,6 +233,22 @@ export function evaluate(spec, frames, debug = null) {
     });
   }
 
+  if (checks.textOverPanel) {
+    const { fromMs, toMs, label } = checks.textOverPanel;
+    const win = frames.filter(f => f.t >= fromMs && f.t <= toMs);
+    const shown = win.filter(f => f.pixels?.textGaps != null);
+    const bad = shown.filter(f => f.pixels.textGaps > 0);
+    results.push({
+      name: `Text over ${label}`,
+      pass: shown.length > 0 && bad.length === 0,
+      detail: shown.length === 0
+        ? `text never on screen between ${fromMs}ms and ${toMs}ms`
+        : bad.length === 0
+          ? `every pixel under the text box is opaque on all ${shown.length} frames between ${fromMs}ms and ${toMs}ms`
+          : `${bad.length}/${shown.length} frames show the stream behind the text (first at ${Math.round(bad[0].t)}ms, ${bad[0].pixels.textGaps} sampled px)`
+    });
+  }
+
   if (checks.probeMax) {
     const { field, max, label } = checks.probeMax;
     const hits = [];
