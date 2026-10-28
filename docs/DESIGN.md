@@ -392,3 +392,7 @@ capture when OBS adds layers on top. Cite the rule id for each finding.
 - An audit issue that moves a scene toward a target rule (Today vs target)
   goes through Design review, then to AJ as side-by-side mocks, before
   anyone builds it. Those issues carry the `design-decision` label.
+- Audits file one issue per improvement, labelled `design-audit`, each
+  citing the rule ids it breaks. The before/after images live in
+  `docs/design/audit/` (first audit: 2026-10-28, live OBS captures plus
+  harness renders).
