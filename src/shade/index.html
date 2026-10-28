@@ -40,6 +40,7 @@
       import { setupCanvas, clearCanvas } from '../shared/canvas.js';
       import { AnimationLifecycle } from '../shared/lifecycle.js';
       import { getColorFromURL, hexToHSL } from '../shared/colors.js';
+      import { paletteFromURL } from '../shared/palette.js';
       import { PerformanceMonitor } from '../shared/performance.js';
       import { PerformanceStorage } from '../shared/perfStorage.js';
       import { PerformanceOverlay } from '../shared/perfOverlay.js';
@@ -56,6 +57,9 @@
       const showPerf = urlParams.get('perf') === 'true';
       const baseColor = getColorFromURL();
       const baseHSL = hexToHSL(baseColor);
+      // ?scheme= / ?colormode=: the epcot palette layout (null stops = single hue)
+      const palette = paletteFromURL();
+      debug.mark('palette', { scheme: palette.scheme, hueShift: palette.hueShift, color: baseColor });
 
       // Setup performance monitoring
       const perfMonitor = new PerformanceMonitor(60, 60);
@@ -143,8 +147,8 @@
         // Create curtains with shared total duration and text height for tip sizing
         // ?seed=N pins the inner bar layout
         const random = createRandom(seedFromURL() ?? Math.floor(Math.random() * 2 ** 31));
-        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight: fontSize, random });
-        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight: fontSize, random });
+        const topCurtain = new CurtainBar(ctx, canvas, 'top', baseHSL, totalDurationMs, { textHeight: fontSize, random, palette: palette.stops });
+        const bottomCurtain = new CurtainBar(ctx, canvas, 'bottom', baseHSL, totalDurationMs, { textHeight: fontSize, random, palette: palette.stops });
 
         // Create ShadeBar instance (text is always white - no color parameter)
         const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);

@@ -17,6 +17,9 @@ is built and checked.
 | `npm run motion -- stinger sidebar` | Only these scenarios |
 | `npm run motion -- --seeds=1,2,3,4,5,6` | More layouts (scenes with random layouts should pass on all of them) |
 | `npm run motion -- --color=00b3ff` | Another base color |
+| `npm run motion -- --params=scheme=mono` | Extra URL params on every scene, to mock a look without editing `scenes.js` |
+| `npm run motion -- --out=before` | Write to `tools/motion-results-before/`, so runs for a before/after mock don't wipe each other |
+| `npm run motion:compare -- --runs=before,after --frames=stinger/seed-1/t00750.png --bg=frame.png --out=cmp.png` | Labelled side-by-side grid of keyframes from those runs, over a backdrop, for design decisions |
 | `npm run motion -- --fps=30` | Step at another frame rate (OBS browser sources are often set to 30) |
 | `npm run motion -- --no-shots` | Skip keyframe screenshots (about 2x faster) |
 | `npm run motion -- --dump` | Also write every frame's raw data to `capture.json` |

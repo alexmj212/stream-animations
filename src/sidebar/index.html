@@ -81,6 +81,7 @@
 
     <script type="module">
       import { getColorFromURL, hexToHSL } from "../shared/colors.js";
+      import { paletteFromURL } from "../shared/palette.js";
       import { setupCanvas, clearCanvas } from "../shared/canvas.js";
       import { SidebarBar, planSidebar } from "./SidebarBar.js";
       import { PerformanceMonitor } from "../shared/performance.js";
@@ -100,6 +101,9 @@
       const showPerf = urlParams.get("perf") === "true";
       const baseColor = getColorFromURL();
       const baseHSL = hexToHSL(baseColor);
+      // ?scheme= / ?colormode=: the epcot palette layout (null stops = single hue)
+      const palette = paletteFromURL();
+      debug.mark('palette', { scheme: palette.scheme, hueShift: palette.hueShift, color: baseColor });
 
       // Setup text element
       const textElement = document.getElementById("sidebarText");
@@ -155,7 +159,7 @@
 
       // Background panel + balanced accents. ?seed=N pins the layout.
       const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
-      const bars = planSidebar(ctx, canvas, baseHSL, durationMs, createRandom(seed));
+      const bars = planSidebar(ctx, canvas, baseHSL, durationMs, createRandom(seed), palette.stops);
       bars.forEach((bar) => { bar.probeId = bar.isBackground ? 'background' : `${bar.type}-${bar.index}`; });
       registerProbe('sidebar', () => bars.filter(b => b.active).map(b => sampleBar(b, b.probeId)));
 

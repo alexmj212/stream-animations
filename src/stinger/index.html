@@ -27,6 +27,7 @@
 
     <script type="module">
         import { getColorFromURL, hexToHSL } from '../shared/colors.js';
+        import { paletteFromURL } from '../shared/palette.js';
         import { setupCanvas, clearCanvas } from '../shared/canvas.js';
         import { StingerBar, planStinger } from './StingerBar.js';
         import { PerformanceMonitor } from '../shared/performance.js';
@@ -45,6 +46,9 @@
         const baseColor = getColorFromURL();
         const baseHSL = hexToHSL(baseColor);
         const debug = createDebug('stinger');
+        // ?scheme= / ?colormode=: the epcot palette layout (null stops = single hue)
+        const palette = paletteFromURL();
+        debug.mark('palette', { scheme: palette.scheme, hueShift: palette.hueShift, color: baseColor });
 
         // Setup performance monitoring
         const perfMonitor = new PerformanceMonitor(60, 60);
@@ -103,7 +107,7 @@
 
         function generateBars() {
             const seed = pinnedSeed ?? Math.floor(Math.random() * 2 ** 31);
-            bars = planStinger(ctx, canvas, baseHSL, durationMs, createRandom(seed));
+            bars = planStinger(ctx, canvas, baseHSL, durationMs, createRandom(seed), palette.stops);
         }
 
         registerProbe('stinger', () => bars.filter(b => b.active).map((b, i) =>

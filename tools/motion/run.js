@@ -12,6 +12,8 @@
  *   npm run motion -- --no-shots           # skip keyframe screenshots (faster)
  *   npm run motion -- --dump               # also write every frame's raw data (capture.json)
  *   npm run motion -- --color=00b3ff       # try another brand color
+ *   npm run motion -- --params=scheme=mono # extra URL params for every scene (&-separated)
+ *   npm run motion -- --out=before         # write to tools/motion-results-before (keeps other runs)
  *   npm run motion -- --jitter             # uneven frame times (timing/coverage checks only)
  *
  * Exit code is non-zero when any check fails, so it can gate CI.
@@ -28,15 +30,17 @@ import { renderReport } from './report.js';
 import { createRandom } from '../../src/shared/motion.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outDir = resolve(__dirname, '..', 'motion-results');
 
 const argv = process.argv.slice(2);
 const flags = Object.fromEntries(
   argv.filter(a => a.startsWith('--')).map(a => {
-    const [k, v] = a.replace(/^--/, '').split('=');
-    return [k, v ?? true];
+    const i = a.indexOf('=');
+    return i === -1 ? [a.slice(2), true] : [a.slice(2, i), a.slice(i + 1)];
   })
 );
+// --out=NAME keeps side-by-side runs (before/after mocks) from wiping each
+// other: each run deletes its own output folder first.
+const outDir = resolve(__dirname, '..', flags.out ? `motion-results-${flags.out}` : 'motion-results');
 const names = argv.filter(a => !a.startsWith('--'));
 const fps = Number(flags.fps || 60);
 const seeds = String(flags.seeds || '1,2,3').split(',').map(Number);
@@ -76,6 +80,9 @@ async function capture(browser, baseUrl, scenario, seed) {
   await page.evaluateOnNewDocument(`(${installVirtualClock.toString()})(${seed});`);
   const params = new URL(scenario.url, 'http://x');
   if (flags.color) params.searchParams.set('color', String(flags.color).startsWith('#') ? flags.color : `#${flags.color}`);
+  // --params=a=1&b=2: extra scene params, e.g. to mock a look without
+  // editing scenes.js
+  for (const [k, v] of new URLSearchParams(String(flags.params || ''))) params.searchParams.set(k, v);
   params.searchParams.set('seed', String(seed));
   // Scene events (src/shared/debug.js) for the debugEvents check
   params.searchParams.set('debug', 'events');
