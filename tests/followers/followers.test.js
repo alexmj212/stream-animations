@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
     goalFor, progressFraction, planChange, countAt, fillAt, sweepAt, parseCount, pollDelay, goalText
 } from '../../src/shared/animations/followers.js';
-import { followerGeometry } from '../../src/followers/FollowerBar.js';
+import { followerGeometry, tabularLayout } from '../../src/followers/FollowerBar.js';
 import { FollowerSource } from '../../src/followers/source.js';
 import { notificationGeometry } from '../../src/notifications/NotificationBar.js';
 import { config } from '../../src/config/config.js';
@@ -189,5 +189,28 @@ describe('FollowerSource', () => {
         s.emit(960, { via: 'test' });
         expect(source().s.stored()).toBe(960);
         controller.abort();
+    });
+});
+
+describe('tabularLayout', () => {
+    // A fake font: digit widths differ, as in Jost ('1' narrow, '4' wide)
+    const widths = { 1: 8, 4: 14 };
+    const measure = { measureText: (str) => ({ width: [...str].reduce((w, c) => w + (widths[c] ?? 10), 0) }) };
+
+    it('gives every count with as many digits the same width', () => {
+        const a = tabularLayout(measure, '946 / 1000 GOOBERS');
+        const b = tabularLayout(measure, '111 / 1000 GOOBERS');
+        expect(a.width).toBe(b.width);
+    });
+
+    it('centres each digit in its cell', () => {
+        const { runs } = tabularLayout(measure, '1');
+        expect(runs).toEqual([{ text: '1', x: 3 }]); // cell 14, glyph 8
+    });
+
+    it('keeps other text as whole runs', () => {
+        const { runs } = tabularLayout(measure, '9 GOOBERS');
+        expect(runs.map(r => r.text)).toEqual(['9', ' GOOBERS']);
+        expect(runs[1].x).toBe(14);
     });
 });
