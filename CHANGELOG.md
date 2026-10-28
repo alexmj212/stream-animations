@@ -4,6 +4,14 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.5.0 - 2026-10-28
+
+- New title card scene for the Starting, BRB and Ending titles: one line
+  of 96px Jost on a slanted ink plate, bottom-left. The plate slides in,
+  then the words, and then it holds still and stops drawing. Set the words
+  with `?text=`; a long title shrinks and then wraps to two lines. It only
+  shows on stream once the OBS text sources are swapped for it. ([#70])
+
 ## v2.4.1 - 2026-10-28
 
 - Stinger on the vertical (1080x1920) canvas: the slanted bars now start
@@ -135,3 +143,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#64]: https://github.com/alexmj212/stream-animations/pull/64
 [#66]: https://github.com/alexmj212/stream-animations/pull/66
 [#69]: https://github.com/alexmj212/stream-animations/pull/69
+[#70]: https://github.com/alexmj212/stream-animations/pull/70
