@@ -52,7 +52,7 @@ const ffmpeg = process.env.FFMPEG || 'ffmpeg';
 
 // Scenario URL with CLI overrides applied
 const url = new URL(scenario.url, 'http://x');
-for (const key of ['color', 'duration', 'text', 'hold', 'speed', 'pattern', 'scheme']) {
+for (const key of ['color', 'duration', 'text', 'hold', 'speed', 'pattern', 'scheme', 'style', 'colorlayout']) {
   if (flags[key] !== undefined) url.searchParams.set(key, String(flags[key]));
 }
 url.searchParams.set('seed', String(seed));

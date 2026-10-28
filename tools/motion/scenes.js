@@ -21,7 +21,8 @@
  *   workP95Ms                - p95 update+draw CPU time per frame
  *   debugEvents              - {name: count}: exact counts of the scene's debug
  *                              events (src/shared/debug.js, ?debug=events)
- *   probeMax                 - {field, max, label}: a probe sample field never exceeds max
+ *   probeMax                 - {field, max, label}, or a list of them: a probe sample
+ *                              field never exceeds max
  *   textOverPanel            - {fromMs, toMs, label}: with `textBox: {selector}`, every
  *                              pixel under the text element's on-screen box is opaque
  */
@@ -112,6 +113,56 @@ export const SCENARIOS = [
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
       probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    name: 'notifications',
+    url: `/src/notifications/index.html?color=${COLOR}&text=Thanks+for+the+follow+friend`,
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.05, 0.1, 0.15, 0.22, 0.26, 0.5, 0.8, 0.85, 0.9, 0.95],
+    keyframeSpanMs: 5000,
+    markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
+    // The body while the toast is out, inside its slanted ends
+    region: { x0: 0.25, x1: 0.78, y0: 0.03, y1: 0.065 },
+    checks: {
+      totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      regionCover: { fromMs: 1000, toMs: 4000, label: 'the toast body while out' },
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Text fits the body' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        // Streaks never cross the text while it shows (Design review, PR #27)
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    name: 'notifications-long',
+    scene: 'notifications',
+    // A long headline shrinks, then ends in an ellipsis, and the toast
+    // stretches to hold it at the reading pace (200 ms a word)
+    url: `/src/notifications/index.html?color=${COLOR}&text=Pants+are+officially+off+for+the+rest+of+the+stream+thanks+to+an+incredibly+generous+gift+from+the+goobers+in+chat`,
+    start: 'load',
+    captureMs: 8000,
+    keyframes: [0.1, 0.5, 0.9],
+    keyframeSpanMs: 7000,
+    markers: [{ at: 7000, label: 'end' }],
+    checks: {
+      totalDurationMs: 7000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Text fits the body' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        // Streaks never cross the text while it shows (Design review, PR #27)
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
       noVelocitySteps: true,
       workP95Ms: 4
     }

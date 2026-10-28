@@ -249,8 +249,8 @@ export function evaluate(spec, frames, debug = null) {
     });
   }
 
-  if (checks.probeMax) {
-    const { field, max, label } = checks.probeMax;
+  // One probeMax, or a list of them
+  for (const { field, max, label } of [checks.probeMax ?? []].flat()) {
     const hits = [];
     for (const f of frames) {
       for (const s of f.samples || []) {
