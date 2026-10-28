@@ -71,6 +71,13 @@ nothing.
 
 A `followers` window event with `detail: {count}` also sets the count (obs-browser's `emit_event`, and the motion harness).
 
+### Title card
+The title for the Starting, BRB and Ending scenes: one line of 96px Jost on
+a slanted ink plate, bottom-left inside title-safe. It slides in when the
+source loads, then holds still. A long title shrinks, then takes two lines.
+
+**URL**: `title/index.html?text=WELCOME`
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 
@@ -193,6 +200,7 @@ src/
   shade/        - Raid/alert banner
   notifications/ - Toast bar out of the follower-goal bar
   followers/    - Follower-goal bar (count from MIU's Developer API)
+  title/        - Scene title card (WELCOME, BRB, ENDING)
   background/   - Background loop
   epcot/        - Spaceship Earth lattice
 tests/          - Vitest suites, one folder per scene

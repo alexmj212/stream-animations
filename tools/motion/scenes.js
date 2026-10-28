@@ -354,6 +354,39 @@ export const SCENARIOS = [
     }
   },
   {
+    // Scene title card (WELCOME, BRB, ENDING): slides in once at load and
+    // holds still for the whole scene, drawing nothing once it lands
+    // (design audit #39; AJ, 2026-10-28: no subtext)
+    name: 'title',
+    url: `/src/title/index.html?text=WELCOME`,
+    start: 'load',
+    captureMs: 4500,
+    keyframes: [0.03, 0.08, 0.13, 0.2, 0.5],
+    keyframeSpanMs: 4500,
+    markers: [{ at: 500, label: 'plate in' }, { at: 1000, label: 'still' }],
+    checks: {
+      // The bible's rules (docs/DESIGN.md); a new scene meets all of them
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4500], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, idle: 1 },
+      noVelocitySteps: true
+    }
+  },
+  {
+    // A title too long for hero shrinks toward display, still inside title-safe
+    name: 'title-long',
+    scene: 'title',
+    url: `/src/title/index.html?text=Thanks+for+hanging+out+tonight+everybody`,
+    start: 'load',
+    captureMs: 4500,
+    keyframes: [0.2, 0.5],
+    keyframeSpanMs: 4500,
+    checks: {
+      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4500], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, idle: 1 },
+      noVelocitySteps: true
+    }
+  },
+  {
     name: 'background',
     url: `/src/background/index.html?color=${COLOR}`,
     start: 'load',
