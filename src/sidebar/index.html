@@ -83,7 +83,8 @@
       import { getColorFromURL, hexToHSL } from "../shared/colors.js";
       import { paletteFromURL } from "../shared/palette.js";
       import { setupCanvas, clearCanvas } from "../shared/canvas.js";
-      import { SidebarBar, planSidebar, planSidebarTimeline } from "./SidebarBar.js";
+      import { SidebarBar, planSidebar, planSidebarTimeline, sidebarLayoutName } from "./SidebarBar.js";
+      import { playOnSeam } from "../shared/seamQueue.js";
       import { PerformanceMonitor } from "../shared/performance.js";
       import { PerformanceStorage } from "../shared/perfStorage.js";
       import { PerformanceOverlay } from "../shared/perfOverlay.js";
@@ -108,6 +109,12 @@
       const palette = paletteFromURL();
       debug.mark('palette', { scheme: palette.scheme, hueShift: palette.hueShift, color: baseColor });
 
+      // ?layout=vertical|wide; by default a page taller than wide (the
+      // 1080x1920 Aitum Vertical source) gets the portrait nameplate (A2)
+      const layoutName = sidebarLayoutName(window.innerWidth, window.innerHeight, urlParams.get("layout"));
+      const vertical = layoutName === 'vertical';
+      debug.mark('layout', { layout: layoutName });
+
       const fullText = text.toUpperCase();
       const timeline = planSidebarTimeline(fullText, durationMs);
       debug.mark('timeline', { durationMs, totalMs: Math.round(timeline.total * 1000), stillMs: Math.round((timeline.exitStart - timeline.enterEnd) * 1000) });
@@ -125,9 +132,14 @@
       function fitText() {
         const type = config.design.type;
         const cfg = config.sidebar.text;
+        const v = config.sidebar.vertical;
         const W = window.innerWidth;
         const H = window.innerHeight;
-        const s = W / config.design.canvas.width;
+        const s = W / (vertical ? v.refWidth : config.design.canvas.width);
+        // Portrait: the phone sizes, floor and width (V-TYPE-1, V-SAFE-1)
+        const sizes = vertical
+          ? { headline: v.headlinePx, label: v.labelPx, minPx: config.design.vertical.type.minPx, minScale: v.minScale }
+          : { headline: type.sizes.headline, label: type.sizes.label, minPx: type.minPx, minScale: cfg.minScale };
         const stroke = (px) => strokeWidthPx(px, type) * s;
         const lineStyle = (el, px) => {
           el.style.fontSize = `${px * s}px`;
@@ -148,10 +160,8 @@
           probe.textContent = str;
           return probe.getBoundingClientRect().width / s;
         };
-        const room = cfg.maxWidthPx - 2 * strokeWidthPx(type.sizes.headline, type);
-        const lines = fitSidebarText(fullText, measure, room, {
-          headline: type.sizes.headline, label: type.sizes.label, minPx: type.minPx, minScale: cfg.minScale
-        });
+        const room = (vertical ? v.maxWidthPx : cfg.maxWidthPx) - 2 * strokeWidthPx(sizes.headline, type);
+        const lines = fitSidebarText(fullText, measure, room, sizes);
         probe.remove();
 
         textElement.replaceChildren();
@@ -166,23 +176,28 @@
         // The block's own size is the smallest line's, which the harness reads
         textElement.style.fontSize = `${Math.min(...lines.map(l => l.px)) * s}px`;
 
-        // Hold position: the ink's right edge on title-safe
-        const safeRight = W * (1 - config.design.safe.titleInset) - stroke(type.sizes.headline);
+        // Hold position: the ink's right edge on title-safe (portrait: the
+        // phone-safe edge, with the plate's bottom on the seam)
+        const p = cfg.plate;
+        const safeRight = (vertical ? v.textRightPx * s : W * (1 - config.design.safe.titleInset)) - stroke(sizes.headline);
         textElement.style.transform = "none";
         const r = textElement.getBoundingClientRect();
         layout.holdLeft = Math.round(safeRight - r.width);
-        layout.top = Math.round(cfg.centerY * H - r.height / 2);
+        layout.top = Math.round(vertical
+          ? v.seamY * s - p.padYPx * s - r.height
+          : cfg.centerY * H - r.height / 2);
         textElement.style.left = `${layout.holdLeft}px`;
         textElement.style.top = `${layout.top}px`;
 
         // The nameplate: a 15° parallelogram (GEO-1) of ink round the block,
         // its lower left corner further out, bleeding off the right edge
-        const p = cfg.plate;
+        // (portrait: stopping just past the text, clear of the apps' buttons)
         const y0 = layout.top - p.padYPx * s;
         const h = r.height + 2 * p.padYPx * s;
         const slant = h * Math.tan(config.sidebar.slanted.angle * Math.PI / 180);
         const topLeft = layout.holdLeft - p.padXPx * s;
-        layout.plate = { y: y0, h, topLeft, bottomLeft: topLeft - slant, right: W + p.bleedPx * s };
+        const right = vertical ? safeRight + stroke(sizes.headline) + p.padXPx * s : W + p.bleedPx * s;
+        layout.plate = { y: y0, h, topLeft, bottomLeft: topLeft - slant, right };
         // Off screen to the right before and after: past the plate's lower left corner
         layout.inPx = W - layout.plate.bottomLeft;
         layout.outPx = layout.inPx;
@@ -256,7 +271,8 @@
 
       // Background panel + balanced accents. ?seed=N pins the layout.
       const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
-      const bars = planSidebar(ctx, canvas, baseHSL, timeline, createRandom(seed), palette.stops);
+      // Portrait has no panel or bars: they covered AJ's face (A2, issue #81)
+      const bars = vertical ? [] : planSidebar(ctx, canvas, baseHSL, timeline, createRandom(seed), palette.stops);
       bars.forEach((bar) => { bar.probeId = bar.isBackground ? 'background' : `${bar.type}-${bar.index}`; });
       registerProbe('sidebar', () => bars.filter(b => b.active).map(b => sampleBar(b, b.probeId)));
 
@@ -270,7 +286,8 @@
         const r = textElement.getBoundingClientRect();
         const rect = { x: r.left, y: r.top, width: r.width, height: r.height };
         const onscreen = r.right > 0 && r.left < window.innerWidth;
-        return [{ id: 'text', x: r.left, y: r.top, onscreen, miuCover: onscreen ? coveredFraction(rect, miuZones()) : 0 }];
+        // Mix It Up draws no images on the vertical canvas (Alerts (vrt) has no Mixitup source)
+        return [{ id: 'text', x: r.left, y: r.top, onscreen, miuCover: onscreen && !vertical ? coveredFraction(rect, miuZones()) : 0 }];
       });
       // The plate's position in the bar probe tracks, for the velocity check
       registerProbe('sidebar', () => {
@@ -343,6 +360,7 @@
         } else {
           console.log('[Sidebar] Animation complete - one-shot finished');
           debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
+          finished();
         }
       }
 
@@ -357,10 +375,17 @@
 
       // Start the one-shot animation once Jost has loaded, so a late font
       // can't re-lay the text and plate out mid-move (Code review, #58)
-      (document.fonts?.ready ?? Promise.resolve()).then(() => {
+      // can't re-lay the text and plate out mid-move (Code review, #58).
+      // In portrait it waits its turn on the seam behind a toast (ALERT-1)
+      let finished = () => {};
+      (document.fonts?.ready ?? Promise.resolve()).then(() => playOnSeam(vertical, () => new Promise(resolve => {
+        finished = resolve;
         fitText();
         requestAnimationFrame(animate);
-      });
+      }), {
+        maxHoldMs: timeline.total * 1000 + 1000,
+        onStart: (waitedMs) => debug.mark('seam', { waitedMs: Math.round(waitedMs) })
+      }));
     </script>
   </body>
 </html>
