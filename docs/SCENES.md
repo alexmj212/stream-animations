@@ -76,6 +76,34 @@ so the bottom edge stays above Twitch's player controls (`config.title`).
 It never animates after the entrance, so it costs nothing for the rest of
 the scene.
 
+### Vertical canvas (Aitum, 1080x1920)
+
+The vertical canvas has its own 1080x1920 browser sources in Alerts (vrt):
+"Fullscreen Source (vrt)" (shade), "Notifications Source (vrt)" (toast) and
+"Sidescreen Source (vrt)" (sidebar). Move filters and show/hide can't reach
+sources on the Aitum canvas, so each one stays **always visible** and rests
+on `about:blank`. Mix It Up plays an alert by setting the source's URL (the
+page picks portrait from its size), then runs a separate, non-blocking
+"Reset Vrt …" command that waits and sets `about:blank` again. Each reset
+is guarded by a counter, so it only blanks the source if no newer alert has
+started since.
+
+The toast and the sidebar share the seam, so in portrait the second one
+waits for the first (`playOnSeam`, a Web Lock, ALERT-1). A queued alert can
+start up to about 13 s late (the toast's longest hold), so the reset waits
+must cover the wait plus the play time:
+
+| Source | Plays for | Can wait | Reset wait |
+|---|---|---|---|
+| Notifications Source (vrt) | up to ~12 s (a scrolled long line) | up to ~8 s (a sidebar) | 25 s |
+| Sidescreen Source (vrt) | up to 6.8 s (`sidebar.timing.maxTotalMs`) | up to ~13 s (a toast) | 25 s |
+| Fullscreen Source (vrt) | ~4-6 s | never (the shade doesn't queue) | 10 s |
+
+Raise a reset wait together with any longer hold. The 16:9 sources keep
+their move-filter timers (7 s sidebar, 10 s toast) because nothing queues
+there. The OBS and MIU steps live with the Defiant thread
+(project files `vertical-layout/defiant-steps.md`).
+
 ## Shared code
 
 - `src/shared/AnimatedBar.js`: base class; scene bars (`BackgroundBar`,
