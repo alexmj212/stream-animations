@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notifications Toast</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import { paletteFromURL } from "../shared/palette.js";
+      import { setupCanvas, clearCanvas } from "../shared/canvas.js";
+      import { NotificationBar, resolveColorLayout } from "./NotificationBar.js";
+      import { AnimatedBar } from "../shared/AnimatedBar.js";
+      import { notificationDurationMs } from "../shared/animations/notification.js";
+      import { PerformanceMonitor } from "../shared/performance.js";
+      import { PerformanceStorage } from "../shared/perfStorage.js";
+      import { PerformanceOverlay } from "../shared/perfOverlay.js";
+      import { AnimationLifecycle } from "../shared/lifecycle.js";
+      import { config } from "../config/config.js";
+      import { registerProbe, createRandom, seedFromURL } from "../shared/motion.js";
+      import { createDebug } from "../shared/debug.js";
+      const debug = createDebug('notifications');
+
+      // ?text= is the line Mix It Up used to write to notification.txt.
+      // ?duration= overrides the default, which grows with long text so it
+      // holds at the reading pace (config.notifications.timing).
+      const urlParams = new URLSearchParams(window.location.search);
+      const text = (urlParams.get("text") || "Notification").trim();
+      const durationMs = parseInt(urlParams.get("duration")) || notificationDurationMs(text, config.notifications.timing);
+      const showPerf = urlParams.get("perf") === "true";
+      const palette = paletteFromURL();
+      const colorLayout = resolveColorLayout(urlParams.get("colorlayout"), palette.stops);
+      debug.mark('palette', { scheme: palette.scheme, colorLayout });
+
+      const perfMonitor = new PerformanceMonitor(60, 60);
+      let perfOverlay = null;
+      if (showPerf) {
+        perfOverlay = new PerformanceOverlay(perfMonitor, new PerformanceStorage(50), {
+          position: 'bottom-right',
+          opacity: 0.9,
+          scene: 'notifications'
+        });
+        perfMonitor.enable();
+        perfOverlay.setupHotkey();
+        perfOverlay.startSession();
+        perfOverlay.show();
+        perfOverlay.exposeAPI();
+        window.addEventListener('beforeunload', () => perfOverlay.endSession());
+      }
+
+      const canvas = document.getElementById("canvas");
+      const ctx = setupCanvas(canvas, { alpha: true });
+
+      const lifecycle = new AnimationLifecycle();
+      lifecycle.onCleanup(() => {
+        // The interval lives on the base class; clearing it through the
+        // subclass would only shadow it (Code review, PR #27)
+        if (AnimatedBar.cacheCleanupInterval) {
+          clearInterval(AnimatedBar.cacheCleanupInterval);
+          AnimatedBar.cacheCleanupInterval = null;
+        }
+      });
+
+      // ?style=creative|clean; ?seed=N pins the streak layout
+      const style = urlParams.get("style") || config.notifications.style;
+      const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
+      const toast = new NotificationBar(ctx, canvas, { text, durationMs, palette: palette.stops, colorLayout, style, random: createRandom(seed) });
+      const markFit = (font) => debug.mark('textFit', { font, scale: +toast.textScale.toFixed(3), room: Math.round(toast.textRoom), extraPx: toast.extraPx, scrollPx: toast.scrollPx });
+      markFit('fallback');
+      // The line first renders in a fallback font; redo it in Jost once
+      // loaded (the text only shows after the bar is out, so it's in time)
+      document.fonts?.ready.then(() => { toast.buildText(); markFit('loaded'); });
+      registerProbe('notifications', () => toast.probeSamples());
+
+      // One-shot on load: OBS reloads the page each time the source is shown.
+      // Lengths come from absolute time, so dropped frames can't stretch it.
+      let startTimestamp = null;
+      function animate(timestamp) {
+        if (showPerf) perfMonitor.recordFrame();
+        debug.frame(timestamp);
+        if (startTimestamp === null) {
+          startTimestamp = timestamp;
+          debug.mark('start', { durationMs });
+        }
+        const elapsed = (timestamp - startTimestamp) / 1000;
+        clearCanvas(ctx, canvas);
+        toast.setTime(elapsed);
+        if (toast.active) {
+          toast.draw();
+          requestAnimationFrame(animate);
+        } else {
+          debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
+        }
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        debug.mark('visibilitychange', { hidden: document.hidden });
+        if (!document.hidden) location.reload();
+      });
+
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>

@@ -64,7 +64,14 @@ async function waitFor(page, fn, timeoutMs = 8000) {
   return false;
 }
 
-async function capture(browser, baseUrl, scenario, seed) {
+/**
+ * Render one scenario and seed. With `grid`, a second, untimed pass reads
+ * the luminance grid on every frame for the flash and still-cover rules:
+ * reading pixels for it inside the timed pass inflated the scenes' frame
+ * CPU (QA, 2026-10-28, PR #48), so that pass's CPU numbers and shots are
+ * thrown away.
+ */
+async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width, height, deviceScaleFactor: 1 });
   const errors = [];
@@ -78,6 +85,9 @@ async function capture(browser, baseUrl, scenario, seed) {
   });
 
   await page.evaluateOnNewDocument(`(${installVirtualClock.toString()})(${seed});`);
+  // Every run starts from empty storage: the followers scene paints its last
+  // stored count, which would leak from one seed's run into the next
+  await page.evaluateOnNewDocument(() => { try { localStorage.clear(); } catch { /* blocked storage */ } });
   const params = new URL(scenario.url, 'http://x');
   if (flags.color) params.searchParams.set('color', String(flags.color).startsWith('#') ? flags.color : `#${flags.color}`);
   // --params=a=1&b=2: extra scene params, e.g. to mock a look without
@@ -116,12 +126,18 @@ async function capture(browser, baseUrl, scenario, seed) {
   // busy OBS. Scenes positioned from absolute time must still hit their marks.
   const jitterRandom = createRandom(seed * 7919 + 1);
   let elapsed = 0;
+  // events: later triggers, each dispatched once the virtual clock reaches `at`
+  const pendingEvents = [...(scenario.events || [])].sort((a, b) => a.at - b.at);
   while (elapsed < scenario.captureMs) {
+    while (pendingEvents.length && pendingEvents[0].at <= elapsed) {
+      const { event, detail } = pendingEvents.shift();
+      await page.evaluate(({ event, detail }) => window.dispatchEvent(new CustomEvent(event, { detail })), { event, detail });
+    }
     const d = jitter ? dt * (0.5 + jitterRandom() * 2.5) : dt;
     elapsed += d;
-    const frame = await page.evaluate((d, region, textSelector) => {
+    const frame = await page.evaluate((d, region, textSelector, grid) => {
       const r = window.__motion.step(d);
-      r.pixels = window.__motion.pixelStats(2, region);
+      r.pixels = window.__motion.pixelStats(2, region, grid);
       // textBox: canvas gaps under the on-screen part of a text element
       const el = textSelector && document.querySelector(textSelector);
       if (el) {
@@ -135,12 +151,21 @@ async function capture(browser, baseUrl, scenario, seed) {
         r.pixels.textGaps = x1 > x0 && y1 > y0
           ? window.__motion.pixelStats(2, { x0, x1, y0, y1 }).regionGaps
           : null;
+        // The same box as a text sample for the design rules: drawn font
+        // size (computed size times any transform scale) and word count
+        const scale = el.offsetHeight ? b.height / el.offsetHeight : 1;
+        r.samples.push({
+          id: 'text-box', x: b.left, y: b.top, onscreen: b.right > 0 && b.left < W && b.width > 0,
+          box: { x: b.left, y: b.top, width: b.width, height: b.height },
+          fontPx: parseFloat(getComputedStyle(el).fontSize) * scale,
+          words: (el.textContent || '').trim().split(/\s+/).filter(Boolean).length
+        });
       }
       return r;
-    }, d, scenario.region || null, scenario.textBox?.selector || null);
+    }, d, scenario.region || null, scenario.textBox?.selector || null, grid);
     frames.push(frame);
 
-    while (shots && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
+    while (shots && !grid && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
       const at = shotTimes.shift();
       const file = `t${String(Math.round(at)).padStart(5, '0')}.png`;
       await page.screenshot({ path: resolve(dir, file), omitBackground: true });
@@ -152,6 +177,13 @@ async function capture(browser, baseUrl, scenario, seed) {
   const debug = await page.evaluate((name) => window.__debug?.[name]?.snapshot() ?? null, scenario.scene || scenario.name);
   await page.close();
   return { frames, errors, shots: shotFiles, debug };
+}
+
+/** The flash and still-cover rules need the luminance grid pass. */
+function needsGrid(scenario) {
+  const design = scenario.checks?.design;
+  if (!design) return false;
+  return !design.rules || design.rules.some(r => r === 'CUT-2' || r.startsWith('FLASH'));
 }
 
 async function main() {
@@ -170,12 +202,19 @@ async function main() {
       for (const seed of seeds) {
         const t0 = Date.now();
         const { frames, errors, shots: shotFiles, debug } = await capture(browser, baseUrl, scenario, seed);
+        if (needsGrid(scenario)) {
+          // Same seed, same frame times: the grid lines up frame for frame
+          const { frames: gridFrames } = await capture(browser, baseUrl, scenario, seed, { grid: true });
+          frames.forEach((f, i) => { if (f.pixels && gridFrames[i]?.pixels) f.pixels.grid = gridFrames[i].pixels.grid; });
+        }
         // Velocity estimates on uneven frames are noisy; jitter runs check
         // timing and coverage only. Frames can be up to 3x nominal, so the
         // usual 2-frame duration tolerance becomes 2 of the longest frames.
         const spec = jitter
           ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 2 * 3 * 1000 / fps } }
           : { ...scenario, fps };
+        spec.width = width;
+        spec.height = height;
         const { results, timeline, tracks } = evaluate(spec, frames, debug);
         results.unshift({
           name: 'No page errors',
@@ -193,7 +232,7 @@ async function main() {
           writeFileSync(resolve(outDir, scenario.name, `seed-${seed}`, 'capture.json'), JSON.stringify({ frames }, null, 1));
         }
         console.log(`${pass ? 'PASS' : 'FAIL'}  ${scenario.name} seed=${seed}  (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
-        for (const r of results) console.log(`  ${r.pass ? '✓' : '✗'} ${r.name}: ${r.detail}`);
+        for (const r of results) console.log(`  ${r.warn ? '⚠' : r.pass ? '✓' : '✗'} ${r.name}: ${r.detail}`);
       }
     }
   } finally {

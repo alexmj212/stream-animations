@@ -10,6 +10,8 @@ live in `src/config/config.js`.
 | stinger | Curtain-style scene transition: slanted and horizontal bars sweep across | OBS `transitionStart` or `obsSourceActiveChanged` window events (listeners registered at load to catch the first scene change); `?autoplay=true` plays once on load | `color`, `scheme`, `colormode`, `duration`, `seed`, `autoplay`, `perf` |
 | sidebar | Slide-in notification panel with animated bars and text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
 | shade | Raid/alert banner: semi-transparent curtains with large scrolling text | Plays on load (OBS reloads it when the source is shown) | `color`, `scheme`, `colormode`, `text`, `duration`, `seed`, `perf` |
+| followers | Always-on follower-goal bar, top left; the notifications toast grows out of its right end | Always on; polls MIU's Developer API (`GET :8911/api/v2/counters/followercount`) every 5 s, or a `followers` window event | `goal`, `goalstep`, `label`, `count`, `source`, `api`, `counter`, `style`, `filllayout`, `scheme`, `perf` |
+| notifications | Toast bar that grows out of the right end of the follower-goal bar (top left), shows one line of text, and slides back in. Rebuilt from the OBS "Notifications" scene (color sources, Move filters and a mask plugin that broke in OBS 33) | Plays on load (OBS reloads it when the source is shown) | `text`, `duration` (default grows with long text), `seed` (streaks), `style`, `colorlayout`, `scheme`, `perf` |
 | background | Continuous loop of drifting bars on two canvas layers | Always running | `color`, `speed`, `density` (default 8), `perf` |
 | epcot | Spaceship Earth lattice with lit bulbs, patterns and overlays; deployed to GitHub Pages on push to `main` | Always running | Many; see the root README |
 
@@ -21,6 +23,13 @@ the old single-hue look. See the root README for `scheme` and `colormode`.
 `?perf=true` shows the performance overlay on any scene. `?seed=N` pins a
 random layout so the same stinger or sidebar plays every time (recording,
 motion checks).
+
+The notifications toast lines up with the MIU "Follow Goal" overlay
+(`config.notifications.geometry`, measured on the OBS program at 1920x1080:
+top 26, height 48, right edge at x 451, -15 degree lean). If the follow bar
+moves or changes size in MIU, update those numbers. Its colors run along the
+bar (`config.notifications.colorLayout`), because the screen-fixed gradient
+the other scenes use is all violet at the top of the screen.
 
 Long sidebar `text` shrinks to fit inside the panel (down to 75% of its
 size), then wraps to two lines, then ends in an ellipsis
@@ -35,6 +44,14 @@ fails if the sidebar text overlaps one. To re-read the commands, stage
 access) and read the JSON in its `Commands` table: an Overlay action's
 `OverlayItemV3` holds `XPosition`/`YPosition` (percent when `PositionType`
 is 1) and `Width`/`Height` (0 = natural size).
+
+The followers bar and the notifications toast meet at x 451 (1920 wide):
+`config.followers.geometry` and `config.notifications.geometry` share top,
+height, that edge and the -15 deg lean, and a unit test fails if they drift.
+The followers scene only draws when the count changes (or for a rare idle
+glint), so idle it runs no frames. It needs MIU's Developer API on (MIU >
+Services > Developer API); the API answers with `Access-Control-Allow-Origin: *`
+(MIU 1.8.203, 2026-10-28), so the Pages URL can read it from OBS.
 
 ## Shared code
 

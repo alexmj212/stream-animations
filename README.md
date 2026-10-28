@@ -35,6 +35,40 @@ slide out, ending exactly at `duration`.
 
 **URL**: `sidebar/index.html?color=#hexvalue&text=Now+Playing&duration=5000` (`seed` as above)
 
+### Notifications
+A toast bar that grows out of the right end of the follower-goal bar (top
+left), shows one line of text and slides back in. Rebuilt from the OBS
+"Notifications" scene. Long text never loses words: it shrinks to 70%, then
+the bar grows toward the right edge (up to x 1890), and only a line too long
+even for that scrolls during the hold. The default duration stretches so the
+text holds at 200 ms a word.
+
+**URL**: `notifications/index.html?text=Thanks+for+the+follow` (`duration`, `seed`, `scheme`, `style`, `colorlayout`)
+
+- `style` - `creative` (default: seeded streaks, lit rims and a light band that writes the text in) or `clean` (the bar alone, text fades in)
+- `colorlayout` - `along` (default: the Illuminations palette runs down the bar, violet to amber), `screen` (the other scenes' top-to-bottom gradient) or `classic` (the old OBS purples; also what `scheme=mono` gives)
+
+### Followers
+The always-on follower-goal bar, top left ("946 / 1000 GOOBERS"), replacing
+the Mix It Up "Follow Goal" widget. The notifications toast grows out of its
+right end. It reads the count from Mix It Up's Developer API (the
+`followercount` counter MIU sets from Twitch at launch and on every follow),
+polling every 5 s, so no tokens or secrets are involved. A change sweeps a
+light band along the bar while the number ticks up. Between changes it draws
+nothing.
+
+**URL**: `followers/index.html?goal=1000` (`count`, `goalstep`, `label`, `source`, `api`, `counter`, `style`, `filllayout`, `scheme`)
+
+- `goal` - Goal (default 1000); `goalstep` - once reached, roll on to the next multiple of this (default 0: stay, full bar)
+- `label` - Word after the numbers (default `GOOBERS`; `label=` for none)
+- `count` - Count to show at load; if this browser last saw a different count, the bar sweeps from that one to this (otherwise it starts from the last count it saw)
+- `source` - `miu` (default: poll MIU's Developer API on port 8911; enable it in MIU under Services) or `url` (only `count` and `followers` events)
+- `api`, `counter` - API base (default `http://localhost:8911/api/v2/counters/`) and counter name (default `followercount`)
+- `style` - `creative` (default: sweep, white tip, a glint every 90 s) or `clean`
+- `filllayout` - `screen` (default: the other scenes' top-to-bottom gradient, violet up here) or `ramp` (the whole palette over the goal, amber at the goal)
+
+A `followers` window event with `detail: {count}` also sets the count (obs-browser's `emit_event`, and the motion harness).
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 
@@ -107,7 +141,7 @@ for OBS" button copies the current settings baked into the URL.
 All animations support:
 - `color` - Base color in hex format (e.g., `#ff6600`)
 
-Stinger, sidebar and shade:
+Stinger, sidebar, shade, notifications and followers:
 - `scheme` - Color layout: any epcot palette name (default `illuminations`: the ball's violet-top to amber-bottom gradient, fixed to the screen) or `mono` (the old single-hue look around `color`)
 - `colormode` - How a passed `color` combines with the palette: `ignore` (default; palette as-is, so the overlays always match epcot), `shift` (rotates the palette's hues so its purple stop lands on the color; `#b00bee` gives the ball's palette), or `mono` (any passed color brings back the single-hue look)
 
@@ -155,6 +189,8 @@ src/
   stinger/      - Stinger transition
   sidebar/      - Sidebar notification
   shade/        - Raid/alert banner
+  notifications/ - Toast bar out of the follower-goal bar
+  followers/    - Follower-goal bar (count from MIU's Developer API)
   background/   - Background loop
   epcot/        - Spaceship Earth lattice
 tests/          - Vitest suites, one folder per scene

@@ -21,6 +21,48 @@ export function installVirtualClock(seed) {
   let queue = new Map();
   const probes = [];
 
+  /** Linear-light value of an 8-bit sRGB channel. */
+  const LINEAR = Array.from({ length: 256 }, (_, i) => {
+    const c = i / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+
+  /**
+   * Mean relative luminance per cell of a 16x9 grid, the layers composited
+   * source-over onto black in DOM order. Drawn down to 160x90 first, which
+   * is all the grid needs. run.js reads it in its own untimed pass.
+   */
+  let gridCanvas = null;
+  function luminanceGrid(canvases) {
+    const cols = 16;
+    const rows = 9;
+    const w = 160;
+    const h = 90;
+    if (!gridCanvas) {
+      gridCanvas = document.createElement('canvas');
+      gridCanvas.width = w;
+      gridCanvas.height = h;
+    }
+    const g = gridCanvas.getContext('2d', { willReadFrequently: true });
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, w, h);
+    for (const c of canvases) g.drawImage(c, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h).data;
+    const sum = new Float64Array(cols * rows);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const cell = Math.floor(y * rows / h) * cols + Math.floor(x * cols / w);
+        sum[cell] += 0.2126 * LINEAR[d[i]] + 0.7152 * LINEAR[d[i + 1]] + 0.0722 * LINEAR[d[i + 2]];
+      }
+    }
+    const per = (w / cols) * (h / rows);
+    const out = new Array(cols * rows);
+    for (let c = 0; c < out.length; c++) out[c] = sum[c] / per;
+    return out;
+  }
+
   performance.now = () => now;
   Date.now = () => dateBase + Math.round(now);
 
@@ -76,8 +118,11 @@ export function installVirtualClock(seed) {
      *  - opaque: fraction of pixels with alpha >= 250 (fully covered)
      *  - visible: fraction with alpha > 8 (anything drawn)
      *  - minAlphaInRegion: smallest alpha inside an optional region
+     *  - grid (with `grid`): mean linear luminance of each cell of a 16x9
+     *    grid, the layers composited over black, for the flash and still-cover
+     *    rules (tools/motion/designRules.js)
      */
-    pixelStats(stride = 2, region = null) {
+    pixelStats(stride = 2, region = null, grid = false) {
       // Scenes can stack full-size layer canvases (background has two), so
       // read every canvas the size of the largest and composite their alpha
       // per pixel (source-over: 1 - prod(1 - a_i)). Measuring one layer
@@ -116,7 +161,8 @@ export function installVirtualClock(seed) {
         opaque: opaque / total,
         visible: visible / total,
         regionMinAlpha: region ? regionMin : null,
-        regionGaps: region ? regionGaps : null
+        regionGaps: region ? regionGaps : null,
+        grid: grid ? luminanceGrid([...document.querySelectorAll('canvas')].filter(c => c.width === width && c.height === height)) : null
       };
     }
   };

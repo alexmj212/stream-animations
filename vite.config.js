@@ -49,6 +49,10 @@ export default defineConfig(({ mode }) => {
     ? resolve(__dirname, 'src/sidebar/index.html')
     : mode === 'shade'
     ? resolve(__dirname, 'src/shade/index.html')
+    : mode === 'notifications'
+    ? resolve(__dirname, 'src/notifications/index.html')
+    : mode === 'followers'
+    ? resolve(__dirname, 'src/followers/index.html')
     : mode === 'epcot'
     ? resolve(__dirname, 'src/epcot/index.html')
     : resolve(__dirname, 'src/stinger/index.html'); // default
@@ -70,7 +74,7 @@ export default defineConfig(({ mode }) => {
         closeBundle() {
           // Only scene builds produce dist/<scene>/src/<scene>/index.html; the
           // dev server (mode 'development') has nothing to move.
-          if (['stinger', 'background', 'sidebar', 'shade', 'epcot'].includes(mode)) {
+          if (['stinger', 'background', 'sidebar', 'shade', 'notifications', 'followers', 'epcot'].includes(mode)) {
             const oldPath = resolve(__dirname, `dist/${mode}/src/${mode}/index.html`);
             const newPath = resolve(__dirname, `dist/${mode}/index.html`);
             const tempDir = resolve(__dirname, `dist/${mode}/src`);

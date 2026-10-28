@@ -2,7 +2,9 @@
 
 What the scenes should look and feel like, so a new or changed animation
 matches the rest. Values live in `src/config/config.js`; this doc says why.
-Sources in brackets. Owned by the design review role.
+Sources in brackets. Owned by the design review role. The full design
+system (safe areas, type scale, contrast, alert tiers, accessibility) is the
+bible, [DESIGN.md](DESIGN.md), which links here for these decisions.
 
 ## Look
 
@@ -59,4 +61,4 @@ Add a dated line when a review or AJ's feedback settles a question of style.
 | 2026-10-28 | Sidebar text stays inside the slanted panel: shrink to fit the panel's width at the text's height (down to 75% of the base size), then wrap to two lines; ellipsis only as a last resort. A raid thank-you shouldn't lose its words | QA finding: long text clipped at ~560px and hung over the stream; design review call; fixed in #23 | active |
 | 2026-10-28 | A bar that sits in one horizontal band (the notifications toast) takes the Illuminations palette along its length, not screen-fixed: at the top of the screen the screen-fixed gradient is all violet. Full-height or multi-band scenes stay screen-fixed | AJ picked "A Creative" on the notifications mock, PR #27 | active |
 | 2026-10-28 | Decorative streaks and accents stay out of the text box while text is on screen | PR #27 design review | active |
-| 2026-10-28 | Long notification text grows the bar to fit the line, up to the bar's full length (about x1890), and the text stays still; it scrolls only if it still doesn't fit at full length. Scrolling clipped the start and end of the line during the hold | Side-by-side mock from the notifications thread; design review call (AJ may override) | target: not built yet; #27 still shrinks to 0.7 then ellipsis. Becomes active with the PR that builds it |
+| 2026-10-28 | Long notification text grows the bar to fit the line, up to the bar's full length at title-safe's right edge (x1824, DESIGN.md SAFE-1), and the text stays still; it scrolls only if it still doesn't fit at full length. Scrolling clipped the start and end of the line during the hold | Side-by-side mock from the notifications thread; design review call (AJ may override) | active (#32) |
