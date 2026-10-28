@@ -163,6 +163,12 @@ motion. `background` is checked for smooth motion and CPU. `epcot` has no
 motion probe; it is a CPU regression guard (p95 at most 20ms, measured
 around 10ms).
 
+`followers` checks one follow's look and motion. `followers-cpu` holds its
+frame CPU budget over five follows, two seconds apart (`events`), because
+one follow draws only about 70 frames and p95 of so few is one GC pause
+away from failing (issue #50). The same goes for any scene that draws only
+on change: give its CPU check enough drawn frames, never a higher budget.
+
 ### Recording the epcot loop
 
 On stream, epcot plays as a pre-recorded looping video, so changes to the
