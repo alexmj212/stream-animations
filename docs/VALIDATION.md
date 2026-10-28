@@ -22,6 +22,8 @@ is built and checked.
 | `npm run motion:compare -- --runs=before,after --frames=stinger/seed-1/t00750.png --bg=frame.png --out=cmp.png` | Labelled side-by-side grid of keyframes from those runs, over a backdrop, for design decisions |
 | `npm run motion -- --fps=30` | Step at another frame rate (OBS browser sources are often set to 30) |
 | `npm run motion -- --no-shots` | Skip keyframe screenshots (about 2x faster) |
+| `npm run motion -- --no-keepout` | Keyframes without the mock chat and music layers |
+| `npm run motion:compose` | Worst-case "everything visible" frames: each pair of OBS elements that can be up together, with our scenes live, and a report of overlaps and placement breaks (`--today` for the layout before Defiant's fixes) |
 | `npm run motion -- --dump` | Also write every frame's raw data to `capture.json` |
 | `npm run motion -- --jitter` | Uneven frame times, like a loaded OBS. Checks timing and coverage still hold; skips the smoothness and CPU checks |
 | `npm run motion:export -- stinger` | Render to a transparent WebM for OBS (see below) |
@@ -69,7 +71,7 @@ Defined per scenario in `tools/motion/scenes.js`.
 | Frame CPU budget | p95 of update+draw time ≤ `workP95Ms`, over at least 200 drawn frames (`MIN_CPU_FRAMES`); fewer fails the check, since p95 of a short capture is one slow frame | Per-frame allocation, cache thrash, too many objects drawn; a scenario too short to measure |
 | Text over *panel* | Every canvas pixel under a text element's on-screen box (`textBox.selector`) is opaque through a window | Long text hanging off the slanted panel over the stream |
 | Scene events | The scene's debug events (`?debug=events`) match `debugEvents` counts exactly | A trigger that restarts the scene, a scene that never marks `end` |
-| Design rules (SAFE-1, SAFE-3, TYPE-1, TIME-1, CUT-2, FLASH-1, FLASH-2) | The bible's machine-checkable rules ([DESIGN.md](DESIGN.md)), from `tools/motion/designRules.js`. Placement and size read the text box (a probe sample with `box`, `fontPx`, `words`, or `textBox.selector`) through `holdMs`; CUT-2 and FLASH read a 16x9 luminance grid, taken in a second, untimed pass of the same seed so it can't touch the CPU numbers | Text in the screen margin or under the player controls, type under the floor, text that never stops long enough to read, a stinger sitting covered and still, strobing |
+| Design rules (SAFE-1, SAFE-3, KEEP-1, TYPE-1, TIME-1, CUT-2, FLASH-1, FLASH-2) | The bible's machine-checkable rules ([DESIGN.md](DESIGN.md)), from `tools/motion/designRules.js`. Placement and size read the text box (a probe sample with `box`, `fontPx`, `words`, or `textBox.selector`) through `holdMs`; CUT-2 and FLASH read a 16x9 luminance grid, taken in a second, untimed pass of the same seed so it can't touch the CPU numbers | Text in the screen margin, on chat or the music display (KEEP-1), or under the player controls, type under the floor, text that never stops long enough to read, a stinger sitting covered and still, strobing |
 
 **Warn, then enforce** (issue #43). A design rule a scene doesn't meet yet
 reports ⚠ and doesn't fail the run: those are DESIGN.md's "Today vs target"
@@ -80,6 +82,13 @@ A ⚠ should mean a gap someone still owes. Where a rule can't apply (an
 exemption AJ or design review made, or a widget that never moves, where
 TIME-1 only measures the capture), leave it out of `rules`, with a comment
 naming the decision, so the warnings that remain are real.
+
+**Test the text that really arrives** (Design review, 2026-10-28). Every
+text scenario family keeps one variant with a realistic message: a follow
+or raid with a Twitch username, as OBS and Mix It Up send it (`sidebar-name`,
+`shade-raid`, `notifications-name`, `notifications-vertical-name`). A short
+sample string like "Thanks for the follow friend" skips the shrink and
+scroll paths the common case takes.
 
 ### Smooth motion, precisely
 
@@ -122,6 +131,42 @@ channel, add it to `DEBUG_CHANNELS` and this table.
 Canvas 2D command recording. It does not include GPU raster or compositing,
 so it is a regression signal, not an FPS number. Use `npm run bench` for
 real-time frame pacing.
+
+### Chat and music on screen
+
+OBS always draws chat (a Mix It Up overlay in the left column) and the music
+info box (waveform and Tuna's now-playing line, top-left) over our scenes,
+and Starting and BRB add a full-width waveform and a song line at the bottom.
+`config.design.keepOut` holds their boxes for the main and vertical canvases,
+read from OBS's scene file. Every keyframe draws them as dashed mock layers
+on top (`--no-keepout` hides them), so a shot looks like the stream, and
+KEEP-1 checks that held text stays off every layer marked to keep clear. The
+mocks draw on top of everything, which isn't always OBS's order: the shade
+stacks above chat. Two calls from Rotom (#79): the shade, a tier 3 takeover,
+may cover chat, so its scenarios leave KEEP-1 out; the goal bar on the music
+waveform is accepted while the waveform draws under its plate, so followers
+keeps KEEP-1 as a warning. When a source in OBS's Alerts or Information Box moves,
+update `keepOut` (AJ, 2026-10-28: "you're not testing the layout with chat
+present", "...with music playing"). No scene reacts to audio, so music only
+matters as a layer. To prove a change keeps keyframes byte-identical, run both sides
+with `--no-keepout`: main's older shots carry no mock. The vertical canvas
+has no layer to keep clear today, so KEEP-1 passes there by default; a
+vertical chat source must go into `keepOut.vertical` (Code review, #79).
+
+
+### Everything visible
+
+`tools/motion/composition.js` lists every element that can be on the 16:9
+canvas (Rotom's inventory, 2026-10-28: goal bar, chat, music, toast, banners,
+MIU images, gags, camera presets), with its box after Defiant's collision
+fixes and `today`'s box before them, plus the pairs that can be up together.
+`npm run motion:compose` renders each pair into
+`tools/motion-results-compose/`: our scenes live at their hold, everything
+else as a labelled box, and `report.md` with each overlap and placement
+break. Design review gated pairs 1, 2, 5 and 6 as rule fixes, so
+`tests/tools/composition.test.js` holds them to `KNOWN_OVERLAPS`: a new
+overlap fails CI, and so does a known one that stops happening. When OBS or
+MIU moves a source, update its box there.
 
 ## Building motion that passes
 
@@ -169,7 +214,12 @@ fits; all of them enforce SAFE-1, TYPE-1 and TIME-1, so the text can't go
 back to moving during its hold. `stinger-vertical` runs the stinger at 1080x1920, the size OBS's
 Aitum Vertical canvas renders it at: a slanted bar's 15° lean reaches
 further on a tall canvas, which once left a corner uncovered at the cut
-and let bars pop in on screen (PR #66). `background` is checked for smooth motion and CPU. `epcot` has no
+and let bars pop in on screen (PR #66). `notifications-vertical`,
+`notifications-vertical-name` (a follow line with a username) and
+`notifications-vertical-long` check the portrait toast against the phone
+rules V-SAFE-1 and V-TYPE-1 (DESIGN.md, Vertical canvas); the name and long
+lines' 45px and scroll are B1's named exception, so V-TYPE-1 and TIME-1 only warn
+there. `background` is checked for smooth motion and CPU. `epcot` has no
 motion probe; it is a CPU regression guard (p95 at most 20ms, measured
 around 10ms).
 
@@ -181,6 +231,11 @@ on change: give its CPU check enough drawn frames, never a higher budget.
 `stinger-cpu` does the same for the stinger: six 1200ms transitions 1.5s
 apart (about 440 drawn frames), since one transition draws about 74 and
 its p95 failed once on a cold-JIT frame (PR #63).
+
+`title` and `title-long` check that the title card lands inside title-safe,
+clear of the player controls, and then holds still (SAFE-1, SAFE-3, TYPE-1,
+TIME-1). It draws about 60 frames once and none after, so it has no CPU
+check: the debug `idle` event proves it stops.
 
 ### Recording the epcot loop
 

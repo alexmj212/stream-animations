@@ -229,6 +229,20 @@ export const config = {
       }
     },
 
+    // Portrait (the Aitum Vertical 1080x1920 source; AJ's pick A2,
+    // 2026-10-28, issue #81): no panel or bars, which covered AJ's face.
+    // Just the ink nameplate, its bottom edge on the camera/game seam and
+    // its text ending at the phone-safe right edge (DESIGN.md V-LAYOUT-1)
+    vertical: {
+      refWidth: 1080,             // Numbers below are px on the 1080-wide canvas
+      seamY: 700,                 // = design.vertical seam: the plate's bottom edge; a 2nd line grows it upward
+      textRightPx: 940,           // = 1080 - design.vertical.safe.rightPx
+      maxWidthPx: 880,            // x 60-940, the phone-safe width
+      headlinePx: 64,             // = design.vertical.type.sizes.headline: the @name
+      labelPx: 48,                // = design.vertical.type.sizes.label: "CHECK OUT", the phone floor
+      minScale: 0.75              // A long name shrinks to 48px, then TYPE-6
+    },
+
     // Where Mix It Up draws images while the sidebar plays. The Mixitup
     // browser source sits above Sidescreen Alert in the OBS Alerts scene, so
     // these always cover the sidebar. Read from AJ's MIU commands on Defiant
@@ -569,12 +583,72 @@ export const config = {
       sizePx: 42,                 // Matches the follower bar (AJ, 2026-10-28, #40)
       strokePx: 4,                // Black outline (OBS Stroke filter)
       padding: 24,                // Room kept clear at each end of the body
-      // Long text: shrink down to minScale, then grow the bar (geometry.
-      // maxEndX), then, only if it still doesn't fit, scroll it during the
+      // Long text: grow the bar (geometry.maxEndX), then shrink down to
+      // minScale, then, only if it still doesn't fit, scroll it during the
       // hold: show the start, glide to the end, show the end (design review,
-      // 2026-10-28: a static line reads best, scroll is the last resort)
+      // 2026-10-28: a static line reads best, scroll is the last resort).
+      // Growing first keeps a real 7-word follow line at 42px, above
+      // TYPE-1's 40px floor; shrinking first took it to 37.8px (QA, #75)
+      // Portrait (vertical.geometry) has maxEndX equal to endX, so there the
+      // bar can't grow and long text goes straight to shrinking (B1, #72)
       minScale: 0.55,             // 23px: the 21-word harness line still fits whole in Jost; 0.6 scrolls
       scrollPauseMs: 800          // Still at each end of a scroll
+    },
+
+    // Portrait layout for the Aitum Vertical canvas (1080x1920), watched on
+    // phones: picked when the page is taller than wide, or with
+    // ?layout=vertical. AJ's pick B1 (2026-10-28, DESIGN.md V-TYPE-1 and
+    // V-LAYOUT-1): one line at 56px on the camera/game seam
+    // (config.design.vertical.seamY), across the phone-safe width (x 60-940),
+    // with no goal bar to grow from. A long line shrinks to 45px and then
+    // scrolls; the bar never grows past the safe box. Unlisted keys come
+    // from geometry and text above
+    vertical: {
+      refWidth: 1080,             // Geometry below is px on the 1080-wide canvas
+      geometry: {
+        top: 660,                 // seamY 700 minus half the height
+        height: 80,               // 56px Jost with its stroke and room above and below
+        startX: 60,               // Phone-safe left edge (vertical.safe.leftPx)
+        endX: 940,                // Phone-safe right edge (1080 - safe.rightPx)
+        maxEndX: 940              // No growing: the right 140px is the apps' button column
+      },
+      text: {
+        sizePx: 56,               // V-TYPE-1 floor is 48; 56 reads at 20pt on a phone
+        minScale: 0.8             // 45px, then scroll (B1's named exception)
+      }
+    }
+  },
+
+  // Title card for the WELCOME, BRB and ENDING scenes (design audit #39).
+  // AJ (2026-10-28): "I like the title card changes but I don't like the
+  // subtext above", so the card is the title alone on its plate. It stays up
+  // for the whole scene: after the entrance it stops drawing
+  title: {
+    defaultText: 'WELCOME',       // ?text=; always set in caps (DESIGN.md TYPE-2)
+    // The slanted ink plate, bottom-left. Its text sits inside title-safe
+    // (x 96+) and clear of Twitch's player controls (y 994+, SAFE-3)
+    plate: {
+      x: 72,                      // Bottom-left corner; the slant carries the top edge right
+      top: 850,
+      height: 124,
+      padX: 48,                   // Room each side of the line
+      slantDeg: 15,               // The house slant (GEO-1)
+      alpha: 0.82                 // Ink plate over the moving backdrop (TYPE-3: a plate needs no stroke)
+    },
+    text: {
+      font: '"Jost", Arial, sans-serif',
+      weight: 700,
+      sizePx: 96,                 // design.type.sizes.hero
+      minPx: 72,                  // design.type.sizes.display: a long title shrinks to here, then takes two lines
+      floorPx: 56,                // ...which shrink again only down to design.type.sizes.headline
+      lineHeight: 1.1,            // Two lines: baseline to baseline, in ems
+      maxRight: 1824              // Title-safe's right edge: the line never runs past it
+    },
+    timing: {
+      enterMs: 500,               // design.motion.durationMs.enter, on ease.enter
+      textDelayMs: 150,           // design.motion.settleMs: the plate lands, then the words
+      textMs: 350,
+      textSlidePx: 24
     }
   },
 
@@ -1005,6 +1079,36 @@ export const config = {
         minPx: 48
       },
       seamY: 700                  // Camera above, game below (Chatting/Game (vrt)); a toast sits on it
+    },
+
+    // Keep-out layers: what OBS always draws over our scenes, in px on each
+    // canvas (AJ, 2026-10-28: "you're not testing the layout with chat
+    // present", "...with music playing"). Read from Archive_1.json saved on
+    // Defiant 2026-10-28 16:38 by the Align vertical layout thread
+    // (/mnt/project-files/qa/chat-music/). The motion harness fails text on a
+    // keepClear layer (KEEP-1) and draws every layer as a mock in keyframes.
+    // Update when a source in OBS's Alerts / Information Box moves.
+    keepOut: {
+      main: [
+        // MIU chat overlay (800x700 page at 0.586), every scene nesting Alerts.
+        // The Sidebar-group reading is up to 14px smaller; this is the larger
+        { label: 'chat', kind: 'chat', x: 18, y: 127, width: 470, height: 410,
+          mock: ['aspiritualbumpit: that raid was huge', 'goober_42: GOOBERS GOOBERS', 'nightowl: hi chat!', 'exobot: !commands', 'pixelpup: lets goooo'] },
+        // Information Box > Music: phandasm waveform from BG Music (moves
+        // only while music plays) with the Tuna now-playing line under it
+        // (Jost 72 scaled to ~31px, scrolls at 50px/s past 1080 wide)
+        { label: 'music waveform', kind: 'music', x: 19, y: 0, width: 462, height: 124, mock: [] },
+        { label: 'now playing', kind: 'music', x: 19, y: 89, width: 462, height: 41, mock: ['Artist Name - A Fairly Long Track Title'] },
+        // Starting and BRB only: a full-width waveform (text may cross a
+        // moving waveform) and the song line bottom-left, off the bottom edge
+        { label: 'Starting/BRB waveform', kind: 'music', x: 0, y: 540, width: 1920, height: 540, keepClear: false, mock: [] },
+        { label: 'Starting/BRB song', kind: 'music', x: 0, y: 1037, width: 651, height: 43, mock: ['Artist Name - A Fairly Long Track Title'] }
+      ],
+      // No chat and no now-playing text on the vertical canvas; the waveform
+      // on Starting/BRB/Ending (vrt) sits under the phone captions (V-SAFE-1)
+      vertical: [
+        { label: 'waveform', kind: 'music', x: 0, y: 1616, width: 1080, height: 304, keepClear: false, mock: [] }
+      ]
     },
 
     // Motion tokens. Enter decelerates, exit accelerates, a move across the

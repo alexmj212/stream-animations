@@ -18,7 +18,7 @@ export const GRID_COLS = 16;
 export const GRID_ROWS = 9;
 
 /** Every rule this module checks, in report order. */
-export const DESIGN_RULES = ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'CUT-2', 'FLASH-1', 'FLASH-2'];
+export const DESIGN_RULES = ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'CUT-2', 'FLASH-1', 'FLASH-2'];
 
 /** On-screen text boxes per frame: [{t, id, x, y, box, fontPx, words}]. */
 export function textSamples(frames) {
@@ -66,6 +66,81 @@ export function checkPlayerChrome(texts, design, height) {
             : bad.length === 0
                 ? `every text sample ends above y ${Math.round(top)}`
                 : `${bad.length}/${texts.length} reach below y ${Math.round(top)}, e.g. ${fmtBox(bad[0])}`
+    };
+}
+
+/**
+ * The stream's always-on layers (chat, the music display) for the canvas a
+ * capture is on, in capture px. Portrait captures use design.keepOut.vertical,
+ * everything else design.keepOut.main; both are px on their canvas.
+ */
+export function keepOutRects(design, width, height) {
+    const portrait = height > width;
+    const canvas = portrait ? design.vertical.canvas : design.canvas;
+    const kx = width / canvas.width;
+    const ky = height / canvas.height;
+    return ((portrait ? design.keepOut?.vertical : design.keepOut?.main) || []).map(z => ({
+        ...z, x: z.x * kx, y: z.y * ky, width: z.width * kx, height: z.height * ky
+    }));
+}
+
+const overlaps = (b, r) => b.x < r.x + r.width - 0.5 && b.x + b.width > r.x + 0.5 &&
+    b.y < r.y + r.height - 0.5 && b.y + b.height > r.y + 0.5;
+
+/**
+ * KEEP-1: no text box lands on chat or the music display (AJ, 2026-10-28:
+ * "you're not testing the layout with chat present", "...with music playing").
+ */
+export function checkKeepOut(texts, design, width, height) {
+    // A layer that only moves (the big Starting/BRB waveform) is mocked in
+    // the keyframes but text may cross it
+    const all = keepOutRects(design, width, height);
+    const zones = all.filter(z => z.keepClear !== false);
+    const hits = [];
+    for (const s of texts) {
+        const z = zones.find(r => overlaps(s.box, r));
+        if (z) hits.push({ s, z });
+    }
+    return {
+        rule: 'KEEP-1',
+        name: 'KEEP-1 Text clear of chat and the music display',
+        pass: texts.length > 0 && all.length > 0 && hits.length === 0,
+        detail: all.length === 0
+            ? 'no keep-out layers for this canvas (config.design.keepOut)'
+            : texts.length === 0
+                ? 'no text box reported'
+                : hits.length === 0
+                    ? `all ${texts.length} text samples clear of ${zones.map(z => z.label).join(', ') || 'every layer (none to keep clear here)'}`
+                    : `${hits.length}/${texts.length} on ${[...new Set(hits.map(h => h.z.label))].join(', ')}, e.g. ${fmtBox(hits[0].s)}`
+    };
+}
+
+/**
+ * V-SAFE-1: on the vertical canvas, every text box inside the phone-safe
+ * box (clear of the apps' top bar, captions and button column).
+ * Insets are px on design.vertical.canvas, scaled to the capture.
+ */
+export function checkPhoneSafe(texts, design, width, height) {
+    const v = design.vertical;
+    const kx = width / v.canvas.width;
+    const ky = height / v.canvas.height;
+    const r = {
+        x: v.safe.leftPx * kx,
+        y: v.safe.topPx * ky,
+        width: width - (v.safe.leftPx + v.safe.rightPx) * kx,
+        height: height - (v.safe.topPx + v.safe.bottomPx) * ky
+    };
+    const bad = texts.filter(s => !inside(s.box, r));
+    const span = `x ${Math.round(r.x)}-${Math.round(r.x + r.width)}, y ${Math.round(r.y)}-${Math.round(r.y + r.height)}`;
+    return {
+        rule: 'V-SAFE-1',
+        name: 'V-SAFE-1 Text inside the phone-safe box',
+        pass: texts.length > 0 && bad.length === 0,
+        detail: texts.length === 0
+            ? 'no text box reported'
+            : bad.length === 0
+                ? `all ${texts.length} text samples inside ${span}`
+                : `${bad.length}/${texts.length} outside ${span}, e.g. ${fmtBox(bad[0])}`
     };
 }
 
@@ -250,7 +325,14 @@ export function evaluateDesignRules(opts, frames, design, width, height, frameMs
     const all = [];
     if (want.has('SAFE-1')) all.push(checkTitleSafe(held, design, width, height));
     if (want.has('SAFE-3')) all.push(checkPlayerChrome(held, design, height));
+    if (want.has('KEEP-1')) all.push(checkKeepOut(held, design, width, height));
     if (want.has('TYPE-1')) all.push(checkTypeFloor(held, opts.minPx ?? design.type.minPx));
+    if (want.has('V-SAFE-1')) all.push(checkPhoneSafe(held, design, width, height));
+    if (want.has('V-TYPE-1')) {
+        // The phone floor, in px on the 1080-wide vertical canvas
+        const r = checkTypeFloor(held, design.vertical.type.minPx * width / design.vertical.canvas.width);
+        all.push({ ...r, rule: 'V-TYPE-1', name: r.name.replace('TYPE-1', 'V-TYPE-1') });
+    }
     if (want.has('TIME-1')) all.push(checkReadingTime(texts, frameMs));
     if (want.has('CUT-2')) all.push(checkStaticCover(frames, design.motion.staticCoverMaxMs));
     if (want.has('FLASH-1') || want.has('FLASH-2')) {

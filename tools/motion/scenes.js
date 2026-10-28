@@ -117,7 +117,7 @@ export const SCENARIOS = [
     textBox: { selector: '#sidebarText' },
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 4650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 4650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -147,7 +147,7 @@ export const SCENARIOS = [
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     textBox: { selector: '#sidebarText' },
     checks: {
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 4000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -172,7 +172,7 @@ export const SCENARIOS = [
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     textBox: { selector: '#sidebarText' },
     checks: {
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 4000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -181,6 +181,52 @@ export const SCENARIOS = [
       probeMax: { field: 'miuCover', max: 0, label: 'Text clear of the Mix It Up images' },
       noVelocitySteps: true,
       workP95Ms: 4
+    }
+  },
+  {
+    // Portrait shoutout (AJ's pick A2, issue #81): the ink nameplate alone,
+    // its bottom on the camera/game seam (y 700) and its words inside the
+    // phone-safe box, "CHECK OUT" at 48px over the name at 64px
+    name: 'sidebar-vertical',
+    scene: 'sidebar',
+    url: `/src/sidebar/index.html?color=b00bee&text=Check+out+@testchannel&duration=3000`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 5000,
+    keyframes: [0.05, 0.125, 0.5, 0.92],
+    keyframeSpanMs: 4000,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'out' }, { at: 4000, label: 'end' }],
+    textBox: { selector: '#sidebarText' },
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      totalDurationMs: 4000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      textOverPanel: { fromMs: 650, toMs: 3600, label: 'the nameplate while holding', minAlpha: 215 },
+      noVelocitySteps: true
+      // No CPU check: the 16:9 sidebar scenarios hold the budget
+    }
+  },
+  {
+    // A real, long username in portrait: the name shrinks toward 48px to
+    // stay inside x 60-940, then TYPE-6
+    name: 'sidebar-vertical-name',
+    scene: 'sidebar',
+    url: `/src/sidebar/index.html?color=b00bee&text=Check+out+@thegigglepussgang&duration=3000`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 5000,
+    keyframes: [0.125, 0.5],
+    keyframeSpanMs: 4000,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'out' }, { at: 4000, label: 'end' }],
+    textBox: { selector: '#sidebarText' },
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      totalDurationMs: 4000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      textOverPanel: { fromMs: 650, toMs: 3600, label: 'the nameplate while holding', minAlpha: 215 },
+      noVelocitySteps: true
     }
   },
   {
@@ -195,6 +241,8 @@ export const SCENARIOS = [
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4000, label: 'open' }, { at: 4500, label: 'end' }],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
       design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4500,
       debugEvents: { start: 1, end: 1 },
@@ -215,6 +263,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 4500,
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4500, label: 'end' }],
     checks: {
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
       design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4500,
       debugEvents: { start: 1, end: 1 },
@@ -237,6 +287,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 4700,
     markers: [{ at: 500, label: 'hold' }, { at: 3850, label: 'exit' }, { at: 4700, label: 'end' }],
     checks: {
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
       design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3850], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4700,
       debugEvents: { start: 1, end: 1 },
@@ -244,6 +296,52 @@ export const SCENARIOS = [
       probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
       noVelocitySteps: true,
       workP95Ms: 4
+    }
+  },
+  {
+    // Portrait raid with a long name, as OBS's 1080x1920 "Fullscreen Source
+    // (vrt)" shows it: the text fits the phone-safe box (x 60-940), off-centre
+    // because the apps' button column takes the right 140px (design review,
+    // 2026-10-28: "@TESTRAIDER RAID!!" ran to x 1010)
+    name: 'shade-vertical-raid',
+    scene: 'shade',
+    url: `/src/shade/index.html?color=b00bee&duration=3000&text=@aspiritualbumpit+RAID!!`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 5500,
+    keyframes: [0.1, 0.5, 0.85],
+    keyframeSpanMs: 4500,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4500, label: 'end' }],
+    // No KEEP-1: a tier 3 takeover may cover chat for its hold, as on 16:9
+    checks: {
+      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 4500,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
+      noVelocitySteps: true
+      // No CPU check: the 16:9 shade scenarios hold the budget
+    }
+  },
+  {
+    // A gift line too long for one portrait line: shrinks, then wraps to
+    // two lines inside the phone-safe box, never under the 48px phone floor
+    name: 'shade-vertical-long',
+    scene: 'shade',
+    url: `/src/shade/index.html?color=b00bee&duration=3000&text=@aspiritualbumpit+gifted+50+tier+1+subs+to+the+goobers!!`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 5500,
+    keyframes: [0.1, 0.5],
+    keyframeSpanMs: 4700,
+    markers: [{ at: 500, label: 'hold' }, { at: 4700, label: 'end' }],
+    // No KEEP-1: a tier 3 takeover may cover chat for its hold, as on 16:9
+    checks: {
+      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
+      noVelocitySteps: true
     }
   },
   {
@@ -260,7 +358,7 @@ export const SCENARIOS = [
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -273,6 +371,34 @@ export const SCENARIOS = [
       ],
       noVelocitySteps: true,
       workP95Ms: 4
+    }
+  },
+  {
+    name: 'notifications-name',
+    scene: 'notifications',
+    // A follow as it really arrives, with a username: the common case, which
+    // "...friend" never exercised (Design review on #72, 2026-10-28)
+    url: `/src/notifications/index.html?color=${COLOR}&text=Thanks+for+the+follow,+@aspiritualbumpit!+Welcome+in`,
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.26, 0.5],
+    keyframeSpanMs: 5000,
+    markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
+    region: { x0: 0.31, x1: 0.78, y0: 0.03, y1: 0.065 },
+    checks: {
+      // No SAFE-1: AJ's top-margin exemption (#40), as on notifications.
+      // TYPE-1 enforced: before #76 this follow shrank to 37.8px; the bar now
+      // grows first and it draws at 42px
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      regionCover: { fromMs: 1000, toMs: 4000, label: 'the toast body while out' },
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Text fits the body' },
+        { field: 'bare', max: 0, label: 'Text only over the body' }
+      ],
+      noVelocitySteps: true
     }
   },
   {
@@ -291,7 +417,7 @@ export const SCENARIOS = [
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['SAFE-3', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['SAFE-3', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 7000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -320,7 +446,7 @@ export const SCENARIOS = [
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 10000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 10000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 11400,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -331,6 +457,88 @@ export const SCENARIOS = [
       ],
       noVelocitySteps: true,
       workP95Ms: 4
+    }
+  },
+  {
+    // The portrait toast on the Aitum Vertical canvas (AJ's pick B1,
+    // DESIGN.md V-TYPE-1, V-LAYOUT-1): one line at 56px on the camera/game
+    // seam, inside the phone-safe box
+    name: 'notifications-vertical',
+    scene: 'notifications',
+    url: `/src/notifications/index.html?color=${COLOR}&text=Thanks+for+the+follow+friend`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.1, 0.22, 0.5, 0.9],
+    keyframeSpanMs: 5000,
+    markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
+    // The body while the toast is out, inside its slanted ends
+    region: { x0: 0.12, x1: 0.78, y0: 0.35, y1: 0.375 },
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      regionCover: { fromMs: 1000, toMs: 4000, label: 'the toast body while out' },
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Text fits the body' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
+      noVelocitySteps: true
+      // No CPU check: the 16:9 notifications scenarios hold the budget
+    }
+  },
+  {
+    // The common case: a follow line with a username already shrinks to
+    // 45px and scrolls in portrait. AJ saw that in the B1 mock and picked
+    // it, so V-TYPE-1 and TIME-1 only warn (Design review, PR #72)
+    name: 'notifications-vertical-name',
+    scene: 'notifications',
+    url: `/src/notifications/index.html?color=${COLOR}&text=Thanks+for+the+follow%2C+%40aspiritualbumpit!+Welcome+in`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.2, 0.4, 0.6, 0.8],
+    keyframeSpanMs: 5000,
+    markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['V-SAFE-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Whole line shown' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
+      noVelocitySteps: true
+    }
+  },
+  {
+    // A long line in portrait: shrinks to 45px, then scrolls during the
+    // hold. That's B1's named exception to V-TYPE-1 and TIME-1 (DESIGN.md),
+    // so those two only warn here (Rotom, 2026-10-28)
+    name: 'notifications-vertical-long',
+    scene: 'notifications',
+    url: `/src/notifications/index.html?color=${COLOR}&text=Pants+are+officially+off+for+the+rest+of+the+stream+thanks+to+an+incredibly+generous+gift+from+the+goobers+in+chat`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 8000,
+    keyframes: [0.1, 0.3, 0.5, 0.7, 0.9],
+    keyframeSpanMs: 7000,
+    markers: [{ at: 7000, label: 'end' }],
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['V-SAFE-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      totalDurationMs: 7000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Whole line shown' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
+      noVelocitySteps: true
     }
   },
   {
@@ -349,7 +557,10 @@ export const SCENARIOS = [
       // rule only measured this 2s capture (Design review, 2026-10-28)
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      // KEEP-1 warns by design: the goal bar sits on the music info box's
+      // waveform (x 19-481, y 0-124). Accepted while the waveform draws under
+      // the bar's solid plate (Rotom on #79, 2026-10-28; AJ's place, #62)
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       // The follow lands before the first frame runs, so the first paint
       // already animates: one count, and one idle once it has landed
       debugEvents: { start: 1, count: 1, idle: 1 },
@@ -376,6 +587,39 @@ export const SCENARIOS = [
       debugEvents: { start: 1, count: 5, idle: 5 },
       noVelocitySteps: true,
       workP95Ms: 4
+    }
+  },
+  {
+    // Scene title card (WELCOME, BRB, ENDING): slides in once at load and
+    // holds still for the whole scene, drawing nothing once it lands
+    // (design audit #39; AJ, 2026-10-28: no subtext)
+    name: 'title',
+    url: `/src/title/index.html?text=WELCOME`,
+    start: 'load',
+    captureMs: 4500,
+    keyframes: [0.03, 0.08, 0.13, 0.2, 0.5],
+    keyframeSpanMs: 4500,
+    markers: [{ at: 500, label: 'plate in' }, { at: 1000, label: 'still' }],
+    checks: {
+      // The bible's rules (docs/DESIGN.md); a new scene meets all of them
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4500], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      debugEvents: { start: 1, idle: 1 },
+      noVelocitySteps: true
+    }
+  },
+  {
+    // A title too long for hero shrinks toward display, still inside title-safe
+    name: 'title-long',
+    scene: 'title',
+    url: `/src/title/index.html?text=Thanks+for+hanging+out+tonight+everybody`,
+    start: 'load',
+    captureMs: 4500,
+    keyframes: [0.2, 0.5],
+    keyframeSpanMs: 4500,
+    checks: {
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4500], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      debugEvents: { start: 1, idle: 1 },
+      noVelocitySteps: true
     }
   },
   {

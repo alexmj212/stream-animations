@@ -39,6 +39,7 @@
       import { config } from "../config/config.js";
       import { registerProbe, createRandom, seedFromURL } from "../shared/motion.js";
       import { createDebug } from "../shared/debug.js";
+      import { playOnSeam } from "../shared/seamQueue.js";
       const debug = createDebug('notifications');
 
       // ?text= is the line Mix It Up used to write to notification.txt.
@@ -81,10 +82,14 @@
         }
       });
 
+      // ?layout=vertical|wide; by default a page taller than wide (the
+      // 1080x1920 Aitum Vertical source) gets the portrait toast
+      const layout = urlParams.get("layout");
       // ?style=creative|clean; ?seed=N pins the streak layout
       const style = urlParams.get("style") || config.notifications.style;
       const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
-      const toast = new NotificationBar(ctx, canvas, { text, durationMs, palette: palette.stops, colorLayout, style, random: createRandom(seed) });
+      const toast = new NotificationBar(ctx, canvas, { text, durationMs, palette: palette.stops, colorLayout, style, layout, random: createRandom(seed) });
+      debug.mark('layout', { layout: toast.layout.name });
       const markFit = (font) => debug.mark('textFit', { font, scale: +toast.textScale.toFixed(3), room: Math.round(toast.textRoom), extraPx: toast.extraPx, scrollPx: toast.scrollPx });
       markFit('fallback');
       // The line first renders in a fallback font; redo it in Jost once
@@ -110,6 +115,7 @@
           requestAnimationFrame(animate);
         } else {
           debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
+          finished();
         }
       }
 
@@ -118,7 +124,16 @@
         if (!document.hidden) location.reload();
       });
 
-      requestAnimationFrame(animate);
+      // In portrait the toast shares the seam with the sidebar, so it waits
+      // its turn behind one already playing (ALERT-1, issue #81)
+      let finished = () => {};
+      playOnSeam(toast.layout.name === 'vertical', () => new Promise(resolve => {
+        finished = resolve;
+        requestAnimationFrame(animate);
+      }), {
+        maxHoldMs: Math.max(durationMs, 12000) + 1000, // A scrolled long line runs about 11s
+        onStart: (waitedMs) => debug.mark('seam', { waitedMs: Math.round(waitedMs) })
+      });
     </script>
   </body>
 </html>

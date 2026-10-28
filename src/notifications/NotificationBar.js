@@ -17,8 +17,31 @@ import { stratified } from '../shared/motion.js';
 import { fitText } from '../shared/layout.js';
 import { config } from '../config/config.js';
 
-/** Reference canvas the geometry in config.notifications is measured on. */
-const REF_WIDTH = 1920;
+/**
+ * Layout for the canvas: the 16:9 toast off the goal bar, or the portrait
+ * one on the vertical canvas's camera/game seam (config.notifications.
+ * vertical, AJ's pick B1). DESIGN.md V-REUSE-1: one page, picked from the
+ * viewport, with ?layout= to force either.
+ * @param {number} width - Canvas width
+ * @param {number} height - Canvas height
+ * @param {string|null} [requested] - ?layout= value: 'vertical' | 'wide'
+ * @returns {{name: 'wide'|'vertical', refWidth: number, geometry: Object, text: Object}}
+ *   geometry and text in px on a refWidth-wide canvas
+ */
+export function notificationLayout(width, height, requested = null) {
+    const n = config.notifications;
+    const vertical = requested === 'vertical' || (requested !== 'wide' && height > width);
+    if (!vertical) return { name: 'wide', refWidth: 1920, geometry: n.geometry, text: n.text };
+    return {
+        name: 'vertical',
+        refWidth: n.vertical.refWidth,
+        geometry: { ...n.geometry, ...n.vertical.geometry },
+        text: { ...n.text, ...n.vertical.text }
+    };
+}
+
+/** The 16:9 layout, the default for the geometry helpers. */
+const WIDE = notificationLayout(1920, 1080);
 
 /**
  * Pick the color layout from the URL: ?colorlayout= wins, ?scheme=mono (or
@@ -36,14 +59,15 @@ export function resolveColorLayout(requested, stops) {
 /**
  * Screen geometry of the toast for a canvas width (px).
  * @param {number} width - Canvas width
- * @param {number} [extraPx=0] - Grow the bar this much past endX (px at 1920 wide)
+ * @param {number} [extraPx=0] - Grow the bar this much past endX (layout px)
+ * @param {Object} [layout] - notificationLayout(); the 16:9 one by default
  * @returns {{top: number, height: number, mid: number, startX: number, leadLength: number,
  *   bodyLength: number, tipWidth: number, lean: number}} lean: how far the top edge sits right
  *   of the bottom edge's midpoint, each way (px)
  */
-export function notificationGeometry(width, extraPx = 0) {
-    const g = config.notifications.geometry;
-    const k = width / REF_WIDTH;
+export function notificationGeometry(width, extraPx = 0, layout = WIDE) {
+    const g = layout.geometry;
+    const k = width / layout.refWidth;
     const height = g.height * k;
     const top = g.top * k;
     const leadLength = (g.endX - g.startX + extraPx) * k;
@@ -70,6 +94,7 @@ export class NotificationBar extends AnimatedBar {
      * @param {string} [options.colorLayout] - 'along' | 'screen' | 'classic'
      * @param {string} [options.style] - 'creative' | 'clean'
      * @param {Function} [options.random] - seeded RNG for the streaks
+     * @param {string|null} [options.layout] - ?layout=: 'vertical' | 'wide'; default from the canvas shape
      */
     constructor(ctx, canvas, options) {
         super(ctx, canvas, 'horizontal', options);
@@ -78,11 +103,14 @@ export class NotificationBar extends AnimatedBar {
         this.palette = options.palette ?? null;
         this.colorLayout = options.colorLayout ?? (this.palette ? config.notifications.colorLayout : 'classic');
         this.creative = (options.style ?? config.notifications.style) === 'creative';
+        this.layout = notificationLayout(canvas.width, canvas.height, options.layout);
+        /** Canvas px per layout px */
+        this.k = canvas.width / this.layout.refWidth;
         const flair = config.notifications.flair;
         this.timeline = planNotificationTimeline(this.durationMs, config.notifications.timing, this.creative ? flair.wipe.ms : 0);
         this.extraPx = this.extraLength();
-        this.geo = notificationGeometry(canvas.width, this.extraPx);
-        this.streaks = this.creative ? planStreaks(this.timeline, this.geo, canvas.width / REF_WIDTH, this.random) : [];
+        this.geo = notificationGeometry(canvas.width, this.extraPx, this.layout);
+        this.streaks = this.creative ? planStreaks(this.timeline, this.geo, this.k, this.random) : [];
         this.wipeX = null;
         this.leadExtent = 0;
         this.bodyExtent = 0;
@@ -94,16 +122,18 @@ export class NotificationBar extends AnimatedBar {
     }
 
     /**
-     * Extra bar length for this text: a line that wouldn't fit at minScale
-     * grows the bar toward geometry.maxEndX instead of losing words.
-     * @returns {number} px at 1920 wide
+     * Extra bar length for this text: a line that wouldn't fit at full size
+     * grows the bar toward geometry.maxEndX first, and only shrinks (in
+     * buildText) once the bar is at its longest. Short real lines stay at
+     * sizePx, above TYPE-1's floor (QA, #75).
+     * @returns {number} layout px
      */
     extraLength() {
-        const t = config.notifications.text;
-        const g = config.notifications.geometry;
-        const base = notificationGeometry(REF_WIDTH);
+        const t = this.layout.text;
+        const g = this.layout.geometry;
+        const base = notificationGeometry(this.layout.refWidth, 0, this.layout);
         const measure = document.createElement('canvas').getContext('2d');
-        measure.font = `${t.style} ${t.weight} ${t.sizePx * t.minScale}px ${t.font}`;
+        measure.font = `${t.style} ${t.weight} ${t.sizePx}px ${t.font}`;
         const room = base.bodyLength - 2 * (t.padding + base.lean);
         // 4px slack: glyph widths don't scale exactly with the font size
         return extraLengthFor(measure.measureText(this.text).width + 4, room, g.maxEndX - g.endX);
@@ -156,8 +186,8 @@ export class NotificationBar extends AnimatedBar {
      * Call again once the web font has loaded.
      */
     buildText() {
-        const t = config.notifications.text;
-        const k = this.canvas.width / REF_WIDTH;
+        const t = this.layout.text;
+        const k = this.k;
         const room = this.geo.bodyLength - 2 * (t.padding * k + this.geo.lean);
         const measure = document.createElement('canvas').getContext('2d');
         const fontAt = (px) => `${t.style} ${t.weight} ${px}px ${t.font}`;
@@ -200,7 +230,7 @@ export class NotificationBar extends AnimatedBar {
         // Needs textX and textRoomLeft from this build (Code review, PR #32:
         // before them, the first build fitted the streaks to NaN)
         this.textInk = { right: Math.min(this.textX + pad + m.width, this.textRoomLeft + room) + stroke, top: this.textY, bottom: this.textY + cache.height };
-        if (this.streaks) fitStreaksToText(this.streaks, this.textInk.right, this.canvas.width / REF_WIDTH);
+        if (this.streaks) fitStreaksToText(this.streaks, this.textInk.right, this.k);
     }
 
     /** @param {number} t - Seconds since the toast started */
@@ -209,9 +239,9 @@ export class NotificationBar extends AnimatedBar {
         this.elapsedTime = t;
         this.leadExtent = extentAt(lead, this.geo.leadLength, t);
         this.bodyExtent = extentAt(body, this.geo.bodyLength, t);
-        const s = textStateAt(text, config.notifications.timing.textSlidePx * this.canvas.width / REF_WIDTH, t);
+        const s = textStateAt(text, config.notifications.timing.textSlidePx * this.k, t);
         this.textAlpha = s.alpha;
-        this.textDx = s.dx - scrollOffsetAt(text, this.scrollPx, config.notifications.text.scrollPauseMs / 1000, t);
+        this.textDx = s.dx - scrollOffsetAt(text, this.scrollPx, this.layout.text.scrollPauseMs / 1000, t);
         this.wipeX = null;
         if (this.creative) {
             // Written in by the band instead of sliding and fading in
@@ -247,7 +277,7 @@ export class NotificationBar extends AnimatedBar {
                 // Drawn text for the design rules (tools/motion/designRules.js),
                 // clipped to the scroll window while a long line scrolls
                 box: this.textBox(),
-                fontPx: config.notifications.text.sizePx * this.canvas.width / REF_WIDTH * this.textScale,
+                fontPx: this.layout.text.sizePx * this.k * this.textScale,
                 words: this.text.split(/\s+/).filter(Boolean).length
             },
             ...(this.wipeX !== null ? [{ id: 'wipe', x: this.wipeX, y: mid, phase: this.phase, onscreen: true }] : []),
@@ -268,7 +298,7 @@ export class NotificationBar extends AnimatedBar {
      * @returns {[number, number]}
      */
     scrollClip() {
-        const slack = config.notifications.text.padding * this.canvas.width / REF_WIDTH / 2 + this.geo.lean;
+        const slack = this.layout.text.padding * this.k / 2 + this.geo.lean;
         return [this.textRoomLeft - slack, this.textRoomLeft + this.textRoom + slack];
     }
 
@@ -342,7 +372,7 @@ export class NotificationBar extends AnimatedBar {
                 ctx.clip();
             }
             if (this.wipeX !== null) {
-                const band = config.notifications.flair.wipe.bandPx * this.canvas.width / REF_WIDTH;
+                const band = config.notifications.flair.wipe.bandPx * this.k;
                 this.slab(-1e4, this.wipeX - band / 2, this.geo.top, this.geo.height);
                 ctx.clip();
             }
@@ -357,7 +387,7 @@ export class NotificationBar extends AnimatedBar {
     drawFlair() {
         const ctx = this.ctx;
         const { startX, top, height } = this.geo;
-        const k = this.canvas.width / REF_WIDTH;
+        const k = this.k;
         const rim = config.notifications.flair.rim.width * k;
         const front = startX + this.leadExtent;
         const lean = this.geo.lean;
@@ -381,7 +411,7 @@ export class NotificationBar extends AnimatedBar {
     /** The light band writing the text in: fades up to a bright leading edge. */
     drawBand() {
         const ctx = this.ctx;
-        const band = config.notifications.flair.wipe.bandPx * this.canvas.width / REF_WIDTH;
+        const band = config.notifications.flair.wipe.bandPx * this.k;
         const x = this.wipeX;
         ctx.save();
         this.quad(0, this.leadExtent);
@@ -403,7 +433,7 @@ export class NotificationBar extends AnimatedBar {
  * retract, all home by the end.
  * @param {Object} timeline - planNotificationTimeline()
  * @param {Object} geo - notificationGeometry()
- * @param {number} k - canvas width / 1920
+ * @param {number} k - canvas px per layout px (notificationLayout)
  * @param {Function} random - seeded RNG
  * @returns {Array<{home: number, rest: number, drift: number, inStart: number, inEnd: number,
  *   outStart: number, outEnd: number, y: number, height: number, length: number, white: boolean, front: number}>}
@@ -450,7 +480,7 @@ function hexToRgba(hex, alpha) {
  * and safe to call again when the text is re-measured (web font loaded).
  * @param {Array} streaks - from planStreaks(); mutated
  * @param {number} textRight - screen x of the text's right ink edge
- * @param {number} k - canvas width / 1920
+ * @param {number} k - canvas px per layout px (notificationLayout)
  */
 export function fitStreaksToText(streaks, textRight, k) {
     const c = config.notifications.flair.streaks;

@@ -35,7 +35,9 @@ Bars slide in from the right, hold over the right 20% with the text on an
 ink nameplate, and slide out. The text holds still for its reading time;
 `duration` is the shortest the whole alert can be, never a cut.
 
-**URL**: `sidebar/index.html?color=#hexvalue&text=Now+Playing&duration=5000` (`seed` as above)
+**URL**: `sidebar/index.html?color=#hexvalue&text=Now+Playing&duration=5000` (`seed` as above, `layout`)
+
+- `layout` - `vertical` (the portrait shoutout for the 1080x1920 vertical canvas: "CHECK OUT" at 48px over the name at 64px on an ink plate whose bottom sits on the camera/game seam, text inside x 60-940, no bars) or `wide` (16:9). Default: `vertical` when the page is taller than wide. In portrait the sidebar and the notifications toast take turns on the seam (a Web Lock between the two pages)
 
 ### Notifications
 A toast bar that grows out of the right end of the follower-goal bar (top
@@ -45,10 +47,11 @@ the bar grows toward the right edge (up to x 1824, title-safe), and only a line 
 even for that scrolls during the hold. The default duration stretches so the
 text holds at 200 ms a word.
 
-**URL**: `notifications/index.html?text=Thanks+for+the+follow` (`duration`, `seed`, `scheme`, `style`, `colorlayout`)
+**URL**: `notifications/index.html?text=Thanks+for+the+follow` (`duration`, `seed`, `scheme`, `style`, `colorlayout`, `layout`)
 
 - `style` - `creative` (default: seeded streaks, lit rims and a light band that writes the text in) or `clean` (the bar alone, text fades in)
 - `colorlayout` - `along` (default: the Illuminations palette runs down the bar, violet to amber), `screen` (the other scenes' top-to-bottom gradient) or `classic` (the old OBS purples; also what `scheme=mono` gives)
+- `layout` - `vertical` (the portrait toast for the 1080x1920 vertical canvas: one 56px line on the camera/game seam) or `wide` (the 16:9 toast off the goal bar). Default: `vertical` when the page is taller than wide
 
 ### Followers
 The always-on follower-goal bar, top left ("946 / 1000 GOOBERS"), replacing
@@ -70,6 +73,13 @@ nothing.
 - `filllayout` - `screen` (default: the other scenes' top-to-bottom gradient, violet up here) or `ramp` (the whole palette over the goal, amber at the goal)
 
 A `followers` window event with `detail: {count}` also sets the count (obs-browser's `emit_event`, and the motion harness).
+
+### Title card
+The title for the Starting, BRB and Ending scenes: one line of 96px Jost on
+a slanted ink plate, bottom-left inside title-safe. It slides in when the
+source loads, then holds still. A long title shrinks, then takes two lines.
+
+**URL**: `title/index.html?text=WELCOME`
 
 ### Background Animation
 Subtle continuously looping background with drifting bars.
@@ -193,6 +203,7 @@ src/
   shade/        - Raid/alert banner
   notifications/ - Toast bar out of the follower-goal bar
   followers/    - Follower-goal bar (count from MIU's Developer API)
+  title/        - Scene title card (WELCOME, BRB, ENDING)
   background/   - Background loop
   epcot/        - Spaceship Earth lattice
 tests/          - Vitest suites, one folder per scene
