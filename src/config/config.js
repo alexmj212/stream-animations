@@ -357,6 +357,105 @@ export const config = {
     }
   },
 
+  // Notifications scene: a toast bar that grows out of the right end of the
+  // follower-goal bar (the MIU "Follow Goal" overlay, top left) with a line
+  // of text. Rebuilt from AJ's OBS "Notifications" scene (color sources,
+  // Move filters and a mask plugin that broke in OBS 33), read from
+  // Archive_1.json on Defiant, 2026-10-28.
+  // Positions are px on the 1920x1080 canvas OBS and MIU are built for and
+  // scale with the page width.
+  notifications: {
+    geometry: {
+      top: 26,                    // Follower bar's top edge (measured on the OBS program)
+      height: 48,                 // Follower bar's height, so the toast reads as its extension
+      startX: 451,                // Follower bar's right edge at mid-height: the toast grows from here
+      endX: 1590,                 // Toast's front at mid-height when out (OBS: 1587-1591)
+      skewAngle: -15,             // Same lean as the follower bar and the house horizontal bars
+      bodyShort: 53,              // The dark body stops this far short of the front (OBS: 1532 vs 1587)
+      tipWidth: 37                // White tip riding the front (OBS "Block 1": 37px)
+    },
+
+    // Brightness multiplier shared by every scene (docs/MOTION.md)
+    brightness: 0.8,
+
+    // ?colorlayout=: how the Illuminations palette (config.palette) lies on
+    // the bar. AJ (2026-10-28): "give it that color makeover we gave the
+    // other scene animations". 'along' runs the palette down the bar's
+    // length, violet at the follower bar to amber at the front; 'screen' is
+    // the other scenes' top-to-bottom gradient, which at the top of the
+    // screen is nearly all violet; 'classic' is the OBS look below.
+    // ?scheme=mono also gives 'classic'.
+    colorLayout: 'along',
+
+    // The OBS colors ('classic'). The gradient runs along the bar, dark at
+    // the follower bar and bright at the front; the body sits over it at
+    // 72% (OBS Color Correction) in every layout, so the gradient glows
+    // through it
+    colors: {
+      gradientFrom: '#360c5a',
+      gradientTo: '#b00bee',
+      body: '#540573',
+      bodyOpacity: 0.72,
+      tip: '#ffffff'
+    },
+
+    timing: {
+      defaultDurationMs: 5000,    // OBS: 1 s out, ~2.6 s hold, 1 s back
+      inProportion: 0.2,          // Extend: 1000 ms at the default
+      outProportion: 0.2,         // Retract: 1000 ms at the default
+      // The body trails the gradient by this share of each phase (OBS: 200
+      // ms of 1000), and retracts first, so the gradient chases it home
+      lagProportion: 0.2,
+      textFadeMs: 250,            // Text fades in once the body is out, and out before it retracts
+      textSlidePx: 24,            // ...sliding in from the left by this much
+      // Reading pace (docs/MOTION.md): 200 ms a word, never under 3 s. A
+      // long line stretches the default duration to give it that hold
+      msPerWord: 200,
+      minHoldMs: 3000
+    },
+
+    // ?style=: 'creative' adds the flair below; 'clean' is the bar alone
+    // with a fading text. AJ (2026-10-28): "get creative"
+    style: 'creative',
+    flair: {
+      // Thin seeded streaks that race out ahead of the bar, settle around
+      // its front and drift, then slide home into the follower bar. Same
+      // parts as every scene: white and colored horizontal bars, -15 deg
+      streaks: {
+        count: 4,                 // The first is white, the rest palette-lit
+        heightMin: 3,             // px
+        heightMax: 8,
+        lengthMin: 140,           // px
+        lengthMax: 380,
+        restMin: -240,            // Front at rest, px from the bar's front: some inside,
+        restMax: 70,              // some poking past the white tip
+        spread: 9,                // px above and below the bar the streaks may sit
+        arriveMin: 0.7,           // Arrive at this share of the gradient's extend time...
+        arriveMax: 0.95,          // ...so they lead it out
+        exitStagger: 0.3,         // Leave up to this share into the retract
+        driftMin: 4,              // px/s rightward while holding
+        driftMax: 12,
+        alpha: 0.85
+      },
+      // Lit rims along the top and bottom edges, like the follower bar's
+      // white outline
+      rim: { width: 2, alpha: 0.55 },
+      // A light band sweeps along the body once it is out and writes the
+      // text in behind it
+      wipe: { ms: 450, bandPx: 80, alpha: 0.95 }
+    },
+
+    text: {
+      font: '"Jost", Arial, sans-serif',
+      style: 'italic',            // OBS: Jost Bold Italic, like the follower bar
+      weight: 700,
+      sizePx: 32,                 // Cap height ~half the bar, like the follower bar's text
+      strokePx: 4,                // Black outline (OBS Stroke filter)
+      padding: 24,                // Room kept clear at each end of the body
+      minScale: 0.7               // Shrink long text down to this, then end it in an ellipsis
+    }
+  },
+
   // Epcot scene configuration (flattened tetrahedron grid, real-3D shading)
   epcot: {
     // Base triangle side length in pixels
