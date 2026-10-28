@@ -30,15 +30,16 @@ Take the one or two answers that would save the most next time:
 | A step I missed in a routine | a line in the skill that owns the routine |
 | A doc that misled me | fix the doc (`docs-check` knows where things live) |
 | A judgment call or AJ preference | a Learnings row in the owning role's charter (`docs/roles/`; message that role's thread), or `docs/MOTION.md` for style |
-| A whole missing routine | propose a new skill to AJ |
+| A whole missing routine | a new skill, in its own PR |
 
 Prefer the higher rows: a check enforces itself, a note only helps when read.
 
 ## 3. Write it
 
 - Cite date and source on every rule.
-- Small changes go in the current PR. A new skill, tool or process change is
-  proposed to AJ first.
+- Small changes go in the current PR. A new skill, tool or process change
+  gets its own PR and ships through code review; no approval from AJ needed
+  (AJ, 2026-10-28).
 - A lesson for another role goes to that role's thread as a message; don't edit
   its charter.
 - If an existing rule was wrong or no longer needed, retire it and say why.

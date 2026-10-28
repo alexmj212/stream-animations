@@ -21,10 +21,27 @@ wrong, and turn the answer into one durable change:
 - a doc fix where a doc misled you,
 - a Learnings entry in the charter of the role that owns the area (`docs/roles/`).
 
-Make small ones in the same PR; propose bigger ones to AJ. Every rule you add
+Make small ones in the same PR; bigger ones go through the owning role
+thread like any other change (see Shipping). Every rule you add
 names its date and source, so the next agent knows why it exists and when it
 stops applying. Delete rules and process that no longer earn their keep. How
 this works in detail: the `improve` skill and `docs/IMPROVING.md`.
+
+## Shipping without approval
+
+AJ (2026-10-28): "for code related things i don't need to see it, just get it
+out the door." Run the most efficient workflow with the fewest approval stops.
+
+- **Code, docs, tooling, tests, performance, process**: don't ask AJ. A PR
+  ships once code review says Ready and CI is green; release management merges
+  it, in order when PRs overlap. Fix review and QA findings yourself and keep
+  going.
+- **Design decisions only** go to AJ: a change in how a scene looks or moves
+  that taste has to settle. Bring mocks to compare side by side (frames,
+  strips or videos from `npm run motion` / `npm run motion:export`), with a
+  recommendation. Design review decides which questions need AJ.
+- Still never: skip or disable a test, or raise a performance budget, to get
+  a PR green.
 
 ## Work together
 

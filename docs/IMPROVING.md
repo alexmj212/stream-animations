@@ -21,7 +21,9 @@ agent inherits automatically.
 3. **Cite it.** Every rule names its date and source ("AJ, 2026-10-28", a PR,
    a benchmark run). A rule without a reason can't be judged later.
 4. **Ship it small.** Small improvements go in the same PR as the work. Bigger
-   ones (a new skill, a new tool, a process change) are proposed to AJ first.
+   ones (a new skill, a new tool, a process change) go in their own PR and
+   ship through code review like any other change; AJ is only asked about
+   design (`CLAUDE.md`, Shipping without approval).
 5. **Prune.** Remove rules, scripts and process that stopped earning their
    keep, and say why in the Learnings row's status.
 

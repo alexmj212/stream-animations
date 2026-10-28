@@ -64,10 +64,17 @@ Checked: tests, build, motion harness, bench (if perf-sensitive), code review, d
 - <finding, file:line, what to do>  (blocking first)
 ```
 
-`Needs AJ's call` is for taste and anything viewers will notice that the
-change didn't announce.
+`Needs AJ's call` is only for design decisions: how a scene looks or moves,
+when taste has to settle it. Attach mocks to compare and a recommendation.
+Everything else is Ready or Needs changes (AJ, 2026-10-28: "for code related
+things i don't need to see it, just get it out the door").
+
+## Merging
+
+Once code review says Ready and CI is green, release management merges, in
+the order it sets when PRs overlap. No approval from AJ is needed for code.
 
 ## Never
 
 Skip or disable a test to get green, raise a performance budget without a
-reason in the PR, or merge your own PR.
+reason in the PR, or merge a PR code review hasn't marked Ready.
