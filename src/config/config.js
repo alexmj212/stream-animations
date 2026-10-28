@@ -569,10 +569,14 @@ export const config = {
       sizePx: 42,                 // Matches the follower bar (AJ, 2026-10-28, #40)
       strokePx: 4,                // Black outline (OBS Stroke filter)
       padding: 24,                // Room kept clear at each end of the body
-      // Long text: shrink down to minScale, then grow the bar (geometry.
-      // maxEndX), then, only if it still doesn't fit, scroll it during the
+      // Long text: grow the bar (geometry.maxEndX), then shrink down to
+      // minScale, then, only if it still doesn't fit, scroll it during the
       // hold: show the start, glide to the end, show the end (design review,
-      // 2026-10-28: a static line reads best, scroll is the last resort)
+      // 2026-10-28: a static line reads best, scroll is the last resort).
+      // Growing first keeps a real 7-word follow line at 42px, above
+      // TYPE-1's 40px floor; shrinking first took it to 37.8px (QA, #75)
+      // Portrait (vertical.geometry) has maxEndX equal to endX, so there the
+      // bar can't grow and long text goes straight to shrinking (B1, #72)
       minScale: 0.55,             // 23px: the 21-word harness line still fits whole in Jost; 0.6 scrolls
       scrollPauseMs: 800          // Still at each end of a scroll
     },

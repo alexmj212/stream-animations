@@ -122,8 +122,10 @@ export class NotificationBar extends AnimatedBar {
     }
 
     /**
-     * Extra bar length for this text: a line that wouldn't fit at minScale
-     * grows the bar toward geometry.maxEndX instead of losing words.
+     * Extra bar length for this text: a line that wouldn't fit at full size
+     * grows the bar toward geometry.maxEndX first, and only shrinks (in
+     * buildText) once the bar is at its longest. Short real lines stay at
+     * sizePx, above TYPE-1's floor (QA, #75).
      * @returns {number} layout px
      */
     extraLength() {
@@ -131,7 +133,7 @@ export class NotificationBar extends AnimatedBar {
         const g = this.layout.geometry;
         const base = notificationGeometry(this.layout.refWidth, 0, this.layout);
         const measure = document.createElement('canvas').getContext('2d');
-        measure.font = `${t.style} ${t.weight} ${t.sizePx * t.minScale}px ${t.font}`;
+        measure.font = `${t.style} ${t.weight} ${t.sizePx}px ${t.font}`;
         const room = base.bodyLength - 2 * (t.padding + base.lean);
         // 4px slack: glyph widths don't scale exactly with the font size
         return extraLengthFor(measure.measureText(this.text).width + 4, room, g.maxEndX - g.endX);
