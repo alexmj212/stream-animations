@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>stream-animations</title>
+<style>html, body { margin: 0; background: transparent; }</style>
+<script>
+    // Stable URL for an OBS browser source. Pages caches pages for up to
+    // 10 minutes, so this page never changes between releases: it asks
+    // version.json (uncached) which deploy is live and redirects to that
+    // deploy's immutable copy, v/<build>/<scene>/, keeping the URL params.
+    // Every deploy is a new URL, so nothing stale can come from a cache.
+    // Built by .github/workflows/pages.yml; __SCENE__ and __ROOT__ are
+    // filled in there.
+    (function () {
+        var root = new URL('__ROOT__', location.href);
+        var tries = 0;
+        function go(build) {
+            var dir = build ? 'v/' + build + '/' : 'latest/';
+            location.replace(new URL(dir + '__SCENE__/' + location.search + location.hash, root));
+        }
+        function check(build) {
+            // A deploy replaces the whole site, so make sure the release
+            // still exists before leaving; otherwise use latest/.
+            fetch(new URL('v/' + build + '/__SCENE__/', root), { method: 'HEAD', cache: 'no-store' })
+                .then(function (r) { go(r.ok ? build : null); })
+                .catch(function () { go(null); });
+        }
+        function load() {
+            fetch(new URL('version.json?t=' + Date.now(), root), { cache: 'no-store' })
+                .then(function (r) { return r.json(); })
+                .then(function (v) { check(v.build); })
+                .catch(function () {
+                    // Offline or a bad deploy: retry, then fall back to the
+                    // latest copy rather than showing nothing.
+                    if (++tries < 3) setTimeout(load, 1000 * tries);
+                    else go(null);
+                });
+        }
+        load();
+    })();
+</script>
+</head>
+<body></body>
+</html>

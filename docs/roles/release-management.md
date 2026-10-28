@@ -30,16 +30,22 @@ stinger video files.
 ## What a merge to `main` does
 
 - `.github/workflows/pages.yml` runs `npm test -- --run`, builds every
-  scene and deploys them to GitHub Pages at
-  https://alexmj212.dev/stream-animations/<scene>/ (epcot also stays at the
-  root). `version.txt` there shows the live version and commit. A red test
-  run blocks the deploy.
+  scene and deploys them to GitHub Pages
+  (https://alexmj212.dev/stream-animations/). A red test run blocks the
+  deploy. **This is the deploy: OBS loads every scene from Pages** (AJ,
+  2026-10-28), so a merge to `main` is live the next time a source loads.
+- **Never stale.** Pages caches pages for up to 10 minutes and OBS's browser
+  caches too (AJ: "make sure that the page isn't cached"). OBS points at
+  `<scene>/`, a small loader that never changes: it reads `version.json`
+  uncached and redirects to that deploy's own copy, `v/<commit>/<scene>/`,
+  keeping the URL params. Every deploy is a new URL, so nothing old can be
+  served from cache.
+- **Which build is running:** every build carries `<meta name="build">`
+  (version and short commit) and logs it at load; `?debug=build` shows it
+  on screen.
 - `.github/workflows/motion.yml` (PR #2) runs the unit tests and the motion
   harness on every PR and again on each push to `main`.
-- OBS on Defiant (AJ's PC) loads the scenes from `dist/` in a WSL clone of
-  this repo, not from Pages, so a merge or release is only on stream after
-  the deploy step below. Found 2026-10-28: that build dated from July.
-  Epcot on stream is a pre-recorded mp4, so its changes reach OBS only when
+- Epcot on stream is a pre-recorded mp4, so its changes reach OBS only when
   AJ re-records it.
 
 ## Routine
@@ -61,13 +67,13 @@ stinger video files.
    `CHANGELOG.md` entry. Once it merges, tag the merge commit, run
    `npm run build` and `npm run motion:export -- stinger`, and publish a
    GitHub release with the exports and Transition Point.
-7. **Deploy to OBS** after every release, through the thread with Remote
-   Control on Defiant. Never deploy while AJ is live. In the WSL clone, pull
-   the release tag and run `npm ci && npm run build`. Then refresh the
-   browser sources and confirm OBS shows the new build (pick a change from
-   the changelog). If the release changes OBS settings, such as a stinger
-   Transition Point, put the before and after to AJ first: OBS settings are
-   AJ's, not code. Record the deployed version in the release notes.
+7. **Verify on stream** after every release, through the thread with Remote
+   Control on Defiant, while AJ isn't live. Check
+   https://alexmj212.dev/stream-animations/version.json shows the release,
+   use Refresh cache on each scene's browser source, and screenshot one with
+   `&debug=build` added (then remove it) to confirm OBS runs the new build.
+   If the release changes OBS settings, such as a stinger Transition Point,
+   put the before and after to AJ first: OBS settings are AJ's, not code.
 8. Run the `improve` skill before you finish.
 
 **Version numbers:** minor for new scenes, features or a visible style change;
@@ -98,4 +104,5 @@ dependencies straight to it.
 | 2026-10-28 | PRs can conflict without touching the same file: PR #1's docs describe scene params and CI that PR #2 changes. Check docs against the other PR's diff, not just `git merge` | PR #1 / #2 merge plan | merge order | active |
 | 2026-10-28 | Pixelbot's `next` branch exists because every Pixelbot merge deploys a server with ~1 min downtime. Here only epcot deploys and nothing goes down, so squash to `main` directly | Pixelbot `docs/DEPLOYMENT.md` | release flow | active |
 | 2026-10-28 | AJ doesn't want to approve code merges or releases. Gate on CI, Code review, Design review and QA, then ship. Ask AJ only for design choices, with frames to compare | AJ in project chat, 2026-10-28 | merging, releases | active |
-| 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | active |
+| 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | superseded by the Pages row below |
+| 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a version loader so a release can't be served stale. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active |

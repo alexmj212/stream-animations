@@ -38,20 +38,30 @@ jobs:
 
       - name: Stage site
         run: |
+          # Layout (https://alexmj212.dev/stream-animations/):
+          #   v/<commit>/<scene>/   this deploy's build, never changed after
+          #   latest/<scene>/       same build, the loader's offline fallback
+          #   <scene>/              loader OBS points at (tools/pages/loader.html)
+          #   index.html            loader for epcot (the site's old root URL)
+          #   version.json          which deploy is live
+          # Keyed by commit, not version: every merge deploys, and a fix
+          # between releases must get a new URL too.
+          version=$(node -p "require('./package.json').version")
+          build=${GITHUB_SHA:0:7}
           mkdir -p _site
-          # Each scene builds to one self-contained HTML file. Epcot stays at
-          # the site root (its existing URL); every scene is also served at
-          # /<scene>/ so OBS browser sources can load them from Pages.
           for scene in stinger sidebar shade background epcot; do
-            mkdir -p "_site/$scene"
             # find: vite can nest the output path under dist/<scene>/
             src=$(find "dist/$scene" -name index.html | head -n 1)
             test -s "$src"
-            cp "$src" "_site/$scene/index.html"
+            for dir in "v/$build" latest; do
+              mkdir -p "_site/$dir/$scene"
+              cp "$src" "_site/$dir/$scene/index.html"
+            done
+            mkdir -p "_site/$scene"
+            sed -e "s|__SCENE__|$scene|" -e "s|__ROOT__|../|" tools/pages/loader.html > "_site/$scene/index.html"
           done
-          cp _site/epcot/index.html _site/index.html
-          # What's live, for checking a deploy: version and commit.
-          printf '%s %s\n' "$(node -p "require('./package.json').version")" "$GITHUB_SHA" > _site/version.txt
+          sed -e "s|__SCENE__|epcot|" -e "s|__ROOT__|./|" tools/pages/loader.html > _site/index.html
+          printf '{"version":"%s","commit":"%s","build":"%s"}\n' "$version" "$GITHUB_SHA" "$build" > _site/version.json
 
       - uses: actions/configure-pages@v5
         with:

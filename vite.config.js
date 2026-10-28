@@ -24,6 +24,21 @@ try {
 }
 const buildId = `${version} ${commit}`.trim();
 
+// Logs the build once at load. With ?debug=build it also shows the build in
+// the top-left corner, so a screenshot of OBS proves which build is running.
+// Off by default; nothing runs per frame.
+function buildStampScript(id) {
+  return `console.info('stream-animations ${id}');
+if (/(^|,)build(,|$)/.test(new URLSearchParams(location.search).get('debug') || '')) {
+  addEventListener('DOMContentLoaded', () => {
+    const el = document.createElement('div');
+    el.textContent = 'build ${id}';
+    el.style.cssText = 'position:fixed;top:8px;left:8px;z-index:2147483647;padding:4px 8px;font:16px monospace;color:#fff;background:rgba(0,0,0,.7)';
+    document.body.appendChild(el);
+  });
+}`;
+}
+
 export default defineConfig(({ mode }) => {
   const input = mode === 'stinger'
     ? resolve(__dirname, 'src/stinger/index.html')
@@ -45,7 +60,7 @@ export default defineConfig(({ mode }) => {
         transformIndexHtml(html) {
           return html.replace(
             '</head>',
-            `<meta name="build" content="${buildId}">\n<script>console.info('stream-animations ${buildId}')</script>\n</head>`
+            `<meta name="build" content="${buildId}">\n<script>${buildStampScript(buildId)}</script>\n</head>`
           );
         },
       },
