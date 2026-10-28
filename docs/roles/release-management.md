@@ -80,8 +80,9 @@ stinger video files.
    **Until AJ updates them**, three Mix It Up commands (Fullscreen Alert,
    Sidescreen Alert, Couch Color) write the old WSL `dist/` URLs back into
    OBS, so also pull and rebuild the WSL clone on Defiant (`git pull --ff-only
-   && npm ci && npm run build`) on every release. Drop this once they point
-   at Pages.
+   && npm ci && npm run build`) on every release. If the pull refuses or the
+   build stamp reads `-dirty`, sort out the clone's local changes first;
+   never force it. Drop this once they point at Pages.
 8. Run the `improve` skill before you finish.
 
 **Version numbers:** minor for new scenes, features or a visible style change;
@@ -113,6 +114,6 @@ dependencies straight to it.
 | 2026-10-28 | Pixelbot's `next` branch exists because every Pixelbot merge deploys a server with ~1 min downtime. Here only epcot deploys and nothing goes down, so squash to `main` directly | Pixelbot `docs/DEPLOYMENT.md` | release flow | active |
 | 2026-10-28 | AJ doesn't want to approve code merges or releases. Gate on CI, Code review, Design review and QA, then ship. Ask AJ only for design choices, with frames to compare | AJ in project chat, 2026-10-28 | merging, releases | active |
 | 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | superseded by the Pages row below |
-| 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a loader that fetches the build uncached on every load. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active |
+| 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a loader that fetches the build uncached on every load. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active, except the WSL rebuild in step 7 until Mix It Up points at Pages |
 | 2026-10-28 | Cloud sessions can't push tags or create GitHub releases; the Defiant session, which has AJ's git credentials, does both | v2.0.0 release | releases | active |
 | 2026-10-28 | Mix It Up commands can rewrite OBS source URLs when they fire. Check them before declaring a source switch done | Pages switch, Defiant thread | OBS changes | active |
