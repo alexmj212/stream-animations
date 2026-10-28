@@ -35,7 +35,8 @@ stinger video files.
   harness on every PR and again on each push to `main`.
 - Nothing reaches OBS. OBS on Defiant (AJ's PC) loads the scenes from
   `dist/` in a WSL clone of this repo, so a merge or release is only live
-  after the deploy step below. Found 2026-10-28: that build dated from July,
+  after the deploy step below. Epcot on stream is a pre-recorded mp4, not the
+  Pages build, so its changes reach OBS only when AJ re-records it. Found 2026-10-28: that build dated from July,
   so nothing merged since was on stream.
 
 ## Routine

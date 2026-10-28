@@ -12,8 +12,9 @@ is fully covered through the middle, so the cut point is 50% of `duration`
 Stinger transition, or use the WebM and Transition Point attached to this
 release (`npm run motion:export -- stinger` renders your own).
 
-- All bar scenes: colored bars and the curtain seam get a lit leading edge,
-  and white horizontal bars now line up with their shadows. ([#2])
+- Look: stinger and sidebar colored bars and the curtain seam get a lit
+  leading edge, and in every bar scene white horizontal bars now line up with
+  their shadows. ([#2])
 - Stinger: bars arrive, hold and leave without speed jumps, and every layout
   is balanced across the screen (`?seed=N` pins one). Also plays on
   `obsSourceActiveChanged` and `?autoplay=true`. ([#2])
