@@ -126,7 +126,13 @@ async function capture(browser, baseUrl, scenario, seed, { grid = false } = {}) 
   // busy OBS. Scenes positioned from absolute time must still hit their marks.
   const jitterRandom = createRandom(seed * 7919 + 1);
   let elapsed = 0;
+  // events: later triggers, each dispatched once the virtual clock reaches `at`
+  const pendingEvents = [...(scenario.events || [])].sort((a, b) => a.at - b.at);
   while (elapsed < scenario.captureMs) {
+    while (pendingEvents.length && pendingEvents[0].at <= elapsed) {
+      const { event, detail } = pendingEvents.shift();
+      await page.evaluate(({ event, detail }) => window.dispatchEvent(new CustomEvent(event, { detail })), { event, detail });
+    }
     const d = jitter ? dt * (0.5 + jitterRandom() * 2.5) : dt;
     elapsed += d;
     const frame = await page.evaluate((d, region, textSelector, grid) => {

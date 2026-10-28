@@ -11,6 +11,7 @@
  *   'load'                   - scene animates on page load
  *   { event: 'name' }        - dispatch window event `name` once ready
  *   { event, also: [{event, detail}] } - ...then these in the same instant
+ * events: [{at, event, detail}]  - later triggers, dispatched at `at` ms of virtual time
  * checks (all optional):
  *   totalDurationMs          - last visible frame must end here (±durationToleranceMs)
  *   endsClear                - final frame fully transparent
@@ -227,6 +228,26 @@ export const SCENARIOS = [
       // already animates: one count, and one idle once it has landed
       debugEvents: { start: 1, count: 1, idle: 1 },
       probeMax: { field: 'overflow', max: 0, label: 'Text fits the bar' },
+      // Frame CPU is checked by followers-cpu: this 2s capture draws only
+      // ~70 frames, so p95 was its 4th-worst frame and one GC pause failed it
+      // (Code review, PR #48; issue #50)
+      noVelocitySteps: true
+    }
+  },
+  {
+    // Frame CPU for the followers scene over a sample big enough to be
+    // stable: five follows, two seconds apart, ~350 drawn frames. Idle
+    // frames draw nothing and don't count toward p95 (issue #50)
+    name: 'followers-cpu',
+    scene: 'followers',
+    url: `/src/followers/index.html?color=${COLOR}&source=url&count=946`,
+    start: { event: 'followers', also: [{ event: 'followers', detail: { count: 947 } }] },
+    events: [2000, 4000, 6000, 8000].map((at, i) => ({ at, event: 'followers', detail: { count: 948 + i } })),
+    captureMs: 10000,
+    keyframes: [],
+    markers: [2000, 4000, 6000, 8000].map(at => ({ at, label: 'follow' })),
+    checks: {
+      debugEvents: { start: 1, count: 5, idle: 5 },
       noVelocitySteps: true,
       workP95Ms: 4
     }
