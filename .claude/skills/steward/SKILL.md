@@ -40,6 +40,16 @@ npm run motion         # the motion harness, as CI runs it (docs/VALIDATION.md)
 
 Put all of a round's fixes in one push.
 
+**Syncing a long-lived branch with main** (Rotom on #92, 2026-10-28): use a
+plain `git merge origin/main`, never `git merge -s ours origin/main`. Once
+main has moved past your last merge, `-s ours` silently drops everything
+new on main from your branch (#84's files vanished from Rotom's branch
+after #87). After the merge, `git diff origin/main --stat` must show only
+your new work. To restart a branch on main after a squash-merge when
+force-push is blocked, do the reverse: `git checkout -B <branch> origin/main`,
+then `git merge -s ours origin/<branch>` keeps main's tree and only joins
+the old history.
+
 ## Reviewing a PR
 
 Work through these in order and post **one** verdict comment.
