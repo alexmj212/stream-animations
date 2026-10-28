@@ -51,7 +51,7 @@
 
       #sidebarText {
         position: absolute;
-        top: calc(var(--text-y, 0.78) * 100%); /* config.sidebar.text.centerY: below the Mix It Up images */
+        top: calc(var(--text-y) * 100%); /* --text-y = config.sidebar.text.centerY, set by the script: below the Mix It Up images */
         right: -125%; /* Start off-screen to the right */
         transform: translateY(-50%); /* Center vertically */
         font-family: "Jost", Arial, sans-serif;
