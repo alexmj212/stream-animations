@@ -179,12 +179,17 @@ canvas, with what a viewer sees:
   plate needs only the plate.
   ![Text over video: do and don't](design/contrast.jpg)
 - **TYPE-4** Text stands upright. The slant belongs to containers; no
-  italic or skewed type (the goal bar's italic is the one to fix).
+  italic or skewed type. One exception: the top-left widget pair (the
+  follower goal bar and the notifications toast that grows out of it) is
+  Jost 700 italic, the "A Creative" look AJ picked in #27. The two stay
+  matching, and nothing else borrows the italic.
 - **TYPE-5** Counters use tabular figures (`font-variant-numeric:
   tabular-nums`) so a changing digit doesn't shift its neighbours.
 - **TYPE-6** One line by preference, two at most, about 28 characters a
   line. Long text shrinks, then wraps, then ellipses, in that order: the
-  rule and its 75% floor live in [MOTION.md](MOTION.md).
+  rule and its 75% floor live in [MOTION.md](MOTION.md). The notifications
+  toast is the exception: its bar grows to fit the line and the text stays
+  still (MOTION.md Learnings, 2026-10-28, #31).
 - **TYPE-7** (target) Fonts are bundled into the single-file build, never fetched at
   runtime. A browser source that loads before Google Fonts answers, or
   offline, falls back to Arial for the whole alert.
