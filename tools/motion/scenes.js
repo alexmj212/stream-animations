@@ -19,7 +19,8 @@
  *   fullCoverMinMs           - ...for at least this long
  *   regionCover              - {x0,x1,y0,y1 (fractions), fromMs, toMs, label}
  *   noVelocitySteps          - no isolated velocity jumps in probe tracks
- *   workP95Ms                - p95 update+draw CPU time per frame
+ *   workP95Ms                - p95 update+draw CPU time per frame, over at least
+ *                              MIN_CPU_FRAMES (200) drawn frames (analyze.js)
  *   debugEvents              - {name: count}: exact counts of the scene's debug
  *                              events (src/shared/debug.js, ?debug=events)
  *   probeMax                 - {field, max, label}, or a list of them: a probe sample
@@ -363,9 +364,11 @@ export const SCENARIOS = [
     name: 'epcot',
     url: '/src/epcot/index.html?panel=false&fps=60',
     start: 'load',
-    captureMs: 3000,
+    // 4.5s for ~270 drawn frames: 3s drew 181, under the CPU check's 200
+    // (its fps cap skips some 60Hz ticks)
+    captureMs: 4500,
     keyframes: [0.5, 1],
-    keyframeSpanMs: 3000,
+    keyframeSpanMs: 4500,
     markers: [],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
