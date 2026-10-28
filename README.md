@@ -12,8 +12,9 @@ while the scene cuts, then it all slides away.
 **URL**: `stinger/index.html?color=#hexvalue&duration=1000`
 
 - `duration` - total length in ms (default 1000). The stinger lasts exactly
-  this long: bars arrive over the first 35%, the screen is fully covered
-  through the middle 30%, and bars leave over the last 35%. **Cut point: 50%
+  this long: bars arrive over the first 45%, hold through the middle
+  10%, and leave over the last 45%; the screen is fully covered around the
+  middle. **Cut point: 50%
   of the duration.**
 - `seed` - pin the bar layout (integer). Without it every transition gets a
   fresh layout, always balanced across the screen.

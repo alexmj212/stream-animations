@@ -6,7 +6,7 @@
  *
  * Usage:
  *   npm run motion                         # every scenario, seeds 1-3
- *   npm run motion -- stinger              # one scenario
+ *   npm run motion -- stinger              # one scene, with its variants (scene: 'stinger')
  *   npm run motion -- stinger --seeds=7    # specific layout seed(s)
  *   npm run motion -- --fps=30             # step at another frame rate
  *   npm run motion -- --no-shots           # skip keyframe screenshots (faster)
@@ -49,7 +49,10 @@ const jitter = !!flags.jitter;
 const width = Number(flags.width || 1920);
 const height = Number(flags.height || 1080);
 
-const scenarios = names.length ? SCENARIOS.filter(s => names.includes(s.name)) : SCENARIOS;
+// A name matches a scenario or a scene, so `notifications` also runs
+// notifications-long and -scroll: running one name used to skip a scene's
+// variants and miss their failures (Code review, PR #56)
+const scenarios = names.length ? SCENARIOS.filter(s => names.includes(s.name) || names.includes(s.scene)) : SCENARIOS;
 if (scenarios.length === 0) {
   console.error(`Unknown scenario(s): ${names.join(', ')}. Available: ${SCENARIOS.map(s => s.name).join(', ')}`);
   process.exit(2);

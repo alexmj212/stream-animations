@@ -33,8 +33,7 @@ force now.
 |---|---|---|
 | MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shade and sidebar ship it (#33-#35); the other scenes keep their own timings ([MOTION.md](MOTION.md), Timing) |
 | TYPE-7 | Fonts bundled into the build | Jost from Google Fonts at runtime, or the machine's installed Jost |
-| CUT-2 | At most 300ms of static full cover | 30% of `duration`: 300ms at the default 1000ms, 600ms at OBS's `duration=2000` |
-| SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | OBS-placed text (goal bar, scene titles) at 20-30px from the edges |
+| SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | Two exemptions, AJ's call on 2026-10-28 ([MOTION.md](MOTION.md) Learnings): the goal bar and notifications toast keep their place in the top margin (#40, text size only), and the OBS scene titles and BRB collage stay as they are (#39, #42). New text gets no exemption |
 
 **Scope** is the OBS program output (AJ, 2026-10-28): every scene, alert,
 widget and transition a viewer sees. Control UIs that never reach the
@@ -252,7 +251,7 @@ canvas, with what a viewer sees:
   to spare either side, and the cut is at 50% of the URL's `duration`. The
   URL duration and OBS's Transition point change together (the vault's Alert &
   Transition Wiring note; [SCENES.md](SCENES.md)).
-- **CUT-2** (target) The full cover is a moment, not a hold: at most 300ms of static
+- **CUT-2** The full cover is a moment, not a hold: at most 300ms of static
   cover (`staticCoverMaxMs`), with the bars still moving through it. The
   whole stinger is 800-1500ms; the cut lands on its busiest frame.
 - **CUT-3** Motion keeps its direction through the cut, so the eye reads one
