@@ -77,6 +77,10 @@ export class ShadeBar extends AnimatedBar {
     this.x = canvas.width; // Start offscreen right (will rush in from right edge)
     this.y = canvas.height / 2; // Vertical center (will be adjusted in init() for optical alignment)
 
+    // Curtains behind the text; when clipping, text is only drawn over them
+    this.curtains = [];
+    this.clipToCurtains = config.shade.clipTextToCurtains;
+
     // Text metrics (will be measured after font loads in init())
     this.textWidth = 0;
     this.actualAscent = 0; // Cached for draw() positioning
@@ -119,6 +123,7 @@ export class ShadeBar extends AnimatedBar {
 
     // Cache actualAscent for draw() positioning (PERF-02: no per-frame measureText)
     this.actualAscent = actualAscent;
+    this.actualDescent = actualDescent;
 
     // Calculate the true visual center of the text
     // When using textBaseline='alphabetic', the baseline is at y
@@ -323,6 +328,25 @@ export class ShadeBar extends AnimatedBar {
    * the visual center of the text aligns with the canvas center, accounting for asymmetric
    * ascenders/descenders in the font.
    */
+  /**
+   * Fraction of the text's height drawn with no curtain behind it (0 while
+   * the text is off screen). Used by the motion harness to check that the
+   * text never sits bare over the game.
+   */
+  bareFraction() {
+    if (!this.active || this.x >= this.canvas.width || this.x + this.textWidth <= 0) return 0;
+    const top = Math.floor(this.y - this.actualAscent);
+    const bottom = Math.ceil(this.y + (this.actualDescent || 0));
+    const curtains = this.curtains.filter(c => c.active);
+    let bare = 0;
+    for (let row = top; row < bottom; row++) {
+      const covered = curtains.some(c => row >= c.y && row < c.y + c.targetHeight);
+      // With clipping on, uncovered rows aren't drawn at all
+      if (!covered && !this.clipToCurtains) bare++;
+    }
+    return bottom > top ? bare / (bottom - top) : 0;
+  }
+
   draw() {
     this.ctx.save();
 
@@ -335,6 +359,16 @@ export class ShadeBar extends AnimatedBar {
     // In offscreen canvas, text baseline is at (20px padding + actualAscent)
     // So we need: drawY + (20 + actualAscent) = this.y
     const drawY = this.y - 20 - this.actualAscent;
+
+    // Only show text where a curtain is behind it, so it never sits bare
+    // over the game while the band opens or closes
+    if (this.clipToCurtains) {
+      this.ctx.beginPath();
+      for (const c of this.curtains) {
+        if (c.active) this.ctx.rect(0, c.y, this.canvas.width, c.targetHeight);
+      }
+      this.ctx.clip();
+    }
 
     this.ctx.drawImage(this.textCanvas, drawX, drawY);
 

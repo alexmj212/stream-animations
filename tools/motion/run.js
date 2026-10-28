@@ -137,9 +137,10 @@ async function main() {
         const t0 = Date.now();
         const { frames, errors, shots: shotFiles } = await capture(browser, baseUrl, scenario, seed);
         // Velocity estimates on uneven frames are noisy; jitter runs check
-        // timing and coverage only
+        // timing and coverage only. Frames can be up to 3x nominal, so the
+        // usual 2-frame duration tolerance becomes 2 of the longest frames.
         const spec = jitter
-          ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 3 * 1000 / fps * 3 } }
+          ? { ...scenario, fps, checks: { ...scenario.checks, noVelocitySteps: false, workP95Ms: undefined, durationToleranceMs: 2 * 3 * 1000 / fps } }
           : { ...scenario, fps };
         const { results, timeline, tracks } = evaluate(spec, frames);
         results.unshift({

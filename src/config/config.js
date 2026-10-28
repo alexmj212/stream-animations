@@ -307,6 +307,12 @@ export const config = {
       exitMs: 1000                // Exit animation duration
     },
 
+    // Curtains close in the first half of the entry and open in the last
+    // half of the exit, so the band is covered before the text reaches it
+    // and after it has gone; the text is also clipped to the curtains
+    curtainMoveShare: 0.5,
+    clipTextToCurtains: true,
+
     // Curtain configuration
     curtains: {
       opacity: 0.5,               // Semi-transparent overlay (middle of 0.4-0.6 range)

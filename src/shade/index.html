@@ -146,6 +146,7 @@
 
         // Create ShadeBar instance (text is always white - no color parameter)
         const shadeBar = new ShadeBar(ctx, canvas, text, calculatedHoldMs);
+        shadeBar.curtains = [topCurtain, bottomCurtain];
 
         // Initialize text metrics after fonts are ready (now async)
         await shadeBar.init();
@@ -157,7 +158,7 @@
 
         registerProbe('shade', () => [
           ...[topCurtain, bottomCurtain].filter(c => c.active).map(c => ({ id: `curtain-${c.position}`, x: 0, y: c.y, phase: c.phase })),
-          ...(shadeBar.active ? [{ id: 'text', x: shadeBar.x, y: shadeBar.y, onscreen: shadeBar.x < canvas.width && shadeBar.x + shadeBar.textWidth > 0 }] : [])
+          ...(shadeBar.active ? [{ id: 'text', x: shadeBar.x, y: shadeBar.y, onscreen: shadeBar.x < canvas.width && shadeBar.x + shadeBar.textWidth > 0, bare: shadeBar.bareFraction() }] : [])
         ]);
 
         /**

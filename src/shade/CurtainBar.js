@@ -55,12 +55,12 @@ export class CurtainBar extends AnimatedBar {
     this.phaseStartTime = 0;
 
     // Phase durations (milliseconds to seconds for update() calculations)
-    this.enterDuration = config.shade.durations.entryMs / 1000;
-    this.exitDuration = config.shade.durations.exitMs / 1000;
+    const share = config.shade.curtainMoveShare;
+    this.enterDuration = config.shade.durations.entryMs * share / 1000;
+    this.exitDuration = config.shade.durations.exitMs * share / 1000;
 
-    // Hold duration fills remaining time (totalDuration - enter - exit)
-    const enterExitMs = config.shade.durations.entryMs + config.shade.durations.exitMs;
-    this.holdDuration = (totalDurationMs - enterExitMs) / 1000;
+    // Hold fills the rest, so the curtains still end at totalDurationMs
+    this.holdDuration = totalDurationMs / 1000 - this.enterDuration - this.exitDuration;
 
     // Initial position (offscreen)
     if (position === 'top') {
@@ -72,7 +72,6 @@ export class CurtainBar extends AnimatedBar {
     }
 
     this.y = this.startY; // Current Y position
-    this.exitStartY = 0; // Will be set when entering exit phase
 
     // Initialize horizontal bars inside curtain
     this.bars = [];
@@ -261,7 +260,6 @@ export class CurtainBar extends AnimatedBar {
       return;
     }
     this.phase = t < this.enterDuration ? 'enter' : t < exitStart ? 'hold' : 'exit';
-    if (this.phase === 'exit' && this.exitStartY === 0) this.exitStartY = this.targetY;
     this.y = this.curtainYAt(t);
     for (const bar of this.bars) bar.x = this.barXAt(bar, t);
   }
