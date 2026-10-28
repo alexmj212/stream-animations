@@ -70,6 +70,12 @@ describe('TIME-1', () => {
         expect(r.detail).toMatch(/still for 0ms/);
     });
 
+    it('reads movement from the line, not a clipped box that stays put', () => {
+        const frames = [];
+        for (let t = 0; t <= 5000; t += FRAME) frames.push({ t, samples: [{ id: 'text', x: 500 - t * 0.1, y: 40, box: { x: 475, y: 33, width: 1350, height: 34 }, words: 3 }] });
+        expect(checkReadingTime(textSamples(frames), FRAME).pass).toBe(false);
+    });
+
     it('asks 200ms a word past 15 words', () => {
         const r = checkReadingTime(textSamples(textFrames(3500, still(200, 400), { words: 20 })), FRAME);
         expect(r.pass).toBe(false);
@@ -125,6 +131,14 @@ describe('evaluateDesignRules', () => {
         const [r] = evaluateDesignRules({ rules: ['SAFE-1'], fail: ['SAFE-1'] }, frames, design, 1920, 1080);
         expect(r.pass).toBe(false);
         expect(r.warn).toBeUndefined();
+    });
+
+    it('takes the flash limits from config.design.flash', () => {
+        const once = gridFrames(1500, t => (t > 400 && t < 1000 ? 0.5 : 0));
+        const strict = { ...design, flash: { maxPerSecond: 0, fullFieldMaxPerSecond: 0 } };
+        const results = evaluateDesignRules({ rules: ['FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] }, once, strict, 1920, 1080);
+        expect(results.map(r => r.pass)).toEqual([false, false]);
+        expect(results[0].name).toMatch(/At most 0 flashes/);
     });
 
     it('checks placement only inside holdMs', () => {

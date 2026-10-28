@@ -457,7 +457,10 @@ export const config = {
       endX: 1590,                 // Toast's front at mid-height when out (OBS: 1587-1591)
       skewAngle: -15,             // Same lean as the follower bar and the house horizontal bars
       bodyShort: 53,              // The dark body stops this far short of the front (OBS: 1532 vs 1587)
-      tipWidth: 37                // White tip riding the front (OBS "Block 1": 37px)
+      tipWidth: 37,               // White tip riding the front (OBS "Block 1": 37px)
+      // Long text grows the bar past endX, up to here, rather than losing
+      // words (design review, 2026-10-28: a thank-you keeps the giver's name)
+      maxEndX: 1890
     },
 
     // Brightness multiplier shared by every scene (docs/MOTION.md)
@@ -542,7 +545,12 @@ export const config = {
       sizePx: 32,                 // Cap height ~half the bar, like the follower bar's text
       strokePx: 4,                // Black outline (OBS Stroke filter)
       padding: 24,                // Room kept clear at each end of the body
-      minScale: 0.7               // Shrink long text down to this, then end it in an ellipsis
+      // Long text: shrink down to minScale, then grow the bar (geometry.
+      // maxEndX), then, only if it still doesn't fit, scroll it during the
+      // hold: show the start, glide to the end, show the end (design review,
+      // 2026-10-28: a static line reads best, scroll is the last resort)
+      minScale: 0.7,
+      scrollPauseMs: 800          // Still at each end of a scroll
     }
   },
 

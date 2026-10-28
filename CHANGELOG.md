@@ -4,6 +4,14 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.2.1 - 2026-10-28
+
+- Notifications: long text no longer ends in an ellipsis. The bar grows
+  as far as the line needs, and a line too long even for the longest
+  bar scrolls during the hold. ([#32])
+- Followers: the bar is now live in OBS in place of the Mix It Up Follow
+  Goal widget (the v2.2.0 notes said it was still pending).
+
 ## v2.2.0 - 2026-10-28
 
 **New OBS sources:** `notifications/?text=...` and `followers/` on Pages.
@@ -71,3 +79,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#23]: https://github.com/alexmj212/stream-animations/pull/23
 [#27]: https://github.com/alexmj212/stream-animations/pull/27
 [#29]: https://github.com/alexmj212/stream-animations/pull/29
+[#32]: https://github.com/alexmj212/stream-animations/pull/32

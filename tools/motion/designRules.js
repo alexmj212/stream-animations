@@ -20,13 +20,14 @@ export const GRID_ROWS = 9;
 /** Every rule this module checks, in report order. */
 export const DESIGN_RULES = ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'CUT-2', 'FLASH-1', 'FLASH-2'];
 
-/** On-screen text boxes per frame: [{t, box, fontPx, words, id}]. */
+/** On-screen text boxes per frame: [{t, id, x, y, box, fontPx, words}]. */
 export function textSamples(frames) {
     const out = [];
     for (const f of frames) {
         for (const s of f.samples || []) {
             if (s.box && s.onscreen !== false && s.box.width > 0 && s.box.height > 0) {
-                out.push({ t: f.t, id: s.id, box: s.box, fontPx: s.fontPx, words: s.words });
+                // x, y: where the line itself is, which moves under a clipped box while it scrolls
+                out.push({ t: f.t, id: s.id, x: s.x ?? s.box.x, y: s.y ?? s.box.y, box: s.box, fontPx: s.fontPx, words: s.words });
             }
         }
     }
@@ -83,15 +84,15 @@ export function checkTypeFloor(texts, minPx) {
 }
 
 /**
- * Longest span (ms) a text box stays put, to within `tolerancePx`.
+ * Longest span (ms) a line stays put (its sample x, y), to within `tolerancePx`.
  * @param {Array} texts - from textSamples(), one id
  */
 export function longestStillMs(texts, tolerancePx = 0.5) {
     let best = 0;
     let start = null;
     for (let i = 1; i < texts.length; i++) {
-        const a = texts[i - 1].box;
-        const b = texts[i].box;
+        const a = texts[i - 1];
+        const b = texts[i];
         const still = Math.abs(a.x - b.x) <= tolerancePx && Math.abs(a.y - b.y) <= tolerancePx;
         if (still) {
             if (start === null) start = texts[i - 1].t;
@@ -252,7 +253,10 @@ export function evaluateDesignRules(opts, frames, design, width, height, frameMs
     if (want.has('TYPE-1')) all.push(checkTypeFloor(held, opts.minPx ?? design.type.minPx));
     if (want.has('TIME-1')) all.push(checkReadingTime(texts, frameMs));
     if (want.has('CUT-2')) all.push(checkStaticCover(frames, design.motion.staticCoverMaxMs));
-    if (want.has('FLASH-1') || want.has('FLASH-2')) all.push(...checkFlashes(frames).filter(r => want.has(r.rule)));
+    if (want.has('FLASH-1') || want.has('FLASH-2')) {
+        const limits = { maxPerSecond: design.flash.maxPerSecond, fullFieldPerSecond: design.flash.fullFieldMaxPerSecond };
+        all.push(...checkFlashes(frames, limits).filter(r => want.has(r.rule)));
+    }
     return all.map(({ rule, ...r }) => (r.pass || fail.has(rule) ? r : { ...r, pass: true, warn: true }));
 }
 
