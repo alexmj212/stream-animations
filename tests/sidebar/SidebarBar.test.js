@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
-import { SidebarBar } from '../../src/sidebar/SidebarBar.js';
+import { SidebarBar, panelLeftAt } from '../../src/sidebar/SidebarBar.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
 describe('SidebarBar animation sequence', () => {
@@ -360,4 +360,11 @@ describe('SidebarBar property-based tests', () => {
       expect(Math.abs(bar.y)).toBeLessThan(maxBound);
     }
   );
+});
+
+describe('panelLeftAt', () => {
+  it('starts at the sidebar start at the top and slants left going down', () => {
+    expect(panelLeftAt(1920, 0)).toBeCloseTo(1536);
+    expect(panelLeftAt(1920, 1000)).toBeCloseTo(1536 - 1000 * Math.tan(15 * Math.PI / 180));
+  });
 });

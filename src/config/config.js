@@ -205,7 +205,11 @@ export const config = {
     // Text line. Its vertical centre sat at 2/3 of the height, right under
     // the Mix It Up images below (AJ's bug report, 2026-10-28)
     text: {
-      centerY: 0.78               // Fraction of viewport height; clears every miuZones item
+      centerY: 0.78,              // Fraction of viewport height; clears every miuZones item
+      // Long text stays inside the panel (design review, 2026-10-28): shrink
+      // to fit, then wrap to two lines, with an ellipsis only past that
+      minScale: 0.75,             // Smallest font scale before wrapping
+      panelPadding: 0.0125        // Gap from the panel's slanted edge, fraction of width (24px @ 1920)
     },
 
     // Where Mix It Up draws images while the sidebar plays. The Mixitup
