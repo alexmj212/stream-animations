@@ -107,6 +107,10 @@ for OBS" button copies the current settings baked into the URL.
 All animations support:
 - `color` - Base color in hex format (e.g., `#ff6600`)
 
+Stinger, sidebar and shade:
+- `scheme` - Color layout: any epcot palette name (default `illuminations`: the ball's violet-top to amber-bottom gradient, fixed to the screen) or `mono` (the old single-hue look around `color`)
+- `colormode` - How a passed `color` combines with the palette: `ignore` (default; palette as-is, so the overlays always match epcot), `shift` (rotates the palette's hues so its purple stop lands on the color; `#b00bee` gives the ball's palette), or `mono` (any passed color brings back the single-hue look)
+
 Epcot-specific:
 - `pattern` - Light cycling pattern: `steady`, `chase`, `orbit`, `pulse`, `diagonal`, `wave`, `cascade`, `scanner`, `spiral`, `radial`, `split`, `sweep`, `bands`, `mix`, or `auto` (default `orbit`)
 - `scheme` - Color scheme: `classic`, `mono`, `duo`, `rainbow`, `cycle`, `illuminations`, `earidescent`, `celebration`, `holiday`, `halloween`, `patriot`, or `festival` (default `illuminations`)
