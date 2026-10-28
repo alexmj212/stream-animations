@@ -82,5 +82,19 @@ export const SCENARIOS = [
       noVelocitySteps: true,
       workP95Ms: 4
     }
+  },
+  {
+    // Continuous light show: no motion probe; this guards per-frame cost.
+    // fps=60 so every stepped frame renders (the scene's own default caps at 30).
+    name: 'epcot',
+    url: '/src/epcot/index.html?panel=false&fps=60',
+    start: 'load',
+    captureMs: 3000,
+    keyframes: [0.5, 1],
+    keyframeSpanMs: 3000,
+    markers: [],
+    checks: {
+      workP95Ms: 20
+    }
   }
 ];
