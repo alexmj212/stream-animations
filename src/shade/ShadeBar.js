@@ -1,7 +1,7 @@
 import { AnimatedBar } from '../shared/AnimatedBar.js';
 import { config } from '../config/config.js';
 import {
-  cubicBezier, readingHoldMs, planAlertText, textOffsetAt, fitShadeText, strokeWidthPx, wordCount
+  cubicBezier, readingHoldMs, planAlertText, textOffsetAt, fitShadeText, shadeTextBox, strokeWidthPx, wordCount
 } from '../shared/animations/alertText.js';
 
 const easeEnter = cubicBezier(config.design.motion.ease.enter);
@@ -135,13 +135,11 @@ export class ShadeBar extends AnimatedBar {
       return ctx.measureText(s).width;
     };
 
-    // Fit inside title-safe, leaving room for the widest stroke (hero's)
-    // on both sides, whichever size the line ends up at
-    const safeX = Math.round(W * config.design.safe.titleInset);
-    const room = W - 2 * safeX - 2 * strokeWidthPx(type.sizes.hero, type);
-    const fit = fitShadeText(this.text, measure, room, {
-      hero: type.sizes.hero, display: type.sizes.display, minPx: type.minPx
-    });
+    // Fit inside title-safe (phone-safe in portrait), leaving room for the
+    // widest stroke (hero's) on both sides, whichever size the line ends up at
+    const box = shadeTextBox(W, H, config.design);
+    const room = box.right - box.left - 2 * strokeWidthPx(type.sizes.hero, type);
+    const fit = fitShadeText(this.text, measure, room, box.sizes);
     this.lines = fit.lines;
     this.fontPx = fit.px;
     const px = fit.px;
@@ -157,7 +155,7 @@ export class ShadeBar extends AnimatedBar {
     this.actualAscent = ascent;
     this.blockHeight = ascent + lineGap * (this.lines.length - 1) + descent;
     this.y = H / 2 - this.blockHeight / 2;
-    this.holdX = (W - this.textWidth) / 2;
+    this.holdX = (box.left + box.right - this.textWidth) / 2; // Centred on the safe box
 
     // Offscreen copy: stroke (with the soft shadow) under the fill
     const stroke = strokeWidthPx(px, type);

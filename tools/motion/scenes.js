@@ -184,6 +184,52 @@ export const SCENARIOS = [
     }
   },
   {
+    // Portrait shoutout (AJ's pick A2, issue #81): the ink nameplate alone,
+    // its bottom on the camera/game seam (y 700) and its words inside the
+    // phone-safe box, "CHECK OUT" at 48px over the name at 64px
+    name: 'sidebar-vertical',
+    scene: 'sidebar',
+    url: `/src/sidebar/index.html?color=b00bee&text=Check+out+@testchannel&duration=3000`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 5000,
+    keyframes: [0.05, 0.125, 0.5, 0.92],
+    keyframeSpanMs: 4000,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'out' }, { at: 4000, label: 'end' }],
+    textBox: { selector: '#sidebarText' },
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      totalDurationMs: 4000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      textOverPanel: { fromMs: 650, toMs: 3600, label: 'the nameplate while holding', minAlpha: 215 },
+      noVelocitySteps: true
+      // No CPU check: the 16:9 sidebar scenarios hold the budget
+    }
+  },
+  {
+    // A real, long username in portrait: the name shrinks toward 48px to
+    // stay inside x 60-940, then TYPE-6
+    name: 'sidebar-vertical-name',
+    scene: 'sidebar',
+    url: `/src/sidebar/index.html?color=b00bee&text=Check+out+@thegigglepussgang&duration=3000`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 5000,
+    keyframes: [0.125, 0.5],
+    keyframeSpanMs: 4000,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'out' }, { at: 4000, label: 'end' }],
+    textBox: { selector: '#sidebarText' },
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
+      totalDurationMs: 4000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      textOverPanel: { fromMs: 650, toMs: 3600, label: 'the nameplate while holding', minAlpha: 215 },
+      noVelocitySteps: true
+    }
+  },
+  {
     name: 'shade',
     url: `/src/shade/index.html?color=${COLOR}&text=NEW+RAID+INCOMING`,
     start: 'load',
@@ -250,6 +296,52 @@ export const SCENARIOS = [
       probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
       noVelocitySteps: true,
       workP95Ms: 4
+    }
+  },
+  {
+    // Portrait raid with a long name, as OBS's 1080x1920 "Fullscreen Source
+    // (vrt)" shows it: the text fits the phone-safe box (x 60-940), off-centre
+    // because the apps' button column takes the right 140px (design review,
+    // 2026-10-28: "@TESTRAIDER RAID!!" ran to x 1010)
+    name: 'shade-vertical-raid',
+    scene: 'shade',
+    url: `/src/shade/index.html?color=b00bee&duration=3000&text=@aspiritualbumpit+RAID!!`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 5500,
+    keyframes: [0.1, 0.5, 0.85],
+    keyframeSpanMs: 4500,
+    markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4500, label: 'end' }],
+    // No KEEP-1: a tier 3 takeover may cover chat for its hold, as on 16:9
+    checks: {
+      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 4500,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
+      noVelocitySteps: true
+      // No CPU check: the 16:9 shade scenarios hold the budget
+    }
+  },
+  {
+    // A gift line too long for one portrait line: shrinks, then wraps to
+    // two lines inside the phone-safe box, never under the 48px phone floor
+    name: 'shade-vertical-long',
+    scene: 'shade',
+    url: `/src/shade/index.html?color=b00bee&duration=3000&text=@aspiritualbumpit+gifted+50+tier+1+subs+to+the+goobers!!`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 5500,
+    keyframes: [0.1, 0.5],
+    keyframeSpanMs: 4700,
+    markers: [{ at: 500, label: 'hold' }, { at: 4700, label: 'end' }],
+    // No KEEP-1: a tier 3 takeover may cover chat for its hold, as on 16:9
+    checks: {
+      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: { field: 'bare', max: 0, label: 'Text only over curtains' },
+      noVelocitySteps: true
     }
   },
   {

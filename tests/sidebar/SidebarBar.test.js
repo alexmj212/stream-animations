@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
-import { SidebarBar, planSidebar, planSidebarTimeline } from '../../src/sidebar/SidebarBar.js';
+import { SidebarBar, planSidebar, planSidebarTimeline, sidebarLayoutName } from '../../src/sidebar/SidebarBar.js';
 import { createRandom } from '../../src/shared/motion.js';
 import { config } from '../../src/config/config.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
@@ -403,4 +403,30 @@ describe('planSidebarTimeline (design audit #35)', () => {
     expect(panel.positionAt(timeline.exitStart)).toBeCloseTo(panel.holdX);
     expect(panel.positionAt(timeline.exitEnd)).toBeCloseTo(panel.endX);
   });
+});
+
+describe('sidebarLayoutName (A2, issue #81)', () => {
+    it('picks portrait for a page taller than wide, 16:9 otherwise', () => {
+        expect(sidebarLayoutName(1080, 1920)).toBe('vertical');
+        expect(sidebarLayoutName(1920, 1080)).toBe('wide');
+    });
+
+    it('lets ?layout= force either', () => {
+        expect(sidebarLayoutName(1920, 1080, 'vertical')).toBe('vertical');
+        expect(sidebarLayoutName(1080, 1920, 'wide')).toBe('wide');
+        expect(sidebarLayoutName(1080, 1920, 'bogus')).toBe('vertical');
+    });
+
+    it('ties the portrait plate to the phone rules in config.design.vertical', () => {
+        const v = config.sidebar.vertical;
+        const d = config.design.vertical;
+        expect(v.refWidth).toBe(d.canvas.width);
+        expect(v.textRightPx).toBe(d.canvas.width - d.safe.rightPx);
+        expect(v.maxWidthPx).toBe(d.canvas.width - d.safe.leftPx - d.safe.rightPx);
+        expect(v.headlinePx).toBe(d.type.sizes.headline);
+        expect(v.labelPx).toBe(d.type.sizes.label);
+        expect(v.headlinePx * v.minScale).toBeGreaterThanOrEqual(d.type.minPx);
+        expect(v.seamY).toBe(config.notifications.vertical.geometry.top + config.notifications.vertical.geometry.height / 2);
+        expect(v.seamY).toBeGreaterThan(d.safe.topPx);
+    });
 });

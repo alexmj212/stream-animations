@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     cubicBezier, wordCount, readingHoldMs, planAlertText, textOffsetAt,
-    splitNameAction, balancedLines, overflowLines, ellipsize, fitShadeText, fitSidebarText, strokeWidthPx
+    splitNameAction, balancedLines, overflowLines, ellipsize, fitShadeText, shadeTextBox, fitSidebarText, strokeWidthPx
 } from '../../src/shared/animations/alertText.js';
 import { config } from '../../src/config/config.js';
 
@@ -188,5 +188,28 @@ describe('strokeWidthPx', () => {
     it('is 0.08em, never under 3px', () => {
         expect(strokeWidthPx(96, config.design.type)).toBeCloseTo(7.68);
         expect(strokeWidthPx(20, config.design.type)).toBe(3);
+    });
+});
+
+describe('shadeTextBox', () => {
+    it('uses title-safe and the house sizes on 16:9', () => {
+        const b = shadeTextBox(1920, 1080, config.design);
+        expect(b.left).toBe(96);
+        expect(b.right).toBe(1824);
+        expect(b.sizes.minPx).toBe(config.design.type.minPx);
+    });
+
+    it('uses the off-centre phone-safe box and the phone floor in portrait', () => {
+        const b = shadeTextBox(1080, 1920, config.design);
+        expect(b.left).toBe(60);
+        expect(b.right).toBe(940);
+        expect(b.sizes.minPx).toBe(48);
+    });
+
+    it('scales the phone box to a smaller portrait capture', () => {
+        const b = shadeTextBox(540, 960, config.design);
+        expect(b.left).toBe(30);
+        expect(b.right).toBe(470);
+        expect(b.sizes.minPx).toBe(Math.max(config.design.type.minPx, 24));
     });
 });

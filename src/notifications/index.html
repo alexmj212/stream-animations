@@ -39,6 +39,7 @@
       import { config } from "../config/config.js";
       import { registerProbe, createRandom, seedFromURL } from "../shared/motion.js";
       import { createDebug } from "../shared/debug.js";
+      import { playOnSeam } from "../shared/seamQueue.js";
       const debug = createDebug('notifications');
 
       // ?text= is the line Mix It Up used to write to notification.txt.
@@ -114,6 +115,7 @@
           requestAnimationFrame(animate);
         } else {
           debug.mark('end', { elapsedMs: Math.round(elapsed * 1000) });
+          finished();
         }
       }
 
@@ -122,7 +124,16 @@
         if (!document.hidden) location.reload();
       });
 
-      requestAnimationFrame(animate);
+      // In portrait the toast shares the seam with the sidebar, so it waits
+      // its turn behind one already playing (ALERT-1, issue #81)
+      let finished = () => {};
+      playOnSeam(toast.layout.name === 'vertical', () => new Promise(resolve => {
+        finished = resolve;
+        requestAnimationFrame(animate);
+      }), {
+        maxHoldMs: Math.max(durationMs, 12000) + 1000, // A scrolled long line runs about 11s
+        onStart: (waitedMs) => debug.mark('seam', { waitedMs: Math.round(waitedMs) })
+      });
     </script>
   </body>
 </html>
