@@ -29,7 +29,7 @@ export const ELEMENTS = [
     { id: 'nowPlaying', label: 'Now playing', box: [19, 89, 481, 130], kind: 'P', read: true },
     { id: 'chat', label: 'Chat', box: [18, 127, 488, 537], kind: 'P', read: true },
     { id: 'pig', label: 'Discoball pig (Just Chatting, Full 16:9)', box: [43, 130, 491, 469], kind: 'P' },
-    { id: 'pride', label: 'Pride Guild badge', box: [1613, 995, 1840, 1030], kind: 'P', read: true },
+    { id: 'pride', label: 'Pride Guild badge', box: [1613, 950, 1840, 985], today: [1613, 995, 1840, 1030], kind: 'P', read: true },
     { id: 'discord', label: 'Discord heads', box: [440, 859, 1304, 994], today: [440, 928, 1304, 1063], kind: 'P', read: true },
     { id: 'toast', label: 'Toast', box: [560, 26, 1824, 74], kind: 'A', read: true, scenario: 'notifications-name' },
     { id: 'hype', label: 'Hype train banner', box: [560, 84, 1824, 132], today: [0, 28, 1920, 97], kind: 'A', read: true },
@@ -38,17 +38,17 @@ export const ELEMENTS = [
     { id: 'shoutout', label: 'MIU shoutout avatar', box: [1451, 254, 1851, 654], kind: 'A' },
     { id: 'resub', label: 'MIU resub avatar', box: [1432, 340, 1832, 740], kind: 'A' },
     { id: 'hug', label: 'MIU hug/pet/treat', box: [1200, 440, 1860, 640], kind: 'A' },
-    { id: 'lechonk', label: 'Lechonk', box: [1574, 744, 1824, 994], today: [1670, 830, 1920, 1080], kind: 'G' },
-    // Clippy: Rotom's step says about 90%,80%, but that box ends at y 1010;
-    // centred at 78% it ends at 989
-    { id: 'clippy', label: 'Clippy', box: [1589, 696, 1867, 989], today: [1589, 782, 1867, 1075], kind: 'G', read: true },
+    { id: 'lechonk', label: 'Lechonk', box: [1574, 692, 1824, 942], today: [1670, 830, 1920, 1080], kind: 'G' },
+    // The corner gags end at y 942, above the Pride badge: a persistent
+    // widget owns its corner (Rotom, COMP-2, 2026-10-28). Clippy at 90%,73%
+    { id: 'clippy', label: 'Clippy', box: [1589, 642, 1867, 935], today: [1589, 782, 1867, 1075], kind: 'G', read: true },
     { id: 'horse', label: 'Horse', box: [0, 600, 258, 1080], kind: 'G' },
     { id: 'compliment', label: 'Compliment', box: [200, 200, 776, 524], kind: 'G' },
     { id: 'ban', label: 'Ban', box: [760, 120, 1160, 520], kind: 'G' },
-    { id: 'exobot', label: 'Exobot TTS', box: [450, 874, 816, 1080], kind: 'G' },
-    { id: 'iphone', label: 'iPhone notification', box: [1332, 766, 1824, 994], today: [1428, 852, 1920, 1080], kind: 'G', read: true },
+    { id: 'exobot', label: 'Exobot TTS', box: [70, 788, 436, 994], today: [450, 874, 816, 1080], kind: 'G' },
+    { id: 'iphone', label: 'iPhone notification', box: [1332, 714, 1824, 942], today: [1428, 852, 1920, 1080], kind: 'G', read: true },
     { id: 'nut', label: 'Nut bucket', box: [92, 80, 408, 257], kind: 'G' },
-    { id: 'life', label: 'Life points', box: [1148, 614, 1824, 994], today: [1336, 700, 2012, 1080], kind: 'G', read: true },
+    { id: 'life', label: 'Life points', box: [1148, 562, 1824, 942], today: [1336, 700, 2012, 1080], kind: 'G', read: true },
     { id: 'pixelStart', label: 'Pixel Guess (Starting)', box: [1223, 140, 1920, 654], today: [1223, 0, 1920, 514], kind: 'G', read: true },
     { id: 'pixelFull', label: 'Pixel Guess (Full 16:9)', box: [1366, 140, 1920, 567], today: [1366, 0, 1920, 427], kind: 'G', read: true },
     { id: 'lizard', label: 'Lizard', box: [237, 920, 330, 1000], kind: 'G' },
@@ -133,17 +133,16 @@ export function placementBreaks(elements, design, width = design.canvas.width, h
 }
 
 /**
- * What the enforced pairs still overlap or break after Defiant's fixes, sent
- * to Rotom (QA, 2026-10-28). The unit test fails on anything new, and on an
+ * What the enforced pairs still overlap after Defiant's fixes (QA and
+ * Rotom, 2026-10-28; steps 7 and 8 moved the Pride badge and Exobot). The unit test fails on anything new, and on an
  * entry that no longer happens, so this list only ever shrinks on purpose.
  */
 export const KNOWN_OVERLAPS = [
     'hype-train: goal x waveform',         // Accepted: the waveform draws under the bar's plate (Rotom on #79)
     'hype-train: nowPlaying x waveform',   // One info box: the song line sits on its own waveform
-    'ad-break: discord x exobot',          // Exobot TTS (x 450-816) still reaches y 1080 under Discord
-    'ad-break: pride SAFE-3',              // The Pride badge sits at y 995-1030, under the player controls
-    'bottom-right: pride SAFE-3',
-    'bottom-right: life x camBR',          // Life points moved onto Cam BR's preset
+    // Accepted, report only: AJ fires Cam BR by hand from the Stream Deck,
+    // so a gag can land on it for 3-10 s (Rotom, 2026-10-28)
+    'bottom-right: life x camBR',
     'bottom-right: iphone x camBR',
     'bottom-right: clippy x camBR',
     'bottom-right: lechonk x camBR',
