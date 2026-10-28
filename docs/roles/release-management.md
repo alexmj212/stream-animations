@@ -33,8 +33,10 @@ stinger video files.
   deploys it to GitHub Pages. A red test run blocks the deploy.
 - `.github/workflows/motion.yml` (PR #2) runs the unit tests and the motion
   harness on every PR and again on each push to `main`.
-- The other scenes reach OBS only when AJ rebuilds them or loads a release
-  asset, so a merge never changes the stream mid-show except epcot.
+- Nothing reaches OBS. OBS on Defiant (AJ's PC) loads the scenes from
+  `dist/` in a WSL clone of this repo, so a merge or release is only live
+  after the deploy step below. Found 2026-10-28: that build dated from July,
+  so nothing merged since was on stream.
 
 ## Routine
 
@@ -55,7 +57,14 @@ stinger video files.
    `CHANGELOG.md` entry. Once it merges, tag the merge commit, run
    `npm run build` and `npm run motion:export -- stinger`, and publish a
    GitHub release with the exports and Transition Point.
-7. Run the `improve` skill before you finish.
+7. **Deploy to OBS** after every release, through the thread with Remote
+   Control on Defiant. Never deploy while AJ is live. In the WSL clone, pull
+   the release tag and run `npm ci && npm run build`. Then refresh the
+   browser sources and confirm OBS shows the new build (pick a change from
+   the changelog). If the release changes OBS settings, such as a stinger
+   Transition Point, put the before and after to AJ first: OBS settings are
+   AJ's, not code. Record the deployed version in the release notes.
+8. Run the `improve` skill before you finish.
 
 **Version numbers:** minor for new scenes, features or a visible style change;
 patch for fixes and tuning; major only if OBS setup has to change (new URL
@@ -85,3 +94,4 @@ dependencies straight to it.
 | 2026-10-28 | PRs can conflict without touching the same file: PR #1's docs describe scene params and CI that PR #2 changes. Check docs against the other PR's diff, not just `git merge` | PR #1 / #2 merge plan | merge order | active |
 | 2026-10-28 | Pixelbot's `next` branch exists because every Pixelbot merge deploys a server with ~1 min downtime. Here only epcot deploys and nothing goes down, so squash to `main` directly | Pixelbot `docs/DEPLOYMENT.md` | release flow | active |
 | 2026-10-28 | AJ doesn't want to approve code merges or releases. Gate on CI, Code review, Design review and QA, then ship. Ask AJ only for design choices, with frames to compare | AJ in project chat, 2026-10-28 | merging, releases | active |
+| 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | active |
