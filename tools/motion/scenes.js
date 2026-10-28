@@ -117,7 +117,7 @@ export const SCENARIOS = [
     textBox: { selector: '#sidebarText' },
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 4650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 4650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -147,7 +147,7 @@ export const SCENARIOS = [
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     textBox: { selector: '#sidebarText' },
     checks: {
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 4000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -172,7 +172,7 @@ export const SCENARIOS = [
     region: { x0: 0.8, x1: 1, y0: 0, y1: 1 },
     textBox: { selector: '#sidebarText' },
     checks: {
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 4000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -198,7 +198,7 @@ export const SCENARIOS = [
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'out' }, { at: 4000, label: 'end' }],
     textBox: { selector: '#sidebarText' },
     checks: {
-      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 4000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -221,7 +221,7 @@ export const SCENARIOS = [
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'out' }, { at: 4000, label: 'end' }],
     textBox: { selector: '#sidebarText' },
     checks: {
-      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 4000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -241,6 +241,8 @@ export const SCENARIOS = [
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4000, label: 'open' }, { at: 4500, label: 'end' }],
     checks: {
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
       design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4500,
       debugEvents: { start: 1, end: 1 },
@@ -261,6 +263,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 4500,
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4500, label: 'end' }],
     checks: {
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
       design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4500,
       debugEvents: { start: 1, end: 1 },
@@ -283,6 +287,8 @@ export const SCENARIOS = [
     keyframeSpanMs: 4700,
     markers: [{ at: 500, label: 'hold' }, { at: 3850, label: 'exit' }, { at: 4700, label: 'end' }],
     checks: {
+      // No KEEP-1: a tier 3 takeover may cover chat for its hold (Rotom on
+      // #79, 2026-10-28; DESIGN.md keep-out zones)
       design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3850], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4700,
       debugEvents: { start: 1, end: 1 },
@@ -306,6 +312,7 @@ export const SCENARIOS = [
     keyframes: [0.1, 0.5, 0.85],
     keyframeSpanMs: 4500,
     markers: [{ at: 500, label: 'hold' }, { at: 3650, label: 'exit' }, { at: 4500, label: 'end' }],
+    // No KEEP-1: a tier 3 takeover may cover chat for its hold, as on 16:9
     checks: {
       design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       totalDurationMs: 4500,
@@ -328,6 +335,7 @@ export const SCENARIOS = [
     keyframes: [0.1, 0.5],
     keyframeSpanMs: 4700,
     markers: [{ at: 500, label: 'hold' }, { at: 4700, label: 'end' }],
+    // No KEEP-1: a tier 3 takeover may cover chat for its hold, as on 16:9
     checks: {
       design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [650, 3650], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
       debugEvents: { start: 1, end: 1 },
@@ -350,7 +358,7 @@ export const SCENARIOS = [
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -381,7 +389,7 @@ export const SCENARIOS = [
       // No SAFE-1: AJ's top-margin exemption (#40), as on notifications.
       // TYPE-1 enforced: before #76 this follow shrank to 37.8px; the bar now
       // grows first and it draws at 42px
-      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -409,7 +417,7 @@ export const SCENARIOS = [
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['SAFE-3', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['SAFE-3', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 7000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -438,7 +446,7 @@ export const SCENARIOS = [
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 10000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 10000], fail: ['SAFE-3', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 11400,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -467,7 +475,7 @@ export const SCENARIOS = [
     // The body while the toast is out, inside its slanted ends
     region: { x0: 0.12, x1: 0.78, y0: 0.35, y1: 0.375 },
     checks: {
-      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -495,7 +503,7 @@ export const SCENARIOS = [
     keyframeSpanMs: 5000,
     markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
     checks: {
-      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['V-SAFE-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['V-SAFE-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 5000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -521,7 +529,7 @@ export const SCENARIOS = [
     keyframeSpanMs: 7000,
     markers: [{ at: 7000, label: 'end' }],
     checks: {
-      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['V-SAFE-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1500, 5000], fail: ['V-SAFE-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       totalDurationMs: 7000,
       debugEvents: { start: 1, end: 1 },
       endsClear: true,
@@ -549,7 +557,10 @@ export const SCENARIOS = [
       // rule only measured this 2s capture (Design review, 2026-10-28)
       // No SAFE-1: the goal bar and toast keep their place in the top margin
       // (AJ's exemption, #40; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      // KEEP-1 warns by design: the goal bar sits on the music info box's
+      // waveform (x 19-481, y 0-124). Accepted while the waveform draws under
+      // the bar's solid plate (Rotom on #79, 2026-10-28; AJ's place, #62)
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], fail: ['SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
       // The follow lands before the first frame runs, so the first paint
       // already animates: one count, and one idle once it has landed
       debugEvents: { start: 1, count: 1, idle: 1 },
@@ -591,7 +602,7 @@ export const SCENARIOS = [
     markers: [{ at: 500, label: 'plate in' }, { at: 1000, label: 'still' }],
     checks: {
       // The bible's rules (docs/DESIGN.md); a new scene meets all of them
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4500], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4500], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       debugEvents: { start: 1, idle: 1 },
       noVelocitySteps: true
     }
@@ -606,7 +617,7 @@ export const SCENARIOS = [
     keyframes: [0.2, 0.5],
     keyframeSpanMs: 4500,
     checks: {
-      design: { rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4500], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['SAFE-1', 'SAFE-3', 'KEEP-1', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4500], fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2', 'KEEP-1'] },
       debugEvents: { start: 1, idle: 1 },
       noVelocitySteps: true
     }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    textSamples, checkTitleSafe, checkPhoneSafe, checkPlayerChrome, checkTypeFloor, checkReadingTime,
+    textSamples, checkTitleSafe, checkKeepOut, keepOutRects, checkPhoneSafe, checkPlayerChrome, checkTypeFloor, checkReadingTime,
     checkStaticCover, luminanceTransitions, maxFlashesPerSecond, evaluateDesignRules
 } from '../../tools/motion/designRules.js';
 import { config } from '../../src/config/config.js';
@@ -161,5 +161,43 @@ describe('evaluateDesignRules', () => {
         const flyIn = textFrames(1000, t => ({ x: t < 500 ? 1900 : 200, y: 400, width: 400, height: 60 }));
         const [r] = evaluateDesignRules({ rules: ['SAFE-1'], fail: ['SAFE-1'], holdMs: [600, 1000] }, flyIn, design, 1920, 1080);
         expect(r.pass).toBe(true);
+    });
+});
+
+describe('KEEP-1 chat and music zones', () => {
+    const withZones = {
+        ...design,
+        keepOut: {
+            main: [{ label: 'chat', kind: 'chat', x: 1500, y: 100, width: 400, height: 600 }],
+            vertical: [{ label: 'chat', kind: 'chat', x: 40, y: 1200, width: 600, height: 300 }]
+        }
+    };
+
+    it('passes text clear of chat', () => {
+        const r = checkKeepOut(textSamples(textFrames(500, still(200, 400))), withZones, 1920, 1080);
+        expect(r.pass).toBe(true);
+    });
+
+    it('fails text on chat and names the zone', () => {
+        const r = checkKeepOut(textSamples(textFrames(500, still(1400, 400))), withZones, 1920, 1080);
+        expect(r.pass).toBe(false);
+        expect(r.detail).toMatch(/on chat/);
+    });
+
+    it('uses the vertical zones, scaled, for a portrait capture', () => {
+        expect(keepOutRects(withZones, 540, 960)).toEqual([{ label: 'chat', kind: 'chat', x: 20, y: 600, width: 300, height: 150 }]);
+        const r = checkKeepOut(textSamples(textFrames(500, still(100, 650, 100, 40))), withZones, 540, 960);
+        expect(r.pass).toBe(false);
+    });
+
+    it('lets text cross a layer marked keepClear: false', () => {
+        const wave = { ...design, keepOut: { main: [{ label: 'waveform', x: 0, y: 540, width: 1920, height: 540, keepClear: false }, ...withZones.keepOut.main] } };
+        expect(checkKeepOut(textSamples(textFrames(500, still(200, 700))), wave, 1920, 1080).pass).toBe(true);
+    });
+
+    it('fails with no zones, so a missing config cannot pass silently', () => {
+        const r = checkKeepOut(textSamples(textFrames(500, still(200, 400))), { ...design, keepOut: undefined }, 1920, 1080);
+        expect(r.pass).toBe(false);
+        expect(r.detail).toMatch(/no keep-out layers/);
     });
 });

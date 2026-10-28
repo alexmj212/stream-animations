@@ -22,6 +22,7 @@ is built and checked.
 | `npm run motion:compare -- --runs=before,after --frames=stinger/seed-1/t00750.png --bg=frame.png --out=cmp.png` | Labelled side-by-side grid of keyframes from those runs, over a backdrop, for design decisions |
 | `npm run motion -- --fps=30` | Step at another frame rate (OBS browser sources are often set to 30) |
 | `npm run motion -- --no-shots` | Skip keyframe screenshots (about 2x faster) |
+| `npm run motion -- --no-keepout` | Keyframes without the mock chat and music layers |
 | `npm run motion -- --dump` | Also write every frame's raw data to `capture.json` |
 | `npm run motion -- --jitter` | Uneven frame times, like a loaded OBS. Checks timing and coverage still hold; skips the smoothness and CPU checks |
 | `npm run motion:export -- stinger` | Render to a transparent WebM for OBS (see below) |
@@ -69,7 +70,7 @@ Defined per scenario in `tools/motion/scenes.js`.
 | Frame CPU budget | p95 of update+draw time ≤ `workP95Ms`, over at least 200 drawn frames (`MIN_CPU_FRAMES`); fewer fails the check, since p95 of a short capture is one slow frame | Per-frame allocation, cache thrash, too many objects drawn; a scenario too short to measure |
 | Text over *panel* | Every canvas pixel under a text element's on-screen box (`textBox.selector`) is opaque through a window | Long text hanging off the slanted panel over the stream |
 | Scene events | The scene's debug events (`?debug=events`) match `debugEvents` counts exactly | A trigger that restarts the scene, a scene that never marks `end` |
-| Design rules (SAFE-1, SAFE-3, TYPE-1, TIME-1, CUT-2, FLASH-1, FLASH-2) | The bible's machine-checkable rules ([DESIGN.md](DESIGN.md)), from `tools/motion/designRules.js`. Placement and size read the text box (a probe sample with `box`, `fontPx`, `words`, or `textBox.selector`) through `holdMs`; CUT-2 and FLASH read a 16x9 luminance grid, taken in a second, untimed pass of the same seed so it can't touch the CPU numbers | Text in the screen margin or under the player controls, type under the floor, text that never stops long enough to read, a stinger sitting covered and still, strobing |
+| Design rules (SAFE-1, SAFE-3, KEEP-1, TYPE-1, TIME-1, CUT-2, FLASH-1, FLASH-2) | The bible's machine-checkable rules ([DESIGN.md](DESIGN.md)), from `tools/motion/designRules.js`. Placement and size read the text box (a probe sample with `box`, `fontPx`, `words`, or `textBox.selector`) through `holdMs`; CUT-2 and FLASH read a 16x9 luminance grid, taken in a second, untimed pass of the same seed so it can't touch the CPU numbers | Text in the screen margin, on chat or the music display (KEEP-1), or under the player controls, type under the floor, text that never stops long enough to read, a stinger sitting covered and still, strobing |
 
 **Warn, then enforce** (issue #43). A design rule a scene doesn't meet yet
 reports ⚠ and doesn't fail the run: those are DESIGN.md's "Today vs target"
@@ -129,6 +130,24 @@ channel, add it to `DEBUG_CHANNELS` and this table.
 Canvas 2D command recording. It does not include GPU raster or compositing,
 so it is a regression signal, not an FPS number. Use `npm run bench` for
 real-time frame pacing.
+
+### Chat and music on screen
+
+OBS always draws chat (a Mix It Up overlay in the left column) and the music
+info box (waveform and Tuna's now-playing line, top-left) over our scenes,
+and Starting and BRB add a full-width waveform and a song line at the bottom.
+`config.design.keepOut` holds their boxes for the main and vertical canvases,
+read from OBS's scene file. Every keyframe draws them as dashed mock layers
+on top (`--no-keepout` hides them), so a shot looks like the stream, and
+KEEP-1 checks that held text stays off every layer marked to keep clear. The
+mocks draw on top of everything, which isn't always OBS's order: the shade
+stacks above chat. Two calls from Rotom (#79): the shade, a tier 3 takeover,
+may cover chat, so its scenarios leave KEEP-1 out; the goal bar on the music
+waveform is accepted while the waveform draws under its plate, so followers
+keeps KEEP-1 as a warning. When a source in OBS's Alerts or Information Box moves,
+update `keepOut` (AJ, 2026-10-28: "you're not testing the layout with chat
+present", "...with music playing"). No scene reacts to audio, so music only
+matters as a layer.
 
 ## Building motion that passes
 

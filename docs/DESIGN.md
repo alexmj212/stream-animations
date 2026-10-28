@@ -93,6 +93,127 @@ whole frame about 390px wide (x0.2).
 
 ![The Starting scene with the safe areas: the goal bar and the WELCOME title sit outside title-safe, the title runs into the player controls](design/live-safe-audit.jpg)
 
+## Composition
+
+Where things sit on the frame, and how big. The safe areas above say
+where things may go; this says where they should go, so the whole screen
+reads as one picture instead of a pile of sources (AJ, 2026-10-28: "make
+sure we respect rule of thirds ... pass my screen through this review").
+
+### What the research says
+
+- **Thirds** (photography, film, broadcast): split the frame 3x3 and put
+  the subject on a line or one of the four power points, not dead centre.
+  The eye lands on the power points first. Broadcast puts a person's eyes
+  on the upper third line, with look room on the side they face.
+- **Phi grid** (golden ratio): the same idea, with lines at 38.2% and
+  61.8%, a little closer to the centre. Thirds is the stronger, more
+  dynamic of the two. Use phi only to nudge a single centred subject.
+- **Lower third** (broadcast): names and captions live in a band in the
+  lower third, aligned to the title-safe edge, so they never land on a
+  face. Our title card already works this way.
+- **Corners for the persistent, centre for the content** (stream overlay
+  practice): persistent widgets anchor to corners and edges; the centre
+  third stays for AJ and the game. Stream guides cap overlay graphics at
+  about 20% of the frame. Past that, viewers read the overlay as a wall.
+- **Hierarchy and reading order**: the eye goes to the content first,
+  then the status (chat, goal), then alerts. Western viewers scan in a Z
+  from the top-left, so the top-left corner reads first and the
+  bottom-right last.
+- **Balance**: visual weight (size, brightness, contrast, motion) should
+  roughly balance left and right of centre. One heavy side tips the frame.
+- **Grouping**: things that belong together share an edge and a gap; a
+  grid (ours: 12 columns, 8px unit) keeps the gaps consistent.
+- **Design for the worst case**: a stream layout is every source that
+  can appear, not the default view. Hidden sources, MIU overlays and
+  hotkey toggles all need a place, and the layout has to survive the ones
+  that can show at the same time.
+
+Sources: [Restream, rule of thirds](https://restream.io/learn/what-is/rule-of-thirds/),
+[StreamHub, hierarchy and the 20% rule](https://streamhub.world/pt/streamer-blog/software/2656-best-practices-for-designing-stream-overlays-that-enhance-user-experience/),
+[thirds vs phi grid](https://beverlyboy.com/?p=116153),
+[Fiveable, thirds and titles in TV production](https://app.fiveable.me/tv-studio-production/unit-7/thirds-titles/study-guide/kQd4R1XeWNW530P9).
+
+### The grid
+
+| Line | 16:9 (1920x1080) | Vertical (1080x1920) |
+|---|---|---|
+| Thirds, x | 640, 1280 | 360, 720 |
+| Thirds, y | 360, 720 | 640, 1280 |
+| Phi, x | 733, 1187 | 413, 667 |
+| Phi, y | 413, 667 | 733, 1187 |
+| Power points | (640,360) (1280,360) (640,720) (1280,720) | (360,640) (720,640) (360,1280) (720,1280) |
+
+### Rules
+
+- **COMP-1** The content's focal point sits on a power point or a third
+  line: AJ's eyes on the upper third line (y 360 on 16:9, near the 640
+  line on vertical, just above the 700 seam), the vtuber's head likewise.
+  Dead centre only for a single subject that fills the frame.
+- **COMP-2** Zones by role. Persistent widgets (tier 1) anchor to a corner
+  or an edge band, on the title-safe edge. The centre cell (x 640-1280,
+  y 360-720) holds content, never a persistent widget. Lower-third band
+  (y 720-994) carries names and titles; the side thirds carry side
+  alerts.
+- **COMP-3** Coverage. At rest, persistent graphics (goal bar, chat box,
+  music box, badges, title card) cover no more than 20% of the frame on a
+  content scene (Just Chatting, Full 16:9, games). Holding scenes
+  (Starting, BRB, Ending) may run fuller; BRB's chaos is AJ's call.
+- **COMP-4** Balance. Weigh each half of the frame at rest. When one side
+  carries the chat column and the goal bar, the other side carries
+  content or a widget, not empty background.
+- **COMP-5** Reading order follows importance: top-left is read first
+  (goal, now playing), bottom-right last (badges). An alert lands where
+  the eye already is, or on the Z path, not in a far corner behind it.
+- **COMP-6** Grouping. A cluster (goal bar + music box + chat) shares one
+  left edge on the title-safe line and one gap (multiples of 8).
+- **COMP-7** Everything that can appear has a zone. Every source in
+  OBS, shown or hidden, every MIU overlay and every hotkey or Stream Deck
+  toggle has a home in the zone plan below. Two things that can be on
+  screen together never share a zone, unless one is a tier 3 takeover.
+  The full inventory (boxes and triggers, from OBS, Mix It Up and the
+  Stream Deck) lives in the project files at `composition/inventory.md`.
+  QA's everything-visible harness frames (`npm run motion:compose`, coming
+  with QA's PR after #79) will hold the pairs to it. Until then, KEEP-1
+  checks only our text against chat and music.
+
+### Zone plan (16:9)
+
+Where each thing lives once the composition fixes land (design review,
+2026-10-28). Boxes are canvas px. Zones that can be up at the same time don't
+overlap, except for the accepted overlaps listed under the table.
+
+| Zone | Box | Holds | Rule |
+|---|---|---|---|
+| Goal bar | x 36-560, y 26-75 | Follower goal | AJ's pick: it stays put (#62) |
+| Music box | x 19-481, y 0-130 | Waveform, now playing | Draws under the goal bar |
+| Toast lane | x 560-1824, y 26-74 | Notifications toast | One toast at a time |
+| Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up. Text at 32px caps (a 44px Jost 700 line) on an ink plate at full opacity |
+| Remote | x 496-546, y 83-133 | Remote holder | Out of the toast's path, right of chat |
+| Jail | x 496-622, y 140-211 | Jail slideshow | Below the banner lane |
+| Chat column | x 18-488, y 127-537 | Chat only | No gag or decoration behind it (KEEP-1) |
+| Right third | x 1312-1824, y 140-640 | MIU avatars, Pixel Guess (from y 140), discoball (x 1530-1824, y 140-396) | Mix It Up keep-out still applies to our text |
+| Sidebar | right side, text on its nameplate at 78% | Tier 2 alerts | MOTION.md, sidebar text at 78% |
+| Bottom-right corner | x 1312-1824, y 650-942 | One gag at a time: Lechonk (after the sidebar), Clippy, iPhone text, Life points | Ends 8px above the badge |
+| Badge | x 1613-1840, y 950-985 | Pride Guild | Above the player controls |
+| Lower band | x 70-1304, y 788-994 | Exobot (x 70-436), Discord heads (x 440-1304) | Nothing readable below y 994 (SAFE-3) |
+
+Accepted overlaps:
+- The goal bar sits on the music box's waveform. The waveform draws under
+  the bar (AJ's pick, #62; KEEP-1 reports it as a warning).
+- Now playing ends at y 130, and chat starts at y 127: a 3px seam in OBS.
+- The discoball is decoration with no text, so MIU avatars and Pixel Guess
+  may draw over it.
+- The sidebar and the bottom-right gags take turns. Lechonk waits for the
+  sidebar to leave. Clippy, the iPhone text and Life points can still land
+  during a sidebar; they're brief (3-10 s), and queueing them is open.
+
+The Starting and BRB song line (x 0-651, y 1037-1094) ran off the frame
+under the player controls and repeated now playing, so it's hidden on both
+scenes (design review, 2026-10-28).
+
+![Everything that can appear on the 16:9 canvas, drawn at once before the fixes: persistent in blue, alerts in orange, gags in pink, thirds in teal](design/everything-map.jpg)
+
 ## Depth and layering
 
 From back to front, every scene stacks on these planes:
@@ -377,16 +498,30 @@ applies unchanged. Tokens: `config.design.vertical`.
   hold, as the 16:9 toast's last resort does. That trades V-TYPE-1 and
   TIME-1 for a single line; the harness reports it as a warning, not a
   failure. Don't re-file it.
-- **V-LAYOUT-1** Alerts sit on the camera/game seam or inside the game
-  half, never over AJ's face in the camera half. The toast spans the safe
-  width on the seam in one line at 56px (AJ's pick, B1), with no goal bar to grow from (there's no goal bar on
-  vertical). The raid shade uses its own native 1080x1920 source, where
-  the page already wraps the name to fit.
+- **V-LAYOUT-1** Alerts sit on the camera/game seam (y 700) or inside
+  the game half, never over AJ's face in the camera half. The game starts
+  at the seam on every vertical scene (AJ, 2026-10-28: the game moved from
+  y 635 to 700, so it no longer hides the bottom of the camera).
+  - The toast spans the safe width on the seam in one line at 56px (AJ's
+    pick, B1), with no goal bar to grow from (there's no goal bar on
+    vertical).
+  - The sidebar (tier 2: shoutouts, subs, gifts) is a two-line plate on
+    the seam, the action at `label` 48 over the name at `headline` 64, so
+    it outranks the 56px toast. The plate grows upward from the seam for
+    the second line, as the title card's does (AJ's pick A2, 2026-10-28;
+    the scaled 16:9 panel covered the camera half and ran under the app's
+    buttons). One alert per zone: the toast and the sidebar share the
+    seam, so they queue (ALERT-1).
+  - The raid shade (tier 3) may cover AJ, but its words still fit inside
+    x 60-940 (880px): shrink, then wrap, as on 16:9 (TYPE-6).
 - **V-REUSE-1** One page serves both canvases where it can: a portrait
   layout is picked from the viewport (or a URL param), not a second copy
-  of the scene.
+  of the scene. The notifications and sidebar pages each pick their seam
+  layout this way; no scaled 16:9 copy goes on the vertical canvas.
 
 ![Portrait toast options on the phone-safe box (mock, 2026-10-28). AJ picked B1: one line at 56px, shrinking to 45px and then scrolling](design/vertical-toast.jpg)
+
+![Vertical sidebar options over the live gameplay capture (design review mock, 2026-10-28). AJ picked A2: a two-line plate on the seam](design/vertical-sidebar.jpg)
 
 ## Scenes at a glance
 
@@ -426,6 +561,10 @@ capture when OBS adds layers on top. Cite the rule id for each finding.
 11. Within the frame budget (PERF; the harness and `npm run bench`).
 12. On the vertical canvas: words inside the phone-safe box, 48px or
     more, off AJ's face (V-SAFE-1, V-TYPE-1, V-LAYOUT-1).
+13. Composition: the subject on a third line or power point, the new thing
+    in its zone from the zone plan, and no shared zone with anything that can
+    show at the same time, hidden sources and gags included (COMP-1 to
+    COMP-7).
 
 ## Making designs
 
