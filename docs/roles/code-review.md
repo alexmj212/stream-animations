@@ -39,6 +39,11 @@ change (Design review), harness checks and test health (QA).
    check, doc fix or Learnings row)? A PR that hit a snag and left nothing
    durable is a finding (seed rule from the self-improvement thread,
    2026-10-28).
+   **Debug instrumentation** is welcome (AJ, 2026-10-28: agents may add
+   signals to scene code to test and verify without asking). Check that it's
+   off by default, behind a URL or debug flag (the convention is QA's), and
+   costs nothing on stream when off: no per-frame work, allocations or
+   listeners unless the flag is set. `registerProbe()` is the model.
 5. Post **one** verdict per round (*Ready* or *Needs changes*; *Needs AJ's
    call* only for design, see below) as a GitHub review (inline comments for
    line findings, the verdict in the body), ending with the attribution
