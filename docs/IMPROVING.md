@@ -17,7 +17,11 @@ agent inherits automatically.
    - a test or a check that fails on the mistake,
    - a doc fix,
    - a Learnings row in the charter of the role that owns the area (or
-     `docs/MOTION.md` for style).
+     `docs/MOTION.md` for style),
+   - an update to AJ's streaming vault (`F:\exogenesis` on Defiant), when
+     the task changed hosting, OBS or Mix It Up wiring, the release flow,
+     the team rules or a design decision AJ made (2026-10-28, code review
+     on #26; which notes to update is in `CLAUDE.md`).
 3. **Cite it.** Every rule names its date and source ("AJ, 2026-10-28", a PR,
    a benchmark run). A rule without a reason can't be judged later.
 4. **Ship it small.** Small improvements go in the same PR as the work. Bigger

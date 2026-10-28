@@ -84,6 +84,18 @@ user-facing overview and the full URL parameter reference.
 - `docs/IMPROVING.md`: the self-improvement loop and the Learnings format
 - `docs/roles/`: one charter per permanent role thread (code review, design review, release management, QA)
 
+**AJ's streaming vault** (2026-10-28): `F:\exogenesis` on Defiant, an Obsidian
+vault that documents the whole stream setup. It has notes on this repo in
+`06 Setup/`: `Stream Animations` (hosting and scenes), `Alert & Transition
+Wiring` (OBS and Mix It Up), `Overlay Release Process` and `Stream Animations
+Agent Team`. The repo docs stay the reference; the vault links to them and
+holds the OBS-side picture. When you change something those notes describe
+(hosting, OBS or MIU wiring, the release flow, the team rules, a design
+decision AJ made), update the note through a thread with folder access to
+Defiant, and follow the vault's own `CLAUDE.md`: wiki links, `type:`/`tags:`
+frontmatter, no metrics in notes, and append-only `Decisions` and
+`Troubleshooting Log`.
+
 ## Commands
 
 ```bash
