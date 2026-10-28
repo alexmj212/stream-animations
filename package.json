@@ -30,6 +30,7 @@
     "motion": "node tools/motion/run.js",
     "motion:export": "node tools/motion/export.js",
     "debug:collect": "node tools/debug/collect.js",
+    "pages:stage": "npm run build && bash tools/pages/stage.sh",
     "pages:smoke": "node tools/pages/smoke.js"
   },
   "keywords": [

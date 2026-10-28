@@ -68,8 +68,10 @@ Pages and must never be stale). After the Pages deploy for a merge, run
 loader keeps the URL, that the build stamp and `version.json` match the sha,
 that `?debug=build` shows it, and that the stinger plays after the loader.
 The cloud can't reach Pages (proxy 403), so run it there against a staged
-`_site` (build, then the "Stage site" step of `pages.yml`, then
-`python3 -m http.server -d _site`). Ask a Remote Control session to run it
+site: `npm run pages:stage` (the same `tools/pages/stage.sh` the deploy
+runs; the commit is `GITHUB_SHA` or HEAD), then
+`python3 -m http.server 8811 -d _site` and
+`npm run pages:smoke -- http://127.0.0.1:8811 $(git rev-parse HEAD)`. Ask a Remote Control session to run it
 against live Pages.
 
 **Measure, don't ask** (AJ, 2026-10-28). When a check needs a signal the
