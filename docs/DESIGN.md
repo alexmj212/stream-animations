@@ -167,6 +167,11 @@ canvas, with what a viewer sees:
 - **TYPE-1** Nothing a viewer must read is under 40px (`minPx`). Alert
   text is 56px and up; a short action line set with it (the sidebar's
   "CHECK OUT") may be `label` 40px (#34).
+  One exception: the notifications toast draws at 42px, but a very long
+  custom line (about 20 words) shrinks to 23px (`notifications.text.minScale`)
+  so it holds still and whole for its reading time. TIME-1 wins over TYPE-1
+  there, and the harness reports it as a TYPE-1 warning, not a failure.
+  Design review accepted it in #62 (2026-10-28); don't re-file it.
 - **TYPE-2** Uppercase, tracking +2% (`trackingEm`). Usernames keep their
   letters but render in caps like everything else.
 - **TYPE-3** Text over anything that moves takes the recipe: an ink stroke

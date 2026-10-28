@@ -41,7 +41,7 @@ ink nameplate, and slide out. The text holds still for its reading time;
 A toast bar that grows out of the right end of the follower-goal bar (top
 left), shows one line of text and slides back in. Rebuilt from the OBS
 "Notifications" scene. Long text never loses words: it shrinks to 70%, then
-the bar grows toward the right edge (up to x 1890), and only a line too long
+the bar grows toward the right edge (up to x 1824, title-safe), and only a line too long
 even for that scrolls during the hold. The default duration stretches so the
 text holds at 200 ms a word.
 
