@@ -364,6 +364,32 @@ export const SCENARIOS = [
     }
   },
   {
+    // The common case: a follow line with a username already shrinks to
+    // 45px and scrolls in portrait. AJ saw that in the B1 mock and picked
+    // it, so V-TYPE-1 and TIME-1 only warn (Design review, PR #72)
+    name: 'notifications-vertical-name',
+    scene: 'notifications',
+    url: `/src/notifications/index.html?color=${COLOR}&text=Thanks+for+the+follow%2C+%40aspiritualbumpit!+Welcome+in`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.2, 0.4, 0.6, 0.8],
+    keyframeSpanMs: 5000,
+    markers: [{ at: 1000, label: 'hold' }, { at: 4000, label: 'out' }, { at: 5000, label: 'end' }],
+    checks: {
+      design: { rules: ['V-SAFE-1', 'V-TYPE-1', 'TIME-1', 'FLASH-1', 'FLASH-2'], holdMs: [1000, 4000], fail: ['V-SAFE-1', 'FLASH-1', 'FLASH-2'] },
+      totalDurationMs: 5000,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Whole line shown' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
+      noVelocitySteps: true
+    }
+  },
+  {
     // A long line in portrait: shrinks to 45px, then scrolls during the
     // hold. That's B1's named exception to V-TYPE-1 and TIME-1 (DESIGN.md),
     // so those two only warn here (Rotom, 2026-10-28)
