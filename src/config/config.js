@@ -357,6 +357,91 @@ export const config = {
     }
   },
 
+  // Followers scene: the always-on follower-goal bar, top left ("946 / 1000
+  // GOOBERS"). Replaces the Mix It Up "Follow Goal" widget (an MIU counter
+  // goal on counter `followercount`, read from Defiant 2026-10-28). The
+  // notifications toast grows out of its right end, so top, height, right
+  // edge and lean must equal config.notifications.geometry (a unit test
+  // holds them together).
+  followers: {
+    geometry: {
+      top: 26,                    // = notifications.geometry.top
+      height: 48,                 // = notifications.geometry.height
+      leftX: 36,                  // Left edge at mid-height (MIU bar: ~x 30-42)
+      rightX: 451,                // = notifications.geometry.startX: the toast starts here
+      skewAngle: -15              // = notifications.geometry.skewAngle
+    },
+
+    // Brightness multiplier shared by every scene (docs/MOTION.md)
+    brightness: 0.8,
+
+    // ?goal= and ?label= defaults, as MIU had them (one segment, 1000)
+    goal: 1000,
+    label: 'GOOBERS',
+    // ?goalstep=: once the goal is reached, roll on to the next multiple of
+    // this. 0 keeps the goal and shows the count past it on a full bar
+    goalStep: 0,
+
+    // Where the count comes from (src/followers/source.js). MIU's
+    // Developer API (Services > Developer API, port 8911) serves the same
+    // counter its widget used; MIU sets it to $streamfollowercount at launch
+    // and on every follow. Polling a local API keeps every secret out of
+    // this public repo. ?count= seeds the bar (and is the whole source with
+    // ?source=url, for when MIU sets the OBS URL instead).
+    source: {
+      api: 'http://localhost:8911/api/v2/counters/',
+      counter: 'followercount',
+      pollMs: 5000,               // A follow shows within 5 s; one tiny local GET each time
+      maxBackoffMs: 60000,        // MIU closed: back off to one try a minute
+      timeoutMs: 2000,
+      storageKey: 'followers:last' // Last count, so a reload paints at once
+    },
+
+    // ?style=: 'creative' (sweep and tip on a change, glint now and then)
+    // or 'clean' (the fill and number just ease to the new count)
+    style: 'creative',
+
+    // The OBS-era colors (?scheme=mono): MIU widget gradient and border
+    classic: {
+      fill: ['#412e4d', '#b00bee', '#e6d3f5'],
+      body: 'rgba(20, 6, 30, 0.55)',
+      rim: '#ffffff'
+    },
+
+    // Body behind the fill: dark and see-through, like the toast body
+    bodyAlpha: 0.55,
+    bodyLightness: -38,           // Palette lightness offset for the body
+    rim: { width: 2, alpha: 0.85 },   // MIU bar: 1 px white border
+    tipWidth: 10,                 // White tip on the fill's front, like the toast's
+    // ?filllayout=: how the Illuminations palette lies on the fill. 'ramp'
+    // runs the whole palette over the goal (violet at zero, amber at the
+    // goal), so the color itself says how close it is; 'screen' is the
+    // other scenes' top-to-bottom gradient, nearly all violet up here.
+    // 'screen' by default (2026-10-28 mocks, design/followers/): it matches
+    // the other scenes and hands over cleanly to the toast, which starts
+    // violet; 'ramp' ends amber right where the toast starts dark violet
+    fillLayout: 'screen',
+
+    timing: {
+      sweepMs: 900,               // Light band along the bar on a change
+      fillDelayMs: 250,           // The fill and number start behind the band...
+      fillMs: 900,                // ...and land as it leaves
+      glintEveryMs: 90000,        // Idle glint (creative); 0 = off. Rare, so idle stays free
+      glintMs: 700
+    },
+    sweep: { bandPx: 70, alpha: 0.8 },
+    glint: { bandPx: 40, alpha: 0.35 },
+
+    text: {
+      font: '"Jost", Arial, sans-serif',
+      style: 'italic',            // Same face as the toast text
+      weight: 700,
+      sizePx: 32,
+      strokePx: 4,
+      padding: 18                 // Room kept clear at each end
+    }
+  },
+
   // Notifications scene: a toast bar that grows out of the right end of the
   // follower-goal bar (the MIU "Follow Goal" overlay, top left) with a line
   // of text. Rebuilt from AJ's OBS "Notifications" scene (color sources,

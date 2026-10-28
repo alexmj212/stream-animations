@@ -16,6 +16,7 @@ tool calls costs ten re-reads. Run the script, read its answer, move on.
 | Export a scene as transparent video for OBS | `npm run motion:export -- <scene>` |
 | Benchmark frame time and Canvas cost | `npm run bench` (one scene: `node tools/benchmark/run.js <scene>`) |
 | Cut a seamless loop from an OBS recording | `tools/loopcut.sh <recording.mkv>` (`--help` for options) |
+| Render scene text in Jost in the cloud container (else Arial; 2026-10-28) | `tools/fonts/install-jost.sh` |
 | Check a scene live | `npm run dev`, then `/src/<scene>/index.html?perf=true` |
 
 In the cloud container, headless Chrome is at `/opt/pw-browsers/chromium`;
