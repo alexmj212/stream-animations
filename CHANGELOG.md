@@ -18,6 +18,9 @@ minor for new scenes, features or a visible style change, patch for fixes.
 - Goal bar and toast: the text is bigger, 42px instead of 32px, in the same
   top-left spot. The goal bar now reaches x560 so the count fits, and the
   toast grows out from there. ([#62])
+- Stinger on the vertical (1080x1920) canvas: the curtains now cover the
+  whole screen at the cut, instead of leaving a wedge at the bottom right.
+  The 16:9 stinger is unchanged. ([#66])
 - Text scenes carry their own copy of Jost, so a browser source that
   loads offline or before the font arrives no longer falls back to
   Arial. ([#60])
@@ -124,3 +127,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#60]: https://github.com/alexmj212/stream-animations/pull/60
 [#62]: https://github.com/alexmj212/stream-animations/pull/62
 [#64]: https://github.com/alexmj212/stream-animations/pull/64
+[#66]: https://github.com/alexmj212/stream-animations/pull/66
