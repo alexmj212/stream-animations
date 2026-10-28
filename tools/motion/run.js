@@ -11,6 +11,7 @@
  *   npm run motion -- --fps=30             # step at another frame rate
  *   npm run motion -- --no-shots           # skip keyframe screenshots (faster)
  *   npm run motion -- --dump               # also write every frame's raw data (capture.json)
+ *   npm run motion -- --color=00b3ff       # try another brand color
  *
  * Exit code is non-zero when any check fails, so it can gate CI.
  * Report: tools/motion-results/index.html
@@ -70,7 +71,10 @@ async function capture(browser, baseUrl, scenario, seed) {
   });
 
   await page.evaluateOnNewDocument(`(${installVirtualClock.toString()})(${seed});`);
-  const url = `${baseUrl}${scenario.url}&seed=${seed}`;
+  const params = new URL(scenario.url, 'http://x');
+  if (flags.color) params.searchParams.set('color', String(flags.color).startsWith('#') ? flags.color : `#${flags.color}`);
+  params.searchParams.set('seed', String(seed));
+  const url = `${baseUrl}${params.pathname}${params.search}`;
   await page.goto(url, { waitUntil: 'load' });
 
   if (scenario.start === 'load') {
