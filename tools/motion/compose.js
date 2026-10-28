@@ -106,13 +106,18 @@ for (const pair of pairs) {
     }
     for (const s of shots) ctx.drawImage(await load(s), 0, 0, W, H);
     // Labels last, so a live scene doesn't hide which mock sits under it
+    // A label that would land on one already drawn moves down a row
+    const placed = [];
     for (const m of mocks) {
       const [x0, y0] = m.box;
       const w = ctx.measureText(m.label).width + 12;
+      let y = Math.max(y0, 0) + 4;
+      while (placed.some(p => x0 + 4 < p.x + p.w && p.x < x0 + 4 + w && y < p.y + 26 && p.y < y + 26)) y += 28;
+      placed.push({ x: x0 + 4, y, w });
       ctx.fillStyle = m.color;
-      ctx.fillRect(x0 + 4, Math.max(y0, 0) + 4, w, 26);
+      ctx.fillRect(x0 + 4, y, w, 26);
       ctx.fillStyle = '#000';
-      ctx.fillText(m.label, x0 + 10, Math.max(y0, 0) + 24);
+      ctx.fillText(m.label, x0 + 10, y + 20);
     }
     // Player controls and the title
     ctx.strokeStyle = '#ff3b30';
