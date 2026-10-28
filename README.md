@@ -147,9 +147,15 @@ Every moving animation also runs a paired color animation on an independent cloc
 ```
 src/
   shared/       - Shared animation utilities and base classes
-  stinger/      - Stinger transition animation
-  background/   - Background loop animation
-public/         - Built/compiled animations for OBS
+  config/       - Centralized configuration (config.js) and validation
+  stinger/      - Stinger transition
+  sidebar/      - Sidebar notification
+  shade/        - Raid/alert banner
+  background/   - Background loop
+  epcot/        - Spaceship Earth lattice
+tests/          - Vitest suites, one folder per scene
+tools/          - Benchmark harness, loop cutter and other scripts
+docs/           - Project docs (start at docs/README.md)
 ```
 
 ## Development
