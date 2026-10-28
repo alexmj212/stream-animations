@@ -26,8 +26,8 @@ bible, [DESIGN.md](DESIGN.md), which links here for these decisions.
 - **Shared defaults**: entry 1000 ms, exit 1000 ms, hold 2000 ms, eased with
   `easeInOutCubic`, used by the shade. Scenes override only with a reason:
   the background fades over 2000 ms because it is ambient. Two scenes split
-  their `?duration` proportionally instead: the stinger 35% in, 30% full
-  cover, 35% out, so OBS cuts at the 50% mark while the screen is covered
+  their `?duration` proportionally instead: the stinger 45% in, 10% hold,
+  45% out, so OBS cuts at the 50% mark while the screen is covered
   (`config.stinger.timing`), and the sidebar 25% in, 50% hold, 25% out
   (`config.sidebar.timing`). [v1.0 timing patterns; motion harness PR #2]
 - **Reading pace**: text holds 200 ms per word (5 words a second), never less
@@ -63,6 +63,6 @@ Add a dated line when a review or AJ's feedback settles a question of style.
 | 2026-10-28 | Decorative streaks and accents stay out of the text box while text is on screen | PR #27 design review | active |
 | 2026-10-28 | Long notification text grows the bar to fit the line, up to the bar's full length at title-safe's right edge (x1824, DESIGN.md SAFE-1), and the text stays still; it scrolls only if it still doesn't fit at full length. Scrolling clipped the start and end of the line during the hold | Side-by-side mock from the notifications thread; design review call (AJ may override) | active (#32) |
 | 2026-10-28 | The scene title cards (WELCOME, BRB, ENDING) and the BRB collage stay as they are, and are exempt from the rules the audit raised against them in #39 and #42 (SAFE-1/3, TYPE-3, TYPE-7, ALERT-2, COLOR-1); don't propose a title-card scene or a BRB redo again without a new reason | AJ picked "Leave as is" on the design audit cards (#39, #42, closed as not planned) | active |
-| 2026-10-28 | The stinger runs 1200 ms with OBS's transition point at 600, and full static cover drops to 15% of the duration (`pauseProportion` 0.15), so the cut is a moment rather than a hold (DESIGN.md CUT-2) | AJ picked it from the 2000-vs-1200 video, design audit #36 | OBS set; target until the pauseProportion PR lands |
+| 2026-10-28 | The stinger runs 1200 ms with OBS's transition point at 600, and the split moves to 45/10/45 (`pauseProportion` 0.10), so the still full cover is 230-300 ms, so the cut is a moment rather than a hold (DESIGN.md CUT-2) | AJ picked it from the 2000-vs-1200 video, design audit #36 | active (#56) |
 | 2026-10-28 | Alert text (shade and sidebar) holds still and whole while it is read, for a reading-time hold (DESIGN.md MOTION-1, TIME-1, TYPE-1/3) | AJ's pick on the design audit set, #33-#35 | target: being built in its own work thread |
 | 2026-10-28 | The GOOBERS widget pair gets bigger text but keeps its position, so its top margin is AJ's exemption from SAFE-1 | AJ's pick, design audit #40 | target: design system PR |

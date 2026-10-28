@@ -116,9 +116,11 @@ export const config = {
     timing: {
       defaultDurationMs: 1000,    // Default transition duration
       fps: 60,                    // Frames per second for calculations
-      easeInProportion: 0.35,     // 35% of duration: bars arrive
-      pauseProportion: 0.30,      // 30% of duration: full cover (hold)
-      easeOutProportion: 0.35,    // 35% of duration: bars leave
+      easeInProportion: 0.45,     // 45% of duration: bars arrive
+      pauseProportion: 0.10,      // 10% of duration: the hold. Bars settle slowly at the
+                                  // end of the ease, so the still cover runs 230-300ms
+                                  // at the on-stream 1200ms, inside CUT-2 (AJ, 2026-10-28, #36)
+      easeOutProportion: 0.45,    // 45% of duration: bars leave
       inStaggerProportion: 0.35,  // Accent arrivals start up to 35% into the in phase
       outStaggerProportion: 0.3   // Accent exits start up to 30% into the out phase
     },
