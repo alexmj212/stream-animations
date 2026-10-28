@@ -186,10 +186,15 @@ export class AnimatedBar {
             // Get cached bar shape (without shadow)
             const offscreenCanvas = this.getOrCreateOffscreenCanvas(width, height, hue, saturation, lightness, angle, false);
 
+            // The cached bar is centered in its offscreen canvas; shift it so
+            // its left edge lands on x, exactly like the uncached path below
+            // (which draws from x rightwards). Previously the image was
+            // centered on x, so cached white bars sat width/2 left of where
+            // their own shadow and every other bar's coordinates put them.
             ctx.globalAlpha = opacity;
             ctx.drawImage(
                 offscreenCanvas,
-                x - offscreenCanvas.width / 2,
+                x + width / 2 - offscreenCanvas.width / 2,
                 y - offscreenCanvas.height / 2
             );
 
@@ -234,13 +239,64 @@ export class AnimatedBar {
             ctx.rotate((angle * Math.PI) / 180);
             const minHeight = this.canvas.height * 1.5;
             ctx.fillRect(0, -minHeight * 0.3, width, minHeight);
+            if (this.edgeLight) {
+                // Thin lit edge along the bar's leading side: reads as a
+                // specular rim and gives overlapping bars crisp separation.
+                ctx.fillStyle = this._edgeStyle(hue, saturation, lightness);
+                const w = Math.min(this.edgeLightWidth ?? 4, width / 4);
+                ctx.fillRect(this.edgeLight === 'right' ? width - w : 0, -minHeight * 0.3, w, minHeight);
+            }
         } else {
             ctx.translate(x, y);
             ctx.transform(1, 0, Math.tan(angle * Math.PI / 180), 1, 0, 0);
             ctx.fillRect(0, -height / 2, width, height);
+            if (this.edgeLight) {
+                ctx.fillStyle = this._edgeStyle(hue, saturation, lightness);
+                const h = Math.min(this.edgeLightWidth ?? 3, height / 4);
+                ctx.fillRect(0, this.edgeLight === 'bottom' ? height / 2 - h : -height / 2, width, h);
+            }
         }
 
         ctx.restore();
+    }
+
+    _edgeStyle(hue, saturation, lightness) {
+        if (!this._edgeFill) {
+            this._edgeFill = `hsla(${hue}, ${Math.min(100, saturation + 10)}%, ${Math.min(92, lightness + 28)}%, 0.85)`;
+        }
+        return this._edgeFill;
+    }
+
+    /**
+     * Exact axis-aligned bounds of what drawBar() paints (bar + drop shadow),
+     * from the same transform drawBar uses. x is the bar's anchor (left edge
+     * at its rotation/skew origin), not its center.
+     */
+    computeBounds(x, y, width, height, angle) {
+        const rad = angle * Math.PI / 180;
+        let corners;
+        if (this.type === 'slanted') {
+            const minHeight = this.canvas.height * 1.5;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            corners = [[0, -minHeight * 0.3], [width, -minHeight * 0.3], [0, minHeight * 0.7], [width, minHeight * 0.7]]
+                .map(([lx, ly]) => [x + lx * cos - ly * sin, y + lx * sin + ly * cos]);
+        } else {
+            const tan = Math.tan(rad);
+            corners = [[0, -height / 2], [width, -height / 2], [0, height / 2], [width, height / 2]]
+                .map(([lx, ly]) => [x + lx + tan * ly, y + ly]);
+        }
+        const shadow = config.shared.shadow.offset;
+        const xs = corners.map(c => c[0]);
+        const ys = corners.map(c => c[1]);
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        return {
+            x: minX,
+            y: minY,
+            width: Math.max(...xs) - minX + shadow,
+            height: Math.max(...ys) - minY + shadow
+        };
     }
 
     /**
