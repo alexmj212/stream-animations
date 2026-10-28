@@ -19,6 +19,8 @@ import { hermite, stratified } from '../shared/motion.js';
 import { config } from '../config/config.js';
 
 const OFFSCREEN = 300;
+/** px a curtain reaches past the screen's far edge on a tall canvas. */
+const CURTAIN_EDGE_OVERLAP = 50;
 
 export class StingerBar extends AnimatedBar {
     /**
@@ -168,7 +170,13 @@ export class StingerBar extends AnimatedBar {
         const T = this.totalDuration;
         this.isBackground = true;
         this.isWhite = false;
-        this.width = W * 0.75;
+        // 3/4 of the width, or wider on a tall canvas (the Aitum Vertical
+        // 1080x1920 one), where the 15° slant pulls the right curtain's
+        // bottom edge back off the screen: its far edge at the bottom sits
+        // at W/2 + width/cos - H*tan, so it must reach W plus the overlap
+        const rad = this.angle * Math.PI / 180;
+        const H = this.canvas.height;
+        this.width = Math.max(W * 0.75, (W / 2 + H * Math.tan(rad) + CURTAIN_EDGE_OVERLAP) * Math.cos(rad));
         this.opacity = 1.0;
         this.direction = side === 'left' ? 1 : -1;
         this.startX = side === 'left' ? -this.width - OFFSCREEN : W + OFFSCREEN;
