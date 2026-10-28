@@ -84,7 +84,7 @@
       const style = urlParams.get("style") || config.notifications.style;
       const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
       const toast = new NotificationBar(ctx, canvas, { text, durationMs, palette: palette.stops, colorLayout, style, random: createRandom(seed) });
-      const markFit = (font) => debug.mark('textFit', { font, shown: toast.textShown, scale: +toast.textScale.toFixed(3), room: Math.round(toast.textRoom) });
+      const markFit = (font) => debug.mark('textFit', { font, scale: +toast.textScale.toFixed(3), room: Math.round(toast.textRoom), extraPx: toast.extraPx, scrollPx: toast.scrollPx });
       markFit('fallback');
       // The line first renders in a fallback font; redo it in Jost once
       // loaded (the text only shows after the bar is out, so it's in time)

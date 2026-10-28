@@ -11,7 +11,7 @@
  * file holds the geometry, fills, seeded plan and drawing.
  */
 import { AnimatedBar } from '../shared/AnimatedBar.js';
-import { planNotificationTimeline, extentAt, textStateAt, streakFrontAt, wipeAt } from '../shared/animations/notification.js';
+import { planNotificationTimeline, extentAt, textStateAt, streakFrontAt, wipeAt, scrollOffsetAt, extraLengthFor } from '../shared/animations/notification.js';
 import { shadeStops, paletteGradient } from '../shared/palette.js';
 import { stratified } from '../shared/motion.js';
 import { fitText } from '../shared/layout.js';
@@ -36,16 +36,17 @@ export function resolveColorLayout(requested, stops) {
 /**
  * Screen geometry of the toast for a canvas width (px).
  * @param {number} width - Canvas width
+ * @param {number} [extraPx=0] - Grow the bar this much past endX (px at 1920 wide)
  * @returns {{top: number, height: number, mid: number, startX: number, leadLength: number,
  *   bodyLength: number, tipWidth: number, lean: number}} lean: how far the top edge sits right
  *   of the bottom edge's midpoint, each way (px)
  */
-export function notificationGeometry(width) {
+export function notificationGeometry(width, extraPx = 0) {
     const g = config.notifications.geometry;
     const k = width / REF_WIDTH;
     const height = g.height * k;
     const top = g.top * k;
-    const leadLength = (g.endX - g.startX) * k;
+    const leadLength = (g.endX - g.startX + extraPx) * k;
     return {
         top,
         height,
@@ -79,7 +80,8 @@ export class NotificationBar extends AnimatedBar {
         this.creative = (options.style ?? config.notifications.style) === 'creative';
         const flair = config.notifications.flair;
         this.timeline = planNotificationTimeline(this.durationMs, config.notifications.timing, this.creative ? flair.wipe.ms : 0);
-        this.geo = notificationGeometry(canvas.width);
+        this.extraPx = this.extraLength();
+        this.geo = notificationGeometry(canvas.width, this.extraPx);
         this.streaks = this.creative ? planStreaks(this.timeline, this.geo, canvas.width / REF_WIDTH, this.random) : [];
         this.wipeX = null;
         this.leadExtent = 0;
@@ -89,6 +91,22 @@ export class NotificationBar extends AnimatedBar {
         this.phase = 'in';
         this.buildFills();
         this.buildText();
+    }
+
+    /**
+     * Extra bar length for this text: a line that wouldn't fit at minScale
+     * grows the bar toward geometry.maxEndX instead of losing words.
+     * @returns {number} px at 1920 wide
+     */
+    extraLength() {
+        const t = config.notifications.text;
+        const g = config.notifications.geometry;
+        const base = notificationGeometry(REF_WIDTH);
+        const measure = document.createElement('canvas').getContext('2d');
+        measure.font = `${t.style} ${t.weight} ${t.sizePx * t.minScale}px ${t.font}`;
+        const room = base.bodyLength - 2 * (t.padding + base.lean);
+        // 4px slack: glyph widths don't scale exactly with the font size
+        return extraLengthFor(measure.measureText(this.text).width + 4, room, g.maxEndX - g.endX);
     }
 
     /** Fill styles, built once: gradients are fixed to the screen, not the bar. */
@@ -133,8 +151,9 @@ export class NotificationBar extends AnimatedBar {
 
     /**
      * Render the text once into an offscreen canvas, shrunk to fit the body
-     * (down to minScale) and then cut with an ellipsis. Call again once the
-     * web font has loaded.
+     * (down to minScale). The bar has already grown for long text
+     * (extraLength); a line that still doesn't fit scrolls during the hold.
+     * Call again once the web font has loaded.
      */
     buildText() {
         const t = config.notifications.text;
@@ -148,16 +167,9 @@ export class NotificationBar extends AnimatedBar {
         const fit = fitText(natural, room, t.minScale);
         const px = basePx * (fit.lines === 1 ? fit.scale : t.minScale);
         measure.font = fontAt(px);
-        let shown = this.text;
-        if (measure.measureText(shown).width > room) {
-            // Too long even at minScale: drop words, then letters, add an ellipsis
-            const words = shown.split(' ');
-            while (words.length > 1 && measure.measureText(`${words.join(' ')}…`).width > room) words.pop();
-            shown = words.join(' ');
-            while (shown.length > 1 && measure.measureText(`${shown}…`).width > room) shown = shown.slice(0, -1);
-            shown = `${shown.trimEnd()}…`;
-        }
-        const m = measure.measureText(shown);
+        const m = measure.measureText(this.text);
+        // Too long even at minScale in the longest bar: scroll the rest
+        this.scrollPx = Math.max(0, Math.ceil(m.width - room));
         const stroke = t.strokePx * k;
         const ascent = m.actualBoundingBoxAscent;
         const descent = m.actualBoundingBoxDescent;
@@ -171,19 +183,24 @@ export class NotificationBar extends AnimatedBar {
         cc.lineJoin = 'round';
         cc.lineWidth = stroke * 2;
         cc.strokeStyle = '#000';
-        cc.strokeText(shown, pad, pad + ascent);
+        cc.strokeText(this.text, pad, pad + ascent);
         cc.fillStyle = '#fff';
-        cc.fillText(shown, pad, pad + ascent);
+        cc.fillText(this.text, pad, pad + ascent);
         this.textCache = cache;
-        this.textInk = { right: this.textX + pad + m.width + stroke, top: this.textY, bottom: this.textY + cache.height };
-        if (this.streaks) fitStreaksToText(this.streaks, this.textInk.right, this.canvas.width / REF_WIDTH);
-        this.textShown = shown;
         this.textWidth = m.width;
         this.textRoom = room;
+        this.textRoomLeft = this.geo.startX + this.geo.bodyLength / 2 - room / 2;
         this.textScale = px / basePx;
-        // Optically centred on the body (ink box, not the em box)
-        this.textX = this.geo.startX + this.geo.bodyLength / 2 - cache.width / 2;
+        // Optically centred on the body (ink box, not the em box); a scrolling
+        // line starts at the room's left edge
+        this.textX = this.scrollPx > 0
+            ? this.textRoomLeft - pad
+            : this.geo.startX + this.geo.bodyLength / 2 - cache.width / 2;
         this.textY = this.geo.mid - (ascent + descent) / 2 - pad;
+        // Needs textX and textRoomLeft from this build (Code review, PR #32:
+        // before them, the first build fitted the streaks to NaN)
+        this.textInk = { right: Math.min(this.textX + pad + m.width, this.textRoomLeft + room) + stroke, top: this.textY, bottom: this.textY + cache.height };
+        if (this.streaks) fitStreaksToText(this.streaks, this.textInk.right, this.canvas.width / REF_WIDTH);
     }
 
     /** @param {number} t - Seconds since the toast started */
@@ -194,7 +211,7 @@ export class NotificationBar extends AnimatedBar {
         this.bodyExtent = extentAt(body, this.geo.bodyLength, t);
         const s = textStateAt(text, config.notifications.timing.textSlidePx * this.canvas.width / REF_WIDTH, t);
         this.textAlpha = s.alpha;
-        this.textDx = s.dx;
+        this.textDx = s.dx - scrollOffsetAt(text, this.scrollPx, config.notifications.text.scrollPauseMs / 1000, t);
         this.wipeX = null;
         if (this.creative) {
             // Written in by the band instead of sliding and fading in
@@ -222,10 +239,11 @@ export class NotificationBar extends AnimatedBar {
             { id: 'body', x: startX + this.bodyExtent, y: mid, phase: this.phase, onscreen: this.bodyExtent > 0.5 },
             {
                 id: 'text', x: this.textX + this.textDx, y: mid, phase: this.phase, onscreen: textOn,
-                // px of text that wouldn't fit the body (must stay 0)
-                overflow: textOn ? Math.max(0, this.textWidth - this.textRoom) : 0,
+                // px of the line never shown: past the room once fully scrolled (must stay 0)
+                overflow: textOn ? Math.max(0, this.textWidth - this.textRoom - this.scrollPx) : 0,
                 // px of text showing where the body isn't fully out yet (must stay 0)
-                bare: textOn ? Math.max(0, this.textX + this.textDx + this.textCache.width - (startX + this.bodyExtent)) : 0
+                bare: textOn ? Math.max(0, Math.min(this.textX + this.textDx + this.textCache.width, this.textClipRight())
+                    - (startX + this.bodyExtent)) : 0
             },
             ...(this.wipeX !== null ? [{ id: 'wipe', x: this.wipeX, y: mid, phase: this.phase, onscreen: true }] : []),
             ...this.streaks.map((st, i) => ({
@@ -236,6 +254,22 @@ export class NotificationBar extends AnimatedBar {
                     : 0
             }))
         ];
+    }
+
+    /**
+     * Mid-height x span a scrolling line is clipped to: its room plus half
+     * the padding each side, so italic overhangs and the slanted clip edge
+     * don't shave the first and last letters.
+     * @returns {[number, number]}
+     */
+    scrollClip() {
+        const slack = config.notifications.text.padding * this.canvas.width / REF_WIDTH / 2 + this.geo.lean;
+        return [this.textRoomLeft - slack, this.textRoomLeft + this.textRoom + slack];
+    }
+
+    /** Right edge text may paint to: the scroll clip while scrolling, else the body's. */
+    textClipRight() {
+        return this.scrollPx > 0 ? this.scrollClip()[1] + this.geo.lean : this.geo.startX + this.bodyExtent + this.geo.lean;
     }
 
     getBoundingBox() {
@@ -284,6 +318,12 @@ export class NotificationBar extends AnimatedBar {
             // Never outside the body, even mid-fade; mid-wipe, only behind the band
             this.quad(0, this.bodyExtent);
             ctx.clip();
+            if (this.scrollPx > 0) {
+                // A scrolling line stays inside its room, not under the body's ends
+                const [x0, x1] = this.scrollClip();
+                this.slab(x0, x1, this.geo.top, this.geo.height);
+                ctx.clip();
+            }
             if (this.wipeX !== null) {
                 const band = config.notifications.flair.wipe.bandPx * this.canvas.width / REF_WIDTH;
                 this.slab(-1e4, this.wipeX - band / 2, this.geo.top, this.geo.height);

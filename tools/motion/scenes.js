@@ -145,8 +145,9 @@ export const SCENARIOS = [
   {
     name: 'notifications-long',
     scene: 'notifications',
-    // A long headline shrinks, then ends in an ellipsis, and the toast
-    // stretches to hold it at the reading pace (200 ms a word)
+    // A long headline shrinks, then grows the bar instead of losing words
+    // (Design review, 2026-10-28), and the toast stretches to hold it at
+    // the reading pace (200 ms a word)
     url: `/src/notifications/index.html?color=${COLOR}&text=Pants+are+officially+off+for+the+rest+of+the+stream+thanks+to+an+incredibly+generous+gift+from+the+goobers+in+chat`,
     start: 'load',
     captureMs: 8000,
@@ -161,6 +162,30 @@ export const SCENARIOS = [
         { field: 'overflow', max: 0, label: 'Text fits the body' },
         { field: 'bare', max: 0, label: 'Text only over the body' },
         // Streaks never cross the text while it shows (Design review, PR #27)
+        { field: 'overText', max: 0, label: 'Streaks clear of the text' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    name: 'notifications-scroll',
+    scene: 'notifications',
+    // Too long even for the longest bar: the line scrolls during the hold,
+    // inside the body, and the streaks keep clear of it
+    url: `/src/notifications/index.html?color=${COLOR}&text=Huge+thanks+to+everybody+who+came+out+tonight+for+the+marathon+stream+and+an+extra+special+shout+out+to+the+goobers+who+kept+the+hype+train+rolling+all+night+long+you+are+the+best`,
+    start: 'load',
+    captureMs: 13000,
+    keyframes: [0.2, 0.35, 0.5, 0.65, 0.8],
+    keyframeSpanMs: 11400,
+    markers: [{ at: 11400, label: 'end' }],
+    checks: {
+      totalDurationMs: 11400,
+      debugEvents: { start: 1, end: 1 },
+      endsClear: true,
+      probeMax: [
+        { field: 'overflow', max: 0, label: 'Whole line shown' },
+        { field: 'bare', max: 0, label: 'Text only over the body' },
         { field: 'overText', max: 0, label: 'Streaks clear of the text' }
       ],
       noVelocitySteps: true,
