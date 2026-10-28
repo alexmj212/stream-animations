@@ -114,6 +114,14 @@ must cover the wait plus the play time:
 | Notifications Source (vrt) | up to ~12 s (a scrolled long line) | up to ~8 s (a sidebar) | 25 s |
 | Sidescreen Source (vrt) | up to 6.8 s (`sidebar.timing.maxTotalMs`) | up to ~13 s (a toast) | 25 s |
 | Fullscreen Source (vrt) | ~4-6 s | never (the shade doesn't queue) | 10 s |
+| Hype Train Banner (vrt), Ad Banner (vrt) | the whole hype train or ad break | never (it doesn't take the lock) | none: the event's end blanks it |
+
+The banners (#86) are the exception: they stay up for minutes, so they
+never take the seam lock (every toast and shoutout would queue behind
+them) and have no timed reset. MIU sets their URL on Hype Train Started
+and Ad Started, and sets `about:blank` on Hype Train Ended and Ad
+Ended/Upcoming. While a toast or sidebar holds the lock, the banner
+fades out, then comes back (`seamHeld()`).
 
 Raise a reset wait together with any longer hold. The 16:9 sources keep
 their move-filter timers (7 s sidebar, 10 s toast) because nothing queues
