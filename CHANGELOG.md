@@ -4,6 +4,17 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.7.0 - 2026-10-28
+
+- Vertical (1080x1920) canvas, AJ's pick A2: the sidebar becomes a
+  two-line ink nameplate on the camera/game seam, with the action at 48px
+  over the name at 64px. It grows upward and stays inside the phone-safe
+  area, so it no longer covers the camera with the 16:9 bars. The raid
+  shade's words now fit the phone-safe area too. On the vertical canvas
+  the toast and the sidebar take turns on the seam instead of stacking.
+  The 16:9 sidebar, shade and toast are unchanged. The new sidebar shows
+  on stream once OBS has a 1080x1920 source for it. ([#82])
+
 ## v2.6.1 - 2026-10-28
 
 - Goal bar toast (16:9): a line too long for the standard bar now grows the
@@ -163,3 +174,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#70]: https://github.com/alexmj212/stream-animations/pull/70
 [#72]: https://github.com/alexmj212/stream-animations/pull/72
 [#76]: https://github.com/alexmj212/stream-animations/pull/76
+[#82]: https://github.com/alexmj212/stream-animations/pull/82
