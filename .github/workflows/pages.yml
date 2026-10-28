@@ -1,4 +1,4 @@
-name: Deploy epcot scene to GitHub Pages
+name: Deploy scenes to GitHub Pages
 
 on:
   push:
@@ -34,15 +34,24 @@ jobs:
         env:
           CI: "true"
 
-      - run: npm run build:epcot
+      - run: npm run build
 
       - name: Stage site
         run: |
           mkdir -p _site
-          # The epcot build is a single self-contained HTML file; deploy it
-          # as the site root (vite nests the output path).
-          find dist/epcot -name 'index.html' -exec cp {} _site/index.html \;
-          test -s _site/index.html
+          # Each scene builds to one self-contained HTML file. Epcot stays at
+          # the site root (its existing URL); every scene is also served at
+          # /<scene>/ so OBS browser sources can load them from Pages.
+          for scene in stinger sidebar shade background epcot; do
+            mkdir -p "_site/$scene"
+            # find: vite can nest the output path under dist/<scene>/
+            src=$(find "dist/$scene" -name index.html | head -n 1)
+            test -s "$src"
+            cp "$src" "_site/$scene/index.html"
+          done
+          cp _site/epcot/index.html _site/index.html
+          # What's live, for checking a deploy: version and commit.
+          printf '%s %s\n' "$(node -p "require('./package.json').version")" "$GITHUB_SHA" > _site/version.txt
 
       - uses: actions/configure-pages@v5
         with:

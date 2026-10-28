@@ -29,15 +29,18 @@ stinger video files.
 
 ## What a merge to `main` does
 
-- `.github/workflows/pages.yml` runs `npm test -- --run`, builds epcot and
-  deploys it to GitHub Pages. A red test run blocks the deploy.
+- `.github/workflows/pages.yml` runs `npm test -- --run`, builds every
+  scene and deploys them to GitHub Pages at
+  https://alexmj212.dev/stream-animations/<scene>/ (epcot also stays at the
+  root). `version.txt` there shows the live version and commit. A red test
+  run blocks the deploy.
 - `.github/workflows/motion.yml` (PR #2) runs the unit tests and the motion
   harness on every PR and again on each push to `main`.
-- Nothing reaches OBS. OBS on Defiant (AJ's PC) loads the scenes from
-  `dist/` in a WSL clone of this repo, so a merge or release is only live
-  after the deploy step below. Epcot on stream is a pre-recorded mp4, not the
-  Pages build, so its changes reach OBS only when AJ re-records it. Found 2026-10-28: that build dated from July,
-  so nothing merged since was on stream.
+- OBS on Defiant (AJ's PC) loads the scenes from `dist/` in a WSL clone of
+  this repo, not from Pages, so a merge or release is only on stream after
+  the deploy step below. Found 2026-10-28: that build dated from July.
+  Epcot on stream is a pre-recorded mp4, so its changes reach OBS only when
+  AJ re-records it.
 
 ## Routine
 
