@@ -123,41 +123,43 @@
         const backgroundBars = []; // Slower moving bars
         const foregroundBars = []; // Faster moving bars
 
-        for (let i = 0; i < barDensity; i++) {
-            const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-            const speed = 0.1 + Math.random() * 0.9;
+        const allBars = () => [...backgroundBars, ...foregroundBars];
 
+        function makeBar(type, randomStart) {
+            const speed = 0.1 + Math.random() * 0.9;
             // Put slower bars (speed < 0.5) on background layer, faster on foreground
-            if (speed < 0.5) {
-                const bar = new BackgroundBar(bgCtx, backgroundCanvas, type, baseHSL, speedMultiplier * speed);
-                bar.zIndex = Math.random();
-                backgroundBars.push(bar);
-            } else {
-                const bar = new BackgroundBar(fgCtx, foregroundCanvas, type, baseHSL, speedMultiplier * speed);
-                bar.zIndex = Math.random();
-                foregroundBars.push(bar);
-            }
+            const slow = speed < 0.5;
+            const bar = new BackgroundBar(
+                slow ? bgCtx : fgCtx, slow ? backgroundCanvas : foregroundCanvas,
+                type, baseHSL, speedMultiplier * speed, randomStart, { neighbours: allBars }
+            );
+            bar.zIndex = Math.random();
+            (slow ? backgroundBars : foregroundBars).push(bar);
         }
 
-        // Function to add a new bar when one is removed
-        function addNewBar(layer) {
-            const type = Math.random() > 0.6 ? 'slanted' : 'horizontal';
-            const speed = 0.1 + Math.random() * 0.9;
+        // Fixed slanted/horizontal mix (at least one slanted bar), in random order
+        const slantedCount = barDensity > 1 ? Math.max(1, Math.round(barDensity * config.background.slantedShare)) : 0;
+        const types = Array.from({ length: barDensity }, (_, i) => (i < slantedCount ? 'slanted' : 'horizontal'));
+        for (let i = types.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [types[i], types[j]] = [types[j], types[i]];
+        }
+        types.forEach(type => makeBar(type, true));
 
-            if (layer === 'background') {
-                const bar = new BackgroundBar(bgCtx, backgroundCanvas, type, baseHSL, speedMultiplier * speed, false);
-                bar.zIndex = Math.random();
-                backgroundBars.push(bar);
-            } else {
-                const bar = new BackgroundBar(fgCtx, foregroundCanvas, type, baseHSL, speedMultiplier * speed, false);
-                bar.zIndex = Math.random();
-                foregroundBars.push(bar);
+        // Replace finished bars with a fresh bar of the same type, keeping the
+        // mix. Returns whether anything changed.
+        function respawn(bars) {
+            const removed = [];
+            for (let i = bars.length - 1; i >= 0; i--) {
+                if (!bars[i].active) removed.push(bars.splice(i, 1)[0].type);
             }
+            removed.forEach(type => makeBar(type, false));
+            return removed.length > 0;
         }
 
         let nextProbeId = 0;
         const probeId = (bar) => (bar.probeId ??= `bar-${nextProbeId++}`);
-        registerProbe('background', () => [...backgroundBars, ...foregroundBars]
+        registerProbe('background', () => allBars()
             .filter(b => b.active)
             .map(b => sampleBar(b, probeId(b))));
 
@@ -182,19 +184,10 @@
             // Update and render background layer (now at full 60fps, not 30fps)
             clearCanvas(bgCtx, backgroundCanvas, bgDirtyTracker);
 
-            // Remove inactive bars and add new ones
-            const bgInitialCount = backgroundBars.length;
-            for (let i = backgroundBars.length - 1; i >= 0; i--) {
-                if (!backgroundBars[i].active) {
-                    backgroundBars.splice(i, 1);
-                    bgNeedsSort = true;
-                }
-            }
-
-            const bgRemovedCount = bgInitialCount - backgroundBars.length;
-            for (let i = 0; i < bgRemovedCount; i++) {
-                addNewBar('background');
+            // Replace finished bars (a new bar can land on either layer)
+            if (respawn(backgroundBars)) {
                 bgNeedsSort = true;
+                fgNeedsSort = true;
             }
 
             if (bgNeedsSort) {
@@ -217,18 +210,9 @@
             // Update and render foreground layer
             clearCanvas(fgCtx, foregroundCanvas, fgDirtyTracker);
 
-            // Remove inactive bars and add new ones
-            const fgInitialCount = foregroundBars.length;
-            for (let i = foregroundBars.length - 1; i >= 0; i--) {
-                if (!foregroundBars[i].active) {
-                    foregroundBars.splice(i, 1);
-                    fgNeedsSort = true;
-                }
-            }
-
-            const fgRemovedCount = fgInitialCount - foregroundBars.length;
-            for (let i = 0; i < fgRemovedCount; i++) {
-                addNewBar('foreground');
+            // Replace finished bars (a new bar can land on either layer)
+            if (respawn(foregroundBars)) {
+                bgNeedsSort = true;
                 fgNeedsSort = true;
             }
 

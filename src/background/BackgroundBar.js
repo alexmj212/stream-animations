@@ -20,6 +20,8 @@ export class BackgroundBar extends AnimatedBar {
         this.baseHSL = baseHSL;
         this.speedMultiplier = speed;
         this.randomStart = randomStart;
+        // Bars already on screen; spawns are placed away from them
+        this.neighbours = options.neighbours || (() => []);
         this.init();
     }
 
@@ -170,10 +172,68 @@ export class BackgroundBar extends AnimatedBar {
         return -this.width * 0.8 + this.random() * (this.width * 0.8 + W * 0.6);
     }
 
+    /** Middle of the part of the bar that is on screen, in screen fractions. */
+    visualCenter(x = this.x, y = this.y) {
+        const W = this.canvas.width;
+        const H = this.canvas.height;
+        if (this.type === 'slanted') return { cx: (x + this.width / 2) / W, cy: 0.5 };
+        const left = Math.max(0, x);
+        const right = Math.min(W, x + this.width);
+        return { cx: (left + right) / 2 / W, cy: (y + this.height / 2) / H };
+    }
+
+    /** On-screen area in the left and right halves, in screen fractions. */
+    halfAreas(x = this.x) {
+        const W = this.canvas.width;
+        const H = this.canvas.height;
+        const height = this.type === 'slanted' ? H : this.height;
+        const width = this.animateSize && this.originalWidth ? this.originalWidth * this.currentSizeMultiplier : this.width;
+        const span = (a, b) => Math.max(0, Math.min(b, x + width) - Math.max(a, x));
+        const scale = height / (W * H);
+        return [span(0, W / 2) * scale, span(W / 2, W) * scale];
+    }
+
+    /**
+     * Place the bar (x, and y for horizontal bars) away from the bars already
+     * on screen: best of a few random candidates, scored by distance to the
+     * nearest neighbour and by how evenly the two screen halves end up
+     * covered. Independent random spawns clustered, e.g. every colored
+     * slanted bar in the left third, or one half nearly empty.
+     */
+    place() {
+        const others = this.neighbours().filter(b => b !== this && b.active);
+        const candidates = others.length ? config.background.placementCandidates : 1;
+        let left = 0;
+        let right = 0;
+        for (const o of others) {
+            const [l, r] = o.halfAreas();
+            left += l;
+            right += r;
+        }
+        let best = null;
+        for (let i = 0; i < candidates; i++) {
+            const x = this.spawnX();
+            const y = this.type === 'horizontal' ? this.random() * this.canvas.height : this.y;
+            const c = this.visualCenter(x, y);
+            let spacing = 1;
+            for (const o of others) {
+                const oc = o.visualCenter();
+                const dy = this.type === 'horizontal' && o.type === 'horizontal' ? Math.abs(c.cy - oc.cy) : 0;
+                spacing = Math.min(spacing, Math.abs(c.cx - oc.cx) + dy);
+            }
+            const [l, r] = this.halfAreas(x);
+            const imbalance = Math.abs(left + l - right - r) / Math.max(left + l + right + r, 1e-6);
+            const score = spacing - imbalance;
+            if (!best || score > best.score) best = { x, y, score };
+        }
+        this.x = best.x;
+        this.y = best.y;
+    }
+
     initializeRandomPosition() {
         // Start at random point in the lifecycle for natural staggering
         const randomPhase = this.random();
-        this.x = this.spawnX();
+        this.place();
 
         if (randomPhase < 0.33) {
             this.phase = 'fadeIn';
@@ -199,7 +259,7 @@ export class BackgroundBar extends AnimatedBar {
         this.phaseStartTime = 0;
         this.phase = 'fadeIn';
         this.currentOpacity = 0;
-        this.x = this.spawnX();
+        this.place();
     }
 
     /** Fully off-screen and still heading away: nothing left to show. */

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
 import { BackgroundBar } from '../../src/background/BackgroundBar.js';
 import { AnimatedBar } from '../../src/shared/AnimatedBar.js';
+import { createRandom } from '../../src/shared/motion.js';
 import { createMockCanvas, createMockContext } from '../fixtures/canvas-contexts.js';
 
 describe('BackgroundBar positioning', () => {
@@ -371,4 +372,49 @@ describe('BackgroundBar property-based tests', () => {
       }
     }
   );
+});
+
+describe('BackgroundBar balanced placement', () => {
+  afterEach(() => {
+    AnimatedBar.offscreenCache.clear();
+  });
+
+  const fill = (seed, count) => {
+    const canvas = createMockCanvas(1920, 1080);
+    const ctx = createMockContext(canvas);
+    const random = createRandom(seed);
+    const bars = [];
+    for (let i = 0; i < count; i++) {
+      const type = i % 5 < 2 ? 'slanted' : 'horizontal';
+      bars.push(new BackgroundBar(ctx, canvas, type, { h: 24, s: 100, l: 50 }, 1.0, false, {
+        random,
+        neighbours: () => bars
+      }));
+    }
+    return bars;
+  };
+
+  it('spreads area evenly across the two halves of the screen', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      let left = 0;
+      let right = 0;
+      for (const bar of fill(seed, 8)) {
+        const [l, r] = bar.halfAreas();
+        left += l;
+        right += r;
+      }
+      expect(Math.max(left, right) / Math.min(left, right)).toBeLessThan(2);
+    }
+  });
+
+  it('a respawned bar lands in the emptier half', () => {
+    const bars = fill(7, 6);
+    for (const bar of bars) bar.x = -bar.width / 2; // everything on the left edge
+    const canvas = bars[0].canvas;
+    const bar = new BackgroundBar(bars[0].ctx, canvas, 'slanted', { h: 24, s: 100, l: 50 }, 1.0, false, {
+      random: createRandom(3),
+      neighbours: () => bars
+    });
+    expect(bar.visualCenter().cx).toBeGreaterThan(0.5);
+  });
 });

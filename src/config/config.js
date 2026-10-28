@@ -14,6 +14,12 @@ export const config = {
     // Brightness multiplier (0.8 = 20% reduction for visual harmony)
     brightness: 0.8,
 
+    // Share of slanted bars, kept when bars respawn (MOTION.md: ~40/60)
+    slantedShare: 0.4,
+    // Random spawn positions tried per bar; the one farthest from the bars
+    // already on screen wins, so the layout stays balanced
+    placementCandidates: 6,
+
     // Animation speeds in pixels per second (NOT per frame - frame-rate independent)
     speed: {
       defaultMultiplier: 1.0,     // Default speed multiplier from URL
