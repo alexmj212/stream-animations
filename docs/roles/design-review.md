@@ -72,6 +72,10 @@ thread is recreated.
 4. For random layouts, measure visual weight per seed:
    share of the frame covered and left/right balance. Variance across seeds
    matters as much as the average.
+   When the keyframes can't answer a question (what's behind the text, where
+   a bar is at the cut), add the signal you need to the scene's probe, behind
+   the shared debug flag (QA owns the convention), rather than asking AJ
+   (AJ, 2026-10-28: agents verify their own work without asking).
 5. Separate findings into: blocking (breaks the look on stream), requested
    (worth fixing in this PR), and follow-up (pre-existing or out of scope).
 6. Post the review on the PR, send requested changes to the author thread and
