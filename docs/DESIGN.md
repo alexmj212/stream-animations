@@ -185,9 +185,9 @@ readable is hidden and AJ's face and the game's centre stay clear.
   for good.
   The full inventory (boxes and triggers, from OBS, Mix It Up and the
   Stream Deck) lives in the project files at `composition/inventory.md`.
-  QA's everything-visible harness frames (`npm run motion:compose`, coming
-  with QA's PR after #79) will hold the pairs to it. Until then, KEEP-1
-  checks only our text against chat and music.
+  QA's everything-visible harness frames (`npm run motion:compose`, #84)
+  render the pairs that can be up together and report overlaps
+  (VALIDATION.md); KEEP-1 checks our text against chat and music.
 
 ### Views (16:9)
 
