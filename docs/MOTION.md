@@ -8,8 +8,9 @@ Sources in brackets. Owned by the design review role.
 
 - **One family.** Every scene is built from the same parts: slanted bars
   rotated 15 degrees clockwise and horizontal bars skewed -15 degrees, white
-  and colored, on a transparent background. Mixed scenes use about 60%
-  slanted and 40% horizontal bars. [v1.0 visual consistency; shade 06-02]
+  and colored, on a transparent background. Mixed scenes use about 40%
+  slanted and 60% horizontal bars (`config.background.slantedShare`; the
+  stinger and background pick slanted when `Math.random() > 0.6`).
 - **Brightness 0.8** on every scene's colors: harmony without looking dim.
   A new scene uses the same multiplier. [v1.0 decision]
 - **Curtains** are semi-transparent at opacity 0.5 (range 0.4 to 0.6), clipped
