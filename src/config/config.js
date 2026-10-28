@@ -681,7 +681,12 @@ export const config = {
     // so the line is ~57px, over V-TYPE-1's 48px floor, like the toast's 56
     vertical: {
       refWidth: 1080,             // Lane below is px on the 1080-wide canvas
-      lane: { x: 60, y: 660, width: 880, height: 80, skewAngle: -15 },  // = notifications.vertical.geometry
+      // AJ (2026-10-28, #86): "I think they should be full width". The strip
+      // runs edge to edge on the seam (the toast's y and height); the
+      // scrolling words show only inside the phone-safe width (`textClip`),
+      // clear of the apps' button column on the right (V-SAFE-1)
+      lane: { x: 0, y: 660, width: 1080, height: 80, skewAngle: -15 },
+      textClip: { x: 60, width: 880 },  // = notifications.vertical.geometry startX-endX
       capPx: 40,
       // The seam is shared: the portrait toast and sidebar hold the seam lock
       // (src/shared/seamQueue.js) while they play, and the sidebar plate
@@ -721,7 +726,19 @@ export const config = {
       },
       ad: {
         text: 'ADS MAY BE PLAYING',
-        // OBS "Ad Banner": black Jost on a solid orange plate
+        // OBS "Ad Banner": black Jost on an orange plate along the bottom
+        // edge. AJ (2026-10-28, #86): "The ads play notification is too loud
+        // as well, I had it on the bottom of the screen and not opacity 1".
+        // So 16:9 gets its own lane: full width, on the frame's bottom edge
+        // (the OBS group sat at y 1057-1094, half off the frame). That's AJ's
+        // exemption from SAFE-1 and SAFE-3: under the player controls, it's
+        // a quiet notice, not a line viewers must read
+        lane: { x: 0, y: 1032, width: 1920, height: 48, skewAngle: 0 },
+        // The whole banner at the OBS group's Color Correction opacity (its
+        // "Show Ad Banner" Move Value took it to 0.5; the same filter pair is
+        // copied on the hype group). The plate stays solid under it, so the
+        // black text keeps its contrast against the orange
+        opacity: 0.5,
         fill: '#ffaa00',
         fillAlpha: 1,
         textColor: '#000000',

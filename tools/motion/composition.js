@@ -33,7 +33,7 @@ export const ELEMENTS = [
     { id: 'discord', label: 'Discord heads', box: [440, 859, 1304, 994], today: [440, 928, 1304, 1063], kind: 'P', read: true },
     { id: 'toast', label: 'Toast', box: [560, 26, 1824, 74], kind: 'A', read: true, scenario: 'notifications-name' },
     { id: 'hype', label: 'Hype train banner', box: [560, 26, 1920, 74], today: [0, 28, 1920, 97], kind: 'A', read: true },
-    { id: 'ad', label: 'Ad banner', box: [560, 26, 1920, 74], today: [0, 1057, 1920, 1094], kind: 'A', read: true },
+    { id: 'ad', label: 'Ad banner', box: [0, 1032, 1920, 1080], today: [0, 1057, 1920, 1094], kind: 'A', read: true },
     { id: 'sidebar', label: 'Sidebar alert', box: [1500, 560, 1920, 1000], kind: 'A', read: true, scenario: 'sidebar-name' },
     { id: 'shoutout', label: 'MIU shoutout avatar', box: [1451, 254, 1851, 654], kind: 'A' },
     { id: 'resub', label: 'MIU resub avatar', box: [1432, 340, 1832, 740], kind: 'A' },
@@ -144,6 +144,9 @@ export const KNOWN_OVERLAPS = [
     // Accepted: AJ put the banner in the toast's own place (#86, 2026-10-28);
     // the toast sits above it in OBS and plays over it, then the banner shows again
     'hype-train: hype x toast',
+    // Accepted: AJ wants the ad warning back on the bottom edge at half
+    // opacity, as in OBS (#86, 2026-10-28): a quiet notice under the controls
+    'ad-break: ad SAFE-3',
     // Accepted, report only: AJ fires Cam BR by hand from the Stream Deck,
     // so a gag can land on it for 3-10 s (Rotom, 2026-10-28)
     'bottom-right: life x camBR',

@@ -653,9 +653,13 @@ export const SCENARIOS = [
     }
   },
   {
-    // The ad warning: black text on a solid orange plate, which also covers
-    // the hype strip when both are up. Like the hype strip it runs from the
-    // follower bar to the frame edge (AJ, #86)
+    // The ad warning: black text on an orange plate at half opacity along
+    // the bottom edge, full width (AJ, #86: "I had it on the bottom of the
+    // screen and not opacity 1"). No SAFE-1 or SAFE-3: AJ's exemption for
+    // this quiet notice, which sits under the player controls as the OBS
+    // group did. KEEP-1 only warns: on Starting and BRB the strip runs
+    // under the song line bottom-left (x 0-651, y 1037-1080), as the OBS
+    // group did; raised with AJ on #86
     name: 'banner-ad',
     scene: 'banner',
     url: `/src/banner/index.html?kind=ad`,
@@ -663,16 +667,11 @@ export const SCENARIOS = [
     captureMs: 6000,
     keyframes: [0.05, 0.5],
     keyframeSpanMs: 6000,
-    // The plate once it's in: opaque
-    region: { x0: 0.3, x1: 0.995, y0: 0.03, y1: 0.065 },
     checks: {
-      // No SAFE-1: in the toast's place it shares the toast's top-margin
-      // exemption (AJ, #40 and #86; DESIGN.md SAFE-1). SAFE-3 still holds
-      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      design: { rules: ['KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['TYPE-1', 'FLASH-1', 'FLASH-2'] },
       debugEvents: { start: 1, in: 1 },
-      regionCover: { fromMs: 500, toMs: 6000, label: 'the ad plate, opaque' },
       probeMax: [
-        { field: 'outsideLane', max: 0, label: 'Inside the banner lane' },
+        { field: 'outsideLane', max: 0, label: 'Inside its lane' },
         { field: 'capShort', max: 0, label: 'Caps at least 32px' }
       ],
       noVelocitySteps: true,

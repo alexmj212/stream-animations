@@ -1,12 +1,12 @@
 /**
  * Banner lane (issue #85): the hype train banner or the ad warning, in AJ's
- * original OBS look (#86): a strip across the lane under the notifications
- * toast with the line scrolling across it as a marquee. Hype is a
- * translucent teal strip with white text and sparkles; the ad is black
- * text on a solid orange plate. It sits in the toast's own lane (AJ, #86),
- * with the toast's leaning ends; on the vertical canvas, in the portrait
- * toast's place on the seam. The rule fixes over the OBS groups: 32px
- * caps, and the strip and text stay inside the lane (x 560-1920, y 26-74).
+ * original OBS look (#86): a strip with the line scrolling across it as a
+ * marquee. Hype is a translucent colour-cycling strip with white text and
+ * sparkles, in the toast's own lane (x 560-1920, y 26-74) with its leaning
+ * ends. The ad is black text on an orange plate at half opacity along the
+ * bottom edge (y 1032-1080). On the vertical canvas both run full width on
+ * the seam, with the words inside the phone-safe width. The rule fix over
+ * the OBS groups: 32px caps; the strip and text stay inside their lane.
  * The hype train's optional 4px screen border is the one thing drawn
  * outside it, at the canvas edges (?border=0 drops it).
  *
@@ -54,8 +54,13 @@ export class BannerLane {
 
     /** Geometry and the repeat, rendered once. Call again on resize or once the font loads. */
     build() {
-        this.layout = bannerLayout(this.canvas.width, this.canvas.height, this.requestedLayout, config.banner);
+        this.layout = bannerLayout(this.canvas.width, this.canvas.height, this.requestedLayout, config.banner, this.kind);
         this.geo = bannerGeometry(this.canvas.width, this.layout.lane, this.layout.refWidth);
+        // Where the words may show (px): the whole lane, or the portrait
+        // layout's phone-safe width
+        const tc = this.layout.textClip;
+        const k = this.geo.k;
+        this.textBox = tc ? { x: tc.x * k, width: tc.width * k } : { x: this.geo.x, width: this.geo.width };
         this.stripFill = hexToRgba(this.look.fill, this.look.fillAlpha);
         this.buildUnit();
     }
@@ -165,13 +170,14 @@ export class BannerLane {
             ctx.fillStyle = this.colour(this.border.alpha * this.reveal);
             for (const r of this.borderRects()) ctx.fillRect(...r);
         }
-        if (this.yieldAlpha <= 0) return;
+        const alpha = this.yieldAlpha * (this.look.opacity ?? 1);
+        if (alpha <= 0) return;
         const w = geo.width * this.reveal;
         const { x, y, height, lean } = geo;
         ctx.save();
-        // Fading for a seam alert: the cached repeat can't take an hsla
-        // colour, so the strip and its text fade as one layer
-        if (this.yieldAlpha < 1) ctx.globalAlpha = this.yieldAlpha;
+        // The kind's opacity and the fade for a seam alert: the cached repeat
+        // can't take an hsla colour, so the strip and its text fade as one layer
+        if (alpha < 1) ctx.globalAlpha = alpha;
         // A parallelogram with the toast's lean, so it meets the goal bar's slanted end
         ctx.beginPath();
         ctx.moveTo(x + lean, y);
@@ -182,6 +188,12 @@ export class BannerLane {
         ctx.clip();
         ctx.fillStyle = this.hue === null ? this.stripFill : this.colour(this.look.fillAlpha);
         ctx.fillRect(x - lean, y, w + 2 * lean, height);
+        if (this.layout.textClip) {
+            // Portrait: the words only inside the phone-safe width
+            ctx.beginPath();
+            ctx.rect(this.textBox.x, y, this.textBox.width, height);
+            ctx.clip();
+        }
         const start = Math.round(x - lean - this.offset);
         const n = marqueeCopies(geo.width + 2 * lean, this.unitWidth);
         for (let i = 0; i < n; i++) ctx.drawImage(this.unitCache, start + i * this.unitWidth, Math.round(geo.y));
@@ -198,7 +210,10 @@ export class BannerLane {
         // at mid-height, where the lane's x is measured (the ends lean)
         const lane = { x: geo.x, y: geo.y, right: geo.x + geo.width, bottom: geo.y + geo.height };
         const outside = (b) => Math.max(0, lane.x - b.x, lane.y - b.y, b.right - lane.right, b.bottom - lane.bottom);
-        const box = { x: geo.x, y: geo.y + this.textInk.top, width: w, height: this.textInk.height };
+        // The words: inside the revealed strip and the text clip
+        const tx = this.textBox.x;
+        const tRight = Math.min(this.textBox.x + this.textBox.width, geo.x + w);
+        const box = { x: tx, y: geo.y + this.textInk.top, width: Math.max(0, tRight - tx), height: this.textInk.height };
         return [
             {
                 id: 'strip', x: geo.x + w, y: geo.mid, phase: this.phase, onscreen: on,
@@ -209,7 +224,7 @@ export class BannerLane {
                 // The marquee as one line: x runs on continuously (no wrap), so
                 // the velocity check sees the scroll's steady speed
                 id: 'text', x: geo.x - this.tMs * config.banner.scrollPxPerSec * geo.k / 1000, y: geo.mid,
-                phase: this.phase, onscreen: on,
+                phase: this.phase, onscreen: on && box.width > 0,
                 box,
                 fontPx: this.fontPx,
                 // Rotom's target (#85): capitals at least capPx tall (must stay 0)

@@ -238,10 +238,12 @@ TIME-1). It draws about 60 frames once and none after, so it has no CPU
 check: the debug `idle` event proves it stops.
 
 `banner-hype` and `banner-ad` check the banner lane (#85): the probe's
-`outsideLane` must stay 0 (strip and text inside x 560-1920, y 26-74; `banner-vertical`: the
-portrait lane on the seam, under V-SAFE-1 and V-TYPE-1) and
-`capShort` 0 (capitals at least 32px, measured from the drawn font), and
-the ad plate must be opaque. The marquee scrolls for as long as the banner
+`outsideLane` must stay 0 (strip and text inside their lane: hype x 560-1920,
+y 26-74; the ad along the bottom edge, y 1032-1080, where SAFE-1 and SAFE-3
+are AJ's exemption and KEEP-1 only warns over the Starting/BRB song line;
+`banner-vertical`: the portrait lane on the seam, under V-SAFE-1 and
+V-TYPE-1) and `capShort` 0 (capitals at least 32px, measured from the drawn
+font). The marquee scrolls for as long as the banner
 is up, so TIME-1 is left out (AJ's exemption, MOTION.md Learnings) and each
 carries a CPU check over ~360 drawn frames.
 

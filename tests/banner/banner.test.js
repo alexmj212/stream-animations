@@ -62,23 +62,26 @@ describe('vertical layout (AJ, #86)', () => {
         expect(bannerLayout(1080, 1920, 'wide', b).name).toBe('wide');
     });
 
-    it('sits in the portrait toast\'s place on the seam', () => {
+    it('runs full width on the seam, in the portrait toast\'s band (AJ: "full width")', () => {
         const l = bannerLayout(1080, 1920, null, b);
         const g = bannerGeometry(1080, l.lane, l.refWidth);
         const n = config.notifications.vertical.geometry;
         expect(g.k).toBe(1);
-        expect(g.x).toBe(n.startX);
-        expect(g.x + g.width).toBe(n.endX);
+        expect(g.x).toBe(0);
+        expect(g.x + g.width).toBe(1080);
+        expect(l.textClip.x).toBe(n.startX);
+        expect(l.textClip.x + l.textClip.width).toBe(n.endX);
         expect(g.y).toBe(n.top);
         expect(g.height).toBe(n.height);
         expect(g.mid).toBe(config.design.vertical.seamY);
     });
 
     it('keeps every word inside the phone-safe box (V-SAFE-1)', () => {
-        const { lane } = bannerLayout(1080, 1920, null, b);
+        const { textClip } = bannerLayout(1080, 1920, null, b);
         const safe = config.design.vertical.safe;
-        expect(lane.x).toBeGreaterThanOrEqual(safe.leftPx);
-        expect(lane.x + lane.width).toBeLessThanOrEqual(1080 - safe.rightPx);
+        expect(textClip.x).toBeGreaterThanOrEqual(safe.leftPx);
+        expect(textClip.x + textClip.width).toBeLessThanOrEqual(1080 - safe.rightPx);
+        expect(bannerLayout(1920, 1080, null, b).textClip).toBeNull();
     });
 
     it('fades out for a seam alert and back after, over fadeMs at any frame rate', () => {
@@ -100,7 +103,20 @@ describe('vertical layout (AJ, #86)', () => {
 });
 
 describe('banner looks', () => {
-    it('keeps the ad plate opaque, so it covers the hype strip when both are up', () => {
+    it('puts the ad along the bottom edge at half opacity (AJ, #86)', () => {
+        const l = bannerLayout(1920, 1080, null, b, 'ad');
+        const g = bannerGeometry(1920, l.lane);
+        expect(g.x).toBe(0);
+        expect(g.width).toBe(1920);
+        expect(g.y + g.height).toBe(1080);
+        expect(g.lean).toBeCloseTo(0);
+        expect(b.kinds.ad.opacity).toBe(0.5);
+        // The hype train keeps the toast lane; on vertical both share the seam
+        expect(bannerLayout(1920, 1080, null, b, 'hype').lane).toBe(b.lane);
+        expect(bannerLayout(1080, 1920, null, b, 'ad').lane).toBe(b.vertical.lane);
+    });
+
+    it('keeps the ad plate solid under its opacity, so the text keeps its contrast', () => {
         expect(b.kinds.ad.fillAlpha).toBe(1);
     });
 

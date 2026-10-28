@@ -22,12 +22,15 @@ export function resolveBannerKind(requested, kinds) {
  * @param {number} height
  * @param {string|null} requested - ?layout= value ('vertical' | 'wide')
  * @param {Object} banner - config.banner
- * @returns {{name: string, refWidth: number, lane: Object, capPx: number}}
+ * @param {string} [kind] - A kind with its own 16:9 `lane` (the ad) gets it
+ * @returns {{name: string, refWidth: number, lane: Object, capPx: number, textClip: ?{x: number, width: number}}}
  */
-export function bannerLayout(width, height, requested, banner) {
+export function bannerLayout(width, height, requested, banner, kind) {
     const vertical = requested === 'vertical' || (requested !== 'wide' && height > width);
-    if (!vertical) return { name: 'wide', refWidth: 1920, lane: banner.lane, capPx: banner.text.capPx };
-    return { name: 'vertical', refWidth: banner.vertical.refWidth, lane: banner.vertical.lane, capPx: banner.vertical.capPx };
+    const own = kind && Object.hasOwn(banner.kinds, kind) ? banner.kinds[kind].lane : null;
+    if (!vertical) return { name: 'wide', refWidth: 1920, lane: own || banner.lane, capPx: banner.text.capPx, textClip: null };
+    const v = banner.vertical;
+    return { name: 'vertical', refWidth: v.refWidth, lane: v.lane, capPx: v.capPx, textClip: v.textClip || null };
 }
 
 /**
