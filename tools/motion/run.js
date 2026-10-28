@@ -84,8 +84,11 @@ async function capture(browser, baseUrl, scenario, seed) {
   // editing scenes.js
   for (const [k, v] of new URLSearchParams(String(flags.params || ''))) params.searchParams.set(k, v);
   params.searchParams.set('seed', String(seed));
-  // Scene events (src/shared/debug.js) for the debugEvents check
-  params.searchParams.set('debug', 'events');
+  // Scene events (src/shared/debug.js) for the debugEvents check, added to
+  // any channels the scenario or --params asked for (e.g. debug=zones)
+  const channels = (params.searchParams.get('debug') || '').split(',').filter(Boolean);
+  if (!channels.includes('events')) channels.push('events');
+  params.searchParams.set('debug', channels.join(','));
   const url = `${baseUrl}${params.pathname}${params.search}`;
   await page.goto(url, { waitUntil: 'load' });
 
@@ -116,11 +119,25 @@ async function capture(browser, baseUrl, scenario, seed) {
   while (elapsed < scenario.captureMs) {
     const d = jitter ? dt * (0.5 + jitterRandom() * 2.5) : dt;
     elapsed += d;
-    const frame = await page.evaluate((d, region) => {
+    const frame = await page.evaluate((d, region, textSelector) => {
       const r = window.__motion.step(d);
       r.pixels = window.__motion.pixelStats(2, region);
+      // textBox: canvas gaps under the on-screen part of a text element
+      const el = textSelector && document.querySelector(textSelector);
+      if (el) {
+        const b = el.getBoundingClientRect();
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const x0 = Math.max(0, b.left) / W;
+        const x1 = Math.min(W, b.right) / W;
+        const y0 = Math.max(0, b.top) / H;
+        const y1 = Math.min(H, b.bottom) / H;
+        r.pixels.textGaps = x1 > x0 && y1 > y0
+          ? window.__motion.pixelStats(2, { x0, x1, y0, y1 }).regionGaps
+          : null;
+      }
       return r;
-    }, d, scenario.region || null);
+    }, d, scenario.region || null, scenario.textBox?.selector || null);
     frames.push(frame);
 
     while (shots && shotTimes.length && frame.t >= shotTimes[0] - dt / 2) {
@@ -131,7 +148,8 @@ async function capture(browser, baseUrl, scenario, seed) {
     }
   }
 
-  const debug = await page.evaluate((name) => window.__debug?.[name]?.snapshot() ?? null, scenario.name);
+  // scene: the createDebug() name, when a variant scenario reuses a scene
+  const debug = await page.evaluate((name) => window.__debug?.[name]?.snapshot() ?? null, scenario.scene || scenario.name);
   await page.close();
   return { frames, errors, shots: shotFiles, debug };
 }

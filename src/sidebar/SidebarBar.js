@@ -228,6 +228,18 @@ export class SidebarBar extends AnimatedBar {
 }
 
 /**
+ * Left edge of the background panel at screen height y while it holds. The
+ * panel hangs from (W * sidebarStart, 0) and is rotated by the slanted
+ * angle, so its edge runs further left going down.
+ * @param {number} width - Canvas width (px)
+ * @param {number} y - Screen y (px)
+ * @returns {number} x of the panel's left edge (px)
+ */
+export function panelLeftAt(width, y) {
+    return width * config.sidebar.position.sidebarStart - y * Math.tan(config.sidebar.slanted.angle * Math.PI / 180);
+}
+
+/**
  * Compose the sidebar: background panel plus accents spread evenly over the
  * sidebar's width (slanted) and height (horizontal).
  * @param {Array|null} [palette] - palette stops from paletteFromURL(); null = single hue
