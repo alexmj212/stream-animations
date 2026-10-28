@@ -192,7 +192,6 @@
         debug.mark("textFit", { lines: lines.map(l => `${l.role}:${Math.round(l.px)}`).join(" "), left: layout.holdLeft, width: Math.round(r.width) });
       }
       fitText();
-      document.fonts?.ready.then(fitText);
 
       /** Offset of the text and its plate from the hold position at t (s). */
       const offsetAt = (t) => textOffsetAt(timeline, layout.inPx, layout.outPx, easeEnter, easeExit, t);
@@ -358,8 +357,12 @@
         }
       });
 
-      // Start one-shot animation on page load
-      requestAnimationFrame(animate);
+      // Start the one-shot animation once Jost has loaded, so a late font
+      // can't re-lay the text and plate out mid-move (Code review, #58)
+      (document.fonts?.ready ?? Promise.resolve()).then(() => {
+        fitText();
+        requestAnimationFrame(animate);
+      });
     </script>
   </body>
 </html>

@@ -134,10 +134,11 @@ export class ShadeBar extends AnimatedBar {
       return ctx.measureText(s).width;
     };
 
-    // Fit inside title-safe, leaving room for the stroke on both sides
+    // Fit inside title-safe, leaving room for the widest stroke (hero's)
+    // on both sides, whichever size the line ends up at
     const safeX = Math.round(W * config.design.safe.titleInset);
-    const room = (px) => W - 2 * safeX - 2 * strokeWidthPx(px, type);
-    const fit = fitShadeText(this.text, measure, room(type.sizes.display), {
+    const room = W - 2 * safeX - 2 * strokeWidthPx(type.sizes.hero, type);
+    const fit = fitShadeText(this.text, measure, room, {
       hero: type.sizes.hero, display: type.sizes.display, minPx: type.minPx
     });
     this.lines = fit.lines;
