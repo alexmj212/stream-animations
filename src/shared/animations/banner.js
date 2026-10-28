@@ -115,3 +115,17 @@ export function hueAt(tMs, cycle) {
     const shift = -cycle.swingDeg + 2 * cycle.swingDeg * tri;
     return (((cycle.baseHue + shift) % 360) + 360) % 360;
 }
+
+/**
+ * The banner's opacity one frame on, fading toward 0 while a seam alert
+ * plays and back to 1 once it's done, at a constant rate.
+ * @param {number} alpha - Now, 0-1
+ * @param {boolean} held - An alert holds the seam
+ * @param {number} dtMs - Since the last frame
+ * @param {number} fadeMs - A full fade
+ * @returns {number}
+ */
+export function yieldAlphaStep(alpha, held, dtMs, fadeMs) {
+    const step = fadeMs > 0 ? Math.max(0, dtMs) / fadeMs : 1;
+    return held ? Math.max(0, alpha - step) : Math.min(1, alpha + step);
+}

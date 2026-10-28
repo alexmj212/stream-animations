@@ -33,6 +33,7 @@
       import { AnimationLifecycle } from "../shared/lifecycle.js";
       import { config } from "../config/config.js";
       import { registerProbe } from "../shared/motion.js";
+      import { seamHeld } from "../shared/seamQueue.js";
       import { createDebug } from "../shared/debug.js";
       const debug = createDebug('banner');
 
@@ -76,6 +77,15 @@
         .then(() => {
           banner = new BannerLane(ctx, canvas, { kind, text, cycle, border, layout });
           debug.mark('layout', { layout: banner.layout.name });
+          // Portrait: fade out while a toast or sidebar alert plays on the seam
+          if (banner.layout.name === 'vertical') {
+            const poll = setInterval(async () => {
+              const held = await seamHeld();
+              if (held !== banner.seamHeld) debug.mark('seam', { held });
+              banner.seamHeld = held;
+            }, config.banner.vertical.yield.pollMs);
+            lifecycle.onCleanup(() => clearInterval(poll));
+          }
           registerProbe('banner', () => banner.probeSamples());
           debug.mark('start', { kind, text: banner.text });
           requestAnimationFrame(frame);

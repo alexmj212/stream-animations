@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bannerLayout, bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, resolveBannerKind, hueAt } from '../../src/shared/animations/banner.js';
+import { bannerLayout, bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, resolveBannerKind, hueAt, yieldAlphaStep } from '../../src/shared/animations/banner.js';
 import { cubicBezier } from '../../src/shared/animations/alertText.js';
 import { contrastRatio } from '../../src/shared/design.js';
 import { config } from '../../src/config/config.js';
@@ -79,6 +79,18 @@ describe('vertical layout (AJ, #86)', () => {
         const safe = config.design.vertical.safe;
         expect(lane.x).toBeGreaterThanOrEqual(safe.leftPx);
         expect(lane.x + lane.width).toBeLessThanOrEqual(1080 - safe.rightPx);
+    });
+
+    it('fades out for a seam alert and back after, over fadeMs at any frame rate', () => {
+        const fade = b.vertical.yield.fadeMs;
+        let a = 1;
+        for (let t = 0; t < fade; t += 1000 / 30) a = yieldAlphaStep(a, true, 1000 / 30, fade);
+        expect(a).toBeCloseTo(0, 5);
+        expect(yieldAlphaStep(0, true, 16, fade)).toBe(0);
+        let c = 0;
+        for (let t = 0; t < fade; t += 1000 / 120) c = yieldAlphaStep(c, false, 1000 / 120, fade);
+        expect(c).toBeCloseTo(1, 5);
+        expect(yieldAlphaStep(1, false, 16, fade)).toBe(1);
     });
 
     it('sizes the caps over the phone floor (V-TYPE-1)', () => {

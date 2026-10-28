@@ -16,7 +16,7 @@
  */
 import { config } from '../config/config.js';
 import { cubicBezier } from '../shared/animations/alertText.js';
-import { bannerLayout, bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, hueAt } from '../shared/animations/banner.js';
+import { bannerLayout, bannerGeometry, fontPxForCap, revealAt, marqueeOffsetAt, marqueeCopies, hueAt, yieldAlphaStep } from '../shared/animations/banner.js';
 
 const easeEnter = cubicBezier(config.design.motion.ease.enter);
 
@@ -41,6 +41,10 @@ export class BannerLane {
         this.cycle = options.cycle !== false ? this.look.hueCycle : null;
         this.border = options.border !== false ? this.look.border : null;
         this.requestedLayout = options.layout || null;
+        // Portrait only: an alert holds the seam (set by the page), and how
+        // far the strip has faded for it
+        this.seamHeld = false;
+        this.yieldAlpha = 1;
         this.hue = null;
         this.tMs = 0;
         this.reveal = 0;
@@ -120,7 +124,11 @@ export class BannerLane {
 
     /** @param {number} tMs - Since the banner started */
     setTime(tMs) {
+        const dt = tMs - this.tMs;
         this.tMs = tMs;
+        if (this.layout.name === 'vertical') {
+            this.yieldAlpha = yieldAlphaStep(this.yieldAlpha, this.seamHeld, dt, config.banner.vertical.yield.fadeMs);
+        }
         this.reveal = revealAt(tMs, config.banner.timing.revealMs, easeEnter);
         this.offset = marqueeOffsetAt(tMs, this.unitWidth, config.banner.scrollPxPerSec * this.geo.k);
         if (this.cycle) this.hue = hueAt(tMs, this.cycle);
@@ -157,9 +165,13 @@ export class BannerLane {
             ctx.fillStyle = this.colour(this.border.alpha * this.reveal);
             for (const r of this.borderRects()) ctx.fillRect(...r);
         }
+        if (this.yieldAlpha <= 0) return;
         const w = geo.width * this.reveal;
         const { x, y, height, lean } = geo;
         ctx.save();
+        // Fading for a seam alert: the cached repeat can't take an hsla
+        // colour, so the strip and its text fade as one layer
+        if (this.yieldAlpha < 1) ctx.globalAlpha = this.yieldAlpha;
         // A parallelogram with the toast's lean, so it meets the goal bar's slanted end
         ctx.beginPath();
         ctx.moveTo(x + lean, y);
@@ -180,7 +192,7 @@ export class BannerLane {
     probeSamples() {
         const { geo } = this;
         const w = geo.width * this.reveal;
-        const on = this.reveal > 0;
+        const on = this.reveal > 0 && this.yieldAlpha > 0;
         // Everything is clipped to the revealed strip; report the extents
         // anyway so a change to the clip can't hide an overhang. Extents are
         // at mid-height, where the lane's x is measured (the ends lean)

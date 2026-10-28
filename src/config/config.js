@@ -682,7 +682,13 @@ export const config = {
     vertical: {
       refWidth: 1080,             // Lane below is px on the 1080-wide canvas
       lane: { x: 60, y: 660, width: 880, height: 80, skewAngle: -15 },  // = notifications.vertical.geometry
-      capPx: 40
+      capPx: 40,
+      // The seam is shared: the portrait toast and sidebar hold the seam lock
+      // (src/shared/seamQueue.js) while they play, and the sidebar plate
+      // (y ~560-700) would sit over the strip's top half. So the banner
+      // fades out while the lock is held and back once it's free, never
+      // taking the lock itself (vertical layout thread, #86)
+      yield: { pollMs: 250, fadeMs: 250 }
     },
     kinds: {
       hype: {
