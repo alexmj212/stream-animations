@@ -254,7 +254,9 @@ async function main() {
   const runs = [];
   try {
     for (const scenario of scenarios) {
-      for (const seed of seeds) {
+      // A scenario's own `seeds` caps a long capture (spheal: 52 s), unless
+      // --seeds asks for specific ones
+      for (const seed of (flags.seeds ? seeds : scenario.seeds || seeds)) {
         const t0 = Date.now();
         const { frames, errors, shots: shotFiles, debug } = await capture(browser, baseUrl, scenario, seed);
         if (needsGrid(scenario)) {

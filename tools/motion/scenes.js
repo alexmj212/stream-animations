@@ -13,6 +13,7 @@
  *   { event, also: [{event, detail}] } - ...then these in the same instant
  * events: [{at, event, detail}]  - later triggers, dispatched at `at` ms of virtual time
  * viewport: {width, height}  - render at this size instead of --width/--height
+ * seeds: [n, ...]           - run only these seeds by default (a long capture); --seeds overrides
  * checks (all optional):
  *   totalDurationMs          - last visible frame must end here (±durationToleranceMs)
  *   endsClear                - final frame fully transparent
@@ -744,6 +745,10 @@ export const SCENARIOS = [
     // sprite=drawn keeps the run off the network; the PokeAPI sprite is
     // the same stamping path with another image (tests/spheal)
     url: '/src/spheal/index.html?seed=1&mute=1&sprite=drawn',
+    // One seed: 52 s × 3 seeds took verify from ~12 to ~25 min for every
+    // PR (Release management, #97). Seeds only reshuffle the crowd; the
+    // timing and the giant's exit are fixed
+    seeds: [1],
     start: 'load',
     captureMs: 52500,
     keyframes: [0.04, 0.24, 0.46, 0.6, 0.66, 0.8, 0.94],
