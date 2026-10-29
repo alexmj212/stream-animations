@@ -60,9 +60,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      # No stored credentials: npm ci runs install scripts, and this job's
+      # token can write. gh gets the token only in the publish step.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:

@@ -9,7 +9,8 @@
 # (AJ, 2026-10-29: "I don't want to type go anymore").
 #
 # It catches up on any release a cancelled run skipped. DRY_RUN=1 prints what
-# it would do. Needs GH_TOKEN with contents: write, and full git history.
+# it would do. Needs GH_TOKEN with contents: write, and full git history
+# with tags (the checkout has no stored credentials, so tags come from it).
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -17,10 +18,13 @@ latest="v$(node -p "require('./package.json').version")"
 
 # Release commits on main, oldest first. Recent ones only: everything before
 # v2.4.0 was tagged by hand.
-git log --reverse --format='%H %s' -n 300 HEAD |
-  sed -nE 's/^([0-9a-f]{40}) chore\(release\): (v[0-9]+\.[0-9]+\.[0-9]+)( \(#[0-9]+\))?$/\1 \2/p' |
+# First-parent and the (#N) suffix keep it to squash merges, never a release
+# branch's own commits.
+git fetch -q --tags origin 2>/dev/null || true
+git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
+  sed -nE 's/^([0-9a-f]{40}) chore\(release\): (v[0-9]+\.[0-9]+\.[0-9]+) \(#[0-9]+\)$/\1 \2/p' |
   while read -r sha version; do
-    if git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null; then
+    if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
       continue
     fi
     notes="$(mktemp)"
@@ -32,7 +36,7 @@ git log --reverse --format='%H %s' -n 300 HEAD |
     ' > "$notes"
     git show "$sha:CHANGELOG.md" | grep -E '^\[#[0-9]+\]: ' | while read -r def; do
       ref="${def%%:*}"
-      if grep -qF "($ref)" "$notes"; then echo "$def"; fi
+      if grep -qF "$ref" "$notes"; then echo "$def"; fi
     done > "$notes.links"
     if [ -s "$notes.links" ]; then
       printf '\n' >> "$notes"
