@@ -99,6 +99,21 @@ kind, shown and hidden by Mix It Up.
 - `cycle` - `0` holds the hype strip at a fixed teal; by default it cycles through the colour wheel and back every 20 s, as the OBS group did
 - `border` - `0` drops the hype train's 4px border around the whole screen
 
+### Spheal march
+AJ's gag: a song loops while Spheals (the official artwork, fetched from
+PokeAPI at load) hop, roll and tumble left to right along the bottom, in time with the beat. A few at first, then the
+crowd doubles every 4 s and piles up the screen (~515 in all, ~470 on screen
+at once), then a crowned giant bounces through, and the song fades out the
+moment it has left (~51 s). Not held to the stream bible. One OBS
+browser source shown by a Mix It Up command; each show plays it once.
+
+**URL**: `spheal/index.html` (`seed`, `volume`, `mute`, `sprite`)
+
+- `seed` - The same crowd every play (default: a new crowd each time)
+- `volume` - Song volume, 0-1, before OBS's fader (default 1)
+- `mute` - `1` plays without the song
+- `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 2.5 s)
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 

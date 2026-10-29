@@ -1319,6 +1319,84 @@ export const config = {
     }
   },
 
+  // Spheal march (src/spheal): AJ's gag (2026-10-29). A song loops while
+  // drawn Spheals hop and roll left to right along the bottom, a few at
+  // first, then absurd numbers; a giant one closes the wave and the song
+  // stops once it has left. A gag, so DESIGN.md doesn't apply.
+  // Lengths are in px at a 1080px-tall canvas and scale with the shorter side.
+  spheal: {
+    song: {
+      // The clip (src/spheal/march.ogg) is 6.65 s of AJ's song. Its two-bar
+      // phrase repeats every 5.647 s (waveform match 0.95), so it loops
+      // seamlessly from one beat in (0.706 s) for one phrase
+      beatS: 0.3529,
+      loopStartS: 0.7059,
+      loopEndS: 6.3529,
+      fadeOutMs: 400        // the song fades this fast once the wave is gone
+    },
+    spawn: {
+      // Spawns per second start at rate0 and double every doubleS, so the
+      // first three arrive over 4 s and the last second sends ~90
+      rate0: 0.35,
+      doubleS: 4,
+      endS: 32,             // last ordinary Spheal sets off here (~515 total)
+      kingDelayS: 3         // the giant sets off this long after the last one, so it
+                            // leaves last on 16:9 and vertical (tests/spheal)
+    },
+    marcher: {
+      radius: [26, 44],     // body radius range
+      speed: [115, 175],    // px/s: a slow march, 11-17 s to cross 1920px
+      // The crowd stacks up the screen as it grows: depth goes 0 to pileMax
+      // (px above the bottom) as the spawn time goes 0 to endS, eased in
+      pileMax: 430,
+      pileEase: 1.6,        // exponent: the pile stays low until it's silly
+      farScale: 0.6,        // a Spheal at the top of the pile is this much smaller
+      bottomPad: 14,        // ground line above the bottom edge
+      shadowDepth: 0.12,    // only rows this near the front draw a shadow
+      hopHeight: [14, 34],  // px, at radius 36
+      rollShare: 0.3,       // this share roll instead of hopping
+      tumbleShare: 0.15     // and this share hop and spin at once
+    },
+    king: {
+      radius: 230,
+      speed: 150,           // px/s: ~16 s to cross with its own width
+      hopHeight: 40         // it hops, so its crown stays on top (QA, #97)
+    },
+    // Body palettes for the drawn Spheal (?sprite=drawn, or PokeAPI offline),
+    // picked per Spheal; the first is the usual one
+    palettes: [
+      { body: '#6fb7e6', dark: '#3f86c0', spot: '#b9e2fb', belly: '#f3e6bf' },
+      { body: '#86c6ee', dark: '#4f93c9', spot: '#d2eefe', belly: '#f6ecca' },
+      { body: '#5aa3dc', dark: '#2f6fad', spot: '#a8d6f6', belly: '#efdfb2' }
+    ],
+    // Cached sprite radii per palette (the largest ≥ the biggest marcher).
+    // Each marcher stamps the smallest one at least its size, so the crowd
+    // isn't all downscaling 64px sprites (Code review, #97: the peak halved
+    // the frame rate in software raster)
+    sprite: {
+      px: [24, 36, 48, 64],
+      // AJ (2026-10-29): use the real Spheal from PokeAPI. Fetched at load
+      // (not committed: the art isn't ours to put in the public repo); the
+      // drawn Spheal stays as the fallback when PokeAPI can't be reached.
+      // ?sprite= picks: art (official artwork, default), home (3D render),
+      // pixel (the game sprite, drawn without smoothing) or drawn
+      api: 'https://pokeapi.co/api/v2/pokemon/spheal',
+      kinds: {
+        art: { path: ['other', 'official-artwork', 'front_default'], pixel: false },
+        home: { path: ['other', 'home', 'front_default'], pixel: false },
+        pixel: { path: ['front_default'], pixel: true }
+      },
+      // PokeAPI's own sprite host, used when the API call fails
+      fallbackBase: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/',
+      fallbackFiles: { art: 'other/official-artwork/363.png', home: 'other/home/363.png', pixel: '363.png' },
+      // Give up and draw our own Spheal after this; with the 50.9 s wave and
+      // the fade it stays inside the 55 s MIU wait (Code review, #97)
+      timeoutMs: 2500,
+      apiTimeoutMs: 1200,   // the API call alone; then the sprite host is tried
+      faces: 'left'         // every PokeAPI sprite faces left; flipped to march right
+    }
+  },
+
   // Shared configuration across all scenes
   shared: {
     // Timing patterns (millisecond-based, consistent across scenes)

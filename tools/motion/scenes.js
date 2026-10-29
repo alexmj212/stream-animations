@@ -734,5 +734,30 @@ export const SCENARIOS = [
       design: { rules: ['FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] },
       workP95Ms: 20
     }
+  },
+  {
+    // AJ's Spheal march gag (2026-10-29): not held to the bible, but it
+    // must end clear once the giant has rolled off, stop its song once
+    // (the end event), and stay inside the frame budget at the peak crowd
+    // (~470 on screen at 30-34 s). ?mute=1: the harness has no audio
+    name: 'spheal',
+    // sprite=drawn keeps the run off the network; the PokeAPI sprite is
+    // the same stamping path with another image (tests/spheal)
+    url: '/src/spheal/index.html?seed=1&mute=1&sprite=drawn',
+    start: 'load',
+    captureMs: 52500,
+    keyframes: [0.04, 0.24, 0.46, 0.6, 0.66, 0.8, 0.94],
+    keyframeSpanMs: 52500,
+    markers: [{ at: 32000, label: 'last spawn' }, { at: 35000, label: 'giant' }],
+    checks: {
+      // The giant sets off at 35 s and crosses 1920 + 460 px at 150 px/s
+      totalDurationMs: 50870,
+      endsClear: true,
+      debugEvents: { start: 1, end: 1 },
+      noVelocitySteps: true,
+      // ~470 sprites at the peak: p95 measured 3.0-3.5 ms (seeds 1-3,
+      // 2026-10-29), so 8 leaves room on CI without hiding a regression
+      workP95Ms: 8
+    }
   }
 ];

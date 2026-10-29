@@ -28,6 +28,7 @@ is built and checked.
 | `npm run motion -- --jitter` | Uneven frame times, like a loaded OBS. Checks timing and coverage still hold; skips the smoothness and CPU checks |
 | `npm run motion:export -- stinger` | Render to a transparent WebM for OBS (see below) |
 | `npm run motion:export -- epcot --loop` | Render one seamless epcot loop to MP4 (see below) |
+| `npm run motion:export -- spheal --fps=30` | A preview video of any scenario on the harness clock. Use this, not an ad-hoc Playwright `page.clock` script: `clock.install()` keeps time running in real time, so slow screenshots skip ahead (a Spheal preview came out blank after 7 s, 2026-10-29) |
 | `npm run bench` | Real-time FPS and Canvas 2D hot paths (complements the harness) |
 
 Report: `tools/motion-results/index.html` (gitignored). Per run it shows the
