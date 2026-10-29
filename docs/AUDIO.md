@@ -40,11 +40,23 @@ mic once, so every render is measured over the same moments.
 | `npm run audio -- baseline <files...>` | Measure past stream recordings (track 3 is mic plus MIU sounds, no game or music) into `baseline.json` |
 | `npm run audio -- curves --collection=Archive_1.json --proposal=p.json` | Level-in/level-out curve, frequency response and burst peak of each chain, from test tones. Needs no recording |
 | `npm run audio -- render --collection=... --source=Mic --raw=raw.flac --ns=ns.flac --proposal=p.json --baseline=baseline.json --match-level` | Render and check every chain over a capture; writes `index.html`, `results.json` and A/B clips (as recorded and level-matched) |
-| `npm run audio -- verify --collection=... --source=Mic --raw=raw.flac --obs=current.flac` | Null test: today's chain emulated over the raw mic minus what OBS recorded through it. Passes at 40 dB or more of cancellation |
+| `npm run audio -- verify --collection=... --source=Mic --raw=raw.flac --obs=current.flac` | Null test: today's chain emulated over the raw mic minus what OBS recorded through it, skipping the first second (OBS's filters were already running). Passes at 40 dB of cancellation overall and 20 dB in the worst 400 ms window, so a gate that opens a block late fails |
 | `npm run audio -- report --baseline=... --curves=... --render=... --out=page.html` | One page from whatever results exist, to publish for AJ |
 
 Output goes to `tools/audio-results/` (gitignored). `--match-level` sets each
 proposal's fader so it lands at the past streams' level, the way AJ would.
+
+### Limits of the emulation
+
+- It matches OBS up to float rounding: state is kept in float32 like OBS, but
+  intermediate maths runs in doubles.
+- OBS runs an async source's filters on each device packet (often 480 frames
+  for WASAPI); the harness uses 1024 unless `--block=480`. Block size only
+  changes the compressor and limiter on true stereo (their envelope carries
+  across blocks as a max over channels), so a mono mic is unaffected but game
+  audio can differ slightly.
+- OBS feeds a sidechain key through a capture buffer, so ducking renders are
+  aligned by assumption; `verify` warns when a chain has a sidechain.
 
 ## Capturing inputs
 

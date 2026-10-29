@@ -3,8 +3,9 @@
  * (plugins/obs-filters in obsproject/obs-studio, master as of 2026-10-29):
  * gain, noise gate, compressor (with sidechain), expander, upward
  * compressor, 3-band EQ and limiter. Each port keeps OBS's state handling
- * and per-block structure, so a raw mic recording run through a chain here
- * should null against the same chain recorded inside OBS. The harness
+ * and per-block structure, and keeps the gate, expander and EQ state in
+ * float32 like OBS, so a raw mic recording run through a chain here matches
+ * the same chain recorded inside OBS up to float rounding. The harness
  * checks that claim with `npm run audio -- verify` (docs/AUDIO.md).
  *
  * Filters process planar audio in place: `process(channels, frames)` where
@@ -13,8 +14,14 @@
  * stage of a chain can be measured, not just the end result.
  */
 
-/** OBS processes audio in blocks of this many frames (AUDIO_OUTPUT_FRAMES). */
+/**
+ * Default block size. Async sources (a WASAPI mic or game capture) run their
+ * filters per device packet, often 480 frames; block size only matters for
+ * the compressor and limiter on true stereo (docs/AUDIO.md).
+ */
 export const OBS_BLOCK = 1024;
+
+const f32 = Math.fround;
 
 /**
  * @param {number} db
@@ -110,13 +117,13 @@ export function createGain(s) {
  * @param {number} sampleRate
  */
 export function createNoiseGate(s, sampleRate) {
-    const openT = dbToMul(s.open_threshold);
-    const closeT = dbToMul(s.close_threshold);
-    const attackRate = 1 / ((s.attack_time / 1000) * sampleRate);
-    const releaseRate = 1 / ((s.release_time / 1000) * sampleRate);
-    const decayRate = (openT - closeT) / ((1 / 75) * sampleRate);
-    const holdTime = s.hold_time / 1000;
-    const srInv = 1 / sampleRate;
+    const openT = f32(dbToMul(s.open_threshold));
+    const closeT = f32(dbToMul(s.close_threshold));
+    const attackRate = f32(1 / ((s.attack_time / 1000) * sampleRate));
+    const releaseRate = f32(1 / ((s.release_time / 1000) * sampleRate));
+    const decayRate = f32((openT - closeT) / ((1 / 75) * sampleRate));
+    const holdTime = f32(s.hold_time / 1000);
+    const srInv = f32(1 / sampleRate);
     const st = { isOpen: false, attenuation: 0, level: 0, heldTime: 0 };
     const stats = { ...newStats(), opens: 0 };
     return {
@@ -133,13 +140,13 @@ export function createNoiseGate(s, sampleRate) {
                     st.heldTime = 0;
                     st.isOpen = false;
                 }
-                st.level = Math.max(st.level, cur) - decayRate;
+                st.level = f32(f32(Math.max(st.level, cur)) - decayRate);
                 if (st.isOpen) {
-                    st.attenuation = Math.min(1, st.attenuation + attackRate);
+                    st.attenuation = f32(Math.min(1, st.attenuation + attackRate));
                 } else {
-                    st.heldTime += srInv;
+                    st.heldTime = f32(st.heldTime + srInv);
                     if (st.heldTime > holdTime) {
-                        st.attenuation = Math.max(0, st.attenuation - releaseRate);
+                        st.attenuation = f32(Math.max(0, st.attenuation - releaseRate));
                     }
                 }
                 for (const c of ch) c[i] *= st.attenuation;
@@ -155,8 +162,8 @@ export function createNoiseGate(s, sampleRate) {
  * channels, carried between blocks from the last sample, exactly as OBS.
  */
 function createEnvelopeCompressor({ threshold, slope, attack, release, outputGain }, sampleRate) {
-    const atk = gainCoefficient(sampleRate, attack);
-    const rel = gainCoefficient(sampleRate, release);
+    const atk = f32(gainCoefficient(sampleRate, attack));
+    const rel = f32(gainCoefficient(sampleRate, release));
     let envelope = 0;
     let envBuf = new Float32Array(OBS_BLOCK);
     const stats = newStats();
@@ -175,7 +182,7 @@ function createEnvelopeCompressor({ threshold, slope, attack, release, outputGai
                 let env = envelope;
                 for (let i = 0; i < n; i++) {
                     const x = Math.abs(c[i]);
-                    env = env < x ? x + atk * (env - x) : x + rel * (env - x);
+                    env = f32(env < x ? x + atk * (env - x) : x + rel * (env - x));
                     if (env > envBuf[i]) envBuf[i] = env;
                 }
             }
@@ -239,7 +246,7 @@ export function createExpander(s, sampleRate, isUpward) {
     const threshold = s.threshold;
     const knee = isUpward ? s.knee_width : 0;
     const peak = s.detector === 'peak';
-    const rmsCoef = Math.pow(2, -100 / sampleRate); // 10 ms RMS window
+    const rmsCoef = f32(Math.pow(2, -100 / sampleRate)); // 10 ms RMS window
     const runave = [];
     const gainState = [];
     const stats = newStats();
@@ -255,7 +262,7 @@ export function createExpander(s, sampleRate, isUpward) {
                     if (peak) {
                         envIn = Math.abs(x);
                     } else {
-                        ra = rmsCoef * ra + (1 - rmsCoef) * x * x;
+                        ra = f32(rmsCoef * ra + (1 - rmsCoef) * x * x);
                         envIn = Math.sqrt(Math.max(ra, 0));
                     }
                     const envDb = mulToDb(envIn);
@@ -279,7 +286,7 @@ export function createExpander(s, sampleRate, isUpward) {
                     const g = gain > prevGain
                         ? atk * prevGain + (1 - atk) * gain
                         : rel * prevGain + (1 - rel) * gain;
-                    prev = g;
+                    prev = f32(g);
                     const mul = isUpward ? dbToMul(g) : dbToMul(Math.min(0, g));
                     c[i] = x * mul * outputGain;
                     if (chan === 0) recordGain(stats, mul);
@@ -298,18 +305,18 @@ export function createExpander(s, sampleRate, isUpward) {
  * @param {number} sampleRate
  */
 export function createEq(s, sampleRate) {
-    const lf = 2 * Math.sin(Math.PI * 800 / sampleRate);
-    const hf = 2 * Math.sin(Math.PI * 5000 / sampleRate);
+    const lf = f32(2 * Math.sin(Math.PI * 800 / sampleRate));
+    const hf = f32(2 * Math.sin(Math.PI * 5000 / sampleRate));
     const lg = dbToMul(s.low);
     const mg = dbToMul(s.mid);
     const hg = dbToMul(s.high);
-    const EPS = 1 / 4294967295;
+    const EPS = f32(1 / 4294967295);
     const states = [];
     return {
         stats: newStats(),
         process(ch, n) {
             ch.forEach((c, chan) => {
-                const st = states[chan] || (states[chan] = new Float64Array(11));
+                const st = states[chan] || (states[chan] = new Float32Array(11));
                 // l0..l3, h0..h3, d1..d3
                 for (let i = 0; i < n; i++) {
                     const x = c[i];

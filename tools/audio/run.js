@@ -244,21 +244,39 @@ function verify(args) {
     const chain = sourceChain(collection, sourceName);
     const raw = decode(args.raw, { fs: FS }).channels;
     const obs = decode(args.obs, { fs: FS }).channels;
-    const r = runChain(chain, raw, FS, { startAfter: args['start-after'] });
+    const r = runChain(chain, raw, FS, { startAfter: args['start-after'], block: args.block ? Number(args.block) : undefined });
     const emu = r.output;
     const lag = bestLag(emu[0], obs[0], FS);
-    const n = Math.min(emu[0].length, obs[0].length - Math.max(0, lag)) - Math.max(0, -lag);
-    let sig = 0, res = 0;
-    for (let i = Math.max(0, -lag); i < n; i++) {
-        const o = obs[0][i + lag];
-        sig += o * o;
-        const d = o - emu[0][i];
-        res += d * d;
+    // Skip the first second: OBS's filters were already running when the
+    // capture started, while the emulator starts from zero state.
+    const from = Math.max(FS, -lag);
+    const to = Math.min(emu[0].length, obs[0].length - lag);
+    const win = Math.round(0.4 * FS);
+    let sig = 0, res = 0, worst = -Infinity, worstAt = 0;
+    for (let w = from; w + win <= to; w += win) {
+        let ws = 0, wr = 0;
+        for (const [ci, e] of emu.entries()) {
+            for (let i = w; i < w + win; i++) {
+                const o = obs[ci][i + lag];
+                const d = o - e[i];
+                ws += o * o;
+                wr += d * d;
+            }
+        }
+        sig += ws;
+        res += wr;
+        // Only windows with signal (above -60 dBFS RMS) can show a stage mismatch.
+        if (ws / (win * emu.length) > 1e-6) {
+            const db = 10 * Math.log10(wr / ws);
+            if (db > worst) { worst = db; worstAt = w / FS; }
+        }
     }
     const nullDb = 10 * Math.log10(res / sig);
-    const ok = nullDb <= -40;
-    console.log(`lag ${lag} samples; residual ${nullDb.toFixed(1)} dB under the OBS signal → ${ok ? 'emulator matches OBS' : 'MISMATCH (expect ≤ -40 dB with a lossless capture)'}`);
+    const ok = nullDb <= -40 && worst <= -20;
+    console.log(`lag ${lag} samples; residual ${nullDb.toFixed(1)} dB under the OBS signal overall, worst 400 ms window ${worst.toFixed(1)} dB at ${worstAt.toFixed(1)} s`);
+    console.log(ok ? 'emulator matches OBS' : 'MISMATCH: expect at most -40 dB overall and -20 dB in every window, from a lossless capture');
     if (r.skipped.length) console.log(`(not emulated, so they must be off in the capture: ${r.skipped.join(', ')})`);
+    if (r.sidechained.length) console.log(`warning: ${r.sidechained.join(', ')} use a sidechain, which OBS feeds through a buffer; offline alignment is approximate`);
     process.exitCode = ok ? 0 : 1;
 }
 

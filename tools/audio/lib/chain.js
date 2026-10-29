@@ -119,6 +119,7 @@ export function unemulated(chain) {
  * @param {Object<string, Float32Array[]>} [opts.keys] sidechain sources by
  *   name, post-filter and pre-fader as OBS feeds them
  * @param {boolean} [opts.taps] keep a copy of the audio after every stage
+ * @param {number} [opts.block] frames per block (default OBS_BLOCK; 480 for a WASAPI packet)
  * @returns {{ output: Float32Array[], preFader: Float32Array[], stages: object[], skipped: string[] }}
  */
 export function runChain(chain, input, sampleRate, opts = {}) {
@@ -141,8 +142,9 @@ export function runChain(chain, input, sampleRate, opts = {}) {
     const audio = input.map((c) => Float32Array.from(c));
     const n = audio[0].length;
     const taps = opts.taps ? stages.map(() => input.map(() => new Float32Array(n))) : null;
-    for (let start = 0; start < n; start += OBS_BLOCK) {
-        const len = Math.min(OBS_BLOCK, n - start);
+    const blockSize = opts.block || OBS_BLOCK;
+    for (let start = 0; start < n; start += blockSize) {
+        const len = Math.min(blockSize, n - start);
         const block = audio.map((c) => c.subarray(start, start + len));
         stages.forEach((st, si) => {
             let key;
@@ -161,6 +163,7 @@ export function runChain(chain, input, sampleRate, opts = {}) {
         output: audio,
         preFader,
         skipped,
+        sidechained: stages.filter((st) => st.impl.sidechain).map((st) => st.name),
         stages: stages.map((st, si) => ({
             name: st.name,
             id: st.id,
