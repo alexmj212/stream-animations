@@ -1320,6 +1320,57 @@ export const config = {
   },
 
   // Shared configuration across all scenes
+  // Spheal march (src/spheal): AJ's gag (2026-10-29). A song loops while
+  // drawn Spheals hop and roll left to right along the bottom, a few at
+  // first, then absurd numbers; a giant one closes the wave and the song
+  // stops once it has rolled off. A gag, so DESIGN.md doesn't apply.
+  // Lengths are in px at a 1080px-tall canvas and scale with the shorter side.
+  spheal: {
+    song: {
+      // The clip (src/spheal/march.ogg) is 6.65 s of AJ's song. Its two-bar
+      // phrase repeats every 5.647 s (waveform match 0.95), so it loops
+      // seamlessly from one beat in (0.706 s) for one phrase
+      beatS: 0.3529,
+      loopStartS: 0.7059,
+      loopEndS: 6.3529,
+      fadeOutMs: 400        // the song fades this fast once the wave is gone
+    },
+    spawn: {
+      // Spawns per second start at rate0 and double every doubleS, so the
+      // first three arrive over 4 s and the last second sends ~90
+      rate0: 0.35,
+      doubleS: 4,
+      endS: 32,             // last ordinary Spheal sets off here (~515 total)
+      kingDelayS: 3         // the giant sets off this long after the last one, so it
+                            // leaves last on 16:9 and vertical (tests/spheal)
+    },
+    marcher: {
+      radius: [26, 44],     // body radius range
+      speed: [115, 175],    // px/s: a slow march, 11-17 s to cross 1920px
+      // The crowd stacks up the screen as it grows: depth goes 0 to pileMax
+      // (px above the bottom) as the spawn time goes 0 to endS, eased in
+      pileMax: 430,
+      pileEase: 1.6,        // exponent: the pile stays low until it's silly
+      farScale: 0.6,        // a Spheal at the top of the pile is this much smaller
+      bottomPad: 14,        // ground line above the bottom edge
+      hopHeight: [14, 34],  // px, at radius 36
+      rollShare: 0.3,       // this share roll instead of hopping
+      tumbleShare: 0.15     // and this share hop and spin at once
+    },
+    king: {
+      radius: 230,
+      speed: 150,           // px/s: ~16 s to cross with its own width
+      hopHeight: 40
+    },
+    // Body palettes, picked per Spheal; the first is the usual one
+    palettes: [
+      { body: '#6fb7e6', dark: '#3f86c0', spot: '#b9e2fb', belly: '#f3e6bf' },
+      { body: '#86c6ee', dark: '#4f93c9', spot: '#d2eefe', belly: '#f6ecca' },
+      { body: '#5aa3dc', dark: '#2f6fad', spot: '#a8d6f6', belly: '#efdfb2' }
+    ],
+    sprite: { px: 64 }       // cached sprite radius (≥ the largest marcher); stamped scaled down
+  },
+
   shared: {
     // Timing patterns (millisecond-based, consistent across scenes)
     // 1000ms - smooth transition matching easeInOutCubic feel

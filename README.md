@@ -99,6 +99,20 @@ kind, shown and hidden by Mix It Up.
 - `cycle` - `0` holds the hype strip at a fixed teal; by default it cycles through the colour wheel and back every 20 s, as the OBS group did
 - `border` - `0` drops the hype train's 4px border around the whole screen
 
+### Spheal march
+AJ's gag: a song loops while drawn Spheals hop, roll and tumble left to
+right along the bottom, in time with the beat. A few at first, then the
+crowd doubles every 4 s and piles up the screen (~515 in all, ~470 on screen
+at once), then a crowned giant rolls through, and the song fades out the
+moment it has rolled off (~51 s). Not held to the stream bible. One OBS
+browser source shown by a Mix It Up command; each show plays it once.
+
+**URL**: `spheal/index.html` (`seed`, `volume`, `mute`)
+
+- `seed` - The same crowd every play (default: a new crowd each time)
+- `volume` - Song volume, 0-1, before OBS's fader (default 1)
+- `mute` - `1` plays without the song
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 

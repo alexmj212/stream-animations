@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spheal March</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import { setupCanvas } from "../shared/canvas.js";
+      import { SphealMarch } from "./SphealMarch.js";
+      import { config } from "../config/config.js";
+      import { createRandom, seedFromURL, registerProbe } from "../shared/motion.js";
+      import { createDebug } from "../shared/debug.js";
+      import songUrl from "./march.ogg?url";
+      const debug = createDebug('spheal');
+
+      // AJ's gag (2026-10-29): the song loops while Spheals march along the
+      // bottom, a few, then absurd numbers, then a giant; the song stops
+      // when the giant has rolled off. One OBS browser source shown by a
+      // Mix It Up command; each show plays the march once.
+      //   ?seed=N     the same crowd every time (default: a new one per play)
+      //   ?volume=0-1 song volume before OBS's own fader (default 1)
+      //   ?mute=1     no song (the harness, or a silent check in OBS)
+      const urlParams = new URLSearchParams(window.location.search);
+      const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
+      const volume = Math.min(1, Math.max(0, Number(urlParams.get("volume") ?? 1) || 0));
+      const mute = urlParams.get("mute") === "1";
+
+      const canvas = document.getElementById("canvas");
+      const ctx = setupCanvas(canvas, { alpha: true });
+      const march = new SphealMarch(ctx, canvas, createRandom(seed));
+      const song = config.spheal.song;
+
+      // Web Audio loops the phrase without a gap, which <audio loop> can't.
+      // Decoded before the march starts, so the hops land on the beats
+      let audio = null;
+      async function loadSong() {
+        if (mute) return null;
+        try {
+          const ac = new AudioContext();
+          const data = await (await fetch(songUrl)).arrayBuffer();
+          const buffer = await ac.decodeAudioData(data);
+          const gain = ac.createGain();
+          gain.gain.value = volume;
+          gain.connect(ac.destination);
+          return { ac, buffer, gain, source: null };
+        } catch (e) {
+          debug.mark('songError', { message: String(e) });
+          return null;
+        }
+      }
+
+      function startSong() {
+        if (!audio) return;
+        const { ac, buffer, gain } = audio;
+        const source = ac.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.loopStart = song.loopStartS;
+        source.loopEnd = song.loopEndS;
+        source.connect(gain);
+        source.start();
+        audio.source = source;
+        // OBS lets pages play sound unprompted; a plain browser may not
+        if (ac.state === 'suspended') ac.resume().catch(() => {});
+        debug.mark('songStart', { state: ac.state });
+      }
+
+      function stopSong() {
+        if (!audio?.source) return;
+        const { ac, gain, source } = audio;
+        const fade = song.fadeOutMs / 1000;
+        gain.gain.setValueAtTime(gain.gain.value, ac.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ac.currentTime + fade);
+        source.stop(ac.currentTime + fade);
+        audio.source = null;
+        source.onended = () => ac.close().catch(() => {});
+      }
+
+      let startMs = null;
+      let stopped = false;
+      function frame(timestamp) {
+        debug.frame(timestamp);
+        if (startMs === null) startMs = timestamp;
+        march.setTime(timestamp - startMs);
+        march.clear();
+        march.draw();
+        if (march.done && !stopped) {
+          stopped = true;
+          stopSong();
+          debug.mark('end', { atS: +march.tS.toFixed(2), peak: march.peak, count: march.count });
+          return;
+        }
+        requestAnimationFrame(frame);
+      }
+
+      registerProbe('spheal', () => march.probeSamples());
+      loadSong().then((a) => {
+        audio = a;
+        debug.mark('start', { seed, count: march.count, endS: +march.endS.toFixed(2), song: !!audio });
+        startSong();
+        requestAnimationFrame(frame);
+      });
+
+      window.addEventListener('resize', () => march.build());
+
+      // Shown again by OBS: march afresh
+      document.addEventListener('visibilitychange', () => {
+        debug.mark('visibilitychange', { hidden: document.hidden });
+        if (!document.hidden) location.reload();
+      });
+    </script>
+  </body>
+</html>
