@@ -160,3 +160,16 @@ export function waveEndS(marchers, width, unit) {
 export function unitFor(width, height) {
     return Math.min(width, height) / 1080;
 }
+
+/**
+ * The sprite URL inside a PokeAPI pokemon's `sprites` object, by key path
+ * (e.g. ['other', 'official-artwork', 'front_default']).
+ * @param {Object} sprites - The API response's `sprites`
+ * @param {string[]} path
+ * @returns {string|null}
+ */
+export function spriteUrlFrom(sprites, path) {
+    let node = sprites;
+    for (const key of path) node = node?.[key];
+    return typeof node === 'string' && /^https:\/\//.test(node) ? node : null;
+}

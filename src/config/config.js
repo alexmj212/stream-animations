@@ -1362,7 +1362,8 @@ export const config = {
       speed: 150,           // px/s: ~16 s to cross with its own width
       hopHeight: 40         // it hops, so its crown stays on top (QA, #97)
     },
-    // Body palettes, picked per Spheal; the first is the usual one
+    // Body palettes for the drawn Spheal (?sprite=drawn, or PokeAPI offline),
+    // picked per Spheal; the first is the usual one
     palettes: [
       { body: '#6fb7e6', dark: '#3f86c0', spot: '#b9e2fb', belly: '#f3e6bf' },
       { body: '#86c6ee', dark: '#4f93c9', spot: '#d2eefe', belly: '#f6ecca' },
@@ -1372,7 +1373,25 @@ export const config = {
     // Each marcher stamps the smallest one at least its size, so the crowd
     // isn't all downscaling 64px sprites (Code review, #97: the peak halved
     // the frame rate in software raster)
-    sprite: { px: [24, 36, 48, 64] }
+    sprite: {
+      px: [24, 36, 48, 64],
+      // AJ (2026-10-29): use the real Spheal from PokeAPI. Fetched at load
+      // (not committed: the art isn't ours to put in the public repo); the
+      // drawn Spheal stays as the fallback when PokeAPI can't be reached.
+      // ?sprite= picks: art (official artwork, default), home (3D render),
+      // pixel (the game sprite, drawn without smoothing) or drawn
+      api: 'https://pokeapi.co/api/v2/pokemon/spheal',
+      kinds: {
+        art: { path: ['other', 'official-artwork', 'front_default'], pixel: false },
+        home: { path: ['other', 'home', 'front_default'], pixel: false },
+        pixel: { path: ['front_default'], pixel: true }
+      },
+      // PokeAPI's own sprite host, used when the API call fails
+      fallbackBase: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/',
+      fallbackFiles: { art: 'other/official-artwork/363.png', home: 'other/home/363.png', pixel: '363.png' },
+      timeoutMs: 5000,      // give up and draw our own Spheal after this
+      faces: 'left'         // every PokeAPI sprite faces left; flipped to march right
+    }
   },
 
   // Shared configuration across all scenes

@@ -741,7 +741,9 @@ export const SCENARIOS = [
     // (the end event), and stay inside the frame budget at the peak crowd
     // (~470 on screen at 30-34 s). ?mute=1: the harness has no audio
     name: 'spheal',
-    url: '/src/spheal/index.html?seed=1&mute=1',
+    // sprite=drawn keeps the run off the network; the PokeAPI sprite is
+    // the same stamping path with another image (tests/spheal)
+    url: '/src/spheal/index.html?seed=1&mute=1&sprite=drawn',
     start: 'load',
     captureMs: 52500,
     keyframes: [0.04, 0.24, 0.46, 0.6, 0.66, 0.8, 0.94],

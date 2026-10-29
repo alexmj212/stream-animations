@@ -1,7 +1,10 @@
+import { spriteUrlFrom } from '../shared/animations/spheal.js';
+
 /**
- * Draws one Spheal (a round seal: blue back, cream belly, flippers) into an
- * offscreen canvas, facing right. Original drawing from shapes, no artwork
- * copied. The page caches one sprite per palette and stamps it per marcher.
+ * Spheal sprites, baked into offscreen canvases facing right that the page
+ * stamps per marcher: the real one from PokeAPI (loadPokeSprite,
+ * spriteFromImage; AJ, 2026-10-29), or our own drawing from shapes
+ * (drawSpheal) when PokeAPI can't be reached or with ?sprite=drawn.
  */
 
 const INK = '#1d2f52';
@@ -113,10 +116,10 @@ export function drawSpheal(palette, R, opts = {}) {
     return c;
 }
 
-/** A gold crown, tilted, on top of the head. */
-function drawCrown(g, R, line) {
+/** A gold crown, tilted, on top of the head (at x, y, in units of R). */
+function drawCrown(g, R, line, x = 0.05, y = -0.98) {
     g.save();
-    g.translate(R * 0.05, -R * 0.98);
+    g.translate(R * x, R * y);
     g.rotate(0.18);
     const w = R * 0.62;
     const h = R * 0.42;
@@ -158,5 +161,108 @@ export function drawShadow(R) {
     grad.addColorStop(1, 'hsla(220, 40%, 8%, 0)');
     g.fillStyle = grad;
     g.fillRect(0, 0, 2 * R, 2 * R);
+    return c;
+}
+
+/**
+ * Load the real Spheal from PokeAPI (AJ, 2026-10-29): the API names the
+ * sprite's URL; if the API doesn't answer, its sprite host is tried
+ * directly. Resolves null when neither loads in time, and the page draws
+ * its own Spheal instead.
+ * @param {string} kind - A key of config.spheal.sprite.kinds
+ * @param {Object} cfg - config.spheal.sprite
+ * @returns {Promise<HTMLImageElement|null>}
+ */
+export async function loadPokeSprite(kind, cfg) {
+    const spec = cfg.kinds[kind];
+    if (!spec) return null;
+    const deadline = new Promise(resolve => setTimeout(() => resolve(null), cfg.timeoutMs));
+    const attempt = (async () => {
+        let url = null;
+        try {
+            const res = await fetch(cfg.api);
+            if (res.ok) url = spriteUrlFrom((await res.json()).sprites, spec.path);
+        } catch { /* fall through to the sprite host */ }
+        return (url && await loadImage(url)) || loadImage(cfg.fallbackBase + cfg.fallbackFiles[kind]);
+    })();
+    return Promise.race([attempt, deadline]);
+}
+
+function loadImage(url) {
+    return new Promise(resolve => {
+        const img = new Image();
+        // CORS (the host sends *) keeps the canvas readable for alphaBounds
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = url;
+    });
+}
+
+/**
+ * The box around an image's visible pixels, so the Spheal, not its
+ * transparent margin, is fitted to the marcher.
+ * @param {HTMLImageElement} img
+ * @returns {{x: number, y: number, w: number, h: number}}
+ */
+export function alphaBounds(img) {
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    try {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const g = c.getContext('2d', { willReadFrequently: true });
+        g.drawImage(img, 0, 0);
+        const d = g.getImageData(0, 0, w, h).data;
+        let x0 = w, y0 = h, x1 = -1, y1 = -1;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (d[(y * w + x) * 4 + 3] > 8) {
+                    if (x < x0) x0 = x;
+                    if (x > x1) x1 = x;
+                    if (y < y0) y0 = y;
+                    if (y > y1) y1 = y;
+                }
+            }
+        }
+        if (x1 >= x0) return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+    } catch { /* a tainted canvas: use the whole image */ }
+    return { x: 0, y: 0, w, h };
+}
+
+/**
+ * Bake a loaded sprite at body radius R: its visible box 2R tall, centred
+ * on the canvas (where the page puts the body centre), mirrored to face
+ * right. Same contract as drawSpheal.
+ * @param {HTMLImageElement} img
+ * @param {{x: number, y: number, w: number, h: number}} box - alphaBounds(img)
+ * @param {number} R
+ * @param {{pixel?: boolean, flip?: boolean, crown?: boolean}} [opts]
+ * @returns {HTMLCanvasElement}
+ */
+export function spriteFromImage(img, box, R, opts = {}) {
+    const k = (2 * R) / box.h;
+    const bw = box.w * k;
+    const pad = Math.ceil(opts.crown ? R * 0.9 : 2);
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(bw + 2 * pad);
+    c.height = Math.ceil(2 * R + 2 * pad);
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = !opts.pixel;
+    g.imageSmoothingQuality = 'high';
+    g.save();
+    g.translate(c.width / 2, c.height / 2);
+    if (opts.flip) g.scale(-1, 1);
+    g.drawImage(img, box.x, box.y, box.w, box.h, -bw / 2, -R, bw, 2 * R);
+    g.restore();
+    if (opts.crown) {
+        g.save();
+        g.translate(c.width / 2, c.height / 2);
+        g.lineJoin = 'round';
+        // The head is the front (right) top of the body once flipped
+        drawCrown(g, R, Math.max(2, R * 0.055), opts.flip ? 0.3 : -0.3, -0.86);
+        g.restore();
+    }
     return c;
 }

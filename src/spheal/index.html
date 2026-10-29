@@ -28,6 +28,7 @@
     <script type="module">
       import { setupCanvas } from "../shared/canvas.js";
       import { SphealMarch } from "./SphealMarch.js";
+      import { loadPokeSprite, alphaBounds } from "./SphealSprite.js";
       import { config } from "../config/config.js";
       import { createRandom, seedFromURL, registerProbe } from "../shared/motion.js";
       import { createDebug } from "../shared/debug.js";
@@ -41,14 +42,17 @@
       //   ?seed=N     the same crowd every time (default: a new one per play)
       //   ?volume=0-1 song volume before OBS's own fader (default 1)
       //   ?mute=1     no song (the harness, or a silent check in OBS)
+      //   ?sprite=    art (default), home or pixel: the Spheal from PokeAPI;
+      //               drawn: our own drawing (also the fallback offline)
       const urlParams = new URLSearchParams(window.location.search);
       const seed = seedFromURL() ?? Math.floor(Math.random() * 2 ** 31);
       const volume = Math.min(1, Math.max(0, Number(urlParams.get("volume") ?? 1) || 0));
       const mute = urlParams.get("mute") === "1";
+      const spriteKind = urlParams.get("sprite") || "art";
 
       const canvas = document.getElementById("canvas");
       const ctx = setupCanvas(canvas, { alpha: true });
-      const march = new SphealMarch(ctx, canvas, createRandom(seed));
+      let march = null;
       const song = config.spheal.song;
 
       // Web Audio loops the phrase without a gap, which <audio loop> can't.
@@ -114,15 +118,25 @@
         requestAnimationFrame(frame);
       }
 
-      registerProbe('spheal', () => march.probeSamples());
-      loadSong().then((a) => {
+      async function loadArt() {
+        const spec = config.spheal.sprite.kinds[spriteKind];
+        if (!spec) return null;
+        const img = await loadPokeSprite(spriteKind, config.spheal.sprite);
+        debug.mark('sprite', { kind: spriteKind, loaded: !!img, src: img?.src ?? null });
+        return img ? { img, box: alphaBounds(img), pixel: spec.pixel } : null;
+      }
+
+      registerProbe('spheal', () => march ? march.probeSamples() : []);
+      // The song and the sprite load together; the march starts when both are in
+      Promise.all([loadSong(), loadArt()]).then(([a, art]) => {
         audio = a;
-        debug.mark('start', { seed, count: march.count, endS: +march.endS.toFixed(2), song: !!audio });
+        march = new SphealMarch(ctx, canvas, createRandom(seed), art);
+        debug.mark('start', { seed, count: march.count, endS: +march.endS.toFixed(2), song: !!audio, sprite: art ? spriteKind : 'drawn' });
         startSong();
         requestAnimationFrame(frame);
       });
 
-      window.addEventListener('resize', () => march.build());
+      window.addEventListener('resize', () => march?.build());
 
       // Shown again by OBS: march afresh
       document.addEventListener('visibilitychange', () => {

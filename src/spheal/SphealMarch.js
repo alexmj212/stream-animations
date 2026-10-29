@@ -1,6 +1,6 @@
 import { config } from '../config/config.js';
 import { buildWave, marcherAt, waveEndS, unitFor } from '../shared/animations/spheal.js';
-import { drawSpheal, drawShadow } from './SphealSprite.js';
+import { drawSpheal, drawShadow, spriteFromImage } from './SphealSprite.js';
 
 /**
  * The march: holds the wave and the cached sprites, and draws the crowd at
@@ -11,9 +11,12 @@ export class SphealMarch {
      * @param {CanvasRenderingContext2D} ctx
      * @param {HTMLCanvasElement} canvas
      * @param {() => number} random - Seeded RNG
+     * @param {{img: HTMLImageElement, box: Object, pixel: boolean}|null} [art] -
+     *   The PokeAPI sprite (SphealSprite.loadPokeSprite); null draws our own
      */
-    constructor(ctx, canvas, random) {
+    constructor(ctx, canvas, random, art = null) {
         this.ctx = ctx;
+        this.art = art;
         this.canvas = canvas;
         this.cfg = config.spheal;
         this.marchers = buildWave(this.cfg, random);
@@ -34,11 +37,20 @@ export class SphealMarch {
             bottomPad: this.cfg.marcher.bottomPad,
             beatS: this.cfg.song.beatS
         };
-        // sprites[palette][tier], radii ascending
+        // sprites[palette][tier], radii ascending. The PokeAPI sprite has
+        // one look, so every palette pick stamps it
         this.spritePx = this.cfg.sprite.px;
-        this.sprites = this.cfg.palettes.map(p => this.spritePx.map(px => drawSpheal(p, px)));
         this.kingPx = Math.ceil(this.cfg.king.radius * this.unit);
-        this.kingSprite = drawSpheal(this.cfg.palettes[0], this.kingPx, { crown: true });
+        const art = this.art;
+        if (art) {
+            const opts = { pixel: art.pixel, flip: this.cfg.sprite.faces === 'left' };
+            const tiers = this.spritePx.map(px => spriteFromImage(art.img, art.box, px, opts));
+            this.sprites = this.cfg.palettes.map(() => tiers);
+            this.kingSprite = spriteFromImage(art.img, art.box, this.kingPx, { ...opts, crown: true });
+        } else {
+            this.sprites = this.cfg.palettes.map(p => this.spritePx.map(px => drawSpheal(p, px)));
+            this.kingSprite = drawSpheal(this.cfg.palettes[0], this.kingPx, { crown: true });
+        }
         this.shadow = drawShadow(32);
         this.endS = waveEndS(this.marchers, width, this.unit);
     }

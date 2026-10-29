@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spawnedBy, spawnTime, buildWave, marcherAt, waveEndS, unitFor } from '../../src/shared/animations/spheal.js';
+import { spawnedBy, spawnTime, buildWave, marcherAt, waveEndS, unitFor, spriteUrlFrom } from '../../src/shared/animations/spheal.js';
 import { createRandom } from '../../src/shared/motion.js';
 import { config } from '../../src/config/config.js';
 
@@ -88,5 +88,33 @@ describe('spheal song loop', () => {
         const { beatS, loopStartS, loopEndS } = cfg.song;
         expect((loopEndS - loopStartS) / beatS).toBeCloseTo(16, 2);
         expect(loopStartS / beatS).toBeCloseTo(2, 2);
+    });
+});
+
+describe('spheal PokeAPI sprite', () => {
+    // Trimmed from GET https://pokeapi.co/api/v2/pokemon/spheal (2026-10-29)
+    const sprites = {
+        front_default: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/363.png',
+        other: {
+            'official-artwork': { front_default: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/363.png' },
+            home: { front_default: null }
+        }
+    };
+
+    it('finds each kind by its config path', () => {
+        const kinds = cfg.sprite.kinds;
+        expect(spriteUrlFrom(sprites, kinds.art.path)).toMatch(/official-artwork\/363\.png$/);
+        expect(spriteUrlFrom(sprites, kinds.pixel.path)).toMatch(/pokemon\/363\.png$/);
+    });
+
+    it('returns null for a missing or non-https entry, so the page falls back', () => {
+        expect(spriteUrlFrom(sprites, cfg.sprite.kinds.home.path)).toBeNull();
+        expect(spriteUrlFrom(sprites, ['nope', 'front_default'])).toBeNull();
+        expect(spriteUrlFrom({ front_default: 'javascript:alert(1)' }, ['front_default'])).toBeNull();
+        expect(spriteUrlFrom(undefined, ['front_default'])).toBeNull();
+    });
+
+    it('has a sprite-host fallback for every kind', () => {
+        for (const kind of Object.keys(cfg.sprite.kinds)) expect(cfg.sprite.fallbackFiles[kind]).toBeTruthy();
     });
 });
