@@ -1392,6 +1392,7 @@ export const config = {
       // Give up and draw our own Spheal after this; with the 50.9 s wave and
       // the fade it stays inside the 55 s MIU wait (Code review, #97)
       timeoutMs: 2500,
+      apiTimeoutMs: 1200,   // the API call alone; then the sprite host is tried
       faces: 'left'         // every PokeAPI sprite faces left; flipped to march right
     }
   },

@@ -180,7 +180,9 @@ export async function loadPokeSprite(kind, cfg) {
     const attempt = (async () => {
         let url = null;
         try {
-            const res = await fetch(cfg.api);
+            // Its own short deadline, so a hanging API still leaves time
+            // for the sprite host (QA, #97)
+            const res = await fetch(cfg.api, { signal: AbortSignal.timeout(cfg.apiTimeoutMs) });
             if (res.ok) url = spriteUrlFrom((await res.json()).sprites, spec.path);
         } catch { /* fall through to the sprite host */ }
         return (url && await loadImage(url)) || loadImage(cfg.fallbackBase + cfg.fallbackFiles[kind]);
