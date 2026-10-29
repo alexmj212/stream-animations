@@ -394,7 +394,8 @@ function assets() {
 function walk(dir) {
     return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
         const p = path.join(dir, e.name);
-        return e.isDirectory() ? walk(p) : [p];
+        // Registered paths use '/', so normalise Windows separators (Defiant).
+        return e.isDirectory() ? walk(p) : [p.split(path.sep).join('/')];
     });
 }
 
@@ -431,7 +432,7 @@ const args = parseArgs(process.argv.slice(2));
 const cmd = args._[0];
 const commands = { baseline, curves, render, verify, report, meter, assets };
 if (!commands[cmd]) {
-    console.log('usage: npm run audio -- <baseline|curves|render|verify> ... (see docs/AUDIO.md)');
+    console.log('usage: npm run audio -- <baseline|curves|render|verify|meter|assets|report> ... (see docs/AUDIO.md)');
     process.exitCode = 1;
 } else {
     commands[cmd](args);
