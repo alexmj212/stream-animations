@@ -753,6 +753,8 @@ export const SCENARIOS = [
       endsClear: true,
       debugEvents: { start: 1, end: 1 },
       noVelocitySteps: true,
+      // ~470 sprites at the peak: p95 measured 3.0-3.5 ms (seeds 1-3,
+      // 2026-10-29), so 8 leaves room on CI without hiding a regression
       workP95Ms: 8
     }
   }
