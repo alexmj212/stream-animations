@@ -81,6 +81,39 @@ source loads, then holds still. A long title shrinks, then takes two lines.
 
 **URL**: `title/index.html?text=WELCOME`
 
+### Banner lane
+The hype train banner and the ad warning, in AJ's original OBS look with
+32px caps. The hype train is a colour-cycling strip with a scrolling "HYPE
+TRAIN ✦✧" marquee in the goal bar toast's own place (from the follower
+bar's end at x 560 to the right edge, y 26-74, with the toast's leaning
+ends; a toast plays over it). The ad warning is black "ADS MAY BE PLAYING -"
+scrolling on an orange plate at half opacity along the bottom edge
+(y 1032-1080, full width). On the vertical canvas both run full width on the
+seam, with the words inside the phone-safe width. One OBS browser source per
+kind, shown and hidden by Mix It Up.
+
+**URL**: `banner/index.html?kind=hype` (`kind`, `text`, `cycle`, `border`, `layout`)
+
+- `kind` - `hype` (default) or `ad`
+- `text` - Replace the line (set in caps)
+- `cycle` - `0` holds the hype strip at a fixed teal; by default it cycles through the colour wheel and back every 20 s, as the OBS group did
+- `border` - `0` drops the hype train's 4px border around the whole screen
+
+### Spheal march
+AJ's gag: a song loops while Spheals (the official artwork, fetched from
+PokeAPI at load) hop, roll and tumble left to right along the bottom, in time with the beat. A few at first, then the
+crowd doubles every 4 s and piles up the screen (~515 in all, ~470 on screen
+at once), then a crowned giant bounces through, and the song fades out the
+moment it has left (~51 s). Not held to the stream bible. One OBS
+browser source shown by a Mix It Up command; each show plays it once.
+
+**URL**: `spheal/index.html` (`seed`, `volume`, `mute`, `sprite`)
+
+- `seed` - The same crowd every play (default: a new crowd each time)
+- `volume` - Song volume, 0-1, before OBS's fader (default 1)
+- `mute` - `1` plays without the song
+- `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 2.5 s)
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 
@@ -204,6 +237,7 @@ src/
   notifications/ - Toast bar out of the follower-goal bar
   followers/    - Follower-goal bar (count from MIU's Developer API)
   title/        - Scene title card (WELCOME, BRB, ENDING)
+  banner/       - Hype train banner and ad warning (banner lane)
   background/   - Background loop
   epcot/        - Spaceship Earth lattice
 tests/          - Vitest suites, one folder per scene

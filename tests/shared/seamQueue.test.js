@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { playOnSeam, SEAM_LOCK } from '../../src/shared/seamQueue.js';
+import { playOnSeam, seamHeld, SEAM_LOCK } from '../../src/shared/seamQueue.js';
 
 /** A FIFO stand-in for navigator.locks with one named lock. */
 function fakeLocks() {
@@ -84,5 +84,20 @@ describe('playOnSeam', () => {
         first.end();
         await tick();
         expect(waits).toEqual([0, 4200]);
+    });
+});
+
+describe('seamHeld', () => {
+    const locks = (names) => ({ query: async () => ({ held: names.map(name => ({ name })), pending: [] }) });
+
+    it('is true while an alert holds the seam lock', async () => {
+        expect(await seamHeld(locks([SEAM_LOCK]))).toBe(true);
+        expect(await seamHeld(locks(['something-else']))).toBe(false);
+        expect(await seamHeld(locks([]))).toBe(false);
+    });
+
+    it('is false without Web Locks, or when the query fails', async () => {
+        expect(await seamHeld(null)).toBe(false);
+        expect(await seamHeld({ query: async () => { throw new Error('nope'); } })).toBe(false);
     });
 });

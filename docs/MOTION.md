@@ -63,6 +63,7 @@ Add a dated line when a review or AJ's feedback settles a question of style.
 
 | Date | Learning | Evidence | Status |
 |---|---|---|---|
+| 2026-10-29 | The Spheal march (`src/spheal`) is exempt from this guide and from DESIGN.md: a gag, meant to be ridiculous. Audits don't flag it; it still has to keep the frame budget, avoid flashing and keep chat readable | AJ: "it's just a gag ... it has to be ridiculous"; Design review OK on #97 | active |
 | 2026-01-20 | URL-based color coordination across scenes didn't work out; don't retry it without a new idea | v1.1 out-of-scope list | active |
 | 2026-10-28 | Background default stays at 8 bars once spawns are balanced; 5 goes too empty, a lighter OBS source can use `?density=6` | AJ's pick on a side-by-side mock, PR #2 design review | active |
 | 2026-10-28 | epcot (recorded) is AJ's main background; the bar background is rarely used, so style effort goes to epcot, stinger, sidebar and shade first | AJ, 2026-10-28 | active |
@@ -78,3 +79,4 @@ Add a dated line when a review or AJ's feedback settles a question of style.
 | 2026-10-28 | Alert text (shade and sidebar) holds still and whole while it is read, for a reading-time hold (DESIGN.md MOTION-1, TIME-1, TYPE-1/3) | AJ's pick on the design audit set, #33-#35 | active (#58) |
 | 2026-10-28 | The GOOBERS widget pair gets bigger text but keeps its position, so its top margin is AJ's exemption from SAFE-1 | AJ's pick, design audit #40 | active: 42px text, the goal bar runs to x560 and the toast starts there; long toast lines may shrink to 23px |
 | 2026-10-28 | Vertical sidebar: two-line ink plate on the y 700 seam, 48px action over 64px name, growing upward; raid words fit x 60-940; toast and sidebar take turns | AJ's pick A2, 2026-10-28; design review on #82 | active (#82) |
+| 2026-10-28 | The banner lane (hype train, ad warning) keeps AJ's original OBS look: a translucent teal strip with a "HYPE TRAIN" marquee and sparkles, and black text on an orange plate, both scrolling at a constant speed. The marquee is AJ's exemption from MOTION-1's still text; the rule fixes stay (32px caps, inside the lane). Don't restyle these banners without AJ | AJ rejected the ink-plate redesign on #86: "I liked the overall design of my original implementation" | active (#86) |

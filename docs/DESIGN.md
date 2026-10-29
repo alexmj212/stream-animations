@@ -32,7 +32,7 @@ force now.
 | Rule | Target | Ships today |
 |---|---|---|
 | MOTION-1, motion tokens | Enter 500ms on `ease.enter`, exit 350ms on `ease.exit`, exits quicker than entries | Shade and sidebar ship it (#33-#35); the other scenes keep their own timings ([MOTION.md](MOTION.md), Timing) |
-| SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | Two exemptions, AJ's call on 2026-10-28 ([MOTION.md](MOTION.md) Learnings): the goal bar and notifications toast keep their place in the top margin (#40, text size only), and the BRB collage stays as it is (#42). The scene titles became the title card scene, inside title-safe (#39, AJ's later pick, 2026-10-28). New text gets no exemption |
+| SAFE-1, SAFE-3 | Every word inside title-safe, none in the bottom 8% | Exemptions, all AJ's calls on 2026-10-28 ([MOTION.md](MOTION.md) Learnings): the goal bar, the notifications toast and the hype train banner that shares its place keep their place in the top margin (#40, text size only; banner #86), the ad warning keeps its quiet strip on the bottom edge (#86), and the BRB collage stays as it is (#42). The scene titles became the title card scene, inside title-safe (#39, AJ's later pick, 2026-10-28). New text gets no exemption |
 
 **Scope** is the OBS program output (AJ, 2026-10-28): every scene, alert,
 widget and transition a viewer sees. Control UIs that never reach the
@@ -185,9 +185,9 @@ readable is hidden and AJ's face and the game's centre stay clear.
   for good.
   The full inventory (boxes and triggers, from OBS, Mix It Up and the
   Stream Deck) lives in the project files at `composition/inventory.md`.
-  QA's everything-visible harness frames (`npm run motion:compose`, coming
-  with QA's PR after #79) will hold the pairs to it. Until then, KEEP-1
-  checks only our text against chat and music.
+  QA's everything-visible harness frames (`npm run motion:compose`, #84)
+  render the pairs that can be up together and report overlaps
+  (VALIDATION.md); KEEP-1 checks our text against chat and music.
 
 ### Views (16:9)
 
@@ -201,7 +201,7 @@ each of them, not only on Just Chatting.
 | Camera presets (Stream Deck) | Cam BR, Cam MR, Cam Center | See `composition/inventory.md` | Report only |
 
 In the Full view the room is gone, so the left column holds chat, the
-discoball pig and AJ, top to bottom. The toast, banner lane, MIU avatars,
+discoball pig and AJ, top to bottom. The toast and banners, MIU avatars,
 sidebar and gags land on the game for a few seconds, the gag corner on the
 game's bottom-right where a HUD often sits; that's accepted. Exobot's top
 edge (y 788) reaches AJ's chin and beard, below the eyes, for a TTS line.
@@ -216,15 +216,15 @@ fine within COMP-7. The ones worth knowing are listed under the table.
 |---|---|---|---|
 | Goal bar | x 36-560, y 26-75 | Follower goal | AJ's pick: it stays put (#62) |
 | Music box | x 19-481, y 0-130 | Waveform, now playing | Draws under the goal bar |
-| Toast lane | x 560-1824, y 26-74 | Notifications toast | One toast at a time |
-| Banner lane | x 560-1824, y 84-132 | Hype train banner, ad warning | The ad wins if both are up. Text at 32px caps. Both keep AJ's original look (AJ, 2026-10-28): the teal "HYPE TRAIN" marquee with sparkles on a translucent strip, and black scrolling text on orange (11:1). The scroll is exempt from MOTION-1 and TIME-1 |
+| Toast lane | x 560-1824, y 26-74; hype banner x 560-1920 | Notifications toast, hype train banner | AJ, 2026-10-28: the hype banner shows in the toast's place, and a toast plays over it. It runs from the follower bar's end to the frame edge, as the toast grows from the bar; only its scrolling line passes title-safe, under the toast's SAFE-1 exemption. Text at 32px caps in AJ's original look: the hue-cycling "HYPE TRAIN" marquee with sparkles (teal with `?cycle=0`). The scroll is exempt from MOTION-1 and TIME-1. During a hype train, the original 4px hue-cycling border also runs round the frame at 50% |
 | Remote | x 496-546, y 83-133 | Remote holder | Out of the toast's path, right of chat |
-| Jail | x 496-622, y 140-211 | Jail slideshow | Below the banner lane |
+| Jail | x 496-622, y 140-211 | Jail slideshow | Below the remote |
 | Chat column | x 18-488, y 127-537 | Chat, with the discoball pig behind it (x 43-491, y 130-469) | Our text stays off it (KEEP-1) |
 | Right third | x 1312-1824, y 140-640 | MIU avatars, Pixel Guess (from y 140) | Mix It Up keep-out still applies to our text |
 | Sidebar | right side, text on its nameplate at 78% | Tier 2 alerts | MOTION.md, sidebar text at 78% |
 | Bottom-right corner | x 1312-1824, y 650-942 | One gag at a time: Lechonk (after the sidebar), Clippy, iPhone text, Life points | Ends 8px above the badge |
 | Badge | x 1613-1840, y 950-985 | Pride Guild | Above the player controls |
+| Bottom edge | x 0-1920, y 1032-1080 | Ad warning | AJ, 2026-10-28: a quiet notice, where AJ had it: full width at half opacity, black scrolling text on orange, 32px caps. Exempt from SAFE-1 and SAFE-3 because it's meant to sit low and quiet; the player controls may cover it |
 | Lower band | x 70-1304, y 788-994 | Exobot (x 70-436), Discord heads (x 440-1304) | Nothing readable below y 994 (SAFE-3) |
 
 Known overlaps:
@@ -543,6 +543,10 @@ applies unchanged. Tokens: `config.design.vertical`.
     the scaled 16:9 panel covered the camera half and ran under the app's
     buttons). One alert per zone: the toast and the sidebar share the
     seam, so they queue (ALERT-1).
+  - The hype train banner and the ad warning show on vertical too, as
+    full-width strips on the seam (x 0-1080, y 660-740) with their words
+    kept inside x 60-940 (a ~57px line), and a toast plays over them as on
+    16:9 (AJ, 2026-10-28: "they should be full width"; #86).
   - The raid shade (tier 3) may cover AJ, but its words still fit inside
     x 60-940 (880px): shrink, then wrap, as on 16:9 (TYPE-6).
 - **V-REUSE-1** One page serves both canvases where it can: a portrait

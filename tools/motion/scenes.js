@@ -13,6 +13,7 @@
  *   { event, also: [{event, detail}] } - ...then these in the same instant
  * events: [{at, event, detail}]  - later triggers, dispatched at `at` ms of virtual time
  * viewport: {width, height}  - render at this size instead of --width/--height
+ * seeds: [n, ...]           - run only these seeds by default (a long capture); --seeds overrides
  * checks (all optional):
  *   totalDurationMs          - last visible frame must end here (±durationToleranceMs)
  *   endsClear                - final frame fully transparent
@@ -623,6 +624,86 @@ export const SCENARIOS = [
     }
   },
   {
+    // Banner lane (issue #85), in AJ's original OBS look (#86): the hype
+    // train strip wipes in from the goal bar's end, in the toast's own place
+    // (AJ, #86), and the line scrolls across it. Everything stays inside the
+    // lane, x 560 (the follower bar's end) to 1920, y 26-74, with 32px caps
+    // (TYPE-1). No TIME-1: the marquee is
+    // AJ's exemption from still text (MOTION.md Learnings). It draws every
+    // frame for as long as it's up, so it carries a CPU check
+    name: 'banner-hype',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=hype`,
+    start: 'load',
+    captureMs: 6000,
+    // 0.6 s, 3 s and 5.4 s: three points on the colour cycle
+    keyframes: [0.02, 0.05, 0.1, 0.5, 0.9],
+    keyframeSpanMs: 6000,
+    markers: [{ at: 500, label: 'strip in' }],
+    checks: {
+      // No SAFE-1: in the toast's place it shares the toast's top-margin
+      // exemption (AJ, #40 and #86; DESIGN.md SAFE-1). SAFE-3 still holds
+      design: { rules: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['SAFE-3', 'KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1 },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside the banner lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 32px' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    // The ad warning: black text on an orange plate at half opacity along
+    // the bottom edge, full width (AJ, #86: "I had it on the bottom of the
+    // screen and not opacity 1"). No SAFE-1 or SAFE-3: AJ's exemption for
+    // this quiet notice, which sits under the player controls as the OBS
+    // group did. KEEP-1 only warns: on Starting and BRB the strip runs
+    // under the song line bottom-left (x 0-651, y 1037-1080), as the OBS
+    // group did; raised with AJ on #86
+    name: 'banner-ad',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=ad`,
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.05, 0.5],
+    keyframeSpanMs: 6000,
+    checks: {
+      design: { rules: ['KEEP-1', 'TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1 },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside its lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 32px' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
+    // The hype banner on the Aitum Vertical canvas (AJ, #86): in the
+    // portrait toast's place on the camera/game seam, every word inside the
+    // phone-safe box, at a ~57px line (V-TYPE-1)
+    name: 'banner-vertical',
+    scene: 'banner',
+    url: `/src/banner/index.html?kind=hype`,
+    viewport: { width: 1080, height: 1920 },
+    start: 'load',
+    captureMs: 6000,
+    keyframes: [0.05, 0.5, 0.9],
+    keyframeSpanMs: 6000,
+    markers: [{ at: 500, label: 'strip in' }],
+    checks: {
+      design: { rules: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'FLASH-1', 'FLASH-2'], holdMs: [600, 6000], fail: ['V-SAFE-1', 'KEEP-1', 'V-TYPE-1', 'FLASH-1', 'FLASH-2'] },
+      debugEvents: { start: 1, in: 1, layout: 1 },
+      probeMax: [
+        { field: 'outsideLane', max: 0, label: 'Inside the portrait lane' },
+        { field: 'capShort', max: 0, label: 'Caps at least 40px' }
+      ],
+      noVelocitySteps: true,
+      workP95Ms: 4
+    }
+  },
+  {
     name: 'background',
     url: `/src/background/index.html?color=${COLOR}`,
     start: 'load',
@@ -653,6 +734,35 @@ export const SCENARIOS = [
       // The bible's rules (docs/DESIGN.md, issue #43); `fail` lists the enforced ones
       design: { rules: ['FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] },
       workP95Ms: 20
+    }
+  },
+  {
+    // AJ's Spheal march gag (2026-10-29): not held to the bible, but it
+    // must end clear once the giant has rolled off, stop its song once
+    // (the end event), and stay inside the frame budget at the peak crowd
+    // (~470 on screen at 30-34 s). ?mute=1: the harness has no audio
+    name: 'spheal',
+    // sprite=drawn keeps the run off the network; the PokeAPI sprite is
+    // the same stamping path with another image (tests/spheal)
+    url: '/src/spheal/index.html?seed=1&mute=1&sprite=drawn',
+    // One seed: 52 s × 3 seeds took verify from ~12 to ~25 min for every
+    // PR (Release management, #97). Seeds only reshuffle the crowd; the
+    // timing and the giant's exit are fixed
+    seeds: [1],
+    start: 'load',
+    captureMs: 52500,
+    keyframes: [0.04, 0.24, 0.46, 0.6, 0.66, 0.8, 0.94],
+    keyframeSpanMs: 52500,
+    markers: [{ at: 32000, label: 'last spawn' }, { at: 35000, label: 'giant' }],
+    checks: {
+      // The giant sets off at 35 s and crosses 1920 + 460 px at 150 px/s
+      totalDurationMs: 50870,
+      endsClear: true,
+      debugEvents: { start: 1, end: 1 },
+      noVelocitySteps: true,
+      // ~470 sprites at the peak: p95 measured 3.0-3.5 ms (seeds 1-3,
+      // 2026-10-29), so 8 leaves room on CI without hiding a regression
+      workP95Ms: 8
     }
   }
 ];

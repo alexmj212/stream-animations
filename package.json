@@ -1,6 +1,6 @@
 {
   "name": "stream-animations",
-  "version": "2.7.0",
+  "version": "2.9.0",
   "description": "Visually consistent HTML5 Canvas animations for OBS stream overlays",
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
     "dev:notifications": "npx serve src/notifications",
     "dev:followers": "npx serve src/followers",
     "dev": "vite",
-    "build": "npm run build:stinger && npm run build:background && npm run build:sidebar && npm run build:shade && npm run build:notifications && npm run build:followers && npm run build:epcot && npm run build:title",
+    "build": "npm run build:stinger && npm run build:background && npm run build:sidebar && npm run build:shade && npm run build:notifications && npm run build:followers && npm run build:epcot && npm run build:title && npm run build:banner && npm run build:spheal",
     "build:stinger": "vite build --mode stinger",
     "build:background": "vite build --mode background",
     "build:sidebar": "vite build --mode sidebar",
@@ -21,7 +21,9 @@
     "build:followers": "vite build --mode followers",
     "build:epcot": "vite build --mode epcot",
     "build:title": "vite build --mode title",
-    "watch": "vite build --watch --mode stinger & vite build --watch --mode background & vite build --watch --mode sidebar & vite build --watch --mode shade & vite build --watch --mode notifications & vite build --watch --mode followers & vite build --watch --mode epcot & vite build --watch --mode title",
+    "build:banner": "vite build --mode banner",
+    "build:spheal": "vite build --mode spheal",
+    "watch": "vite build --watch --mode stinger & vite build --watch --mode background & vite build --watch --mode sidebar & vite build --watch --mode shade & vite build --watch --mode notifications & vite build --watch --mode followers & vite build --watch --mode epcot & vite build --watch --mode title & vite build --watch --mode banner & vite build --watch --mode spheal",
     "watch:stinger": "vite build --watch --mode stinger",
     "watch:background": "vite build --watch --mode background",
     "watch:sidebar": "vite build --watch --mode sidebar",

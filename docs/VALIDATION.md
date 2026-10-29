@@ -13,7 +13,7 @@ is built and checked.
 
 | Command | What it does |
 |---|---|
-| `npm run motion` | Every scenario, layout seeds 1-3. Exit code 1 if any check fails. |
+| `npm run motion` | Every scenario, layout seeds 1-3 (a scenario with its own `seeds` runs only those, e.g. the 52 s spheal capture runs seed 1). Exit code 1 if any check fails. |
 | `npm run motion -- stinger sidebar` | Only these scenes, with their variants (`notifications` also runs `notifications-long` and `-scroll`). An exact scenario name such as `notifications-long` runs just that one |
 | `npm run motion -- --seeds=1,2,3,4,5,6` | More layouts (scenes with random layouts should pass on all of them) |
 | `npm run motion -- --color=00b3ff` | Another base color |
@@ -28,6 +28,7 @@ is built and checked.
 | `npm run motion -- --jitter` | Uneven frame times, like a loaded OBS. Checks timing and coverage still hold; skips the smoothness and CPU checks |
 | `npm run motion:export -- stinger` | Render to a transparent WebM for OBS (see below) |
 | `npm run motion:export -- epcot --loop` | Render one seamless epcot loop to MP4 (see below) |
+| `npm run motion:export -- spheal --fps=30` | A preview video of any scenario on the harness clock. Use this, not an ad-hoc Playwright `page.clock` script: `clock.install()` keeps time running in real time, so slow screenshots skip ahead (a Spheal preview came out blank after 7 s, 2026-10-29) |
 | `npm run bench` | Real-time FPS and Canvas 2D hot paths (complements the harness) |
 
 Report: `tools/motion-results/index.html` (gitignored). Per run it shows the
@@ -241,6 +242,16 @@ its p95 failed once on a cold-JIT frame (PR #63).
 clear of the player controls, and then holds still (SAFE-1, SAFE-3, TYPE-1,
 TIME-1). It draws about 60 frames once and none after, so it has no CPU
 check: the debug `idle` event proves it stops.
+
+`banner-hype` and `banner-ad` check the banner lane (#85): the probe's
+`outsideLane` must stay 0 (strip and text inside their lane: hype x 560-1920,
+y 26-74; the ad along the bottom edge, y 1032-1080, where SAFE-1 and SAFE-3
+are AJ's exemption and KEEP-1 only warns over the Starting/BRB song line;
+`banner-vertical`: the portrait lane on the seam, under V-SAFE-1 and
+V-TYPE-1) and `capShort` 0 (capitals at least 32px, measured from the drawn
+font). The marquee scrolls for as long as the banner
+is up, so TIME-1 is left out (AJ's exemption, MOTION.md Learnings) and each
+carries a CPU check over ~360 drawn frames.
 
 ### Recording the epcot loop
 

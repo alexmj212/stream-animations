@@ -13,6 +13,8 @@ live in `src/config/config.js`.
 | followers | Always-on follower-goal bar, top left; the notifications toast grows out of its right end | Always on; polls MIU's Developer API (`GET :8911/api/v2/counters/followercount`) every 5 s, or a `followers` window event | `goal`, `goalstep`, `label`, `count`, `source`, `api`, `counter`, `style`, `filllayout`, `scheme`, `perf` |
 | notifications | Toast bar that grows out of the right end of the follower-goal bar (top left), shows one line of text, and slides back in. Rebuilt from the OBS "Notifications" scene (color sources, Move filters and a mask plugin that broke in OBS 33) | Plays on load (OBS reloads it when the source is shown) | `text`, `duration` (default grows with long text), `seed` (streaks), `style`, `colorlayout`, `layout`, `scheme`, `perf` |
 | title | Scene title card (WELCOME, BRB, ENDING): one line of 96px Jost on a slanted ink plate, bottom-left inside title-safe; replaces the OBS text sources (design audit #39) | Plays on load: the plate slides in, the words follow, then it holds still and draws nothing | `text` (default `WELCOME`) |
+| banner | Banner lane in the toast's place (issue #85): the hype train banner (`?kind=hype`, a teal strip with a scrolling "HYPE TRAIN ✦✧" marquee) or the ad warning (`?kind=ad`, black "ADS MAY BE PLAYING -" scrolling on an orange plate at half opacity, along the bottom edge, y 1032-1080), AJ's original OBS look with 32px caps, inside x 560-1920, y 26-74; replaces the OBS "Hype Train Banner" and "Ad Banner" groups | Plays on load (OBS reloads it when the source is shown): the strip wipes in from the goal bar's end and the line scrolls for as long as it's up. MIU shows and hides the sources on Hype Train Started/Ended and Ad Started/Ended | `kind` (`hype`, default, or `ad`), `text`, `cycle` (`0`: fixed teal), `border` (`0`: no screen border), `layout` (`vertical` or `wide`; a page taller than wide gets the full-width portrait lane on the seam, y 660-740, words inside x 60-940, and fades out while a toast or sidebar alert holds the seam lock) |
+| spheal | AJ's gag (2026-10-29), not held to the bible: a song (`src/spheal/march.ogg`, one 5.65 s phrase looped gaplessly through Web Audio) plays while Spheals (PokeAPI's official artwork, fetched at load; our own drawing offline) hop on the beat, roll and tumble along the bottom; the crowd doubles every 4 s and piles up (~515), then a crowned giant bounces through, and the song fades when it has gone (~51 s). Math in `src/shared/animations/spheal.js` | Plays once on load (OBS reloads it when the source is shown). A Mix It Up command shows the source, waits ~55 s, hides it | `seed`, `volume` (0-1), `mute` (`1`), `sprite` (`art`, `home`, `pixel`, `drawn`) |
 | background | Continuous loop of drifting bars on two canvas layers | Always running | `color`, `speed`, `density` (default 8), `perf` |
 | epcot | Spaceship Earth lattice with lit bulbs, patterns and overlays; deployed to GitHub Pages on push to `main` | Always running | Many; see the root README |
 
@@ -76,6 +78,22 @@ so the bottom edge stays above Twitch's player controls (`config.title`).
 It never animates after the entrance, so it costs nothing for the rest of
 the scene.
 
+The banner fills the goal bar toast's own place (`config.banner.lane`, AJ
+on #86): from the follower bar's end at x 560 all the way to the right edge,
+with the toast's leaning ends. In OBS it sits under the toast, so a toast plays over it. Its
+font size comes from Jost's measured cap height, so the capitals are 32px
+(a ~46px line). It keeps AJ's original OBS look (#86): the line repeats as a
+marquee at 120 px/s, with drawn sparkles between repeats on the hype strip
+and a dash on the ad plate. The hype train also brings back the OBS group's
+4px border around the whole screen at 50%, and strip and border cycle through
+the colour wheel and back every 20 s (`config.banner.kinds.hype.hueCycle`),
+as its Color Correction filter did. One repeat is rendered once offscreen and tiled
+each frame, and only the lane is cleared and drawn. Each kind is its own OBS
+browser source in Alerts. The ad warning has its own lane along the bottom
+edge at half opacity (AJ, #86: "I had it on the bottom of the screen and
+not opacity 1"), so both can be up at once. OBS hides a source
+instantly; give each source a Hide transition (Fade, 350 ms) for the exit.
+
 ### Vertical canvas (Aitum, 1080x1920)
 
 The vertical canvas has its own 1080x1920 browser sources in Alerts (vrt):
@@ -98,6 +116,14 @@ must cover the wait plus the play time:
 | Notifications Source (vrt) | up to ~12 s (a scrolled long line) | up to ~8 s (a sidebar) | 25 s |
 | Sidescreen Source (vrt) | up to 6.8 s (`sidebar.timing.maxTotalMs`) | up to ~13 s (a toast) | 25 s |
 | Fullscreen Source (vrt) | ~4-6 s | never (the shade doesn't queue) | 10 s |
+| Hype Train Banner (vrt), Ad Banner (vrt) | the whole hype train or ad break | never (it doesn't take the lock) | none: the event's end blanks it |
+
+The banners (#86) are the exception: they stay up for minutes, so they
+never take the seam lock (every toast and shoutout would queue behind
+them) and have no timed reset. MIU sets their URL on Hype Train Started
+and Ad Started, and sets `about:blank` on Hype Train Ended and Ad
+Ended/Upcoming. While a toast or sidebar holds the lock, the banner
+fades out, then comes back (`seamHeld()`).
 
 Raise a reset wait together with any longer hold. The 16:9 sources keep
 their move-filter timers (7 s sidebar, 10 s toast) because nothing queues
