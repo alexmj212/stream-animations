@@ -81,6 +81,7 @@ user-facing overview and the full URL parameter reference.
 - `docs/MOTION.md`: the shared motion style (timing, brightness, bar shapes, text); follow it for any visual change; owned by design review
 - `docs/PERFORMANCE.md`: frame and memory budgets, how to benchmark
 - `docs/VALIDATION.md`: how motion is built and verified with the motion harness
+- `docs/AUDIO.md`: how OBS mic and audio changes are proven against past streams (`npm run audio`); no audio change ships without it (AJ, 2026-10-29)
 - `docs/DECISIONS.md`: past decisions and why, newest first
 - `docs/IMPROVING.md`: the self-improvement loop and the Learnings format
 - `docs/roles/`: one charter per permanent role thread (code review, design review, release management, QA)
@@ -107,6 +108,7 @@ npm run build               # every scene to a single-file HTML
 npm run motion              # motion harness: renders and checks every scene (docs/VALIDATION.md)
 npm run motion:export -- stinger  # transparent video of a scene for OBS
 npm run bench               # headless benchmark, see docs/PERFORMANCE.md
+npm run audio -- curves --collection=Archive_1.json  # audio harness, see docs/AUDIO.md
 tools/loopcut.sh --help     # frame-exact loop cuts from OBS recordings
 ```
 
