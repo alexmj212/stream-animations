@@ -111,16 +111,17 @@
         march.setTime(timestamp - startMs);
         march.clear();
         march.draw();
-        // ?debug=frames: frame stats so far as events, around the peak crowd
-        // and at the end. The 60 s report never fires in a 56 s run (Defiant,
+        // ?debug=events,frames (plus &debugReport= in OBS): frame stats so
+        // far as events, around the peak crowd and at the end. Marks need the
+        // events channel. The 60 s report never fires in a 56 s run (Defiant,
         // 2026-10-29); diff the two peak marks for the peak's own frames
-        if (debug.enabled && nextFrameMark < FRAME_MARKS_S.length && march.tS >= FRAME_MARKS_S[nextFrameMark]) {
+        if (debug.on('frames') && nextFrameMark < FRAME_MARKS_S.length && march.tS >= FRAME_MARKS_S[nextFrameMark]) {
           debug.mark('frames', { atS: FRAME_MARKS_S[nextFrameMark++], onscreen: march.onscreen, frames: debug.snapshot().frames });
         }
         if (march.done && !stopped) {
           stopped = true;
           stopSong();
-          debug.mark('end', { atS: +march.tS.toFixed(2), peak: march.peak, count: march.count, frames: debug.snapshot()?.frames ?? null });
+          debug.mark('end', { atS: +march.tS.toFixed(2), peak: march.peak, count: march.count, frames: debug.on('frames') ? debug.snapshot().frames : null });
           return;
         }
         requestAnimationFrame(frame);
