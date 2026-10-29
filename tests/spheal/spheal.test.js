@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spawnedBy, spawnTime, buildWave, marcherAt, waveEndS, unitFor, spriteUrlFrom } from '../../src/shared/animations/spheal.js';
+import { spawnedBy, spawnTime, buildWave, marcherAt, waveEndS, unitFor, spriteUrlFrom, turnStep } from '../../src/shared/animations/spheal.js';
 import { createRandom } from '../../src/shared/motion.js';
 import { config } from '../../src/config/config.js';
 
@@ -116,5 +116,18 @@ describe('spheal PokeAPI sprite', () => {
 
     it('has a sprite-host fallback for every kind', () => {
         for (const kind of Object.keys(cfg.sprite.kinds)) expect(cfg.sprite.fallbackFiles[kind]).toBeTruthy();
+    });
+
+    it('picks the nearest pre-turned angle, wrapped into range', () => {
+        const steps = config.spheal.sprite.turnSteps;
+        const step = 2 * Math.PI / steps;
+        expect(turnStep(0, steps)).toBe(0);
+        expect(turnStep(step * 0.4, steps)).toBe(0);
+        expect(turnStep(step * 0.6, steps)).toBe(1);
+        expect(turnStep(-step, steps)).toBe(steps - 1);
+        expect(turnStep(2 * Math.PI, steps)).toBe(0);
+        expect(turnStep(9 * Math.PI + step, steps)).toBe(steps / 2 + 1);
+        // The hop wobble (±0.12 rad) keeps a few steps each way
+        expect(turnStep(0.12, steps)).toBeGreaterThanOrEqual(1);
     });
 });

@@ -268,3 +268,48 @@ export function spriteFromImage(img, box, R, opts = {}) {
     }
     return c;
 }
+
+/**
+ * A sprite turned by angle, on a square canvas just big enough for its
+ * visible pixels at any angle; the body centre stays the canvas centre.
+ * @param {HTMLCanvasElement} sprite - From drawSpheal or spriteFromImage
+ * @param {number} angle - Radians
+ * @param {number} side - Square size, from turnSide(sprite)
+ * @returns {HTMLCanvasElement}
+ */
+export function turnSprite(sprite, angle, side) {
+    const c = document.createElement('canvas');
+    c.width = side;
+    c.height = side;
+    const g = c.getContext('2d');
+    g.translate(side / 2, side / 2);
+    g.rotate(angle);
+    g.drawImage(sprite, -sprite.width / 2, -sprite.height / 2);
+    return c;
+}
+
+/**
+ * The square that holds a sprite's visible pixels at any angle: twice the
+ * furthest visible pixel from the centre (the full diagonal would double
+ * the pixels drawn per Spheal).
+ * @param {HTMLCanvasElement} sprite
+ * @returns {number}
+ */
+export function turnSide(sprite) {
+    const { width: w, height: h } = sprite;
+    try {
+        const d = sprite.getContext('2d').getImageData(0, 0, w, h).data;
+        let max2 = 0;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (d[(y * w + x) * 4 + 3] > 8) {
+                    const dx = x + 0.5 - w / 2;
+                    const dy = y + 0.5 - h / 2;
+                    if (dx * dx + dy * dy > max2) max2 = dx * dx + dy * dy;
+                }
+            }
+        }
+        return 2 * Math.ceil(Math.sqrt(max2) + 1);
+    } catch { /* a tainted canvas: fit the whole sprite */ }
+    return Math.ceil(Math.hypot(w, h));
+}
