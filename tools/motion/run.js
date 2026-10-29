@@ -249,12 +249,14 @@ async function main() {
 
   const { server, baseUrl } = await startServer();
   const { browser, executablePath } = await launchBrowser({ width, height });
-  console.log(`Chrome: ${executablePath}\nServing ${baseUrl}  fps=${fps} seeds=${seeds.join(',')}\n`);
+  console.log(`Chrome: ${executablePath}\nServing ${baseUrl}  fps=${fps} seeds=${seeds.join(',')}${flags.seeds ? '' : ' (or a scenario\'s own)'}\n`);
 
   const runs = [];
   try {
     for (const scenario of scenarios) {
-      for (const seed of seeds) {
+      // A scenario's own `seeds` caps a long capture (spheal: 52 s), unless
+      // --seeds asks for specific ones
+      for (const seed of (flags.seeds ? seeds : scenario.seeds || seeds)) {
         const t0 = Date.now();
         const { frames, errors, shots: shotFiles, debug } = await capture(browser, baseUrl, scenario, seed);
         if (needsGrid(scenario)) {
