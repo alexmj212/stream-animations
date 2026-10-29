@@ -128,7 +128,8 @@ channel, add it to `DEBUG_CHANNELS` and this table.
 
 Two traps (QA, 2026-10-29, on #100):
 
-- `debug.mark()` only records with the `events` (or `log`) channel on. To
+- `debug.mark()` only records and reports with the `events` channel on
+  (`log` alone just echoes to the console). To
   read a scene's frame marks, ask for both: `?debug=events,frames`, or
   `?debug=1`. `?debug=frames` alone keeps the counters in `snapshot()` but
   records no events and reports nothing.
