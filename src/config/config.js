@@ -1336,7 +1336,8 @@ export const config = {
       // The clip is mastered hot (+1.3 dBTP, -6.3 LUFS) and sat in the red
       // on OBS's meter. AJ: "audio should never peak above yellow" (red is
       // above -9 dBFS, 2026-10-29), and a lower level beats a limiter.
-      // -12 dB gives -10.7 dBTP and -18.3 LUFS (npm run audio -- meter)
+      // -12 dB gives -10.7 dBTP and -18.3 LUFS (ffmpeg -i march.ogg -af
+      // volume=-12dB,ebur128=peak=true -f null -)
       gainDb: -12
     },
     spawn: {
