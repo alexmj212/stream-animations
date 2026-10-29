@@ -4,6 +4,15 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.9.0 - 2026-10-29
+
+- New Spheal march gag page. A slow march of real Spheals (the PokeAPI
+  sprite, with a drawn fallback) hops across the bottom of the screen to
+  AJ's song, a few at first and then hundreds, until a crowned giant hops
+  through. The song stops once the whole wave has crossed. It's a gag, so
+  it is exempt from the stream bible. It goes live once OBS has the new
+  browser source and Mix It Up has a command to show it. ([#97])
+
 ## v2.8.0 - 2026-10-28
 
 - New banner scene for the hype train banner and the ad warning. It keeps
@@ -188,3 +197,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#76]: https://github.com/alexmj212/stream-animations/pull/76
 [#82]: https://github.com/alexmj212/stream-animations/pull/82
 [#86]: https://github.com/alexmj212/stream-animations/pull/86
+[#97]: https://github.com/alexmj212/stream-animations/pull/97
