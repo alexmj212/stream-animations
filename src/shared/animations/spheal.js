@@ -75,7 +75,7 @@ export function buildWave(cfg, random) {
         lift: 0,
         r: king.radius,
         speed: king.speed,
-        gait: 'tumble',
+        gait: 'hop',
         hopHeight: king.hopHeight,
         hopBeats: 2,
         hopOffset: 0,

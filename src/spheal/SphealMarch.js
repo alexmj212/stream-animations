@@ -34,9 +34,9 @@ export class SphealMarch {
             bottomPad: this.cfg.marcher.bottomPad,
             beatS: this.cfg.song.beatS
         };
-        const px = this.cfg.sprite.px;
-        this.spritePx = px;
-        this.sprites = this.cfg.palettes.map(p => drawSpheal(p, px));
+        // sprites[palette][tier], radii ascending
+        this.spritePx = this.cfg.sprite.px;
+        this.sprites = this.cfg.palettes.map(p => this.spritePx.map(px => drawSpheal(p, px)));
         this.kingPx = Math.ceil(this.cfg.king.radius * this.unit);
         this.kingSprite = drawSpheal(this.cfg.palettes[0], this.kingPx, { crown: true });
         this.shadow = drawShadow(32);
@@ -70,14 +70,19 @@ export class SphealMarch {
             const s = marcherAt(mr, tS, view);
             if (s.done) continue;
             onscreen++;
-            // Shadow: shrinks as the Spheal rises off the ground
-            const air = Math.min(1, (s.ground - s.r * s.sy - s.y) / (s.r * 1.5));
-            const sw = s.r * (1.1 - 0.4 * air);
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.drawImage(this.shadow, s.x - sw, s.ground - sw * 0.22, sw * 2, sw * 0.44);
-
-            const sprite = mr.king ? this.kingSprite : this.sprites[mr.palette];
-            const k = s.r / (mr.king ? this.kingPx : this.spritePx);
+            // Shadow: shrinks as the Spheal rises off the ground. Only the
+            // front rows get one: further back the pile hides it, and
+            // skipping it halves the draw calls at the peak (QA, #97)
+            if (mr.depth <= this.cfg.marcher.shadowDepth) this.drawShadow(s);
+            let sprite = this.kingSprite;
+            let px = this.kingPx;
+            if (!mr.king) {
+                const tier = this.spritePx.findIndex(p => p >= s.r);
+                const i = tier === -1 ? this.spritePx.length - 1 : tier;
+                sprite = this.sprites[mr.palette][i];
+                px = this.spritePx[i];
+            }
+            const k = s.r / px;
             const cos = Math.cos(s.rot);
             const sin = Math.sin(s.rot);
             // translate(x, y) * scale(sx, sy) * rotate(rot) * scale(k)
@@ -86,6 +91,14 @@ export class SphealMarch {
         }
         this.onscreen = onscreen;
         if (onscreen > this.peak) this.peak = onscreen;
+    }
+
+    /** A soft shadow on the marcher's ground line, smaller while it's in the air. */
+    drawShadow(s) {
+        const air = Math.min(1, (s.ground - s.r * s.sy - s.y) / (s.r * 1.5));
+        const sw = s.r * (1.1 - 0.4 * air);
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.drawImage(this.shadow, s.x - sw, s.ground - sw * 0.22, sw * 2, sw * 0.44);
     }
 
     /** Motion-harness probe: the first few to set off and the giant (x only: hops bounce in y). */

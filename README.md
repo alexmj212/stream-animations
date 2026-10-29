@@ -103,8 +103,8 @@ kind, shown and hidden by Mix It Up.
 AJ's gag: a song loops while drawn Spheals hop, roll and tumble left to
 right along the bottom, in time with the beat. A few at first, then the
 crowd doubles every 4 s and piles up the screen (~515 in all, ~470 on screen
-at once), then a crowned giant rolls through, and the song fades out the
-moment it has rolled off (~51 s). Not held to the stream bible. One OBS
+at once), then a crowned giant bounces through, and the song fades out the
+moment it has left (~51 s). Not held to the stream bible. One OBS
 browser source shown by a Mix It Up command; each show plays it once.
 
 **URL**: `spheal/index.html` (`seed`, `volume`, `mute`)

@@ -1319,11 +1319,10 @@ export const config = {
     }
   },
 
-  // Shared configuration across all scenes
   // Spheal march (src/spheal): AJ's gag (2026-10-29). A song loops while
   // drawn Spheals hop and roll left to right along the bottom, a few at
   // first, then absurd numbers; a giant one closes the wave and the song
-  // stops once it has rolled off. A gag, so DESIGN.md doesn't apply.
+  // stops once it has left. A gag, so DESIGN.md doesn't apply.
   // Lengths are in px at a 1080px-tall canvas and scale with the shorter side.
   spheal: {
     song: {
@@ -1353,6 +1352,7 @@ export const config = {
       pileEase: 1.6,        // exponent: the pile stays low until it's silly
       farScale: 0.6,        // a Spheal at the top of the pile is this much smaller
       bottomPad: 14,        // ground line above the bottom edge
+      shadowDepth: 0.12,    // only rows this near the front draw a shadow
       hopHeight: [14, 34],  // px, at radius 36
       rollShare: 0.3,       // this share roll instead of hopping
       tumbleShare: 0.15     // and this share hop and spin at once
@@ -1360,7 +1360,7 @@ export const config = {
     king: {
       radius: 230,
       speed: 150,           // px/s: ~16 s to cross with its own width
-      hopHeight: 40
+      hopHeight: 40         // it hops, so its crown stays on top (QA, #97)
     },
     // Body palettes, picked per Spheal; the first is the usual one
     palettes: [
@@ -1368,9 +1368,14 @@ export const config = {
       { body: '#86c6ee', dark: '#4f93c9', spot: '#d2eefe', belly: '#f6ecca' },
       { body: '#5aa3dc', dark: '#2f6fad', spot: '#a8d6f6', belly: '#efdfb2' }
     ],
-    sprite: { px: 64 }       // cached sprite radius (≥ the largest marcher); stamped scaled down
+    // Cached sprite radii per palette (the largest ≥ the biggest marcher).
+    // Each marcher stamps the smallest one at least its size, so the crowd
+    // isn't all downscaling 64px sprites (Code review, #97: the peak halved
+    // the frame rate in software raster)
+    sprite: { px: [24, 36, 48, 64] }
   },
 
+  // Shared configuration across all scenes
   shared: {
     // Timing patterns (millisecond-based, consistent across scenes)
     // 1000ms - smooth transition matching easeInOutCubic feel
