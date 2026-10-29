@@ -101,6 +101,8 @@
         source.onended = () => ac.close().catch(() => {});
       }
 
+      const FRAME_MARKS_S = [28, 40];
+      let nextFrameMark = 0;
       let startMs = null;
       let stopped = false;
       function frame(timestamp) {
@@ -109,10 +111,16 @@
         march.setTime(timestamp - startMs);
         march.clear();
         march.draw();
+        // ?debug=frames: frame stats so far as events, around the peak crowd
+        // and at the end. The 60 s report never fires in a 56 s run (Defiant,
+        // 2026-10-29); diff the two peak marks for the peak's own frames
+        if (debug.enabled && nextFrameMark < FRAME_MARKS_S.length && march.tS >= FRAME_MARKS_S[nextFrameMark]) {
+          debug.mark('frames', { atS: FRAME_MARKS_S[nextFrameMark++], onscreen: march.onscreen, frames: debug.snapshot().frames });
+        }
         if (march.done && !stopped) {
           stopped = true;
           stopSong();
-          debug.mark('end', { atS: +march.tS.toFixed(2), peak: march.peak, count: march.count });
+          debug.mark('end', { atS: +march.tS.toFixed(2), peak: march.peak, count: march.count, frames: debug.snapshot()?.frames ?? null });
           return;
         }
         requestAnimationFrame(frame);
