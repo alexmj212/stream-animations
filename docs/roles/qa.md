@@ -43,6 +43,12 @@ is right (Code review), merging and merge order (Release management).
      has alpha (`ffprobe`: `alpha_mode=1`), that the first and last frames are
      clear and the cut frame is opaque, and that the printed Transition Point
      falls inside the covered window.
+   - Sound changes (a page that plays audio, or a new sound file):
+     `npm run audio -- meter <file> --gain-db=<the page's gain>` must show 0
+     clipped samples and a true peak at or below -9 dBTP, the top of OBS's
+     yellow (`docs/AUDIO.md`, "Levels and clipping"; CI runs
+     `npm run audio -- assets`). After deploy, ask Defiant to watch the
+     source's meter in OBS during an off-air test run: it stays out of the red.
 4. **Look at the frames.** Open the keyframes for every scene the PR changes,
    composited on a bright color so transparency shows. Checks pass on what
    they measure. Things they don't measure (text over an open band, a layer
@@ -120,4 +126,5 @@ that owns the work; don't route through the coordinator.
 | 2026-10-28 | The harness rendered every scene on an empty canvas, so nobody checked alerts against what OBS always draws on top: chat and the music display. Test frames now carry them (`config.design.keepOut`, KEEP-1), which showed the shade text crossing chat (fine for a takeover) and the goal bar sitting on the music waveform (accepted if the waveform draws under it). Before a layout verdict, ask what else is on screen in that OBS scene, and add it to `keepOut` | AJ, 2026-10-28; chat/music boxes from Archive_1.json via Align vertical layout | layout checks; step 3 | active |
 | 2026-10-28 | #84 was squash-merged at the head code review had marked Ready, a minute before QA pushed that review's optional notes, so they missed main and needed #90. On a PR already marked Ready, either leave optional notes for a follow-up or tell Release management to hold first, then push; after any merge, check that `git diff <last push> <squash sha> -- <your paths>` is empty (diff the squash commit, not origin/main, which later PRs may change; not `--is-ancestor`: squash merges never contain the pushed commit, 2026-10-28 on #90) | #84, #90 | driving QA's own PRs | active |
 | 2026-10-29 | Defiant's OBS peak check of the Spheal gag came back empty: the debug.js frame report fires every 60 s and the gag runs 56 s, and `?debug=frames` alone records no events. When asking for an OBS measurement, give the full URL (`?debug=events,frames&...`) and check the scene reports inside its own run time (VALIDATION.md, Debug signals) | #97, #100 | debug-flag convention; OBS checks | active |
+| 2026-10-29 | The Spheal song shipped in OBS's red (+1.3 dBTP, -6.4 LUFS) because QA checked its loop seam but never its level. AJ: "no audio clipping ever" and "audio should never peak above yellow in most cases". Any PR that plays sound gets the meter step in the routine (step 3) and an off-air OBS meter check | AJ via the Spheal thread; #106, #107 | sound changes | active |
 | 2026-01-20 | Real OBS validation and the 8-hour soak test were deferred in v1.0 and v1.1 and are still owed | v1.0, v1.1 tech debt | release verdicts | active |
