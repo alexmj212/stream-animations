@@ -1,0 +1,10 @@
+{
+    "name": "game-no-gain",
+    "title": "Game audio without the +6 dB Gain filters",
+    "source": "review thread, 2026-10-29",
+    "hypothesis": "The +6 dB Gain pushes loud game moments into the -7 dB limiter and the fader throws the gain away again. Removing Gain and raising the fader 6 dB keeps the level with less squashing.",
+    "changes": {
+        "Local Game (A)": { "remove": ["Gain"], "volumeDb": -13.36 },
+        "Ext Capture (B)": { "remove": ["Gain"], "volumeDb": -6.13 }
+    }
+}

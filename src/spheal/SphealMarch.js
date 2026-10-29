@@ -1,6 +1,6 @@
 import { config } from '../config/config.js';
-import { buildWave, marcherAt, waveEndS, unitFor } from '../shared/animations/spheal.js';
-import { drawSpheal, drawShadow, spriteFromImage } from './SphealSprite.js';
+import { buildWave, marcherAt, waveEndS, unitFor, turnStep } from '../shared/animations/spheal.js';
+import { drawSpheal, drawShadow, spriteFromImage, turnSprite, turnSide } from './SphealSprite.js';
 
 /**
  * The march: holds the wave and the cached sprites, and draws the crowd at
@@ -52,6 +52,8 @@ export class SphealMarch {
             this.kingSprite = drawSpheal(this.cfg.palettes[0], this.kingPx, { crown: true });
         }
         this.shadow = drawShadow(32);
+        // sprite -> {side, frames[step]}, filled as angles come up
+        this.turns = new Map();
         this.endS = waveEndS(this.marchers, width, this.unit);
     }
 
@@ -95,14 +97,38 @@ export class SphealMarch {
                 px = this.spritePx[i];
             }
             const k = s.r / px;
-            const cos = Math.cos(s.rot);
-            const sin = Math.sin(s.rot);
-            // translate(x, y) * scale(sx, sy) * rotate(rot) * scale(k)
-            ctx.setTransform(s.sx * cos * k, s.sy * sin * k, -s.sx * sin * k, s.sy * cos * k, s.x, s.y);
+            if (mr.king) {
+                // One giant: turned live, it isn't worth a cache
+                const cos = Math.cos(s.rot);
+                const sin = Math.sin(s.rot);
+                // translate(x, y) * scale(sx, sy) * rotate(rot) * scale(k)
+                ctx.setTransform(s.sx * cos * k, s.sy * sin * k, -s.sx * sin * k, s.sy * cos * k, s.x, s.y);
+            } else {
+                sprite = this.turned(sprite, s.rot);
+                ctx.setTransform(s.sx * k, 0, 0, s.sy * k, s.x, s.y);
+            }
             ctx.drawImage(sprite, -sprite.width / 2, -sprite.height / 2);
         }
         this.onscreen = onscreen;
         if (onscreen > this.peak) this.peak = onscreen;
+    }
+
+    /**
+     * The sprite pre-turned to the nearest of config turnSteps angles, so
+     * the crowd is stamped without a rotation (Defiant, 2026-10-29).
+     * @param {HTMLCanvasElement} sprite
+     * @param {number} rot - Radians
+     * @returns {HTMLCanvasElement}
+     */
+    turned(sprite, rot) {
+        const steps = this.cfg.sprite.turnSteps;
+        let turn = this.turns.get(sprite);
+        if (!turn) {
+            turn = { side: turnSide(sprite), frames: new Array(steps) };
+            this.turns.set(sprite, turn);
+        }
+        const step = turnStep(rot, steps);
+        return turn.frames[step] ??= turnSprite(sprite, step * 2 * Math.PI / steps, turn.side);
     }
 
     /** A soft shadow on the marcher's ground line, smaller while it's in the air. */

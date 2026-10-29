@@ -4,6 +4,13 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.9.1 - 2026-10-29
+
+- The Spheal march holds a smooth frame rate at its peak crowd. Each
+  Spheal's tilt is now drawn ahead of time instead of on every frame. In
+  Defiant's OBS test the peak ran at about 34 fps before this fix. It looks
+  the same as before. ([#102])
+
 ## v2.9.0 - 2026-10-29
 
 - New Spheal march gag page. A slow march of real Spheals (the PokeAPI
@@ -198,3 +205,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#82]: https://github.com/alexmj212/stream-animations/pull/82
 [#86]: https://github.com/alexmj212/stream-animations/pull/86
 [#97]: https://github.com/alexmj212/stream-animations/pull/97
+[#102]: https://github.com/alexmj212/stream-animations/pull/102

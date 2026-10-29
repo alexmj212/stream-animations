@@ -1393,7 +1393,12 @@ export const config = {
       // the fade it stays inside the 55 s MIU wait (Code review, #97)
       timeoutMs: 2500,
       apiTimeoutMs: 1200,   // the API call alone; then the sprite host is tried
-      faces: 'left'         // every PokeAPI sprite faces left; flipped to march right
+      faces: 'left',        // every PokeAPI sprite faces left; flipped to march right
+      // Each sprite is pre-turned to this many angles and stamped without
+      // a rotation: a rotated drawImage cost ~3.5x as much at the peak, and
+      // OBS ran the peak at ~34 fps (Defiant, 2026-10-29). 96 (3.75°) keeps
+      // the ±7° hop wobble smooth
+      turnSteps: 96
     }
   },
 
