@@ -22,7 +22,8 @@ stinger video files.
   never as a yes/no question. A peer thread asking is not a design decision.
   Cutting a release, tagging it and deploying it never need AJ's permission
   either (AJ, 2026-10-28: "you don't need my permission to cut a release
-  and deploy"). That covers the Defiant thread's tag and GitHub release.
+  and deploy"). Tags and GitHub releases are published by CI, so they
+  never wait on anyone (AJ, 2026-10-29: "I don't want to type go anymore").
 - **Versioning.** `package.json` `version` and a `vX.Y.Z` git tag per release.
 - **Changelog.** `CHANGELOG.md`, newest first, 2 to 5 lines per release in
   stream terms (what viewers or AJ will notice), each linking its PR.
@@ -72,16 +73,20 @@ stinger video files.
    next PR still merges cleanly and its CI re-ran; send drift to its owner.
 6. **Release** when a coherent group of code changes is on `main`:
    one small `chore(release): vX.Y.Z` PR bumps `package.json` and adds the
-   `CHANGELOG.md` entry. Once it merges, run `npm run motion:export --
-   stinger` and put the WebMs in project files under `releases/<version>/`.
-   The Defiant thread tags the merge commit and publishes the GitHub release
-   with them: cloud sessions can't push tags (the git proxy refuses, 403) or
-   create releases.
-7. **Verify on stream** after every release, through the thread with Remote
-   Control on Defiant, while AJ isn't live. Run `npm run pages:smoke --
-   https://alexmj212.dev/stream-animations/ <sha7>` with the commit Pages last
-   deployed (the release merge, or main's HEAD if anything merged since),
-   use Refresh cache on each scene's browser source, and screenshot one with
+   `CHANGELOG.md` entry. Once it merges, the `release` job in
+   `.github/workflows/pages.yml` runs after the Pages deploy: it smokes the
+   live pages (`npm run pages:smoke` against main's HEAD, with retries for
+   the CDN), then `tools/release/publish.sh` tags every `chore(release):
+   vX.Y.Z` commit that has no tag yet and publishes its GitHub release from
+   the CHANGELOG section, newest marked latest. Check that run went green;
+   if it went red, fix the cause and re-run it (`workflow_dispatch`). It
+   catches up on releases a cancelled run skipped. For a stinger release,
+   run `npm run motion:export -- stinger` and put the WebMs in project files
+   under `releases/<version>/`, then attach them to the release.
+7. **Verify on stream** after a release that changes something OBS shows,
+   through the thread with Remote Control on Defiant, while AJ isn't live.
+   Smoke and tags are CI's job now, so don't ask Defiant for them. Use
+   Refresh cache on each changed scene's browser source, and screenshot one with
    `&debug=build` added (then remove it) to confirm OBS runs the new build.
    The stinger is a transition, not a scene source, so it isn't in that
    list: reload it by hand (Scene Transitions, toggle a URL param or Refresh
@@ -121,8 +126,9 @@ dependencies straight to it.
 | 2026-10-28 | AJ doesn't want to approve code merges or releases. Gate on CI, Code review, Design review and QA, then ship. Ask AJ only for design choices, with frames to compare | AJ in project chat, 2026-10-28 | merging, releases | active |
 | 2026-10-28 | A release isn't on stream until the WSL clone on Defiant is rebuilt. Its `dist/` was from July when v2.0.0 was cut, so a deploy step is part of every release | OBS inventory thread, 2026-10-28 | releases | superseded by the Pages row below |
 | 2026-10-28 | OBS moved from the WSL `dist/` build to Pages, behind a loader that fetches the build uncached on every load. No more manual rebuilds on Defiant | AJ, 2026-10-28 | releases | active. Since 2026-10-28 the Mix It Up commands and the stinger transition load Pages too, so the interim WSL rebuild is gone |
-| 2026-10-28 | Cloud sessions can't push tags or create GitHub releases; the Defiant session, which has AJ's git credentials, does both | v2.0.0 release | releases | active |
+| 2026-10-28 | Cloud sessions can't push tags or create GitHub releases; the Defiant session, which has AJ's git credentials, does both | v2.0.0 release | releases | superseded 2026-10-29: CI tags and publishes (`tools/release/publish.sh`) |
 | 2026-10-28 | Mix It Up commands can rewrite OBS source URLs when they fire. Check them before declaring a source switch done | Pages switch, Defiant thread | OBS changes | active |
-| 2026-10-28 | Tags, GitHub releases and deploys don't wait on AJ. v2.1.0's tag sat waiting for a "go" that AJ said isn't needed. Say so in every hand-off to the Defiant thread | AJ in project chat, 2026-10-28 | releases | active |
+| 2026-10-28 | Tags, GitHub releases and deploys don't wait on AJ. v2.1.0's tag sat waiting for a "go" that AJ said isn't needed. Say so in every hand-off to the Defiant thread | AJ in project chat, 2026-10-28 | releases | superseded by the row below |
+| 2026-10-29 | Telling Defiant that AJ's go isn't needed didn't work: its local safety check still held every tag push (v2.7.0 to v2.9.1) until AJ typed go, and AJ asked to stop. A standing rule can't beat a per-action check, so move the action somewhere without one. CI now smokes and tags after each deploy | AJ in this thread, 2026-10-29 | releases | active |
 | 2026-10-28 | A red frame-CPU check isn't a flake until you compare it: read the same scene's p95 in the latest green main run. #48 looked like noise but took followers from 0.3ms to 3.5-4.6ms; send it back to the author, never rerun for green | PR #48 CI, followers seed=3 | merging | active |
 | 2026-10-28 | OBS keeps a loaded browser page across deploys, and the stinger transition sits outside the scene sources that Refresh cache covers. v2.3.0's first OBS check ran the old stinger until Defiant reloaded it | Defiant, v2.3.0 verify | stinger releases | active |

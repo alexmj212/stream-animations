@@ -50,3 +50,41 @@ jobs:
 
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # After every deploy: smoke the live pages, then tag and publish any
+  # release commit that has no tag yet (tools/release/publish.sh). This
+  # replaced the Defiant hand-off for smoke and tags (AJ, 2026-10-29).
+  release:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The CDN can serve the old build for a minute or two after a deploy,
+      # so retry before calling it a failure.
+      - name: Smoke the live pages
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm run pages:smoke -- https://alexmj212.dev/stream-animations "$GITHUB_SHA"; then
+              exit 0
+            fi
+            echo "Smoke attempt $attempt failed; retrying in 60 s"
+            sleep 60
+          done
+          exit 1
+
+      - name: Tag and publish releases
+        run: bash tools/release/publish.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
