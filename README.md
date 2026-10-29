@@ -112,7 +112,7 @@ browser source shown by a Mix It Up command; each show plays it once.
 - `seed` - The same crowd every play (default: a new crowd each time)
 - `volume` - Song volume, 0-1, before OBS's fader (default 1)
 - `mute` - `1` plays without the song
-- `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 5 s)
+- `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 2.5 s)
 
 ### Background Animation
 Subtle continuously looping background with drifting bars.

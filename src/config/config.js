@@ -1389,7 +1389,9 @@ export const config = {
       // PokeAPI's own sprite host, used when the API call fails
       fallbackBase: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/',
       fallbackFiles: { art: 'other/official-artwork/363.png', home: 'other/home/363.png', pixel: '363.png' },
-      timeoutMs: 5000,      // give up and draw our own Spheal after this
+      // Give up and draw our own Spheal after this; with the 50.9 s wave and
+      // the fade it stays inside the 55 s MIU wait (Code review, #97)
+      timeoutMs: 2500,
       faces: 'left'         // every PokeAPI sprite faces left; flipped to march right
     }
   },
