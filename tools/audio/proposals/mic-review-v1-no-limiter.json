@@ -1,0 +1,17 @@
+{
+    "name": "mic-review-v1-no-limiter",
+    "title": "Same, without the limiter (AJ's way: fader instead)",
+    "source": "AJ, 2026-10-29: lowers a source's fader instead of adding a limiter",
+    "hypothesis": "The compressor alone keeps peaks under -1 dBTP once the fader is set to match past streams, so the limiter isn't needed.",
+    "changes": {
+        "Mic": {
+            "filters": [
+                { "name": "Noise Suppression 2_ported", "id": "nvidia_audiofx_filter", "settings": { "intensity": 0.75, "method": "denoiser" } },
+                { "name": "Noise Gate", "id": "noise_gate_filter", "settings": { "open_threshold": -32, "close_threshold": -40, "attack_time": 8, "hold_time": 200, "release_time": 200 } },
+                { "name": "3-Band Equalizer", "id": "basic_eq_filter", "settings": { "low": 3, "mid": 1, "high": 3 } },
+                { "name": "Compressor", "id": "compressor_filter", "settings": { "ratio": 3, "threshold": -20, "attack_time": 8, "release_time": 100, "output_gain": 5 } }
+            ],
+            "volumeDb": 0
+        }
+    }
+}
