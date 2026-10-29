@@ -7,7 +7,7 @@ const flat = THIRD_OCTAVES.map(() => -30);
 const metrics = (o = {}) => ({
     truePeakDbtp: -10, clippedSamples: 0, integratedLufs: -24.5, maxMomentaryLufs: -18,
     pauseRmsDbfs: -90, onsetLossDb: { median: -1, count: 20 }, spuriousOpensPerMin: 0,
-    speechBands: flat, speechLoudnessSpreadLu: 6, ...o
+    speechBands: flat, speechLoudnessSpreadLu: 6, meter: { frames: 1000, redFrames: 0, redPct: 0 }, ...o
 });
 const baseline = { integratedLufs: { median: -24.5 }, speechBands: flat };
 const byId = (list) => Object.fromEntries(list.map((c) => [c.id, c.pass]));
@@ -24,6 +24,16 @@ describe('audio checks', () => {
             onsetLossDb: { median: -6, count: 20 }, maxMomentaryLufs: -10
         }), audioConfig.checks, baseline));
         expect(r).toMatchObject({ 'no-clipping': false, level: false, 'pause-noise': false, 'word-onsets': false, 'loud-moments': false });
+    });
+
+    it('fails a proposal that goes into the red on OBS\'s meter more than 1 update in 1000', () => {
+        const red = (n) => metrics({ meter: { frames: 1000, redFrames: n, redPct: n / 10 } });
+        expect(byId(runChecks(metrics(), red(1), audioConfig.checks, baseline))['meter-yellow']).toBe(true);
+        expect(byId(runChecks(metrics(), red(5), audioConfig.checks, baseline))['meter-yellow']).toBe(false);
+    });
+
+    it('fails any clipped sample, however brief', () => {
+        expect(byId(runChecks(metrics(), metrics({ clippedSamples: 1 }), audioConfig.checks, baseline))['no-clipping']).toBe(false);
     });
 
     it('accepts pause noise that stays inaudible even if it rises', () => {

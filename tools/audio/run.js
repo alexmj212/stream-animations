@@ -9,17 +9,19 @@
  *       [--ns=ns.flac] [--proposal=p.json ...] [--baseline=dir/baseline.json]
  *       [--start=s] [--duration=s] [--match-level] [--out=dir]
  *   npm run audio -- verify --collection=Archive_1.json --source=Mic --raw=raw.flac --obs=obs.flac
+ *   npm run audio -- meter <files...> [--gain-db=n]
+ *   npm run audio -- assets   (CI: every sound file a page plays, at its configured gain)
  *   npm run audio -- report [--baseline=b.json] [--curves=c.json] [--render=results.json] [--status=status.html] --out=page.html
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { audioConfig } from './config.js';
 import { decode, encode, slice, scaled } from './lib/io.js';
-import { analyze, framePowers, speechActivity } from './lib/analyze.js';
+import { analyze, framePowers, speechActivity, meterPeaks } from './lib/analyze.js';
 import { sourceChain, applyChange, runChain, unemulated, describeChain } from './lib/chain.js';
 import { runChecks } from './lib/checks.js';
 import { transferCurve, frequencyResponse, burstPeak } from './lib/curves.js';
-import { loudness } from './lib/loudness.js';
+import { loudness, peaks } from './lib/loudness.js';
 import { dbToMul, mulToDb } from './lib/obsFilters.js';
 import { THIRD_OCTAVES } from './lib/spectrum.js';
 import { writeReport, buildPage } from './report.js';
@@ -308,6 +310,110 @@ function bestLag(a, b, fs) {
     return at;
 }
 
+/**
+ * How a sound file (an alert, a gag's song, a clip) reads on OBS's meter at
+ * a given gain, whether it clips, and the gain that keeps it out of the red
+ * and clear of clipping. AJ sets levels by fader, so this answers "what
+ * fader (or page volume) should this source have".
+ */
+function meter(args) {
+    const gainDb = args['gain-db'] !== undefined ? Number(args['gain-db']) : 0;
+    const rows = [];
+    for (const file of args._.slice(1)) {
+        const { channels } = decode(file, { fs: FS });
+        const g = Math.pow(10, gainDb / 20);
+        const x = channels.map((c) => c.map((v) => v * g));
+        const m = meterPeaks(x, FS);
+        const l = loudness(x, FS);
+        const pk = peaks(x);
+        const flat = flatTopRuns(channels);
+        const safeGain = gainDb + (audioConfig.checks.meterRedDbfs - pk.truePeak);
+        const row = {
+            file: path.basename(file), gainDb, lufs: l.integrated, samplePeakDbfs: pk.samplePeak, truePeakDbtp: pk.truePeak,
+            clippedSamples: pk.clipped, overFullScale: x.reduce((n, c) => n + c.filter((v) => Math.abs(v) > 1).length, 0),
+            redPct: m.redPct, flatTopRuns: flat, gainForYellowDb: safeGain
+        };
+        rows.push(row);
+        const ok = row.redPct <= audioConfig.checks.meterRedMaxPct && row.clippedSamples === 0;
+        console.log(`${row.file} at ${gainDb >= 0 ? '+' : ''}${gainDb} dB: ${num1(row.lufs)} LUFS, peak ${num1(row.samplePeakDbfs)} dBFS (true ${num1(row.truePeakDbtp)}), red ${row.redPct.toFixed(1)}% of the time, ${row.clippedSamples} samples at full scale → ${ok ? 'OK' : 'FAIL'}`);
+        if (flat) console.log(`  ${flat} flat-topped runs in the file itself: clipping baked in before it reached us; lowering the volume won't remove that distortion`);
+        console.log(`  gain to stay in the yellow (true peak ≤ ${audioConfig.checks.meterRedDbfs} dBFS): ${num1(safeGain)} dB (${Math.pow(10, safeGain / 20).toFixed(3)}x)`);
+        if (!ok) process.exitCode = 1;
+    }
+    if (args.out) fs.writeFileSync(args.out, JSON.stringify(rows, round, 1));
+}
+
+const num1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : String(v));
+
+/**
+ * CI gate: every audio file under src/ must be registered in
+ * audioConfig.assets and, at the gain its page applies, must never clip and
+ * stay out of OBS's red zone. Music and sound effects past the OBS guide's
+ * green zone only warn.
+ */
+function assets() {
+    const found = walk('src').filter((f) => /\.(ogg|mp3|wav|m4a|opus|flac|aac|webm|mp4)$/i.test(f));
+    const known = new Set(audioConfig.assets.map((a) => a.file));
+    let failed = false;
+    for (const f of found) {
+        if (!known.has(f)) {
+            console.log(`FAIL ${f}: not in audioConfig.assets (tools/audio/config.js); register it with the gain its page applies`);
+            failed = true;
+        }
+    }
+    for (const a of audioConfig.assets) {
+        if (!fs.existsSync(a.file)) {
+            console.log(`FAIL ${a.file}: registered but missing`);
+            failed = true;
+            continue;
+        }
+        const gainDb = a.gainDb();
+        const { channels } = decode(a.file, { fs: FS });
+        const g = Math.pow(10, gainDb / 20);
+        const x = channels.map((c) => c.map((v) => v * g));
+        const pk = peaks(x);
+        const m = meterPeaks(x, FS);
+        const l = loudness(x, FS);
+        const lim = audioConfig.checks;
+        const problems = [];
+        if (pk.clipped > 0) problems.push(`${pk.clipped} samples clip (at or above -0.1 dBFS)`);
+        if (pk.truePeak > lim.meterRedDbfs) problems.push(`true peak ${num1(pk.truePeak)} dBTP is in OBS's red zone (above ${lim.meterRedDbfs} dBFS); set its gain to ${num1(gainDb + lim.meterRedDbfs - 1 - pk.truePeak)} dB or lower`);
+        const flat = flatTopRuns(channels);
+        if (flat) problems.push(`${flat} flat-topped runs: the file itself was clipped before encoding; replace it with a clean source`);
+        console.log(`${problems.length ? 'FAIL' : 'ok  '} ${a.file} at ${num1(gainDb)} dB: ${num1(l.integrated)} LUFS, true peak ${num1(pk.truePeak)} dBTP, red ${m.redPct.toFixed(1)}%`);
+        for (const p of problems) console.log(`     ${p}`);
+        const zone = audioConfig.zones[a.role];
+        if (!problems.length && zone && pk.truePeak > zone.maxPeakDbfs) {
+            console.log(`     warning: the OBS guide keeps ${a.role} under ${zone.maxPeakDbfs} dBFS (${zone.why}); this peaks at ${num1(pk.truePeak)}`);
+        }
+        if (problems.length) failed = true;
+    }
+    process.exitCode = failed ? 1 : 0;
+}
+
+function walk(dir) {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+        const p = path.join(dir, e.name);
+        return e.isDirectory() ? walk(p) : [p];
+    });
+}
+
+/** Runs of 3+ identical samples at |x| ≥ 0.98: a waveform clipped before it was encoded. */
+function flatTopRuns(channels) {
+    let runs = 0;
+    for (const c of channels) {
+        let len = 0;
+        for (let i = 1; i < c.length; i++) {
+            if (Math.abs(c[i]) >= 0.98 && Math.abs(c[i] - c[i - 1]) < 1e-4) {
+                if (++len === 2) runs++;
+            } else {
+                len = 0;
+            }
+        }
+    }
+    return runs;
+}
+
 /** One page from whichever results exist so far. */
 function report(args) {
     const opt = (f) => (f ? readJson(f) : undefined);
@@ -323,7 +429,7 @@ function report(args) {
 
 const args = parseArgs(process.argv.slice(2));
 const cmd = args._[0];
-const commands = { baseline, curves, render, verify, report };
+const commands = { baseline, curves, render, verify, report, meter, assets };
 if (!commands[cmd]) {
     console.log('usage: npm run audio -- <baseline|curves|render|verify> ... (see docs/AUDIO.md)');
     process.exitCode = 1;

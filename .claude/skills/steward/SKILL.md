@@ -36,7 +36,12 @@ anything that changes how work ships. Ask them by messaging their threads.
 npm test -- --run      # what the Pages workflow runs
 npm run build          # every scene still builds to a single file
 npm run motion         # the motion harness, as CI runs it (docs/VALIDATION.md)
+npm run audio -- assets  # any page that plays sound: no clipping, nothing in OBS's red (docs/AUDIO.md)
 ```
+
+A PR that adds or changes a sound, or the gain a page plays it at, states its
+level in the description from `npm run audio -- meter <file> --gain-db=<gain>`
+(AJ, 2026-10-29: "no audio clipping ever").
 
 Put all of a round's fixes in one push.
 

@@ -7,6 +7,47 @@ streams, on AJ's real voice, and AJ has heard the level-matched clips. AJ
 tames loud sources with the fader rather than a limiter, so every limiter
 proposal is tested against a fader-only version.
 
+## Levels and clipping
+
+AJ (2026-10-29): "no audio clipping ever", and "audio should never peak above
+yellow in most cases". The Spheal march shipped with its song in the red the
+whole time (true peak +1.3 dBTP, 1408 samples at full scale) because nothing
+measured it. These rules exist so that can't happen again.
+
+**OBS's meter.** OBS's mixer meter is a sample-peak meter, post-fader: green
+below -20 dBFS, yellow from -20 to -9 dBFS, red above -9 dBFS (-20 is the
+alignment level, about average speech; -9 is the permitted maximum, above
+which a sound "may get clipped before it reaches the viewer";
+[OBS Audio Mixer Technical Details](https://obsproject.com/kb/audio-mixer-technical-details)).
+OBS mixes in floating point, so a source can go over 0 dBFS inside OBS without
+showing it, but the stream and recording clip at 0 dBFS.
+
+**The rules.**
+
+1. Nothing clips, ever: no sample at or above -0.1 dBFS, and true peak at
+   or below -1 dBTP. True peak, not sample peak, because AAC re-encoding
+   (Twitch, VODs, the recording) brings back peaks between samples.
+2. Nothing goes into OBS's red: true peak at or below -9 dBTP. Renders may
+   blip into the red for at most 1 meter update in 1000 (a rare shout).
+   Sound files a page plays may not go into the red at all.
+3. Target zones from the
+   [OBS Audio Mixer Guide](https://obsproject.com/kb/audio-mixer-guide):
+   speech peaks at the top of yellow, gameplay in the lower yellow, music
+   and alert sounds in the green (under -20 dBFS). The harness warns when a
+   source is above its zone.
+4. Set levels with gain or the fader, not a limiter (AJ). A page that plays
+   sound applies a gain from config (`config.<scene>....gainDb`), sized with
+   `npm run audio -- meter <file>`; a file that was clipped before it was
+   encoded (flat-topped waveform) is replaced, since no gain fixes that.
+5. Every sound file under `src/` is registered in `audioConfig.assets`
+   (`tools/audio/config.js`) with the gain its page applies.
+   `npm run audio -- assets` checks them all and runs in CI, so a new sound,
+   or a gain change that pushes one into the red, fails the PR.
+
+Past streams meet this: on 2026-10-25 the full mix (track 1) peaked between
+-12.4 and -7.3 dBFS and went into the red for 0.1% of one 100 s section;
+the mic track never did.
+
 ## What the harness does
 
 `tools/audio/` has sample-exact ports of OBS's own audio filters
@@ -21,7 +62,7 @@ after every stage of the chain:
 | Measurement | Why |
 |---|---|
 | Integrated loudness, LRA (BS.1770-4 / EBU R128) | The voice level against past streams and the rest of the mix |
-| True peak (4x oversampled), clipped samples | Overs distort after Twitch's AAC encode |
+| True peak (4x oversampled), clipped samples, time in OBS's red zone | Overs distort after Twitch's AAC encode; AJ wants nothing above yellow |
 | Noise in pauses | Room noise, fans and hum between sentences |
 | Word-onset survival | A slow gate eats the first consonant of each word |
 | Spurious gate opens per minute | Chatter on breaths and keyboard |
@@ -41,6 +82,8 @@ mic once, so every render is measured over the same moments.
 | `npm run audio -- curves --collection=Archive_1.json --proposal=p.json` | Level-in/level-out curve, frequency response and burst peak of each chain, from test tones. Needs no recording |
 | `npm run audio -- render --collection=... --source=Mic --raw=raw.flac --ns=ns.flac --proposal=p.json --baseline=baseline.json --match-level` | Render and check every chain over a capture; writes `index.html`, `results.json` and A/B clips (as recorded and level-matched) |
 | `npm run audio -- verify --collection=... --source=Mic --raw=raw.flac --obs=current.flac` | Null test: today's chain emulated over the raw mic minus what OBS recorded through it, skipping the first second (OBS's filters were already running). Passes at 40 dB of cancellation overall and 20 dB in the worst 400 ms window, so a gate that opens a block late fails |
+| `npm run audio -- meter <files...> [--gain-db=n]` | How a sound file reads on OBS's meter at a gain: loudness, true peak, time in the red, clipped samples, baked-in clipping, and the gain that keeps it in the yellow |
+| `npm run audio -- assets` | CI gate: every sound file under `src/` at its configured gain (rules above) |
 | `npm run audio -- report --baseline=... --curves=... --render=... --out=page.html` | One page from whatever results exist, to publish for AJ |
 
 Output goes to `tools/audio-results/` (gitignored). `--match-level` sets each
