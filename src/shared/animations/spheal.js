@@ -162,6 +162,18 @@ export function unitFor(width, height) {
 }
 
 /**
+ * Which of `steps` pre-turned angles is nearest to rot, wrapped into
+ * 0..steps-1 (rolls turn past 2π, and wobbles go negative).
+ * @param {number} rot - Radians
+ * @param {number} steps
+ * @returns {number}
+ */
+export function turnStep(rot, steps) {
+    const step = Math.round(rot * steps / (2 * Math.PI)) % steps;
+    return step < 0 ? step + steps : step;
+}
+
+/**
  * The sprite URL inside a PokeAPI pokemon's `sprites` object, by key path
  * (e.g. ['other', 'official-artwork', 'front_default']).
  * @param {Object} sprites - The API response's `sprites`

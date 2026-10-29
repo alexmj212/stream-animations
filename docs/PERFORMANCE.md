@@ -36,6 +36,12 @@ cycles look the same), stops redrawing when static, and has a perf floor at
 - `hsla()` colors instead of `globalAlpha` [07-01].
 - Bounded LRU caches (max 50, evicted every 30 s) so long streams don't grow
   memory [v1.0].
+- Stamping pre-turned sprites instead of rotating each `drawImage`. Rotated
+  draws cost ~3.5x as much in Chromium's software raster, and OBS behaved the
+  same way: the Spheal march peak went from ~34 fps in OBS and 33 fps headless
+  to 60 fps headless. Bake the angles into a square only as large as the
+  visible pixels, because a full-diagonal square doubles the fill
+  [2026-10-29, Spheal march].
 
 ## Known leads
 
