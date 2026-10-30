@@ -1,8 +1,9 @@
 /**
  * Game picker dock: lists open windows and points the 16:9 Game capture at
  * one in a click. Runs as an OBS Custom Browser Dock and talks to OBS over
- * obs-websocket (docs/SCENES.md, "gamepicker"). Never changes audio; the
- * meters only read levels.
+ * obs-websocket (docs/SCENES.md, "gamepicker"). Each window can also send
+ * its app's sound to Game or Music (config.gamePicker.audio); the dock
+ * never changes AJ's own audio sources, only its "App Audio:" inputs.
  */
 
 import { config } from '../config/config.js';
@@ -11,7 +12,8 @@ import { createDebug } from '../shared/debug.js';
 import {
     buildWindowList, chooseMethod, captureSettings, visibilityChanges,
     meanLuma, peakDb, meterZone, pushRecent, parseWindowValue,
-    mergeWindowLists, sameWindow
+    mergeWindowLists, sameWindow, captureFailed, appAudioName, parseAppAudioName,
+    copyableFilters
 } from './picker.js';
 
 const cfg = config.gamePicker;
@@ -58,6 +60,8 @@ let windowItems = [];        // both captures' lists, merged (mergeWindowLists)
 let showing = null;          // { method, value } or { method: 'console' }
 let busy = false;
 const meterEls = new Map();  // inputName -> { bar, label, row }
+const acfg = cfg.audio;
+let routes = new Map();      // lower-case exe -> { exe, target, inputName }
 
 function setStatus(text, kind = '') {
     const el = $('status');
@@ -95,7 +99,7 @@ async function connect() {
     $('auth').hidden = true;
     setStatus('Connected to OBS', 'ok');
     debug.mark('connect', { url });
-    await Promise.all([refreshWindows(), readShowing(), setupMeters()]);
+    await Promise.all([refreshWindows(), readShowing(), readRoutes()]);
 }
 
 $('auth').addEventListener('submit', (e) => {
@@ -133,6 +137,9 @@ function onEvent({ eventType, eventData }) {
         // dock last set (AJ, 2026-10-30: they disagreed). The lists too, so
         // a window opened since is found (Code review, #114)
         refreshWindows().then(readShowing);
+    } else if ((eventType === 'InputCreated' || eventType === 'InputRemoved' || eventType === 'InputNameChanged') && !busy) {
+        // An App Audio input added or removed in OBS itself
+        readRoutes();
     }
 }
 
@@ -182,16 +189,88 @@ async function setupMeters() {
     const box = $('meters');
     box.textContent = '';
     meterEls.clear();
-    for (const name of cfg.meters) {
+    const names = [...cfg.meters, ...[...routes.values()].map(r => r.inputName)];
+    for (const name of names) {
         const row = document.createElement('div');
         row.className = 'meter';
         row.innerHTML = '<span class="name"></span><span class="track"><span class="bar"></span></span><span class="mute">muted</span>';
-        row.querySelector('.name').textContent = name;
+        row.querySelector('.name').textContent = name.startsWith(acfg.prefix) ? name.slice(acfg.prefix.length) : name;
+        row.title = name;
         box.appendChild(row);
         meterEls.set(name, { row, bar: row.querySelector('.bar') });
         obs.call('GetInputMute', { inputName: name })
             .then(({ inputMuted }) => row.classList.toggle('muted', inputMuted))
             .catch(() => row.classList.add('missing'));
+    }
+}
+
+/** The dock's App Audio inputs, by app. */
+async function readRoutes() {
+    try {
+        const { inputs } = await obs.call('GetInputList', { inputKind: 'wasapi_process_output_capture' });
+        routes = new Map();
+        for (const { inputName } of inputs) {
+            const r = parseAppAudioName(inputName, acfg.prefix, acfg.targets);
+            if (r) routes.set(r.exe.toLowerCase(), { ...r, inputName });
+        }
+        await setupMeters();
+        renderList();
+    } catch (err) {
+        note(`Couldn't read app audio: ${err.message}`);
+    }
+}
+
+/**
+ * Send an app's sound to a destination ('game', 'music') or take it off
+ * stream ('off'). Replaces the app's App Audio input with one that copies
+ * the destination source's tracks, volume and filters.
+ */
+async function setRoute(win, target) {
+    if (busy || !obs?.ready) return;
+    busy = true;
+    document.body.classList.add('busy');
+    const key = win.exe.toLowerCase();
+    try {
+        const old = routes.get(key);
+        if (old) await obs.call('RemoveInput', { inputName: old.inputName });
+        if (target !== 'off') {
+            const t = acfg.targets[target];
+            const inputName = appAudioName(acfg.prefix, win.exe, t.label);
+            await obs.call('CreateInput', {
+                sceneName: acfg.scene,
+                inputName,
+                inputKind: 'wasapi_process_output_capture',
+                inputSettings: { window: win.value, priority: cfg.windowPriority },
+                sceneItemEnabled: true
+            });
+            const [{ inputAudioTracks }, { inputVolumeMul }, { filters }] = await Promise.all([
+                obs.call('GetInputAudioTracks', { inputName: t.template }),
+                obs.call('GetInputVolume', { inputName: t.template }),
+                obs.call('GetSourceFilterList', { sourceName: t.template })
+            ]);
+            await obs.call('SetInputAudioTracks', { inputName, inputAudioTracks });
+            await obs.call('SetInputVolume', { inputName, inputVolumeMul });
+            // The app still plays to the speakers, so monitoring would double it
+            await obs.call('SetInputAudioMonitorType', { inputName, monitorType: 'OBS_MONITORING_TYPE_NONE' });
+            for (const f of copyableFilters(filters, acfg.skipFilterKinds)) {
+                await obs.call('CreateSourceFilter', {
+                    sourceName: inputName, filterName: f.filterName, filterKind: f.filterKind, filterSettings: f.filterSettings
+                });
+                if (f.filterEnabled === false) {
+                    await obs.call('SetSourceFilterEnabled', { sourceName: inputName, filterName: f.filterName, filterEnabled: false });
+                }
+            }
+            note(`${win.exe} sound now goes to ${t.label}${target === 'music' ? ' (stream only, not the VOD)' : ''}.`);
+        } else {
+            note(`${win.exe} sound is off stream (you still hear it).`);
+        }
+        debug.mark('route', { exe: win.exe, target });
+    } catch (err) {
+        note(`Couldn't route ${win.exe} audio: ${err.message}`);
+    } finally {
+        busy = false;
+        document.body.classList.remove('busy');
+        await readRoutes();
     }
 }
 
@@ -262,7 +341,7 @@ async function pick(win, forced) {
     busy = true;
     document.body.classList.add('busy');
     const exe = win.exe.toLowerCase();
-    const method = forced || chooseMethod(exe, { windowExes: cfg.windowExes, remembered: state.remembered, inHook: win.inHook, inWindow: win.inWindow });
+    const method = forced || chooseMethod(exe, { remembered: state.remembered, inHook: win.inHook, inWindow: win.inWindow });
     try {
         note(`Capturing ${win.exe}…`);
         await capture(method, win.value);
@@ -272,26 +351,37 @@ async function pick(win, forced) {
         renderShowing();
         renderList();
 
-        // Look twice before calling it black, so a game on a loading screen
-        // isn't switched and remembered for good (QA, #111)
-        const isBlack = l => l !== null && l < cfg.blackLuma;
+        // Look twice before calling it failed, so a game on a loading screen
+        // isn't switched and remembered for good (QA, #111). No picture at
+        // all (null) counts: that's how a hook that never attached looks
+        // (Defiant, 2026-10-30)
+        const failed = l => captureFailed(l, cfg.blackLuma);
         await new Promise(r => setTimeout(r, cfg.blackCheckMs));
         let luma = await lumaOf(cfg.sources[method]);
-        if (isBlack(luma)) {
-            note(`${win.exe} looks black, checking again…`);
+        if (failed(luma)) {
+            note(`No picture from ${win.exe} yet, checking again…`);
             await new Promise(r => setTimeout(r, cfg.blackCheckMs));
             luma = await lumaOf(cfg.sources[method]);
         }
         debug.mark('pick', { exe, method, forced: !!forced, luma });
-        if (isBlack(luma) && method === 'hook' && !forced && win.inWindow) {
-            note(`The game hook showed black for ${win.exe}, so it switched to window capture (remembered).`);
-            await capture('window', win.value);
-            state.remembered[exe] = 'window';
-            saveState();
-            renderShowing();
-            renderList();
-        } else if (isBlack(luma)) {
-            note(`${win.exe} looks black. If it's minimised or on a loading screen, bring it up; otherwise try the other mode (⇄).`);
+        const other = method === 'hook' ? 'window' : 'hook';
+        const otherSees = other === 'hook' ? win.inHook : win.inWindow;
+        if (failed(luma) && !forced && otherSees) {
+            await capture(other, win.value);
+            await new Promise(r => setTimeout(r, cfg.blackCheckMs));
+            const luma2 = await lumaOf(cfg.sources[other]);
+            debug.mark('fallback', { exe, method: other, luma: luma2 });
+            if (!failed(luma2)) {
+                state.remembered[exe] = other;
+                saveState();
+                note(`The ${CAPTURE_NAME[method]} showed nothing for ${win.exe}, so it uses the ${CAPTURE_NAME[other]} now (remembered).`);
+            } else {
+                note(`Neither capture shows ${win.exe}. Is it minimised? Restore it and pick it again.`);
+            }
+        } else if (failed(luma) && !win.inWindow) {
+            note(`${win.exe} looks minimised (only the game hook lists it). Restore the window and pick it again.`);
+        } else if (failed(luma)) {
+            note(`${win.exe} shows nothing. If it's minimised or loading, bring it up; otherwise try the other mode (⇄).`);
         } else {
             note('');
         }
@@ -323,6 +413,7 @@ async function pickConsole() {
 // ---- rendering ----
 
 const METHOD_LABEL = { hook: 'game hook', window: 'window', console: 'capture card' };
+const CAPTURE_NAME = { hook: 'game hook', window: 'window capture' };
 
 function renderShowing() {
     const el = $('showing');
@@ -354,7 +445,7 @@ function renderList() {
     ul.textContent = '';
     const exact = showing && list.some(w => w.value === showing.value);
     for (const w of list) {
-        const method = chooseMethod(w.exe, { windowExes: cfg.windowExes, remembered: state.remembered, inHook: w.inHook, inWindow: w.inWindow });
+        const method = chooseMethod(w.exe, { remembered: state.remembered, inHook: w.inHook, inWindow: w.inWindow });
         const li = document.createElement('li');
         // Exact value first; exe + class only when the title has changed, so
         // two Firefox windows don't both light up (QA, #114)
@@ -365,7 +456,7 @@ function renderList() {
         main.className = 'pick';
         main.innerHTML = '<span class="exe"></span><span class="title"></span>';
         main.querySelector('.exe').textContent = `${w.recent ? '★ ' : ''}${w.exe}`;
-        main.querySelector('.title').textContent = w.title;
+        main.querySelector('.title').textContent = w.inWindow ? w.title : `${w.title} · minimised?`;
         main.title = `Capture with ${METHOD_LABEL[method]}`;
         main.addEventListener('click', () => pick(w));
         const other = method === 'hook' ? 'window' : 'hook';
@@ -373,12 +464,26 @@ function renderList() {
         const swap = document.createElement('button');
         swap.disabled = !canSwap;
         swap.className = 'swap';
-        swap.textContent = `⇄ ${METHOD_LABEL[other]}`;
+        swap.textContent = `⇄ use ${CAPTURE_NAME[other]}`;
         swap.title = canSwap
             ? `Capture with ${METHOD_LABEL[other]} instead, and remember it for ${w.exe}`
             : `The ${METHOD_LABEL[other]} can't see this window`;
         swap.addEventListener('click', () => pick(w, other));
-        li.append(main, swap);
+        // Where this app's sound goes: one App Audio input per app
+        const route = routes.get(w.exe.toLowerCase());
+        const sel = document.createElement('select');
+        sel.className = 'audio';
+        sel.title = `Where ${w.exe}'s sound goes on stream`;
+        for (const [value, label] of [['off', '🔇 Sound: off stream'], ...Object.entries(acfg.targets).map(([k, t]) => [k, `🔊 Sound: ${t.label}${k === 'music' ? ' (not on VOD)' : ''}`])]) {
+            const o = document.createElement('option');
+            o.value = value;
+            o.textContent = label;
+            sel.appendChild(o);
+        }
+        sel.value = route?.target || 'off';
+        sel.classList.toggle('on', !!route);
+        sel.addEventListener('change', () => setRoute(w, sel.value));
+        li.append(main, swap, sel);
         ul.appendChild(li);
     }
     if (list.length === 0) {

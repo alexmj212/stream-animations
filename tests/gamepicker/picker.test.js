@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
 import {
     parseWindowValue, buildWindowList, chooseMethod, captureSettings,
-    visibilityChanges, meanLuma, peakDb, meterZone, pushRecent
+    visibilityChanges, meanLuma, peakDb, meterZone, pushRecent,
+    captureFailed, appAudioName, parseAppAudioName, copyableFilters
 } from '../../src/gamepicker/picker.js';
 import { authString, ObsSocket } from '../../src/shared/obs.js';
 import { config } from '../../src/config/config.js';
@@ -46,14 +47,46 @@ describe('buildWindowList', () => {
 });
 
 describe('chooseMethod', () => {
-    const windowExes = config.gamePicker.windowExes;
-    it('uses window capture for browsers and the hook for the rest', () => {
-        expect(chooseMethod('firefox.exe', { windowExes })).toBe('window');
-        expect(chooseMethod('RACCOIN.exe', { windowExes })).toBe('hook');
+    it('uses window capture by default: it shows any app (Defiant, 2026-10-30)', () => {
+        expect(chooseMethod('firefox.exe')).toBe('window');
+        expect(chooseMethod('Spotify.exe')).toBe('window');
+        expect(chooseMethod('RACCOIN.exe')).toBe('window');
     });
     it('follows a remembered choice', () => {
-        expect(chooseMethod('RACCOIN.exe', { windowExes, remembered: { 'raccoin.exe': 'window' } })).toBe('window');
-        expect(chooseMethod('Firefox.exe', { windowExes, remembered: { 'firefox.exe': 'hook' } })).toBe('hook');
+        expect(chooseMethod('RACCOIN.exe', { remembered: { 'raccoin.exe': 'hook' } })).toBe('hook');
+        expect(chooseMethod('Balatro.exe', { remembered: { 'balatro.exe': 'window' } })).toBe('window');
+    });
+});
+
+describe('captureFailed', () => {
+    it('counts no picture (null) and black as failed', () => {
+        expect(captureFailed(null, 6)).toBe(true);
+        expect(captureFailed(2, 6)).toBe(true);
+        expect(captureFailed(40, 6)).toBe(false);
+    });
+});
+
+describe('app audio names', () => {
+    const { prefix, targets } = config.gamePicker.audio;
+    it('round-trips app and destination through the input name', () => {
+        const name = appAudioName(prefix, 'firefox.exe', targets.music.label);
+        expect(name).toBe('App Audio: firefox.exe (Music)');
+        expect(parseAppAudioName(name, prefix, targets)).toEqual({ exe: 'firefox.exe', target: 'music' });
+        expect(parseAppAudioName('App Audio: Some Game (x86).exe (Game)', prefix, targets))
+            .toEqual({ exe: 'Some Game (x86).exe', target: 'game' });
+    });
+    it('ignores every other input', () => {
+        expect(parseAppAudioName('BG Music', prefix, targets)).toBeNull();
+        expect(parseAppAudioName('App Audio: firefox.exe (Nope)', prefix, targets)).toBeNull();
+        expect(parseAppAudioName('App Audio: firefox.exe', prefix, targets)).toBeNull();
+    });
+    it('copies filters but not the music fades', () => {
+        const filters = [{ filterKind: 'move_audio_value_filter' }, { filterKind: 'audio_move_filter' }, { filterKind: 'limiter_filter' }];
+        expect(copyableFilters(filters, config.gamePicker.audio.skipFilterKinds)).toEqual([{ filterKind: 'limiter_filter' }]);
+    });
+    it('keeps the music destination off the VOD track: BG Music is its template', () => {
+        expect(targets.music.template).toBe('BG Music');
+        expect(targets.game.template).toBe('Local Game (A)');
     });
 });
 
@@ -177,7 +210,7 @@ describe('both window lists (AJ, 2026-10-30)', () => {
     it('never picks a capture that cannot see the window', () => {
         expect(chooseMethod('Telegram.exe', { inHook: true, inWindow: false, remembered: { 'telegram.exe': 'window' } })).toBe('hook');
         expect(chooseMethod('firefox.exe', { inHook: false, inWindow: true, remembered: { 'firefox.exe': 'hook' } })).toBe('window');
-        expect(chooseMethod('RACCOIN.exe', { inHook: true, inWindow: true })).toBe('hook');
+        expect(chooseMethod('RACCOIN.exe', { inHook: true, inWindow: true })).toBe('window');
     });
 
     it('treats a changed title of the same exe and class as the same window', async () => {

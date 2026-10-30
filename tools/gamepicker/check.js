@@ -13,7 +13,9 @@
  *   - a browser goes straight to window capture,
  *   - a hook that shows black falls back to window capture and remembers it,
  *   - the capture card button shows only the Game Capture scene,
- *   - the meters move, and the picker never sends an audio request.
+ *   - an app's sound goes to Music or Game as an app capture with that
+ *     source's tracks, volume and filters (no fade filters), and off again,
+ *   - the meters move, and AJ's own audio sources are never changed.
  *
  * Usage: npm run gamepicker:check [-- --shot=dock.png]
  */
@@ -69,68 +71,78 @@ try {
     check('shows what 16:9 Game shows now',
         (await page.$eval('#showing', el => el.textContent)) === 'Showing: RACCOIN.exe (game hook)');
 
-    const clickExe = async (exe, swap = false) => {
-        const rows = await page.$$('#windows li');
-        for (const li of rows) {
+    const rowOf = async (exe) => {
+        for (const li of await page.$$('#windows li')) {
             const name = await li.$eval('.exe', e => e.textContent.replace('★ ', ''));
-            if (name === exe) return (await li.$(swap ? '.swap' : '.pick')).click();
+            if (name === exe) return li;
         }
         throw new Error(`no row for ${exe}`);
     };
-    const settled = () => until(() => page.$eval('body', b => !b.classList.contains('busy')), 10000);
+    const clickExe = async (exe, swap = false) => (await (await rowOf(exe)).$(swap ? '.swap' : '.pick')).click();
+    const settled = () => until(() => page.$eval('body', b => !b.classList.contains('busy')), 15000);
+    const pickAndWait = async (exe) => { await clickExe(exe); await wait(100); await settled(); };
+    const noteText = () => page.$eval('#note', el => el.textContent);
+    const reopen = async (remembered) => {
+        await page.evaluate((r) => {
+            const s = JSON.parse(localStorage.getItem('gamePicker:v1'));
+            Object.assign(s.remembered, r);
+            localStorage.setItem('gamePicker:v1', JSON.stringify(s));
+        }, remembered);
+        await page.goto(`${baseUrl}/src/gamepicker/index.html?obs=${encodeURIComponent(obs.url)}&password=pw`);
+        await until(() => page.$eval('#status', el => el.textContent === 'Connected to OBS'));
+        await until(() => page.$$eval('#windows .pick', els => els.length > 0));
+    };
 
-    await clickExe('mGBA.exe');
-    await wait(100);
-    await settled();
-    check('mGBA goes to the game hook', obs.state.inputs['Game Capture 2'].settings.window.includes('mGBA.exe')
-        && obs.state.inputs['Game Capture 2'].settings.priority === 2);
-    check('only the hook is visible (duplicates hidden)', visible() === 'Game Capture 2', visible());
+    // Window capture is the default: it shows any app (Defiant, 2026-10-30)
+    await pickAndWait('mGBA.exe');
+    check('a game goes to window capture by default', visible() === 'Window Capture'
+        && obs.state.inputs['Window Capture'].settings.window.includes('mGBA.exe')
+        && obs.state.inputs['Window Capture'].settings.priority === 2, visible());
+    check('only that capture is visible (duplicates hidden)', visible() === 'Window Capture', visible());
     check('preview shown', await page.$eval('#preview', el => !el.hidden && el.src.startsWith('data:image')));
 
-    await clickExe('firefox.exe');
-    await wait(100);
-    await settled();
+    await pickAndWait('Spotify.exe');
+    check('a desktop app (Spotify) shows through window capture', visible() === 'Window Capture'
+        && obs.state.inputs['Window Capture'].settings.window.includes('Spotify.exe') && await noteText() === '', await noteText());
+
+    await pickAndWait('firefox.exe');
     check('a browser goes to window capture', visible() === 'Window Capture'
         && obs.state.inputs['Window Capture'].settings.window.includes('firefox.exe'), visible());
 
-    await clickExe('Balatro.exe');
-    await wait(100);
-    await settled();
-    check('a black hook falls back to window capture', visible() === 'Window Capture'
-        && obs.state.inputs['Window Capture'].settings.window.startsWith('Balatro'), visible());
-    check('and says so', /switched to window capture/.test(await page.$eval('#note', el => el.textContent)));
-    const remembered = await page.evaluate(() => JSON.parse(localStorage.getItem('gamePicker:v1')).remembered);
-    check('remembers window capture for it', remembered['balatro.exe'] === 'window', JSON.stringify(remembered));
+    // Exclusive fullscreen: black through window capture, so the hook
+    await pickAndWait('Balatro.exe');
+    check('a game black in window capture falls back to the game hook', visible() === 'Game Capture 2'
+        && obs.state.inputs['Game Capture 2'].settings.window.startsWith('Balatro'), visible());
+    check('and says so', /uses the game hook now/.test(await noteText()), await noteText());
+    let remembered = await page.evaluate(() => JSON.parse(localStorage.getItem('gamePicker:v1')).remembered);
+    check('remembers the hook for it', remembered['balatro.exe'] === 'hook', JSON.stringify(remembered));
     check('never stores the password', !(await page.evaluate(() => JSON.stringify(localStorage))).includes('pw'));
     const top = [...new Set(await page.$$eval('#windows .exe', els => els.map(e => e.textContent)))].slice(0, 3);
-    check('recents pinned on top, newest first', top.join('|') === '★ Balatro.exe|★ firefox.exe|★ mGBA.exe', top.join('|'));
+    check('recents pinned on top, newest first', top.join('|') === '★ Balatro.exe|★ firefox.exe|★ Spotify.exe', top.join('|'));
 
-    // Telegram is only in the hook's list: never sent to window capture,
-    // even with the black fallback, and the ⇄ window button is off
-    // Black through the hook and remembered as window: both must still give
-    // the hook, the only capture that can see it (Code review, #114)
-    obs.state.inputs['Window Capture'].settings.window = 'x:y:none.exe';
-    obs.blackExes.push('Telegram.exe');
-    await page.evaluate(() => {
-        const s = JSON.parse(localStorage.getItem('gamePicker:v1'));
-        s.remembered['telegram.exe'] = 'window';
-        localStorage.setItem('gamePicker:v1', JSON.stringify(s));
-    });
-    await page.goto(`${baseUrl}/src/gamepicker/index.html?obs=${encodeURIComponent(obs.url)}&password=pw`);
-    await until(() => page.$eval('#status', el => el.textContent === 'Connected to OBS'));
-    await until(() => page.$$eval('#windows .pick', els => els.length > 0));
-    await clickExe('Telegram.exe');
-    await wait(100);
-    await settled();
+    // Telegram minimised: only the hook lists it, and the hook gives no
+    // picture for a desktop app. Remembered as window, it must still go to
+    // the hook (the only capture that lists it), say it looks minimised, and
+    // leave Window Capture alone (Code review, #114). Spotify remembered as
+    // hook (a stale choice): the hook gives no picture at all (null), which
+    // must count as failed and fall back to window capture
+    await reopen({ 'telegram.exe': 'window', 'spotify.exe': 'hook' });
+    check('marks a hook-only window as minimised', (await (await rowOf('Telegram.exe')).$eval('.title', e => e.textContent)).endsWith('minimised?'));
+    const windowBefore = obs.state.inputs['Window Capture'].settings.window;
+    await pickAndWait('Telegram.exe');
     check('a hook-only window goes to the hook', visible() === 'Game Capture 2'
         && obs.state.inputs['Game Capture 2'].settings.window.includes('Telegram.exe')
-        && obs.state.inputs['Window Capture'].settings.window === 'x:y:none.exe', visible());
-    obs.blackExes.pop();
+        && obs.state.inputs['Window Capture'].settings.window === windowBefore, visible());
+    check('and asks to restore it', /looks minimised/.test(await noteText()), await noteText());
+
+    await pickAndWait('Spotify.exe');
+    check('no picture from the hook (null) falls back to window capture', visible() === 'Window Capture'
+        && obs.state.inputs['Window Capture'].settings.window.includes('Spotify.exe'), visible());
+    remembered = await page.evaluate(() => JSON.parse(localStorage.getItem('gamePicker:v1')).remembered);
+    check('and remembers window capture for it', remembered['spotify.exe'] === 'window', JSON.stringify(remembered));
 
     // Changed by hand in the source properties: the dock follows OBS
-    await clickExe('firefox.exe');
-    await wait(100);
-    await settled();
+    await pickAndWait('firefox.exe');
     check('highlights only the picked window', (await page.$$eval('#windows li.current .exe', els => els.map(e => e.textContent))).join() === '★ firefox.exe');
     obs.setFromProperties('Window Capture', { window: 'Claude:Chrome_WidgetWin_1:claude.exe' });
     check('follows a change made in the source properties', await until(() =>
@@ -145,9 +157,41 @@ try {
     check('says so, without the window-not-found warning', await page.$eval('#showing',
         el => el.textContent === 'Showing: console (capture card)' && !el.classList.contains('missing')));
 
+    // Per-app audio (AJ, 2026-10-30): Firefox to Music keeps it off the VOD
+    const route = async (exe, target) => {
+        await (await (await rowOf(exe)).$('select.audio')).select(target);
+        await wait(100);
+        await settled();
+    };
+    const inp = n => obs.state.inputs[n];
+    await route('firefox.exe', 'music');
+    const music = inp('App Audio: firefox.exe (Music)');
+    check('Firefox to Music adds an app capture in the Audio scene', !!music && music.kind === 'wasapi_process_output_capture'
+        && obs.state.audioScene.includes('App Audio: firefox.exe (Music)') && music.settings.window.includes('firefox.exe')
+        && music.settings.priority === 2, JSON.stringify(music?.settings));
+    check('with BG Music’s tracks (off the VOD track 2), volume and no monitoring', !!music
+        && JSON.stringify(music.tracks) === JSON.stringify(inp('BG Music').tracks) && music.tracks['2'] === false
+        && music.volume === inp('BG Music').volume && music.monitor === 'OBS_MONITORING_TYPE_NONE');
+    check('and BG Music’s filters, without its fade (Move) filters', !!music
+        && music.filters.map(f => f.filterKind).join() === 'limiter_filter', music?.filters.map(f => f.filterKind).join());
+    check('its meter shows in the dock', await until(() => page.$$eval('#meters .name', els => els.some(e => e.textContent === 'firefox.exe (Music)'))));
+    check('the row shows where it goes', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'music'));
+
+    await route('firefox.exe', 'game');
+    const game = inp('App Audio: firefox.exe (Game)');
+    check('switching to Game replaces it, with Local Game (A)’s tracks, volume and filters',
+        !inp('App Audio: firefox.exe (Music)') && !!game && game.tracks['2'] === true
+        && game.volume === inp('Local Game (A)').volume && game.filters.map(f => f.filterKind).join() === 'gain_filter,limiter_filter');
+
+    await route('firefox.exe', 'off');
+    check('off stream removes it', !Object.keys(obs.state.inputs).some(n => n.startsWith('App Audio:'))
+        && !obs.state.audioScene.some(n => n.startsWith('App Audio:')));
+
     check('meters move', await until(() => page.$eval('#meters .bar', b => parseFloat(b.style.width) > 50)));
-    const audio = obs.state.log.filter(r => /Volume|Mute$|SetInputMute|Audio|Monitor/.test(r.requestType) && r.requestType !== 'GetInputMute');
-    check('never changes audio', audio.length === 0, audio.map(r => r.requestType).join(','));
+    const own = ['Mic', 'Local Game (A)', 'Ext Capture (B)', 'BG Music'];
+    const touched = obs.state.log.filter(r => /^(Set|Remove|Create)/.test(r.requestType)
+        && own.includes(r.requestData.inputName ?? r.requestData.sourceName));
+    check('never changes your own audio sources', touched.length === 0, touched.map(r => r.requestType).join(','));
     check('no page errors', errors.length === 0, errors.join('; '));
 
     if (shot) {

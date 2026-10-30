@@ -52,6 +52,7 @@ export const WINDOWS = [
     'Sumoomoo - Twitch — Mozilla Firefox:MozillaWindowClass:firefox.exe',
     'Account API tokens — Mozilla Firefox:MozillaWindowClass:firefox.exe',
     'Balatro:SDL_app:Balatro.exe',
+    'Spotify Premium:Chrome_WidgetWin_1:Spotify.exe',
     'OBS 31.1.2 - Profile#3A Stream:Qt663QWindowIcon:obs64.exe',
     'Mix It Up:HwndWrapper[MixItUp.exe]:MixItUp.exe',
     'Program Manager:Progman:explorer.exe',
@@ -64,16 +65,37 @@ const WINDOW_SKIPS = /telegram/i;
 /**
  * @param {Object} opts
  * @param {string} [opts.password]
- * @param {string[]} [opts.blackExes]
+ * @param {string[]} [opts.gameExes] - the hook renders only these; for any
+ *   other app it gives no picture (OBS: "Failed to render screenshot"), as
+ *   on Defiant (2026-10-30)
+ * @param {string[]} [opts.windowBlackExes] - window capture shows these
+ *   black (exclusive fullscreen)
  * @returns {Promise<{url: string, state: Object, close: Function}>}
  */
-export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'] } = {}) {
+export async function startFakeObs({
+    password = 'pw',
+    gameExes = ['RACCOIN.exe', 'Balatro.exe', 'mGBA.exe'],
+    windowBlackExes = ['Balatro.exe']
+} = {}) {
+    const tracks = list => Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [String(n), list.includes(n)]));
+    const audio = (volume, trackList, filters, monitor = 'OBS_MONITORING_TYPE_NONE') => ({
+        kind: 'wasapi_output_capture', settings: {}, volume, tracks: tracks(trackList), filters, monitor, muted: false
+    });
+    const filter = (filterName, filterKind, filterSettings = {}) => ({ filterName, filterKind, filterSettings, filterEnabled: true, filterIndex: 0 });
+    // Audio sources as in Archive_1.json (2026-10-29)
     const state = {
         inputs: {
             'Game Capture 2': { kind: 'game_capture', settings: { window: 'RACCOIN:UnityWndClass:RACCOIN.exe', capture_mode: 'window' } },
             'Window Capture': { kind: 'window_capture', settings: { window: WINDOWS[2], method: 2 } },
             'mGBA': { kind: 'window_capture', settings: { window: WINDOWS[1] } },
-            'Window Capture 2': { kind: 'window_capture', settings: {} }
+            'Window Capture 2': { kind: 'window_capture', settings: {} },
+            'Local Game (A)': audio(0.1076, [1, 2, 4, 5, 6], [filter('Gain', 'gain_filter', { db: 6 }), filter('Limiter', 'limiter_filter', { threshold: -7 })]),
+            'Ext Capture (B)': audio(0.2473, [1, 2, 4, 5, 6], [filter('Gain', 'gain_filter', { db: 6 }), filter('Limiter', 'limiter_filter', { threshold: -7 })]),
+            'BG Music': audio(0.03, [1, 4, 5, 6], [
+                filter('Fade Down', 'move_audio_value_filter'), filter('Fade Up', 'move_audio_value_filter'),
+                filter('Move', 'audio_move_filter'), filter('Limiter', 'limiter_filter', { threshold: -7 })
+            ], 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'),
+            'Mic': audio(0.5, [1, 2, 3, 4, 5, 6], [filter('Limiter', 'limiter_filter', { threshold: -7 })])
         },
         items: [
             { sceneItemId: 52, sourceName: 'Window Capture 2', inputKind: 'window_capture', sceneItemEnabled: false },
@@ -83,17 +105,21 @@ export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'
             { sceneItemId: 10, sourceName: 'mGBA', inputKind: 'window_capture', sceneItemEnabled: false },
             { sceneItemId: 1, sourceName: 'Game Capture', inputKind: null, sceneItemEnabled: false }
         ],
-        mutes: { 'Local Game (A)': false, 'Ext Capture (B)': false, 'BG Music': false },
+        audioScene: ['Mic', 'BG Music', 'Ext Capture (B)', 'Local Game (A)'],
         log: []
     };
     const lit = solidPng(16, 9, [70, 140, 220]);
     const black = solidPng(16, 9, [0, 0, 0]);
     const exeOf = v => (v || '').split(':')[2] || '';
+    const input = name => {
+        if (!state.inputs[name]) throw new Error(`No source was found by the name of \`${name}\`.`);
+        return state.inputs[name];
+    };
 
     const handlers = {
         GetInputPropertiesListPropertyItems: ({ inputName }) => ({
             propertyItems: WINDOWS
-                .filter(v => !(state.inputs[inputName].kind === 'game_capture' ? HOOK_SKIPS : WINDOW_SKIPS).test(exeOf(v)))
+                .filter(v => !(input(inputName).kind === 'game_capture' ? HOOK_SKIPS : WINDOW_SKIPS).test(exeOf(v)))
                 .map(v => ({ itemName: `[${exeOf(v)}]: ${v.split(':')[0]}`, itemValue: v, itemEnabled: true }))
         }),
         GetSceneItemList: ({ sceneName }) => {
@@ -104,20 +130,67 @@ export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'
             state.items.find(i => i.sceneItemId === sceneItemId).sceneItemEnabled = sceneItemEnabled;
             return {};
         },
-        GetInputSettings: ({ inputName }) => ({ inputSettings: { ...state.inputs[inputName].settings } }),
+        GetInputSettings: ({ inputName }) => ({ inputSettings: { ...input(inputName).settings } }),
         SetInputSettings: ({ inputName, inputSettings }) => {
-            Object.assign(state.inputs[inputName].settings, inputSettings);
-            broadcast('InputSettingsChanged', { inputName, inputSettings: state.inputs[inputName].settings });
+            Object.assign(input(inputName).settings, inputSettings);
+            broadcast('InputSettingsChanged', { inputName, inputSettings: input(inputName).settings });
             return {};
         },
         GetInputMute: ({ inputName }) => {
-            if (!(inputName in state.mutes)) throw new Error('No source was found');
-            return { inputMuted: state.mutes[inputName] };
+            const i = input(inputName);
+            if (!('muted' in i)) throw new Error('The specified input does not support audio.');
+            return { inputMuted: i.muted };
+        },
+        GetInputList: ({ inputKind }) => ({
+            inputs: Object.entries(state.inputs).filter(([, i]) => !inputKind || i.kind === inputKind)
+                .map(([inputName, i]) => ({ inputName, inputKind: i.kind }))
+        }),
+        CreateInput: ({ sceneName, inputName, inputKind, inputSettings }) => {
+            if (sceneName !== 'Audio') throw new Error(`fake: unexpected scene ${sceneName}`);
+            if (state.inputs[inputName]) throw new Error('A source already exists by that input name.');
+            state.inputs[inputName] = {
+                kind: inputKind, settings: { ...inputSettings }, volume: 1, tracks: tracks([1, 2, 3, 4, 5, 6]),
+                filters: [], monitor: 'OBS_MONITORING_TYPE_NONE', muted: false
+            };
+            state.audioScene.push(inputName);
+            broadcast('InputCreated', { inputName, inputKind });
+            return { sceneItemId: 100 + state.audioScene.length };
+        },
+        RemoveInput: ({ inputName }) => {
+            input(inputName);
+            delete state.inputs[inputName];
+            state.audioScene = state.audioScene.filter(n => n !== inputName);
+            broadcast('InputRemoved', { inputName });
+            return {};
+        },
+        GetInputAudioTracks: ({ inputName }) => ({ inputAudioTracks: { ...input(inputName).tracks } }),
+        SetInputAudioTracks: ({ inputName, inputAudioTracks }) => { Object.assign(input(inputName).tracks, inputAudioTracks); return {}; },
+        GetInputVolume: ({ inputName }) => {
+            const v = input(inputName).volume;
+            return { inputVolumeMul: v, inputVolumeDb: 20 * Math.log10(v) };
+        },
+        SetInputVolume: ({ inputName, inputVolumeMul }) => { input(inputName).volume = inputVolumeMul; return {}; },
+        SetInputAudioMonitorType: ({ inputName, monitorType }) => { input(inputName).monitor = monitorType; return {}; },
+        GetSourceFilterList: ({ sourceName }) => ({ filters: input(sourceName).filters.map(f => ({ ...f })) }),
+        CreateSourceFilter: ({ sourceName, filterName, filterKind, filterSettings }) => {
+            input(sourceName).filters.push({ filterName, filterKind, filterSettings: { ...filterSettings }, filterEnabled: true });
+            return {};
+        },
+        SetSourceFilterEnabled: ({ sourceName, filterName, filterEnabled }) => {
+            input(sourceName).filters.find(f => f.filterName === filterName).filterEnabled = filterEnabled;
+            return {};
         },
         GetSourceScreenshot: ({ sourceName }) => {
-            const hook = state.inputs['Game Capture 2'].settings;
-            const isBlack = sourceName === 'Game Capture 2' && blackExes.includes(exeOf(hook.window));
-            return { imageData: isBlack ? black : lit };
+            if (sourceName === 'Game Capture 2') {
+                const exe = exeOf(input(sourceName).settings.window);
+                if (!gameExes.includes(exe)) throw new Error('Failed to render screenshot.');
+                return { imageData: lit };
+            }
+            if (sourceName === 'Window Capture') {
+                const exe = exeOf(input(sourceName).settings.window);
+                return { imageData: windowBlackExes.includes(exe) ? black : lit };
+            }
+            return { imageData: lit };
         }
     };
 
@@ -158,7 +231,8 @@ export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'
     return {
         url: `ws://127.0.0.1:${wss.address().port}`,
         state,
-        blackExes,
+        gameExes,
+        windowBlackExes,
         /** Change an input the way the source properties do, with OBS's event. */
         setFromProperties: (inputName, settings) => handlers.SetInputSettings({ inputName, inputSettings: settings }),
         close: () => new Promise(r => { for (const c of wss.clients) c.terminate(); wss.close(r); })
