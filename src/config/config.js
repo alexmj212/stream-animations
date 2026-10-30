@@ -1408,6 +1408,57 @@ export const config = {
     }
   },
 
+  // Game picker: an OBS browser dock (not a scene) that points the 16:9 Game
+  // capture at a window in one click, without the source properties picker.
+  // AJ (2026-10-30): picking the game window, recreating and toggling
+  // sources and checking the game audio cost time every stream. Names match
+  // Archive_1.json (2026-10-29); change them here if a source is renamed.
+  gamePicker: {
+    obs: {
+      url: 'ws://127.0.0.1:4455',   // obs-websocket default port
+      reconnectMs: 3000
+    },
+    scene: '16:9 Game',
+    // The three things the 16:9 Game scene can show. One is visible at a
+    // time; picking one hides the rest and every other capture in the scene
+    // (the hidden mGBA / Window Capture 2 duplicates)
+    sources: {
+      hook: 'Game Capture 2',       // game_capture: games, emulators
+      window: 'Window Capture',     // window_capture (Windows 10+ method): browsers, anything the hook shows black
+      console: 'Game Capture'       // nested scene with the Elgato 4K X capture card
+    },
+    // Scene items the picker never touches (MIU shows and hides Action Cam)
+    keep: ['Action Cam'],
+    // Match title, otherwise any window of the same executable
+    // (WINDOW_PRIORITY_EXE in OBS's window-helpers.h), so a title that changes
+    // (mGBA puts the ROM and fps in it, Firefox the page) keeps the capture
+    windowPriority: 2,
+    // Windows that are never the game, hidden unless "show all" is on
+    ignoreExes: [
+      'obs64.exe', 'explorer.exe', 'textinputhost.exe', 'applicationframehost.exe',
+      'systemsettings.exe', 'mixitup.exe', 'streamdeck.exe', 'discord.exe',
+      'nvidia overlay.exe', 'nvidia app.exe', 'steamwebhelper.exe', 'shellexperiencehost.exe',
+      'searchhost.exe', 'startmenuexperiencehost.exe', 'lockapp.exe', 'code.exe',
+      'windowsterminal.exe', 'obsidian.exe', 'claude.exe', 'vb-audio voicemeeter.exe'
+    ],
+    // The game capture hook can't show these (browsers draw outside it), so
+    // they go straight to window capture
+    windowExes: ['firefox.exe', 'chrome.exe', 'msedge.exe', 'brave.exe', 'opera.exe'],
+    // After a pick, look at the capture this long for a black picture. The
+    // hook shows black for some windowed games; then the picker switches to
+    // window capture once and remembers that for the executable
+    blackCheckMs: 2500,
+    blackLuma: 6,                   // mean 0-255 luma under this counts as black
+    previewWidth: 320,              // px; screenshots only after a pick or a click, never on a timer
+    recentMax: 8,                   // recent executables pinned to the top
+    // Read-only level meters, so a glance says whether game sound arrives.
+    // The picker never changes audio: audio changes need the proof in
+    // docs/AUDIO.md (AJ, 2026-10-29)
+    meters: ['Local Game (A)', 'Ext Capture (B)', 'BG Music'],
+    meterFloorDb: -60,
+    storageKey: 'gamePicker:v1'
+  },
+
   // Shared configuration across all scenes
   shared: {
     // Timing patterns (millisecond-based, consistent across scenes)

@@ -114,6 +114,27 @@ browser source shown by a Mix It Up command; each show plays it once.
 - `mute` - `1` plays without the song
 - `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 2.5 s)
 
+### Game picker (OBS dock)
+Not a scene: a Custom Browser Dock inside OBS that points the 16:9 Game
+capture at a window in one click. It lists the open windows (recent games
+first, OBS / Mix It Up / Explorer hidden), sets the game capture to that
+window, hides every other capture in the scene, and checks the picture: if
+the game hook shows black it switches to window capture and remembers that
+for the game. Browsers go straight to window capture. A "Console" button
+shows the capture card instead. Level meters for Local Game (A), Ext
+Capture (B) and BG Music show at a glance whether game sound arrives and
+whether a source is muted; the dock never changes audio.
+
+**URL**: `gamepicker/index.html` (`password`, `obs`)
+
+- `password` - the obs-websocket password (otherwise asked once and kept by the dock)
+- `obs` - obs-websocket address (default `ws://127.0.0.1:4455`)
+
+OBS: Docks > Custom Browser Docks, name "Game Picker", URL
+`https://alexmj212.dev/stream-animations/gamepicker/`. Needs obs-websocket on
+(Tools > WebSocket Server Settings). Source names are in
+`config.gamePicker`. Check it without OBS: `npm run gamepicker:check`.
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 

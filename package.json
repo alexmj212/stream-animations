@@ -12,7 +12,7 @@
     "dev:notifications": "npx serve src/notifications",
     "dev:followers": "npx serve src/followers",
     "dev": "vite",
-    "build": "npm run build:stinger && npm run build:background && npm run build:sidebar && npm run build:shade && npm run build:notifications && npm run build:followers && npm run build:epcot && npm run build:title && npm run build:banner && npm run build:spheal",
+    "build": "npm run build:stinger && npm run build:background && npm run build:sidebar && npm run build:shade && npm run build:notifications && npm run build:followers && npm run build:epcot && npm run build:title && npm run build:banner && npm run build:spheal && npm run build:gamepicker",
     "build:stinger": "vite build --mode stinger",
     "build:background": "vite build --mode background",
     "build:sidebar": "vite build --mode sidebar",
@@ -23,6 +23,7 @@
     "build:title": "vite build --mode title",
     "build:banner": "vite build --mode banner",
     "build:spheal": "vite build --mode spheal",
+    "build:gamepicker": "vite build --mode gamepicker",
     "watch": "vite build --watch --mode stinger & vite build --watch --mode background & vite build --watch --mode sidebar & vite build --watch --mode shade & vite build --watch --mode notifications & vite build --watch --mode followers & vite build --watch --mode epcot & vite build --watch --mode title & vite build --watch --mode banner & vite build --watch --mode spheal",
     "watch:stinger": "vite build --watch --mode stinger",
     "watch:background": "vite build --watch --mode background",
@@ -36,6 +37,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "bench": "node tools/benchmark/run.js",
+    "gamepicker:check": "node tools/gamepicker/check.js",
     "motion": "node tools/motion/run.js",
     "motion:export": "node tools/motion/export.js",
     "audio": "node tools/audio/run.js",
@@ -66,6 +68,7 @@
     "vite": "^7.3.0",
     "vite-plugin-singlefile": "^2.3.0",
     "vitest": "^4.0.16",
-    "vitest-canvas-mock": "^1.1.3"
+    "vitest-canvas-mock": "^1.1.3",
+    "ws": "^8.22.0"
   }
 }
