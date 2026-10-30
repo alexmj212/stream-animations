@@ -4,6 +4,16 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.12.0 - 2026-10-30
+
+- The Game Picker dock can make its own audio channels. Name a channel and
+  choose whether it goes on the VOD (like Game) or stays off it (like Music),
+  then send several apps to it. Each channel has one fader, mute and meter
+  in the dock that moves every app in it. The fader stops at -12 dB, so
+  each app peaks at -19 dBFS at most; several loud apps in one channel add
+  up, and the channel meter flags it if they reach the red. Channels are
+  saved in OBS, not the browser. Reload the dock to pick it up. ([#118])
+
 ## v2.11.0 - 2026-10-30
 
 - The Game Picker dock uses window capture by default and falls back to the
@@ -243,3 +253,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#111]: https://github.com/alexmj212/stream-animations/pull/111
 [#114]: https://github.com/alexmj212/stream-animations/pull/114
 [#116]: https://github.com/alexmj212/stream-animations/pull/116
+[#118]: https://github.com/alexmj212/stream-animations/pull/118
