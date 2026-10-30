@@ -206,7 +206,7 @@ async function refreshWindows() {
         renderShowing();
         renderList();
     } catch (err) {
-        note(`Couldn't list windows: ${err.message}`);
+        note(`Couldn't list apps: ${err.message}`);
     }
 }
 
@@ -890,7 +890,7 @@ function renderShowing() {
     const flag = showing.method === 'hook' ? 'inHook' : 'inWindow';
     const open = windowItems.some(i => i[flag] && sameWindow(i.itemValue, showing.value));
     el.textContent = w.title || w.exe || '?';
-    meta.textContent = `${w.exe || '?'} · ${METHOD_LABEL[showing.method]}${open || !windowItems.length ? '' : ' · window not found'}`;
+    meta.textContent = `${w.exe || '?'} · ${METHOD_LABEL[showing.method]}${open || !windowItems.length ? '' : ' · app not found'}`;
     el.classList.toggle('missing', !open && windowItems.length > 0);
     el.title = w.title;
 }
@@ -960,7 +960,7 @@ function renderList() {
     if (list.length === 0) {
         const li = document.createElement('li');
         li.className = 'empty';
-        li.textContent = windowItems.length ? 'No match. Tick "show all"?' : 'No windows listed yet';
+        li.textContent = windowItems.length ? 'No match. Tick "show all"?' : 'No apps listed yet';
         ul.appendChild(li);
     }
 }

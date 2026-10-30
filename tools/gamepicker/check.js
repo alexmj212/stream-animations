@@ -97,6 +97,9 @@ try {
     check('hides OBS and Explorer', !exes.some(e => /obs64|explorer/.test(e)), exes.join(' '));
     check('window title first, app under it, with a letter tile', await page.$eval('#windows li', li =>
         li.querySelector('.pick').firstElementChild.className === 'title' && /^[A-Z0-9?]$/.test(li.querySelector('.ico').textContent)));
+    // AJ (2026-10-30): "i would call them Apps instead of Windows"
+    check('calls the list Apps', await page.$eval('#tabWindows', el => el.textContent) === 'Apps'
+        && await page.$eval('#search', el => el.placeholder) === 'Filter apps');
     check('lists windows only the window capture sees (Firefox)', exes.includes('firefox.exe'), exes.join(' '));
     check('lists windows only the hook sees (Telegram)', exes.includes('Telegram.exe'), exes.join(' '));
     const shown = () => page.$eval('.showtext', el => `${el.querySelector('#showing').textContent} | ${el.querySelector('#showMeta').textContent}`);
@@ -202,7 +205,7 @@ try {
     check('highlights only the picked window', (await page.$$eval('#windows li.current .exe', els => els.map(e => e.textContent))).join() === 'firefox.exe');
     obs.setFromProperties('Window Capture', { window: 'Claude:Chrome_WidgetWin_1:claude.exe' });
     check('follows a change made in the source properties', await until(() =>
-        page.$eval('#showMeta', el => el.textContent === 'claude.exe · window · window not found')));
+        page.$eval('#showMeta', el => el.textContent === 'claude.exe · window · app not found')));
 
     // Action Cam is MIU's: shown by MIU, the picker must leave it shown
     obs.state.items.find(i => i.sourceName === 'Action Cam').sceneItemEnabled = true;
