@@ -11,8 +11,8 @@ import { ObsSocket, EVENTS } from '../shared/obs.js';
 import { createDebug } from '../shared/debug.js';
 import {
     buildWindowList, chooseMethod, captureSettings, visibilityChanges,
-    meanLuma, peakDb, meterZone, pushRecent, parseWindowValue,
-    mergeWindowLists, sameWindow, captureFailed, appAudioName, parseAppAudioName,
+    litFraction, peakDb, meterZone, pushRecent, parseWindowValue,
+    mergeWindowLists, sameWindow, windowCaptureTarget, captureFailed, appAudioName, parseAppAudioName,
     copyableFilters
 } from './picker.js';
 
@@ -173,7 +173,11 @@ async function readShowing() {
             const method = on(cfg.sources.hook) ? 'hook' : on(cfg.sources.window) ? 'window' : null;
             if (method) {
                 const { inputSettings } = await obs.call('GetInputSettings', { inputName: cfg.sources[method] });
-                showing = { method, value: inputSettings.window };
+                // A Store app's frame stands for its listed window
+                const listed = method === 'window' && windowItems.find(i =>
+                    i.itemValue !== inputSettings.window &&
+                    windowCaptureTarget(i.itemValue, cfg.windowPriority).value === inputSettings.window);
+                showing = { method, value: listed ? listed.itemValue : inputSettings.window };
             } else {
                 showing = null;
             }
@@ -303,8 +307,8 @@ async function screenshot(sourceName, width, format = 'jpg') {
     return imageData;
 }
 
-/** Mean luma of a small screenshot of one input, or null if it can't be read. */
-async function lumaOf(sourceName) {
+/** Lit share of a small screenshot of one input, or null if it can't be read. */
+async function litOf(sourceName) {
     try {
         const data = await screenshot(sourceName, 64, 'png');
         const img = new Image();
@@ -315,7 +319,7 @@ async function lumaOf(sourceName) {
         c.height = img.height;
         const ctx = c.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(img, 0, 0);
-        return meanLuma(ctx.getImageData(0, 0, c.width, c.height).data);
+        return litFraction(ctx.getImageData(0, 0, c.width, c.height).data, cfg.litLuma);
     } catch {
         return null;
     }
@@ -414,23 +418,23 @@ async function pick(win, forced) {
         // isn't switched and remembered for good (QA, #111). No picture at
         // all (null) counts: that's how a hook that never attached looks
         // (Defiant, 2026-10-30)
-        const failed = l => captureFailed(l, cfg.blackLuma);
+        const failed = l => captureFailed(l, cfg.minLit);
         await new Promise(r => setTimeout(r, cfg.blackCheckMs));
-        let luma = await lumaOf(cfg.sources[method]);
-        if (failed(luma)) {
+        let lit = await litOf(cfg.sources[method]);
+        if (failed(lit)) {
             note(`No picture from ${win.exe} yet, checking again…`);
             await new Promise(r => setTimeout(r, cfg.blackCheckMs));
-            luma = await lumaOf(cfg.sources[method]);
+            lit = await litOf(cfg.sources[method]);
         }
-        debug.mark('pick', { exe, method, forced: !!forced, luma });
+        debug.mark('pick', { exe, method, forced: !!forced, lit });
         const other = method === 'hook' ? 'window' : 'hook';
         const otherSees = other === 'hook' ? win.inHook : win.inWindow;
-        if (failed(luma) && !forced && otherSees) {
+        if (failed(lit) && !forced && otherSees) {
             await capture(other, win.value);
             await new Promise(r => setTimeout(r, cfg.blackCheckMs));
-            const luma2 = await lumaOf(cfg.sources[other]);
-            debug.mark('fallback', { exe, method: other, luma: luma2 });
-            if (!failed(luma2)) {
+            const lit2 = await litOf(cfg.sources[other]);
+            debug.mark('fallback', { exe, method: other, lit: lit2 });
+            if (!failed(lit2)) {
                 state.remembered[exe] = other;
                 saveState();
                 note(`The ${CAPTURE_NAME[method]} showed nothing for ${win.exe}, so it uses the ${CAPTURE_NAME[other]} now (remembered).`);
@@ -438,10 +442,10 @@ async function pick(win, forced) {
                 await restore(before);
                 note(`Neither capture shows ${win.exe}, so the picture stays as it was. Is it minimised? Restore it and pick it again.`);
             }
-        } else if (failed(luma) && !win.inWindow) {
+        } else if (failed(lit) && !win.inWindow) {
             await restore(before);
             note(`${win.exe} looks minimised (only the game hook lists it), so the picture stays as it was. Restore the window and pick it again.`);
-        } else if (failed(luma)) {
+        } else if (failed(lit)) {
             note(`${win.exe} shows nothing. If it's minimised or loading, bring it up; otherwise try the other mode (⇄).`);
         } else {
             note('');

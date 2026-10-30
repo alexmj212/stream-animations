@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
 import {
     parseWindowValue, buildWindowList, chooseMethod, captureSettings,
-    visibilityChanges, meanLuma, peakDb, meterZone, pushRecent,
+    visibilityChanges, litFraction, windowValue, windowCaptureTarget, peakDb, meterZone, pushRecent,
     captureFailed, appAudioName, parseAppAudioName, copyableFilters
 } from '../../src/gamepicker/picker.js';
 import { authString, ObsSocket } from '../../src/shared/obs.js';
@@ -60,9 +60,36 @@ describe('chooseMethod', () => {
 
 describe('captureFailed', () => {
     it('counts no picture (null) and black as failed', () => {
-        expect(captureFailed(null, 6)).toBe(true);
-        expect(captureFailed(2, 6)).toBe(true);
-        expect(captureFailed(40, 6)).toBe(false);
+        expect(captureFailed(null, 0.005)).toBe(true);
+        expect(captureFailed(0, 0.005)).toBe(true);
+        expect(captureFailed(0.3, 0.005)).toBe(false);
+    });
+    it('passes a dark picture with some lit detail (Realtek dark UI)', () => {
+        // 64x36, black but for a 4x3 block of white text
+        const px = new Array(64 * 36 * 4).fill(0);
+        for (let i = 0; i < 12; i++) px.fill(255, i * 4, i * 4 + 3);
+        const { litLuma, minLit } = config.gamePicker;
+        expect(captureFailed(litFraction(px, litLuma), minLit)).toBe(false);
+    });
+});
+
+describe('windowCaptureTarget', () => {
+    it('captures a Store app through its frame, matched by title', () => {
+        const value = 'Realtek Audio Console:Windows.UI.Core.CoreWindow:RtkUWP.exe';
+        expect(windowCaptureTarget(value, 2)).toEqual({
+            value: 'Realtek Audio Console:ApplicationFrameWindow:ApplicationFrameHost.exe', priority: 1
+        });
+        expect(captureSettings('window', value, 2).window).toBe('Realtek Audio Console:ApplicationFrameWindow:ApplicationFrameHost.exe');
+        expect(captureSettings('hook', value, 2).window).toBe(value);
+    });
+    it('leaves other windows alone', () => {
+        const value = 'Spotify Premium:Chrome_WidgetWin_1:Spotify.exe';
+        expect(windowCaptureTarget(value, 2)).toEqual({ value, priority: 2 });
+    });
+    it('windowValue escapes like OBS', () => {
+        const w = { title: 'OBS - Profile: #3', cls: 'Qt', exe: 'obs64.exe' };
+        expect(windowValue(w)).toBe('OBS - Profile#3A #223:Qt:obs64.exe');
+        expect(parseWindowValue(windowValue(w))).toEqual(w);
     });
 });
 
@@ -131,9 +158,10 @@ describe('visibilityChanges', () => {
 });
 
 describe('levels', () => {
-    it('meanLuma reads black and white', () => {
-        expect(meanLuma([0, 0, 0, 255, 0, 0, 0, 255])).toBe(0);
-        expect(meanLuma([255, 255, 255, 255])).toBeCloseTo(255);
+    it('litFraction counts the share of lit pixels', () => {
+        expect(litFraction([0, 0, 0, 255, 0, 0, 0, 255], 24)).toBe(0);
+        expect(litFraction([255, 255, 255, 255, 0, 0, 0, 255], 24)).toBe(0.5);
+        expect(litFraction([], 24)).toBe(0);
     });
     it('peakDb takes the loudest channel peak, floored', () => {
         expect(peakDb([[0.1, 0.5, 0.5], [0.1, 0.25, 0.25]])).toBeCloseTo(-6.02, 1);

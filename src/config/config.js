@@ -1434,10 +1434,11 @@ export const config = {
     // (mGBA puts the ROM and fps in it, Firefox the page) keeps the capture
     windowPriority: 2,
     // Windows that are never the game, hidden unless "show all" is on
-    // (not applicationframehost.exe: the window capture lists Store apps,
-    // such as Realtek Audio Console, under it; Defiant, 2026-10-30)
+    // (OBS lists a Store app under its own executable, not
+    // ApplicationFrameHost.exe; the dock captures its frame itself, see
+    // windowCaptureTarget; Defiant, 2026-10-30)
     ignoreExes: [
-      'obs64.exe', 'explorer.exe', 'textinputhost.exe',
+      'obs64.exe', 'explorer.exe', 'textinputhost.exe', 'applicationframehost.exe',
       'systemsettings.exe', 'mixitup.exe', 'streamdeck.exe', 'discord.exe',
       'nvidia overlay.exe', 'nvidia app.exe', 'steamwebhelper.exe', 'shellexperiencehost.exe',
       'searchhost.exe', 'startmenuexperiencehost.exe', 'lockapp.exe', 'code.exe',
@@ -1449,7 +1450,11 @@ export const config = {
     // window capture shows black for some exclusive-fullscreen games, and
     // the hook shows nothing for desktop apps
     blackCheckMs: 2500,
-    blackLuma: 6,                   // mean 0-255 luma under this counts as black
+    // Black means almost no lit pixel, not a dark average: a dark app or a
+    // night scene has lit text or detail, a failed capture has none
+    // (Defiant, 2026-10-30: Realtek's dark UI was called black)
+    litLuma: 24,                    // 0-255 luma at or over this is a lit pixel
+    minLit: 0.005,                  // under this share of lit pixels counts as black
     previewWidth: 320,              // px; screenshots only after a pick or a click, never on a timer
     recentMax: 8,                   // recent executables pinned to the top
     // Level meters, so a glance says whether game sound arrives. The dock

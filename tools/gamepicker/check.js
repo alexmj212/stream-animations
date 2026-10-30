@@ -11,6 +11,7 @@
  *     says it shows follows changes made in the source properties,
  *   - picking a game hooks it and hides every other capture (not Action Cam),
  *   - a browser goes straight to window capture,
+ *   - a Store app shows through its frame, and its dark UI isn't "black",
  *   - a hook that shows black falls back to window capture and remembers it,
  *   - the capture card button shows only the Game Capture scene,
  *   - an app's sound goes to Music or Game as an app capture with that
@@ -109,6 +110,17 @@ try {
     check('a browser goes to window capture', visible() === 'Window Capture'
         && obs.state.inputs['Window Capture'].settings.window.includes('firefox.exe'), visible());
 
+    // A Store app (Realtek): the list names its inner window, which shows
+    // nothing; the frame shows it, dark but real (Defiant, 2026-10-30)
+    await pickAndWait('RtkUWP.exe');
+    check('a Store app shows through its frame', visible() === 'Window Capture'
+        && obs.state.inputs['Window Capture'].settings.window === 'Realtek Audio Console:ApplicationFrameWindow:ApplicationFrameHost.exe'
+        && obs.state.inputs['Window Capture'].settings.priority === 1, `${visible()} ${obs.state.inputs['Window Capture'].settings.window}`);
+    check('and its dark picture counts as a picture', await noteText() === '', await noteText());
+    check('and the dock shows it as picked', (await page.$eval('#showing', el => el.textContent)) === 'Showing: RtkUWP.exe (window)'
+        && (await page.$$eval('#windows li.current .exe', els => els.map(e => e.textContent))).join() === '★ RtkUWP.exe',
+    await page.$eval('#showing', el => el.textContent));
+
     // Exclusive fullscreen: black through window capture, so the hook
     await pickAndWait('Balatro.exe');
     check('a game black in window capture falls back to the game hook', visible() === 'Game Capture 2'
@@ -118,7 +130,7 @@ try {
     check('remembers the hook for it', remembered['balatro.exe'] === 'hook', JSON.stringify(remembered));
     check('never stores the password', !(await page.evaluate(() => JSON.stringify(localStorage))).includes('pw'));
     const top = [...new Set(await page.$$eval('#windows .exe', els => els.map(e => e.textContent)))].slice(0, 3);
-    check('recents pinned on top, newest first', top.join('|') === '★ Balatro.exe|★ firefox.exe|★ Spotify.exe', top.join('|'));
+    check('recents pinned on top, newest first', top.join('|') === '★ Balatro.exe|★ RtkUWP.exe|★ firefox.exe', top.join('|'));
 
     // Telegram minimised: only the hook lists it, and the hook gives no
     // picture for a desktop app. Remembered as window, it must still go to

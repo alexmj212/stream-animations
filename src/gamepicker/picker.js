@@ -16,6 +16,34 @@ export function parseWindowValue(value) {
 }
 
 /**
+ * The stored form of a window, the inverse of parseWindowValue.
+ * @param {{title: string, cls: string, exe: string}} w
+ * @returns {string}
+ */
+export function windowValue({ title, cls, exe }) {
+    const encode = s => (s || '').replace(/#/g, '#22').replace(/:/g, '#3A');
+    return `${encode(title)}:${encode(cls)}:${encode(exe)}`;
+}
+
+/**
+ * What window capture should look for to show a listed window. A Store
+ * (UWP) app is listed by its inner CoreWindow, which OBS finds but can't
+ * capture; window capture shows it through the frame around it, which
+ * ApplicationFrameHost.exe owns and which has the same title (Defiant,
+ * 2026-10-30: Realtek Audio Console gave no picture until Window Capture
+ * pointed at its outer window). Every Store app shares that class and
+ * executable, so the frame is matched by title (WINDOW_PRIORITY_TITLE).
+ * @param {string} value - "title:class:exe" from the window list
+ * @param {number} priority - the usual match priority
+ * @returns {{value: string, priority: number}}
+ */
+export function windowCaptureTarget(value, priority) {
+    const w = parseWindowValue(value);
+    if (w.cls !== 'Windows.UI.Core.CoreWindow') return { value, priority };
+    return { value: windowValue({ title: w.title, cls: 'ApplicationFrameWindow', exe: 'ApplicationFrameHost.exe' }), priority: 1 };
+}
+
+/**
  * One list from both captures' own `window` lists. They differ: the game
  * capture leaves out browsers, Explorer, Discord and other apps it can't
  * hook (win-capture's blacklist), and each lists some windows the other
@@ -126,13 +154,33 @@ export function chooseMethod(exe, { remembered = {}, inHook = true, inWindow = t
 /**
  * Whether a capture check means the picture failed: OBS couldn't render a
  * screenshot (null: a hook that never attached, a hidden or minimised
- * window) or it came out black.
- * @param {number|null} luma - mean luma, or null when no screenshot
- * @param {number} blackLuma - under this counts as black
+ * window) or almost no pixel is lit. A failed capture is solid black; a
+ * dark app or a night scene still has some lit text or detail (Defiant,
+ * 2026-10-30: Realtek Audio Console's dark UI averaged under the old
+ * mean-luma bar and was called black).
+ * @param {number|null} lit - litFraction of the screenshot, or null when none
+ * @param {number} minLit - under this share of lit pixels counts as black
  * @returns {boolean}
  */
-export function captureFailed(luma, blackLuma) {
-    return luma === null || luma < blackLuma;
+export function captureFailed(lit, minLit) {
+    return lit === null || lit < minLit;
+}
+
+/**
+ * Share (0-1) of RGBA pixels with Rec. 601 luma at or over `minLuma`,
+ * alpha ignored.
+ * @param {Uint8ClampedArray|number[]} rgba
+ * @param {number} minLuma - 0-255
+ * @returns {number}
+ */
+export function litFraction(rgba, minLuma) {
+    const n = Math.floor(rgba.length / 4);
+    if (n === 0) return 0;
+    let lit = 0;
+    for (let i = 0; i < n * 4; i += 4) {
+        if (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2] >= minLuma) lit++;
+    }
+    return lit / n;
 }
 
 /**
@@ -186,7 +234,8 @@ export function captureSettings(method, value, priority) {
     if (method === 'hook') return { capture_mode: 'window', window: value, priority };
     // method 2: Windows 10 (1903 and up), the one that captures browsers
     // without a black picture (the existing Window Capture uses it)
-    return { window: value, priority, method: 2 };
+    const target = windowCaptureTarget(value, priority);
+    return { window: target.value, priority: target.priority, method: 2 };
 }
 
 /**
@@ -212,19 +261,6 @@ export function visibilityChanges(items, target, { sources = [], keep = [] } = {
         if (it.sceneItemEnabled !== enabled) changes.push({ sceneItemId: it.sceneItemId, sourceName: it.sourceName, enabled });
     }
     return changes;
-}
-
-/**
- * Mean Rec. 601 luma (0-255) of RGBA pixels, alpha ignored.
- * @param {Uint8ClampedArray|number[]} rgba
- * @returns {number}
- */
-export function meanLuma(rgba) {
-    const n = Math.floor(rgba.length / 4);
-    if (n === 0) return 0;
-    let sum = 0;
-    for (let i = 0; i < n * 4; i += 4) sum += 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
-    return sum / n;
 }
 
 /**
