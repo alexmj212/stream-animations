@@ -4,6 +4,14 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.10.0 - 2026-10-30
+
+- New Game Picker dock for OBS. It lists open windows and points the 16:9
+  Game capture at one in a single click, hiding the other captures there
+  (Action Cam is left alone). It falls back to window capture when a game
+  hooks black, and shows read-only audio meters. It's a Custom Browser Dock,
+  not a scene, so nothing on stream changes until AJ adds the dock. ([#111])
+
 ## v2.9.2 - 2026-10-30
 
 - The Spheal march song plays 12 dB quieter, so it stays out of the red on
@@ -213,3 +221,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#97]: https://github.com/alexmj212/stream-animations/pull/97
 [#102]: https://github.com/alexmj212/stream-animations/pull/102
 [#106]: https://github.com/alexmj212/stream-animations/pull/106
+[#111]: https://github.com/alexmj212/stream-animations/pull/111
