@@ -235,7 +235,7 @@ async function readRoutes() {
             routes.set(key, route);
         }
         // A hidden input is half made (or hidden by hand): it plays nothing,
-        // so the menu says off, and choosing again removes it
+        // so the menu says off; choosing Game or Music replaces it
         for (const route of routes.values()) if (!route.live) route.target = 'off';
         await setupMeters();
         renderList();
