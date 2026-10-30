@@ -134,6 +134,20 @@ change in the source properties.
   (not BG Music's fade filters). The app keeps playing to the speakers, so
   AJ still hears it. Meters show Local Game (A), Ext Capture (B), BG Music
   and every App Audio input. The dock never changes AJ's own sources.
+  - The copy is made once, when the input is created: a later change to
+    Local Game (A)'s or BG Music's fader, tracks or filters doesn't reach it.
+    Set the sound again to pick the change up.
+  - A Music app doesn't follow the music fades: when BG Music is faded
+    down, the app stays at its level.
+  - Level: the copied filters run before the copied fader, so with AJ's
+    sources as they are (Limiter at -7 dB, faders at -19.4 dB for Game and
+    -30 dB for Music) an app can't go over about -26 dBFS on Game or
+    -37 dBFS on Music, however loud it plays. If those filters or faders
+    change, an App Audio meter that goes red stays marked "went red" until
+    clicked: turn the app down.
+  - A game that already plays to CABLE-A reaches Local Game (A) by itself;
+    setting it to Game as well plays it twice. Use the menu for apps that
+    play to the speakers.
 
 **URL**: `gamepicker/index.html` (`password`, `obs`)
 

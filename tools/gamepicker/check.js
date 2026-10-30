@@ -16,6 +16,7 @@
  *   - the capture card button shows only the Game Capture scene,
  *   - an app's sound goes to Music or Game as an app capture with that
  *     source's tracks, volume and filters (no fade filters), and off again,
+ *   - an app meter that goes red stays flagged until clicked,
  *   - the meters move, and AJ's own audio sources are never changed.
  *
  * Usage: npm run gamepicker:check [-- --shot=dock.png]
@@ -190,7 +191,20 @@ try {
     };
     const inp = n => obs.state.inputs[n];
     const inScene = n => obs.state.audioScene.some(i => i.name === n);
+    // Made hidden, set up, then shown: a half-made input must never play,
+    // and one that fails partway is removed (Code review, #116)
+    obs.state.failOn = 'CreateSourceFilter';
     await route('firefox.exe', 'music');
+    check('a route that fails partway leaves nothing behind', !Object.keys(obs.state.inputs).some(n => n.startsWith('App Audio:'))
+        && !obs.state.audioScene.some(i => i.name.startsWith('App Audio:'))
+        && /Couldn't route/.test(await noteText()), `${JSON.stringify(obs.state.audioScene)} ${await noteText()}`);
+    check('and the menu says off', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'off'));
+    await route('firefox.exe', 'music');
+    const created = obs.state.log.filter(r => r.requestType === 'CreateInput').at(-1);
+    const shownAt = obs.state.log.findLastIndex(r => r.requestType === 'SetSceneItemEnabled' && r.requestData.sceneName === 'Audio');
+    const lastSetup = obs.state.log.findLastIndex(r => /^(SetInputAudioTracks|SetInputVolume|CreateSourceFilter)$/.test(r.requestType));
+    check('the app input is created hidden and shown only once set up', created?.requestData.sceneItemEnabled === false
+        && shownAt > lastSetup && obs.state.audioScene.find(i => i.name === 'App Audio: firefox.exe (Music)')?.enabled === true);
     const music = inp('App Audio: firefox.exe (Music)');
     check('Firefox to Music adds an app capture in the Audio scene', !!music && music.kind === 'wasapi_process_output_capture'
         && inScene('App Audio: firefox.exe (Music)') && music.settings.window.includes('firefox.exe')
@@ -201,6 +215,14 @@ try {
     check('and BG Music’s filters, without its fade (Move) filters', !!music
         && music.filters.map(f => f.filterKind).join() === 'limiter_filter', music?.filters.map(f => f.filterKind).join());
     check('its meter shows in the dock', await until(() => page.$$eval('#meters .name', els => els.some(e => e.textContent === 'firefox.exe (Music)'))));
+    const flagged = () => page.$$eval('#meters .meter.clipped', els => els.length);
+    check('an app meter in the green isn\u2019t flagged', !(await wait(300)) && await flagged() === 0);
+    obs.state.appPeak = 0.5;    // -6 dBFS: red
+    check('an app meter that goes red stays flagged', await until(async () => await flagged() === 1));
+    obs.state.appPeak = 0.05;
+    await wait(300);
+    check('until clicked', await flagged() === 1 && await page.$eval('#meters .meter.clipped', el => { el.click(); return true; })
+        && await flagged() === 0);
     check('the row shows where it goes', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'music'));
 
     await route('firefox.exe', 'game');

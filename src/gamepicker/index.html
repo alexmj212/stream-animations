@@ -71,6 +71,9 @@
       .meter .mute { visibility: hidden; color: var(--bad); font-weight: 600; }
       .meter.muted .mute { visibility: visible; }
       .meter.missing { opacity: 0.4; }
+      .meter.clipped { cursor: pointer; }
+      .meter.clipped .name { color: var(--red); font-weight: 600; }
+      .meter.clipped .name::after { content: " · went red"; }
       h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); margin: 10px 0 2px; }
     </style>
   </head>

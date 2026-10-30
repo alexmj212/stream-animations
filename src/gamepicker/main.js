@@ -126,6 +126,10 @@ function onEvent({ eventType, eventData }) {
             const pct = 100 * (db - cfg.meterFloorDb) / -cfg.meterFloorDb;
             m.bar.style.width = `${pct.toFixed(1)}%`;
             m.bar.dataset.zone = meterZone(db);
+            // An app's own volume is unknown, and AJ won't be watching the
+            // dock live: a peak in the red stays flagged until clicked
+            // (no clipping ever, docs/AUDIO.md; QA, #116)
+            if (m.app && m.bar.dataset.zone === 'red') m.row.classList.add('clipped');
         }
     } else if (eventType === 'InputMuteStateChanged') {
         const m = meterEls.get(eventData.inputName);
@@ -200,8 +204,13 @@ async function setupMeters() {
         row.innerHTML = '<span class="name"></span><span class="track"><span class="bar"></span></span><span class="mute">muted</span>';
         row.querySelector('.name').textContent = name.startsWith(acfg.prefix) ? name.slice(acfg.prefix.length) : name;
         row.title = name;
+        const app = name.startsWith(acfg.prefix);
+        if (app) {
+            row.title = `${name}: went red if flagged; turn the app down, then click to clear`;
+            row.addEventListener('click', () => row.classList.remove('clipped'));
+        }
         box.appendChild(row);
-        meterEls.set(name, { row, bar: row.querySelector('.bar') });
+        meterEls.set(name, { row, bar: row.querySelector('.bar'), app });
         obs.call('GetInputMute', { inputName: name })
             .then(({ inputMuted }) => row.classList.toggle('muted', inputMuted))
             .catch(() => row.classList.add('missing'));
@@ -216,14 +225,18 @@ async function readRoutes() {
     try {
         const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: acfg.scene });
         routes = new Map();
-        for (const { sourceName, sceneItemId } of sceneItems) {
+        for (const { sourceName, sceneItemId, sceneItemEnabled } of sceneItems) {
             const r = parseAppAudioName(sourceName, acfg.prefix, acfg.targets);
             if (!r) continue;
             const key = r.exe.toLowerCase();
-            const route = routes.get(key) || { ...r, inputName: sourceName, items: [] };
+            const route = routes.get(key) || { ...r, inputName: sourceName, items: [], live: false };
             route.items.push({ sceneItemId, inputName: sourceName });
+            route.live ||= sceneItemEnabled;
             routes.set(key, route);
         }
+        // A hidden input is half made (or hidden by hand): it plays nothing,
+        // so the menu says off, and choosing again removes it
+        for (const route of routes.values()) if (!route.live) route.target = 'off';
         await setupMeters();
         renderList();
     } catch (err) {
@@ -246,6 +259,27 @@ async function removeRoute(route) {
     if (left.length) throw new Error(`${left[0].sourceName} is still in ${acfg.scene}`);
 }
 
+/** Give an app's input the tracks, volume and filters of `template`. */
+async function copyFromTemplate(inputName, template) {
+    const [{ inputAudioTracks }, { inputVolumeMul }, { filters }] = await Promise.all([
+        obs.call('GetInputAudioTracks', { inputName: template }),
+        obs.call('GetInputVolume', { inputName: template }),
+        obs.call('GetSourceFilterList', { sourceName: template })
+    ]);
+    await obs.call('SetInputAudioTracks', { inputName, inputAudioTracks });
+    await obs.call('SetInputVolume', { inputName, inputVolumeMul });
+    // The app still plays to the speakers, so monitoring would double it
+    await obs.call('SetInputAudioMonitorType', { inputName, monitorType: 'OBS_MONITORING_TYPE_NONE' });
+    for (const f of copyableFilters(filters, acfg.skipFilterKinds)) {
+        await obs.call('CreateSourceFilter', {
+            sourceName: inputName, filterName: f.filterName, filterKind: f.filterKind, filterSettings: f.filterSettings
+        });
+        if (f.filterEnabled === false) {
+            await obs.call('SetSourceFilterEnabled', { sourceName: inputName, filterName: f.filterName, filterEnabled: false });
+        }
+    }
+}
+
 /**
  * Send an app's sound to a destination ('game', 'music') or take it off
  * stream ('off'). Replaces the app's App Audio input with one that copies
@@ -262,31 +296,24 @@ async function setRoute(win, target) {
         if (target !== 'off') {
             const t = acfg.targets[target];
             const inputName = appAudioName(acfg.prefix, win.exe, t.label);
-            await obs.call('CreateInput', {
+            // Hidden until it has the destination's tracks, volume and
+            // filters: a new input plays on every track (VOD too) at 0 dB
+            // with no limiter (Code review, #116)
+            const { sceneItemId } = await obs.call('CreateInput', {
                 sceneName: acfg.scene,
                 inputName,
                 inputKind: 'wasapi_process_output_capture',
                 inputSettings: { window: win.value, priority: cfg.windowPriority },
-                sceneItemEnabled: true
+                sceneItemEnabled: false
             });
-            const [{ inputAudioTracks }, { inputVolumeMul }, { filters }] = await Promise.all([
-                obs.call('GetInputAudioTracks', { inputName: t.template }),
-                obs.call('GetInputVolume', { inputName: t.template }),
-                obs.call('GetSourceFilterList', { sourceName: t.template })
-            ]);
-            await obs.call('SetInputAudioTracks', { inputName, inputAudioTracks });
-            await obs.call('SetInputVolume', { inputName, inputVolumeMul });
-            // The app still plays to the speakers, so monitoring would double it
-            await obs.call('SetInputAudioMonitorType', { inputName, monitorType: 'OBS_MONITORING_TYPE_NONE' });
-            for (const f of copyableFilters(filters, acfg.skipFilterKinds)) {
-                await obs.call('CreateSourceFilter', {
-                    sourceName: inputName, filterName: f.filterName, filterKind: f.filterKind, filterSettings: f.filterSettings
-                });
-                if (f.filterEnabled === false) {
-                    await obs.call('SetSourceFilterEnabled', { sourceName: inputName, filterName: f.filterName, filterEnabled: false });
-                }
+            try {
+                await copyFromTemplate(inputName, t.template);
+            } catch (err) {
+                await removeRoute({ items: [{ sceneItemId, inputName }] }).catch(() => {});
+                throw err;
             }
-            note(`${win.exe} sound now goes to ${t.label}${target === 'music' ? ' (stream only, not the VOD)' : ''}.`);
+            await obs.call('SetSceneItemEnabled', { sceneName: acfg.scene, sceneItemId, sceneItemEnabled: true });
+            note(`${win.exe} sound now goes to ${t.label}${target === 'music' ? ' (stream only, not the VOD; it doesn\'t follow the music fades)' : ' (if it already plays to CABLE-A, it\'s on twice now)'}. Turn the app down if its meter goes red.`);
         } else {
             note(`${win.exe} sound is off stream (you still hear it).`);
         }

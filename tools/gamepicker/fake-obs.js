@@ -119,6 +119,8 @@ export async function startFakeObs({
         ],
         audioScene: ['Mic', 'BG Music', 'Ext Capture (B)', 'Local Game (A)'].map((name, i) => ({ id: i + 1, name })),
         nextItemId: 10,
+        failOn: null,               // a request type that fails once, to test a half-done change
+        appPeak: 0.05,              // App Audio peak (multiplier) the meters report
         log: []
     };
     const lit = solidPng(16, 9, [70, 140, 220]);
@@ -140,12 +142,16 @@ export async function startFakeObs({
         }),
         GetSceneItemList: ({ sceneName }) => {
             if (sceneName === 'Audio') {
-                return { sceneItems: state.audioScene.map(({ id, name }) => ({ sceneItemId: id, sourceName: name, inputKind: state.inputs[name]?.kind, sceneItemEnabled: true })) };
+                return { sceneItems: state.audioScene.map(({ id, name, enabled = true }) => ({ sceneItemId: id, sourceName: name, inputKind: state.inputs[name]?.kind, sceneItemEnabled: enabled })) };
             }
             if (sceneName !== '16:9 Game') throw new Error('No source was found');
             return { sceneItems: state.items.map(i => ({ ...i })) };
         },
-        SetSceneItemEnabled: ({ sceneItemId, sceneItemEnabled }) => {
+        SetSceneItemEnabled: ({ sceneName, sceneItemId, sceneItemEnabled }) => {
+            if (sceneName === 'Audio') {
+                state.audioScene.find(i => i.id === sceneItemId).enabled = sceneItemEnabled;
+                return {};
+            }
             state.items.find(i => i.sceneItemId === sceneItemId).sceneItemEnabled = sceneItemEnabled;
             return {};
         },
@@ -164,7 +170,7 @@ export async function startFakeObs({
             inputs: Object.entries(state.inputs).filter(([, i]) => !inputKind || i.kind === inputKind)
                 .map(([inputName, i]) => ({ inputName, inputKind: i.kind }))
         }),
-        CreateInput: ({ sceneName, inputName, inputKind, inputSettings }) => {
+        CreateInput: ({ sceneName, inputName, inputKind, inputSettings, sceneItemEnabled = true }) => {
             if (sceneName !== 'Audio') throw new Error(`fake: unexpected scene ${sceneName}`);
             if (state.inputs[inputName]) throw new Error('A source already exists by that input name.');
             state.inputs[inputName] = {
@@ -172,7 +178,7 @@ export async function startFakeObs({
                 filters: [], monitor: 'OBS_MONITORING_TYPE_NONE', muted: false
             };
             const id = state.nextItemId++;
-            state.audioScene.push({ id, name: inputName });
+            state.audioScene.push({ id, name: inputName, enabled: sceneItemEnabled });
             broadcast('InputCreated', { inputName, inputKind });
             return { sceneItemId: id };
         },
@@ -250,14 +256,19 @@ export async function startFakeObs({
                     meters = setInterval(() => ws.send(JSON.stringify({ op: 5, d: { eventType: 'InputVolumeMeters', eventIntent: 1 << 16, eventData: { inputs: [
                         { inputName: 'Local Game (A)', inputLevelsMul: [[0.05, 0.18, 0.2], [0.05, 0.16, 0.2]] },
                         { inputName: 'Ext Capture (B)', inputLevelsMul: [[0, 0, 0], [0, 0, 0]] },
-                        { inputName: 'BG Music', inputLevelsMul: [[0.01, 0.04, 0.5], [0.01, 0.04, 0.5]] }
+                        { inputName: 'BG Music', inputLevelsMul: [[0.01, 0.04, 0.5], [0.01, 0.04, 0.5]] },
+                        ...Object.keys(state.inputs).filter(n => n.startsWith('App Audio: ')).map(inputName =>
+                            ({ inputName, inputLevelsMul: [[0, state.appPeak, 0], [0, state.appPeak, 0]] }))
                     ] } } })), 50);
                 }
             }
             if (op === 6) {
                 state.log.push({ requestType: d.requestType, requestData: d.requestData });
                 let status = { result: true, code: 100 }, data;
-                try { data = handlers[d.requestType](d.requestData || {}); } catch (e) { status = { result: false, code: 600, comment: e.message }; }
+                try {
+                    if (state.failOn === d.requestType) { state.failOn = null; throw new Error('fake: failed on purpose'); }
+                    data = handlers[d.requestType](d.requestData || {});
+                } catch (e) { status = { result: false, code: 600, comment: e.message }; }
                 ws.send(JSON.stringify({ op: 7, d: { requestType: d.requestType, requestId: d.requestId, requestStatus: status, responseData: data } }));
             }
         });
