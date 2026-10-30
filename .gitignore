@@ -26,4 +26,5 @@ tools/motion-results*/
 exports/
 tools/debug-results/
 tools/audio-results/
+tools/gpu-results/
 _site/
