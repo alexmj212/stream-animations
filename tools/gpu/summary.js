@@ -8,6 +8,9 @@
  * Usage:
  *   npm run gpu:summary -- tools/gpu-results/obs-gpu-2026-10-30.csv
  *   npm run gpu:summary -- idle.csv --from=22:50 --to=23:00
+ *
+ * --from/--to compare the local HH:MM only, so they can't select a stretch
+ * that crosses midnight; split such a file by date first.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

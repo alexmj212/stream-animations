@@ -49,6 +49,9 @@ while ((Get-Date) -lt $deadline) {
     foreach ($e in $engines) { $obs[$e] = 0.0; $all[$e] = 0.0 }
 
     $samples = (Get-Counter '\GPU Engine(*)\Utilization Percentage' -ErrorAction SilentlyContinue).CounterSamples
+    # The counters can fail for a moment while a GPU process starts or exits:
+    # skip the row rather than log zeros that drag the medians down
+    if (-not $samples) { Start-Sleep -Seconds $IntervalSec; continue }
     foreach ($s in $samples) {
         # Instance: pid_1234_luid_0x..._phys_0_eng_0_engtype_3D
         if ($s.InstanceName -notmatch '^pid_(\d+)_.*_engtype_(.+)$') { continue }

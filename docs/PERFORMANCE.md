@@ -49,8 +49,8 @@ OBS's own GPU use counts as much as any scene's frame time (AJ, 2026-10-30:
 ~30% GPU while idle). Measured idle on Defiant that day: video encode 23% and
 CUDA 13% from the always-on Replay Buffer and Aitum Vertical Backtrack, 3D 23%
 from drawing both canvases at 60 fps, browser pages about 4%. So look at the
-encoders and the canvases before the pages. Budget: OBS idle GPU under 10% on
-every engine when not live.
+encoders and the canvases before the pages. Target (not met as of
+2026-10-30): OBS idle GPU under 10% on every engine when not live.
 
 - `tools/gpu/obs-gpu-log.ps1` (on Defiant, read only) logs OBS's GPU use per
   engine every 5 s to `tools/gpu-results/obs-gpu-<date>.csv`, with the
