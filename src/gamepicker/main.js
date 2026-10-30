@@ -352,10 +352,14 @@ function renderList() {
     });
     const ul = $('windows');
     ul.textContent = '';
+    const exact = showing && list.some(w => w.value === showing.value);
     for (const w of list) {
         const method = chooseMethod(w.exe, { windowExes: cfg.windowExes, remembered: state.remembered, inHook: w.inHook, inWindow: w.inWindow });
         const li = document.createElement('li');
-        const current = showing && showing.method !== 'console' && sameWindow(showing.value, w.value);
+        // Exact value first; exe + class only when the title has changed, so
+        // two Firefox windows don't both light up (QA, #114)
+        const current = showing && showing.method !== 'console' &&
+            (exact ? w.value === showing.value : sameWindow(showing.value, w.value));
         li.className = current ? 'current' : '';
         const main = document.createElement('button');
         main.className = 'pick';

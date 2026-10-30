@@ -102,7 +102,7 @@ try {
     const remembered = await page.evaluate(() => JSON.parse(localStorage.getItem('gamePicker:v1')).remembered);
     check('remembers window capture for it', remembered['balatro.exe'] === 'window', JSON.stringify(remembered));
     check('never stores the password', !(await page.evaluate(() => JSON.stringify(localStorage))).includes('pw'));
-    const top = await page.$$eval('#windows .exe', els => els.slice(0, 3).map(e => e.textContent));
+    const top = [...new Set(await page.$$eval('#windows .exe', els => els.map(e => e.textContent)))].slice(0, 3);
     check('recents pinned on top, newest first', top.join('|') === '★ Balatro.exe|★ firefox.exe|★ mGBA.exe', top.join('|'));
 
     // Telegram is only in the hook's list: never sent to window capture,
@@ -131,6 +131,7 @@ try {
     await clickExe('firefox.exe');
     await wait(100);
     await settled();
+    check('highlights only the picked window', (await page.$$eval('#windows li.current .exe', els => els.map(e => e.textContent))).join() === '★ firefox.exe');
     obs.setFromProperties('Window Capture', { window: 'Claude:Chrome_WidgetWin_1:claude.exe' });
     check('follows a change made in the source properties', await until(() =>
         page.$eval('#showing', el => el.textContent.startsWith('Showing: claude.exe (window) - window not found'))));

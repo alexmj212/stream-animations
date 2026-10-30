@@ -50,6 +50,7 @@ export const WINDOWS = [
     'RACCOIN:UnityWndClass:RACCOIN.exe',
     'mGBA - Pokemon - FireRed Version (USA, Europe) (Rev 1) (60 fps) - 0.10.5:Qt51516QWindowIcon:mGBA.exe',
     'Sumoomoo - Twitch — Mozilla Firefox:MozillaWindowClass:firefox.exe',
+    'Account API tokens — Mozilla Firefox:MozillaWindowClass:firefox.exe',
     'Balatro:SDL_app:Balatro.exe',
     'OBS 31.1.2 - Profile#3A Stream:Qt663QWindowIcon:obs64.exe',
     'Mix It Up:HwndWrapper[MixItUp.exe]:MixItUp.exe',
