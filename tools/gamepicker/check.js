@@ -5,7 +5,10 @@
  * the dock in headless Chrome and checks that:
  *   - a wrong password shows the password box, the right one connects and
  *     is never stored (localStorage is shared across the Pages origin),
- *   - the list hides OBS / MIU / Explorer and pins recents,
+ *   - the list merges both captures' window lists (the hook's leaves out
+ *     browsers and Discord), hides OBS / MIU / Explorer and pins recents,
+ *   - a window only the hook can see goes to the hook, and what the dock
+ *     says it shows follows changes made in the source properties,
  *   - picking a game hooks it and hides every other capture (not Action Cam),
  *   - a browser goes straight to window capture,
  *   - a hook that shows black falls back to window capture and remembers it,
@@ -61,6 +64,8 @@ try {
     await until(() => page.$$eval('#windows .pick', els => els.length > 0));
     const exes = await page.$$eval('#windows .exe', els => els.map(e => e.textContent));
     check('hides OBS, MIU and Explorer', !exes.some(e => /obs64|MixItUp|explorer/.test(e)), exes.join(' '));
+    check('lists windows only the window capture sees (Firefox)', exes.includes('firefox.exe'), exes.join(' '));
+    check('lists windows only the hook sees (Telegram)', exes.includes('Telegram.exe'), exes.join(' '));
     check('shows what 16:9 Game shows now',
         (await page.$eval('#showing', el => el.textContent)) === 'Showing: RACCOIN.exe (game hook)');
 
@@ -100,12 +105,32 @@ try {
     const top = await page.$$eval('#windows .exe', els => els.slice(0, 3).map(e => e.textContent));
     check('recents pinned on top, newest first', top.join('|') === '★ Balatro.exe|★ firefox.exe|★ mGBA.exe', top.join('|'));
 
+    // Telegram is only in the hook's list: never sent to window capture,
+    // even with the black fallback, and the ⇄ window button is off
+    obs.state.inputs['Window Capture'].settings.window = 'x:y:none.exe';
+    await clickExe('Telegram.exe');
+    await wait(100);
+    await settled();
+    check('a hook-only window goes to the hook', visible() === 'Game Capture 2'
+        && obs.state.inputs['Game Capture 2'].settings.window.includes('Telegram.exe')
+        && obs.state.inputs['Window Capture'].settings.window === 'x:y:none.exe', visible());
+
+    // Changed by hand in the source properties: the dock follows OBS
+    await clickExe('firefox.exe');
+    await wait(100);
+    await settled();
+    obs.setFromProperties('Window Capture', { window: 'Claude:Chrome_WidgetWin_1:claude.exe' });
+    check('follows a change made in the source properties', await until(() =>
+        page.$eval('#showing', el => el.textContent.startsWith('Showing: claude.exe (window) - window not found'))));
+
     // Action Cam is MIU's: shown by MIU, the picker must leave it shown
     obs.state.items.find(i => i.sourceName === 'Action Cam').sceneItemEnabled = true;
     await page.click('#console');
     await wait(600);
     check('capture card shows only Game Capture (Action Cam left alone)',
         visible() === 'Action Cam,Game Capture', visible());
+    check('says so, without the window-not-found warning', await page.$eval('#showing',
+        el => el.textContent === 'Showing: console (capture card)' && !el.classList.contains('missing')));
 
     check('meters move', await until(() => page.$eval('#meters .bar', b => parseFloat(b.style.width) > 50)));
     const audio = obs.state.log.filter(r => /Volume|Mute$|SetInputMute|Audio|Monitor/.test(r.requestType) && r.requestType !== 'GetInputMute');

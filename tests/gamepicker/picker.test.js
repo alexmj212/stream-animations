@@ -160,3 +160,30 @@ describe('obs-websocket client', () => {
         await expect(obs.call('GetInputSettings', { inputName: 'nope' })).rejects.toThrow('No source');
     });
 });
+
+describe('both window lists (AJ, 2026-10-30)', () => {
+    const hook = [item('RACCOIN:UnityWndClass:RACCOIN.exe'), item('General - (11976):Qt:Telegram.exe')];
+    const win = [item('RACCOIN:UnityWndClass:RACCOIN.exe'), item('Twitch - Mozilla Firefox:MozillaWindowClass:firefox.exe')];
+
+    it('merges them and marks which capture sees each window', async () => {
+        const { mergeWindowLists } = await import('../../src/gamepicker/picker.js');
+        const merged = mergeWindowLists(hook, win);
+        const by = Object.fromEntries(merged.map(e => [parseWindowValue(e.itemValue).exe, [e.inHook, e.inWindow]]));
+        expect(by).toEqual({ 'RACCOIN.exe': [true, true], 'Telegram.exe': [true, false], 'firefox.exe': [false, true] });
+        const list = buildWindowList(merged, {});
+        expect(list.find(w => w.exe === 'Telegram.exe')).toMatchObject({ inHook: true, inWindow: false });
+    });
+
+    it('never picks a capture that cannot see the window', () => {
+        expect(chooseMethod('Telegram.exe', { inHook: true, inWindow: false, remembered: { 'telegram.exe': 'window' } })).toBe('hook');
+        expect(chooseMethod('firefox.exe', { inHook: false, inWindow: true, remembered: { 'firefox.exe': 'hook' } })).toBe('window');
+        expect(chooseMethod('RACCOIN.exe', { inHook: true, inWindow: true })).toBe('hook');
+    });
+
+    it('treats a changed title of the same exe and class as the same window', async () => {
+        const { sameWindow } = await import('../../src/gamepicker/picker.js');
+        expect(sameWindow('General - (11976):Qt:Telegram.exe', 'General - (11980):Qt:Telegram.exe')).toBe(true);
+        expect(sameWindow('A:Qt:Telegram.exe', 'A:Other:Telegram.exe')).toBe(false);
+        expect(sameWindow('A:Qt:a.exe', '')).toBe(false);
+    });
+});

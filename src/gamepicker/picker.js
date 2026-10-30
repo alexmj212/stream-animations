@@ -16,6 +16,48 @@ export function parseWindowValue(value) {
 }
 
 /**
+ * One list from both captures' own `window` lists. They differ: the game
+ * capture leaves out browsers, Explorer, Discord and other apps it can't
+ * hook (win-capture's blacklist), and each lists some windows the other
+ * doesn't (AJ, 2026-10-30: the dock showed 3 windows where OBS showed 9,
+ * and a Telegram window the window capture couldn't find). Each entry says
+ * which capture can see it.
+ *
+ * @param {Array<{itemValue: string, itemEnabled?: boolean}>} hookItems
+ * @param {Array<{itemValue: string, itemEnabled?: boolean}>} windowItems
+ * @returns {Array<{itemValue: string, inHook: boolean, inWindow: boolean}>}
+ */
+export function mergeWindowLists(hookItems, windowItems) {
+    const byValue = new Map();
+    const add = (items, flag) => {
+        for (const item of items || []) {
+            if (!item.itemValue || item.itemEnabled === false) continue;
+            const e = byValue.get(item.itemValue) || { itemValue: item.itemValue, inHook: false, inWindow: false };
+            e[flag] = true;
+            byValue.set(item.itemValue, e);
+        }
+    };
+    add(hookItems, 'inHook');
+    add(windowItems, 'inWindow');
+    return [...byValue.values()];
+}
+
+/**
+ * Whether two stored windows are the same window: the same value, or the
+ * same executable and class (a title like Telegram's "General - (11976)"
+ * changes with the unread count; OBS's executable match finds it anyway).
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+export function sameWindow(a, b) {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const x = parseWindowValue(a), y = parseWindowValue(b);
+    return !!x.exe && x.exe.toLowerCase() === y.exe.toLowerCase() && x.cls === y.cls;
+}
+
+/**
  * The window list to show, from GetInputPropertiesListPropertyItems on the
  * `window` property. Recent executables first (most recent on top), then
  * the rest by executable and title. Ignored executables are dropped unless
@@ -43,7 +85,10 @@ export function buildWindowList(items, { ignoreExes = [], recents = [], showAll 
         if (!exe) continue;
         if (!showAll && ignore.has(exe)) continue;
         if (q && !w.title.toLowerCase().includes(q) && !exe.includes(q)) continue;
-        list.push({ value, ...w, recent: recents.includes(exe) });
+        list.push({
+            value, ...w, recent: recents.includes(exe),
+            inHook: item.inHook ?? true, inWindow: item.inWindow ?? true
+        });
     }
     const rank = w => {
         const i = recents.indexOf(w.exe.toLowerCase());
@@ -56,15 +101,20 @@ export function buildWindowList(items, { ignoreExes = [], recents = [], showAll 
 }
 
 /**
- * Which capture shows this executable: 'window' for browsers and anything
- * the hook showed black before, else 'hook' (game capture).
+ * Which capture shows this window: a capture that can't see the window is
+ * never picked; then a remembered per-exe choice; then 'window' for
+ * browsers, else 'hook' (game capture).
  * @param {string} exe
  * @param {Object} opts
  * @param {string[]} [opts.windowExes] - always window capture
  * @param {Object<string, 'hook'|'window'>} [opts.remembered] - per-exe choice
+ * @param {boolean} [opts.inHook] - the game capture lists this window
+ * @param {boolean} [opts.inWindow] - the window capture lists this window
  * @returns {'hook'|'window'}
  */
-export function chooseMethod(exe, { windowExes = [], remembered = {} } = {}) {
+export function chooseMethod(exe, { windowExes = [], remembered = {}, inHook = true, inWindow = true } = {}) {
+    if (!inHook && inWindow) return 'window';
+    if (!inWindow && inHook) return 'hook';
     const key = String(exe || '').toLowerCase();
     if (remembered[key] === 'hook' || remembered[key] === 'window') return remembered[key];
     return windowExes.map(e => e.toLowerCase()).includes(key) ? 'window' : 'hook';

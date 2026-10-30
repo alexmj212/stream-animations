@@ -10,7 +10,8 @@ import { ObsSocket, EVENTS } from '../shared/obs.js';
 import { createDebug } from '../shared/debug.js';
 import {
     buildWindowList, chooseMethod, captureSettings, visibilityChanges,
-    meanLuma, peakDb, meterZone, pushRecent, parseWindowValue
+    meanLuma, peakDb, meterZone, pushRecent, parseWindowValue,
+    mergeWindowLists, sameWindow
 } from './picker.js';
 
 const cfg = config.gamePicker;
@@ -53,7 +54,7 @@ function obsUrl() {
 }
 
 let obs = null;
-let windowItems = [];
+let windowItems = [];        // both captures' lists, merged (mergeWindowLists)
 let showing = null;          // { method, value } or { method: 'console' }
 let busy = false;
 const meterEls = new Map();  // inputName -> { bar, label, row }
@@ -127,6 +128,10 @@ function onEvent({ eventType, eventData }) {
         if (m) m.row.classList.toggle('muted', eventData.inputMuted);
     } else if (eventType === 'SceneItemEnableStateChanged' && eventData.sceneName === cfg.scene) {
         readShowing();
+    } else if (eventType === 'InputSettingsChanged' && Object.values(cfg.sources).includes(eventData.inputName)) {
+        // Changed in the source properties: show what OBS has, not what the
+        // dock last set (AJ, 2026-10-30: they disagreed)
+        readShowing();
     }
 }
 
@@ -134,10 +139,11 @@ function onEvent({ eventType, eventData }) {
 
 async function refreshWindows() {
     try {
-        const { propertyItems } = await obs.call('GetInputPropertiesListPropertyItems', {
-            inputName: cfg.sources.hook, propertyName: 'window'
-        });
-        windowItems = propertyItems;
+        const list = name => obs.call('GetInputPropertiesListPropertyItems', { inputName: name, propertyName: 'window' })
+            .then(r => r.propertyItems);
+        const [hookItems, winItems] = await Promise.all([list(cfg.sources.hook), list(cfg.sources.window)]);
+        windowItems = mergeWindowLists(hookItems, winItems);
+        renderShowing();
         renderList();
     } catch (err) {
         note(`Couldn't list windows: ${err.message}`);
@@ -255,7 +261,7 @@ async function pick(win, forced) {
     busy = true;
     document.body.classList.add('busy');
     const exe = win.exe.toLowerCase();
-    const method = forced || chooseMethod(exe, { windowExes: cfg.windowExes, remembered: state.remembered });
+    const method = forced || chooseMethod(exe, { windowExes: cfg.windowExes, remembered: state.remembered, inHook: win.inHook, inWindow: win.inWindow });
     try {
         note(`Capturing ${win.exe}…`);
         await capture(method, win.value);
@@ -276,7 +282,7 @@ async function pick(win, forced) {
             luma = await lumaOf(cfg.sources[method]);
         }
         debug.mark('pick', { exe, method, forced: !!forced, luma });
-        if (isBlack(luma) && method === 'hook' && !forced) {
+        if (isBlack(luma) && method === 'hook' && !forced && win.inWindow) {
             note(`The game hook showed black for ${win.exe}, so it switched to window capture (remembered).`);
             await capture('window', win.value);
             state.remembered[exe] = 'window';
@@ -284,10 +290,11 @@ async function pick(win, forced) {
             renderShowing();
             renderList();
         } else if (isBlack(luma)) {
-            note(`${win.exe} looks black. If it isn't a loading screen, try the other mode (⇄).`);
+            note(`${win.exe} looks black. If it's minimised or on a loading screen, bring it up; otherwise try the other mode (⇄).`);
         } else {
             note('');
         }
+        await readShowing();
         await showPreview();
     } catch (err) {
         note(`Couldn't capture ${win.exe}: ${err.message}`);
@@ -318,6 +325,7 @@ const METHOD_LABEL = { hook: 'game hook', window: 'window', console: 'capture ca
 
 function renderShowing() {
     const el = $('showing');
+    el.classList.remove('missing');
     if (!showing) {
         el.textContent = 'Nothing is showing in 16:9 Game';
         return;
@@ -327,7 +335,10 @@ function renderShowing() {
         return;
     }
     const w = parseWindowValue(showing.value);
-    el.textContent = `Showing: ${w.exe || '?'} (${METHOD_LABEL[showing.method]})`;
+    const flag = showing.method === 'hook' ? 'inHook' : 'inWindow';
+    const open = windowItems.some(i => i[flag] && sameWindow(i.itemValue, showing.value));
+    el.textContent = `Showing: ${w.exe || '?'} (${METHOD_LABEL[showing.method]})${open || !windowItems.length ? '' : ' - window not found'}`;
+    el.classList.toggle('missing', !open && windowItems.length > 0);
     el.title = w.title;
 }
 
@@ -341,9 +352,9 @@ function renderList() {
     const ul = $('windows');
     ul.textContent = '';
     for (const w of list) {
-        const method = chooseMethod(w.exe, { windowExes: cfg.windowExes, remembered: state.remembered });
+        const method = chooseMethod(w.exe, { windowExes: cfg.windowExes, remembered: state.remembered, inHook: w.inHook, inWindow: w.inWindow });
         const li = document.createElement('li');
-        const current = showing && showing.value === w.value && showing.method !== 'console';
+        const current = showing && showing.method !== 'console' && sameWindow(showing.value, w.value);
         li.className = current ? 'current' : '';
         const main = document.createElement('button');
         main.className = 'pick';
@@ -353,10 +364,14 @@ function renderList() {
         main.title = `Capture with ${METHOD_LABEL[method]}`;
         main.addEventListener('click', () => pick(w));
         const other = method === 'hook' ? 'window' : 'hook';
+        const canSwap = other === 'hook' ? w.inHook : w.inWindow;
         const swap = document.createElement('button');
+        swap.disabled = !canSwap;
         swap.className = 'swap';
         swap.textContent = `⇄ ${METHOD_LABEL[other]}`;
-        swap.title = `Capture with ${METHOD_LABEL[other]} instead, and remember it for ${w.exe}`;
+        swap.title = canSwap
+            ? `Capture with ${METHOD_LABEL[other]} instead, and remember it for ${w.exe}`
+            : `The ${METHOD_LABEL[other]} can't see this window`;
         swap.addEventListener('click', () => pick(w, other));
         li.append(main, swap);
         ul.appendChild(li);
