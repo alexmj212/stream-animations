@@ -4,6 +4,14 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.10.1 - 2026-10-30
+
+- The Game Picker dock lists every window OBS lists, from both the game
+  capture and the window capture, and sends each window only to a capture
+  that can see it. It shows what 16:9 Game really has, including changes
+  made in the source properties, and flags a stored window that isn't open.
+  Reload the dock to pick it up. ([#114])
+
 ## v2.10.0 - 2026-10-30
 
 - New Game Picker dock for OBS. It lists open windows and points the 16:9
@@ -222,3 +230,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#102]: https://github.com/alexmj212/stream-animations/pull/102
 [#106]: https://github.com/alexmj212/stream-animations/pull/106
 [#111]: https://github.com/alexmj212/stream-animations/pull/111
+[#114]: https://github.com/alexmj212/stream-animations/pull/114
