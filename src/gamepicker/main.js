@@ -115,7 +115,7 @@ async function connect() {
 async function start() {
     try {
         const { slotValue } = await obs.call('GetPersistentData', { realm: REALM, slotName: cfg.setupSlot });
-        setup = readSetup(slotValue);
+        setup = readSetup(slotValue, acfg.defaultFaderMaxDb);
     } catch (err) {
         note(`Couldn't read the setup: ${err.message}`);
     }
@@ -142,6 +142,17 @@ document.addEventListener('visibilitychange', () => {
     if (obs?.ready) obs.resubscribe(EVENTS.ALL | meterBit());
     if (document.visibilityState === 'visible' && obs?.ready) refreshWindows();
 });
+
+// OBS doesn't announce windows opening or closing, so the dock asks: on a
+// timer while it's on screen, and as the pointer arrives. A refresh costs
+// about 1 ms with no effect on OBS's frame times (Defiant, 2026-10-30).
+// Skipped mid-pick, and while a Sound menu is open
+function autoRefresh() {
+    const menuOpen = document.activeElement?.matches?.('select.audio');
+    if (obs?.ready && !busy && !menuOpen && document.visibilityState === 'visible') refreshWindows();
+}
+setInterval(autoRefresh, cfg.refreshMs);
+document.addEventListener('pointerenter', autoRefresh);
 
 function onEvent({ eventType, eventData }) {
     if (eventType === 'InputVolumeMeters') {
@@ -187,7 +198,10 @@ async function refreshWindows() {
             ? obs.call('GetInputPropertiesListPropertyItems', { inputName: name, propertyName: 'window' }).then(r => r.propertyItems)
             : []);
         const [hookItems, winItems] = await Promise.all([list(setup.hook), list(setup.window)]);
-        windowItems = mergeWindowLists(hookItems, winItems);
+        const next = mergeWindowLists(hookItems, winItems);
+        // Redraw only on a change, so rows never jump under the pointer
+        if (JSON.stringify(next) === JSON.stringify(windowItems)) return;
+        windowItems = next;
         renderShowing();
         renderList();
     } catch (err) {
@@ -499,7 +513,7 @@ async function readRoutes() {
             routes.set(key, route);
         }
         // A hidden input is half made (or hidden by hand): it plays nothing,
-        // so the menu says off; choosing Game or Music replaces it
+        // so the menu says off; choosing a channel replaces it
         memberOf.clear();
         for (const route of routes.values()) {
             if (route.live) memberOf.set(route.inputName, route.target);
@@ -528,18 +542,24 @@ async function removeRoute(route) {
 }
 
 /**
- * Give an app's input its channel's tracks (or the copied source's, or
- * OBS's defaults) and the copied source's filters. Volume and mute come
- * from the channel (applyMix).
+ * Give an app's input its channel's tracks and filters: the channel's own
+ * tracks, else those of the source it copies, else those of an app already
+ * in it, else OBS's defaults; filters from the copied source, else from an
+ * app already in it. Copying a member keeps a channel whole when its
+ * settings weren't saved (an older dock's Game and Music, or one adopted
+ * from an input name): the next app matches the ones there instead of
+ * landing on every track with no limiter (Code review, #120). Volume and
+ * mute come from the channel (applyMix).
  */
 async function setUpInput(inputName, c) {
     // The app still plays to its own device, so monitoring would double it
     await obs.call('SetInputAudioMonitorType', { inputName, monitorType: 'OBS_MONITORING_TYPE_NONE' });
     let inputAudioTracks = c.tracks ? tracksObject(c.tracks) : null;
-    if (c.copyFrom) {
+    const like = c.copyFrom || members(c.id).find(r => r.inputName !== inputName)?.inputName;
+    if (like) {
         const [{ inputAudioTracks: copied }, { filters }] = await Promise.all([
-            obs.call('GetInputAudioTracks', { inputName: c.copyFrom }),
-            obs.call('GetSourceFilterList', { sourceName: c.copyFrom })
+            obs.call('GetInputAudioTracks', { inputName: like }),
+            obs.call('GetSourceFilterList', { sourceName: like })
         ]);
         inputAudioTracks ??= copied;
         for (const f of copyableFilters(filters, acfg.skipFilterKinds)) {
@@ -912,12 +932,17 @@ async function openSetup() {
         // OBS lists scenes bottom first
         setupScenes = await Promise.all([...scenes].reverse().map(async ({ sceneName }) => ({
             sceneName,
-            items: (await obs.call('GetSceneItemList', { sceneName })).sceneItems
+            items: await Promise.all((await obs.call('GetSceneItemList', { sceneName })).sceneItems.map(async (i) => {
+                // A capture pointed at a window beats an empty duplicate
+                if (i.inputKind !== 'window_capture' && i.inputKind !== 'game_capture') return i;
+                const { inputSettings } = await obs.call('GetInputSettings', { inputName: i.sourceName }).catch(() => ({ inputSettings: {} }));
+                return { ...i, hasWindow: !!inputSettings.window };
+            }))
         })));
     } catch (err) {
         $('setupError').textContent = `Couldn't read your scenes: ${err.message}`;
     }
-    const s = setup || guessSetup(setupScenes);
+    const s = setup || guessSetup(setupScenes, acfg.defaultFaderMaxDb);
     const names = setupScenes.map(sc => sc.sceneName);
     fill($('setScene'), names.map(n => [n, n]), s.scene);
     fill($('setAudioScene'), names.map(n => [n, n]), s.audioScene || s.scene);
@@ -972,7 +997,7 @@ $('setup').addEventListener('submit', async (e) => {
         sound: $('setSound').checked,
         audioScene: $('setAudioScene').value,
         faderMaxDb: Number($('setMaxDb').value)
-    });
+    }, acfg.defaultFaderMaxDb);
     if (!next) {
         $('setupError').textContent = 'Pick a scene with a window capture or a game capture (add one in OBS first).';
         return;

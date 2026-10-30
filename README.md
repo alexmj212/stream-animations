@@ -124,20 +124,26 @@ sources, and needs no virtual cables or extra Windows audio devices.
   or game capture; you confirm the scene, its window capture and/or game
   capture, any other sources to pin as one-click buttons (a capture card, a
   camera), whether to also hide the scene's other captures, whether the dock
-  handles app sound, the scene app sound goes in (one that's live whenever
-  the game is), and the fader max. It's saved in OBS (obs-websocket
-  persistent data, per profile) and changes nothing until you save.
+  handles app sound, the scene app sound goes in (it guesses the scene
+  nested in the most others, one that's live whenever the game is), and the
+  fader max (-12 dB to start: a full-scale app with no limiter stays out of
+  the red). It's saved in OBS (obs-websocket persistent data, per profile)
+  and changes nothing until you save.
 - **Picture**: windows are listed by title, the app under it, recent ones
   first (OBS and Explorer hidden unless "all"). Window capture is the
   default and shows any app. If it shows a game black (exclusive
   fullscreen), the dock switches to the game hook; if the hook gives no
   picture, back to window capture. Either way it remembers the choice. A
-  window only the hook lists is probably minimised; the dock says so.
+  window only the hook lists is probably minimised; the dock says so. The
+  list re-reads itself every 5 s while the dock is on screen and as the
+  pointer arrives (OBS has no event for a window opening).
 - **Sound**: each window has a menu that puts the app's sound in a channel,
-  or takes it off stream. A new dock has one plain channel, "Stream". "+ New"
-  makes more: a name, the OBS tracks it plays on, and optionally an audio
-  source to copy filters and a starting fader from (say, a music source so
-  its channel stays off the VOD track). Each app in a channel is an
+  or takes it off stream. A new dock offers Game and Music (plain, removable
+  with ✕), and "+ New" makes more: a name, the OBS tracks it plays on, and
+  optionally an audio source to copy filters and a starting fader from (say,
+  a music source so its channel stays off the VOD track). An app joining a
+  channel that already has apps copies their tracks and filters unless the
+  channel says otherwise, so channels from an older dock stay whole. Each app in a channel is an
   Application Audio Capture ("App Audio: firefox.exe (Browser)") in the
   setup's audio scene; the app keeps playing to its usual device, so you
   still hear it. The dock never changes your own sources.

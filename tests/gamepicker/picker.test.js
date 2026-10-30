@@ -4,7 +4,7 @@ import {
     parseWindowValue, buildWindowList, chooseMethod, captureSettings,
     visibilityChanges, litFraction, windowValue, windowCaptureTarget, peakDb, meterZone, pushRecent,
     captureFailed, appAudioName, parseAppAudioName, copyableFilters,
-    channelList, newChannel, faderMul, readSetup, guessSetup, tracksObject, cleanTracks, activity, DEFAULT_CHANNEL
+    channelList, newChannel, faderMul, readSetup, guessSetup, tracksObject, cleanTracks, activity, DEFAULT_CHANNELS
 } from '../../src/gamepicker/picker.js';
 import { authString, ObsSocket } from '../../src/shared/obs.js';
 import { config } from '../../src/config/config.js';
@@ -130,14 +130,34 @@ describe('setup', () => {
             { sourceName: 'Browser', inputKind: 'window_capture' }
         ] }
     ];
-    it('guesses the scene with captures and its first of each', () => {
-        expect(guessSetup(scenes)).toMatchObject({ scene: 'Gameplay', window: 'Browser', hook: 'Game', audioScene: 'Gameplay', pinned: [], faderMaxDb: 0, sound: true });
+    it('guesses the scene with captures and its captures', () => {
+        expect(guessSetup(scenes)).toMatchObject({ scene: 'Gameplay', window: 'Browser', hook: 'Game', audioScene: 'Gameplay', pinned: [], hideOthers: false, sound: true });
         expect(guessSetup([scenes[0]])).toMatchObject({ scene: null, window: null, hook: null });
+    });
+    it('starts the fader max out of the red with no limiter (QA, #120)', () => {
+        expect(guessSetup(scenes).faderMaxDb).toBe(-12);
+        expect(readSetup({ scene: 'G', window: 'W' }).faderMaxDb).toBe(-12);
+        expect(config.gamePicker.audio.defaultFaderMaxDb).toBeLessThanOrEqual(-9);
+    });
+    it('guesses AJ\'s OBS as it is: the capture in use, the nested audio scene, duplicates hidden', () => {
+        // Defiant's order (Archive_1.json): the hidden empty duplicate comes first
+        const aj = [
+            { sceneName: '16:9 Game', items: [
+                { sourceName: 'Window Capture 2', inputKind: 'window_capture', sceneItemEnabled: false, hasWindow: false },
+                { sourceName: 'Game Capture 2', inputKind: 'game_capture', sceneItemEnabled: true, hasWindow: true },
+                { sourceName: 'Window Capture', inputKind: 'window_capture', sceneItemEnabled: false, hasWindow: true },
+                { sourceName: 'mGBA', inputKind: 'window_capture', sceneItemEnabled: false, hasWindow: true }
+            ] },
+            { sceneName: 'Audio', items: [{ sourceName: 'BG Music', inputKind: 'wasapi_output_capture' }] },
+            { sceneName: 'Full 16:9', items: [{ sourceName: '16:9 Game' }, { sourceName: 'Audio' }] },
+            { sceneName: 'Starting', items: [{ sourceName: 'Audio' }] }
+        ];
+        expect(guessSetup(aj)).toMatchObject({ scene: '16:9 Game', window: 'Window Capture', hook: 'Game Capture 2', audioScene: 'Audio', hideOthers: true });
     });
     it('needs a scene and at least one capture', () => {
         expect(readSetup(null)).toBeNull();
         expect(readSetup({ scene: 'Gameplay' })).toBeNull();
-        expect(readSetup({ scene: 'Gameplay', hook: 'Game' })).toMatchObject({ window: null, hook: 'Game', audioScene: 'Gameplay', faderMaxDb: 0, sound: true });
+        expect(readSetup({ scene: 'Gameplay', hook: 'Game' })).toMatchObject({ window: null, hook: 'Game', audioScene: 'Gameplay', faderMaxDb: -12, sound: true });
     });
     it('keeps pinned sources apart from the captures and the fader max at or under 0 dB', () => {
         const s = readSetup({ scene: 'G', window: 'W', pinned: ['Cam', 'W', '', 3], faderMaxDb: 6, sound: false, hideOthers: true });
@@ -285,9 +305,10 @@ describe('both window lists (AJ, 2026-10-30)', () => {
 });
 
 describe('channels', () => {
-    it('starts with one plain channel, then only saved ones', () => {
-        expect(channelList(null)).toEqual([{ ...DEFAULT_CHANNEL, volumeMul: null, muted: false }]);
-        expect(channelList({}).map(c => c.id)).toEqual(['stream']);   // what OBS returns for an emptied slot
+    it('offers Game and Music until changed, then only saved ones', () => {
+        expect(channelList(null).map(c => c.id)).toEqual(['game', 'music']);
+        expect(channelList(null)[0]).toEqual({ ...DEFAULT_CHANNELS[0], volumeMul: null, muted: false });
+        expect(channelList({}).map(c => c.id)).toEqual(['game', 'music']);   // what OBS returns for an emptied slot
         expect(channelList({ channels: [] })).toEqual([]);
         const list = channelList({
             channels: [{ id: 'ch-browser', label: 'Browser', tracks: [2, 1, 9], copyFrom: 'Desktop Audio' }, { id: 'bad' }, { id: 'ch-b2', label: 'Browser' }],
@@ -295,16 +316,17 @@ describe('channels', () => {
         });
         expect(list).toEqual([{ id: 'ch-browser', label: 'Browser', tracks: [1, 2], copyFrom: 'Desktop Audio', volumeMul: 0.1, muted: true }]);
     });
-    it('reads an older dock\'s channels as plain ones', () => {
-        expect(channelList({ custom: [{ id: 'ch-x', label: 'X', like: 'game' }] })).toEqual([
-            { id: 'ch-x', label: 'X', tracks: null, copyFrom: null, volumeMul: null, muted: false }
-        ]);
+    it('reads an older dock\'s channels as Game, Music and its own, keeping faders', () => {
+        const list = channelList({ custom: [{ id: 'ch-x', label: 'X', like: 'game' }], mix: { music: { volumeMul: 0.03 } } });
+        expect(list.map(c => c.id)).toEqual(['game', 'music', 'ch-x']);
+        expect(list[1].volumeMul).toBe(0.03);
+        expect(list[2]).toEqual({ id: 'ch-x', label: 'X', tracks: null, copyFrom: null, volumeMul: null, muted: false });
     });
     it('makes a new channel with a safe label and a unique id', () => {
         const existing = channelList(null);
         expect(newChannel('  Chat (apps) ', existing, { tracks: [3, 1], copyFrom: 'Mic' }).channel)
             .toEqual({ id: 'ch-chat-apps', label: 'Chat apps', tracks: [1, 3], copyFrom: 'Mic' });
-        expect(newChannel('stream', existing).error).toMatch(/already/);
+        expect(newChannel('music', existing).error).toMatch(/already/);
         expect(newChannel('', existing).error).toMatch(/name/);
         expect(newChannel('X', existing, { tracks: [] }).error).toMatch(/track/);
         const made = newChannel('Browser', existing).channel;

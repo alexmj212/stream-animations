@@ -266,10 +266,11 @@ export function visibilityChanges(items, target, { sources = [], hideOthers = fa
  * checked. Nothing about any one streamer's OBS is built in (AJ,
  * 2026-10-30: "assume someone is coming in with an entire different setup").
  * @param {*} raw
+ * @param {number} [defaultMaxDb] - fader max when none is saved
  * @returns {{scene: string, window: string|null, hook: string|null, pinned: string[], hideOthers: boolean, sound: boolean, audioScene: string, faderMaxDb: number}|null}
  *   null until a scene and at least one capture are set
  */
-export function readSetup(raw) {
+export function readSetup(raw, defaultMaxDb = -12) {
     const s = raw && typeof raw === 'object' ? raw : {};
     const str = v => (typeof v === 'string' && v ? v : null);
     const scene = str(s.scene);
@@ -282,30 +283,52 @@ export function readSetup(raw) {
         hideOthers: s.hideOthers === true,
         sound: s.sound !== false,
         audioScene: str(s.audioScene) || scene,
-        faderMaxDb: Number.isFinite(s.faderMaxDb) ? Math.min(0, s.faderMaxDb) : 0
+        faderMaxDb: Number.isFinite(s.faderMaxDb) ? Math.min(0, s.faderMaxDb) : defaultMaxDb
     };
 }
 
 /**
- * A first guess at the setup from the scenes in OBS: the scene with the most
- * window and game captures, its first of each, app sound in that scene.
- * @param {Array<{sceneName: string, items: Array<{sourceName: string, inputKind?: string|null}>}>} scenes
+ * A first guess at the setup from the scenes in OBS, so a streamer mostly
+ * checks and saves (QA, #120: it should be right for AJ's OBS as it is):
+ *   - the scene with the most window and game captures;
+ *   - of each kind, a shown one, else one pointed at a window, else the
+ *     first (a hidden duplicate with no window is the last pick);
+ *   - other captures hidden too when the scene has more than those two;
+ *   - app sound in the scene nested in the most other scenes (one live
+ *     whenever any of them is), else the capture scene.
+ * @param {Array<{sceneName: string, items: Array<{sourceName: string, inputKind?: string|null, sceneItemEnabled?: boolean, hasWindow?: boolean}>}>} scenes
+ * @param {number} [faderMaxDb]
  * @returns {{scene: string|null, window: string|null, hook: string|null, pinned: string[], hideOthers: boolean, sound: boolean, audioScene: string|null, faderMaxDb: number}}
  */
-export function guessSetup(scenes) {
-    const count = sc => sc.items.filter(i => i.inputKind === 'window_capture' || i.inputKind === 'game_capture').length;
+export function guessSetup(scenes, faderMaxDb = -12) {
+    const isCapture = i => i.inputKind === 'window_capture' || i.inputKind === 'game_capture';
+    const count = sc => sc.items.filter(isCapture).length;
     let best = null;
     for (const sc of scenes || []) if (count(sc) > 0 && (!best || count(sc) > count(best))) best = sc;
-    const first = kind => best?.items.find(i => i.inputKind === kind)?.sourceName || null;
+    const score = i => (i.sceneItemEnabled ? 2 : 0) + (i.hasWindow ? 1 : 0);
+    const first = (kind) => {
+        let pick = null;
+        for (const i of best?.items || []) if (i.inputKind === kind && (!pick || score(i) > score(pick))) pick = i;
+        return pick?.sourceName || null;
+    };
+    const window = first('window_capture');
+    const hook = first('game_capture');
+    const names = new Set((scenes || []).map(sc => sc.sceneName));
+    const nestedIn = new Map();
+    for (const sc of scenes || []) {
+        for (const i of sc.items) if (names.has(i.sourceName) && i.sourceName !== sc.sceneName) nestedIn.set(i.sourceName, (nestedIn.get(i.sourceName) || 0) + 1);
+    }
+    let audioScene = best?.sceneName || null;
+    let most = 0;
+    for (const [name, n] of nestedIn) if (n > most) [audioScene, most] = [name, n];
     return {
         scene: best?.sceneName || null,
-        window: first('window_capture'),
-        hook: first('game_capture'),
+        window, hook,
         pinned: [],
-        hideOthers: false,
+        hideOthers: best ? count(best) > [window, hook].filter(Boolean).length : false,
         sound: true,
-        audioScene: best?.sceneName || null,
-        faderMaxDb: 0
+        audioScene,
+        faderMaxDb
     };
 }
 
@@ -349,8 +372,16 @@ export function pushRecent(recents, exe, max) {
     return [key, ...recents.filter(e => e !== key)].slice(0, max);
 }
 
-/** The one channel a new dock starts with: apps on stream or off. */
-export const DEFAULT_CHANNEL = Object.freeze({ id: 'stream', label: 'Stream', tracks: null, copyFrom: null });
+/**
+ * The channels a new dock offers until the streamer changes them: Game and
+ * Music, both plain and removable (AJ, 2026-10-30: "music + game as the
+ * offered defaults but if they want another, they should be able to make
+ * it"). The ids match the older dock's built-ins, so saved faders carry over.
+ */
+export const DEFAULT_CHANNELS = Object.freeze([
+    Object.freeze({ id: 'game', label: 'Game', tracks: null, copyFrom: null }),
+    Object.freeze({ id: 'music', label: 'Music', tracks: null, copyFrom: null })
+]);
 
 /**
  * Tracks as OBS track numbers 1-6, sorted, or null for OBS's defaults.
@@ -367,17 +398,17 @@ export function cleanTracks(tracks) {
  * The audio channels, with their saved fader and mute. A channel is the set
  * of App Audio inputs whose name ends in its label, so several apps share
  * it; OBS has no audio bus, so the dock keeps each member's volume, mute,
- * tracks and filters in step. Nothing saved yet means one plain channel:
- * not everyone splits sound (AJ, 2026-10-30), and none needs extra Windows
- * audio devices.
+ * tracks and filters in step. Nothing saved yet means the offered Game and
+ * Music; none needs extra Windows audio devices.
  * @param {*} saved - persistent data: {channels: [{id, label, tracks, copyFrom}], mix: {id: {volumeMul, muted}}};
- *   an older {custom: [{id, label}]} is read as plain channels
+ *   an older dock's {custom: [{id, label}]} is read as Game, Music and those
  * @returns {Array<{id: string, label: string, tracks: number[]|null, copyFrom: string|null, volumeMul: number|null, muted: boolean}>}
  */
 export function channelList(saved) {
     const s = saved && typeof saved === 'object' ? saved : {};
     const mix = s.mix && typeof s.mix === 'object' ? s.mix : {};
-    const raw = Array.isArray(s.channels) ? s.channels : Array.isArray(s.custom) ? s.custom : [DEFAULT_CHANNEL];
+    const raw = Array.isArray(s.channels) ? s.channels
+        : Array.isArray(s.custom) ? [...DEFAULT_CHANNELS, ...s.custom] : DEFAULT_CHANNELS;
     const list = [];
     for (const c of raw) {
         if (!c || typeof c.id !== 'string' || typeof c.label !== 'string' || !c.label) continue;

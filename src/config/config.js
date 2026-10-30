@@ -1450,6 +1450,10 @@ export const config = {
     minLit: 0.005,                  // under this share of lit pixels counts as black
     previewWidth: 320,              // px; screenshots only after a pick or a click, never on a timer
     recentMax: 8,                   // recent executables pinned to the top
+    // Window lists re-read this often while the dock is on screen (and as
+    // the pointer arrives): OBS has no window open/close event, and a read
+    // costs about 1 ms (Defiant, 2026-10-30)
+    refreshMs: 5000,
     // Per-app sound (AJ, 2026-10-30): the dock adds an Application Audio
     // Capture of the app to the setup's audio scene, in a channel. No
     // virtual cables or extra Windows audio devices: the app keeps playing
@@ -1464,7 +1468,11 @@ export const config = {
       // persistent data (per OBS profile), so they follow OBS, not this browser
       dataSlot: 'gamePicker.channels',
       // A channel shows "live" once its apps peak over this
-      quietDb: -50
+      quietDb: -50,
+      // Channel fader max until setup says otherwise: a full-scale app with
+      // no limiter then peaks at -12 dBFS, under the -9 red line (no
+      // clipping ever, docs/AUDIO.md; QA, #120). Setup can lower or raise it
+      defaultFaderMaxDb: -12
     },
     meterFloorDb: -60,
     storageKey: 'gamePicker:v1'

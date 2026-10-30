@@ -142,11 +142,14 @@ export async function startFakeObs({
                 .map(v => ({ itemName: `[${exeOf(v)}]: ${v.split(':')[0]}`, itemValue: v, itemEnabled: true }))
         }),
         // OBS lists scenes bottom first
-        GetSceneList: () => ({ scenes: [{ sceneName: 'Audio', sceneIndex: 0 }, { sceneName: '16:9 Game', sceneIndex: 1 }] }),
+        // Audio is nested in the other scenes, as on Defiant
+        GetSceneList: () => ({ scenes: ['Audio', '16:9 Game', 'Full 16:9', 'Starting'].map((sceneName, sceneIndex) => ({ sceneName, sceneIndex })) }),
         GetSceneItemList: ({ sceneName }) => {
             if (sceneName === 'Audio') {
                 return { sceneItems: state.audioScene.map(({ id, name, enabled = true }) => ({ sceneItemId: id, sourceName: name, inputKind: state.inputs[name]?.kind, sceneItemEnabled: enabled })) };
             }
+            if (sceneName === 'Full 16:9') return { sceneItems: [{ sceneItemId: 1, sourceName: '16:9 Game', inputKind: null, sceneItemEnabled: true }, { sceneItemId: 2, sourceName: 'Audio', inputKind: null, sceneItemEnabled: true }] };
+            if (sceneName === 'Starting') return { sceneItems: [{ sceneItemId: 1, sourceName: 'Audio', inputKind: null, sceneItemEnabled: true }] };
             if (sceneName !== '16:9 Game') throw new Error('No source was found');
             return { sceneItems: state.items.map(i => ({ ...i })) };
         },

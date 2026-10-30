@@ -29,7 +29,7 @@
  * Usage: npm run gamepicker:check [-- --shot=dock.png] [-- --shots=dir]
  */
 import { startServer, launchBrowser } from '../lib/browser.js';
-import { startFakeObs } from './fake-obs.js';
+import { startFakeObs, WINDOWS } from './fake-obs.js';
 
 const shot = process.argv.find(a => a.startsWith('--shot='))?.slice(7);
 const shotDir = process.argv.find(a => a.startsWith('--shots='))?.slice(8);
@@ -77,19 +77,18 @@ try {
     // someone is coming in with an entire different setup")
     check('a first run opens setup', await until(() => page.$eval('#setup', el => !el.hidden)));
     if (shotDir) await page.screenshot({ path: `${shotDir}/dock-setup.png` });
-    check('and guesses the scene with the captures', await page.$eval('#setScene', s => s.value === '16:9 Game')
-        && await page.$eval('#setHook', s => s.value === 'Game Capture 2'));
+    // AJ "checks, then saves": the guess should be AJ's OBS as it is (QA, #120)
+    const guess = await page.evaluate(() => ['setScene', 'setWindow', 'setHook', 'setAudioScene', 'setMaxDb']
+        .map(id => document.getElementById(id).value).join('|') + `|${document.getElementById('setHideOthers').checked}`);
+    check('guesses the scene, the captures in use, the nested audio scene and -12 dB',
+        guess === '16:9 Game|Window Capture|Game Capture 2|Audio|-12|true', guess);
     const html = await page.evaluate(() => document.documentElement.innerHTML.replace(/<select[\s\S]*?<\/select>|<div id="setPinned">[\s\S]*?<\/div>/g, ''));
     check('no names from any one OBS in the page', !/Local Game|BG Music|Ext Capture|16:9 Game|Console/.test(html));
-    await page.select('#setWindow', 'Window Capture');
     await page.$$eval('#setPinned input', els => els.forEach(e => { e.checked = e.value === 'Game Capture'; }));
-    await page.$eval('#setHideOthers', e => { e.checked = true; });
-    await page.select('#setAudioScene', 'Audio');
-    await page.$eval('#setMaxDb', e => { e.value = '-12'; });
     await page.click('#setup .save');
     check('saves the setup in OBS', await until(() => obs.state.persistent['gamePicker.setup']?.window === 'Window Capture')
         && await until(() => page.$eval('#setup', el => el.hidden)), JSON.stringify(obs.state.persistent['gamePicker.setup']));
-    check('starts with one plain channel', await until(() => page.$$eval('#channels .chan b', els => els.map(e => e.textContent).join() === 'Stream')));
+    check('offers Game and Music to start', await until(() => page.$$eval('#channels .chan b', els => els.map(e => e.textContent).join() === 'Game,Music')));
 
     await until(() => page.$$eval('#windows .pick', els => els.length > 0));
     const exes = await page.$$eval('#windows .exe', els => els.map(e => e.textContent.split(' · ')[0]));
@@ -213,8 +212,9 @@ try {
         el => el.textContent === 'Showing: Game Capture' && !el.classList.contains('missing')));
 
     // Channels made in the dock (AJ, 2026-10-30): a name, tracks, and
-    // optionally a source to copy. Here AJ's two: Game copies Local Game (A),
-    // Music copies BG Music (off the VOD track). Then the plain default goes
+    // optionally a source to copy. The offered plain Game and Music go, then
+    // AJ's two: Game copies Local Game (A), Music copies BG Music (off the
+    // VOD track)
     const makeChannel = async (name, copyFrom) => {
         if (await page.$eval('#newChannel', f => f.hidden)) await page.click('#newToggle');
         await until(() => page.$$eval('#channelCopy option', os => os.length > 1));
@@ -229,12 +229,15 @@ try {
     const copyOpts = await page.$$eval('#channelCopy option', os => os.map(o => o.value));
     check('the copy menu lists audio sources, not captures', copyOpts.includes('BG Music') && copyOpts.includes('Mic')
         && !copyOpts.includes('Window Capture'), copyOpts.join());
+    for (let i = 0; i < 2; i++) {
+        await page.$eval('#channels .chan .del', b => b.click());
+        await settled();
+    }
+    check('the offered channels can be removed', await until(() => page.$$eval('#channels .chan', els => els.length === 0)));
     await makeChannel('Game', 'Local Game (A)');
     await makeChannel('Music', 'BG Music');
-    await page.$$eval('#channels .chan', rows => rows.find(r => r.querySelector('b').textContent === 'Stream').querySelector('.del').click());
-    await settled();
     const chanNames = () => page.$$eval('#channels .chan b', els => els.map(e => e.textContent).join());
-    check('channels made and the default removed', await until(async () => await chanNames() === 'Game,Music'), await chanNames());
+    check('channels made', await until(async () => await chanNames() === 'Game,Music'), await chanNames());
     check('a copied channel takes its source\u2019s tracks', JSON.stringify(obs.state.persistent['gamePicker.channels']?.channels
         .find(c => c.label === 'Music')?.tracks) === '[1,4,5,6]', JSON.stringify(obs.state.persistent['gamePicker.channels']));
 
@@ -356,9 +359,37 @@ try {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
     });
+    // A window opened after the list was read shows up by itself (OBS has
+    // no event for it; the dock re-reads every refreshMs while on screen)
+    WINDOWS.push('notes.txt - Notepad:Notepad:notepad.exe');
+    check('a newly opened window shows up without a click', await until(() =>
+        page.$$eval('#windows .exe', els => els.some(e => e.textContent === 'notepad.exe')), 8000));
+    WINDOWS.pop();
+
+    // An older dock's saved channels ({custom}, built-in Game and Music) with
+    // an app already in Music: the next app sent there matches it, not OBS's
+    // defaults (every track, VOD too, no limiter) (Code review, #120)
+    obs.state.persistent['gamePicker.channels'] = { custom: [], mix: {} };
+    obs.state.inputs['App Audio: Spotify.exe (Music)'] = {
+        kind: 'wasapi_process_output_capture', settings: { window: 'Spotify Premium:Chrome_WidgetWin_1:Spotify.exe' }, volume: 0.03,
+        tracks: { ...inp('BG Music').tracks }, filters: inp('BG Music').filters.filter(f => f.filterKind === 'limiter_filter').map(f => ({ ...f })),
+        monitor: 'OBS_MONITORING_TYPE_NONE', muted: false
+    };
+    obs.state.audioScene.push({ id: obs.state.nextItemId++, name: 'App Audio: Spotify.exe (Music)', enabled: true });
+    await reopen({});
+    check('an older dock\u2019s Game and Music are there, with its app', await chanNames() === 'Game,Music'
+        && await (await rowOf('Spotify.exe')).$eval('select.audio', s => s.value === 'music'), await chanNames());
+    await route('firefox.exe', 'music');
+    const migrated = inp('App Audio: firefox.exe (Music)');
+    check('and the next app in it copies the app already there (tracks off the VOD, its limiter)', !!migrated
+        && JSON.stringify(migrated.tracks) === JSON.stringify(inp('BG Music').tracks)
+        && migrated.filters.map(f => f.filterKind).join() === 'limiter_filter', JSON.stringify(migrated?.tracks));
+    await route('firefox.exe', 'off');
+    await route('Spotify.exe', 'off');
+
     // A lived-in dock for the pictures: a game showing, an app in Music
     await pickAndWait('mGBA.exe');
-    await route('firefox.exe', 'ch-music');
+    await route('firefox.exe', 'music');
     obs.state.appPeak = 0.08;
     for (const size of [
         { name: 'tall', width: 340, height: 860 },
