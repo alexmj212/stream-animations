@@ -136,7 +136,7 @@ change in the source properties.
   filters of Local Game (A) or BG Music (not BG Music's fade filters). The
   app keeps playing to the speakers, so AJ still hears it. The dock never
   changes AJ's own sources.
-  - Each channel has one fader, a mute and a meter (its loudest app) in the
+  - Each channel has one fader, a mute and a meter (its apps added up) in the
     dock. They move every app in it. OBS has no audio bus, so OBS's own
     mixer still shows one row per app: use the dock's fader. A new channel
     starts at its template source's fader. Channels and their faders are
@@ -147,9 +147,12 @@ change in the source properties.
   - A Music-like channel doesn't follow the music fades: when BG Music is
     faded down, its apps stay at their level.
   - Level: the copied Limiter (-7 dB) runs before the fader, and the
-    channel fader stops at -12 dB, so an app can't go over -19 dBFS however
-    loud it plays (measured on Defiant: -26 dBFS at Game's -19.4 dB fader).
-    A channel meter that goes red stays marked "went red" until clicked.
+    channel fader stops at -12 dB, so each app can't go over -19 dBFS
+    however loud it plays (measured on Defiant: -26 dBFS at Game's -19.4 dB
+    fader). Apps in one channel add up: two loud ones together reach about
+    -13 dBFS, more can reach the red. A channel meter adds up its apps'
+    peaks (the worst case of the mix), and one that goes red stays marked
+    "went red" until clicked.
   - A game that already plays to CABLE-A reaches Local Game (A) by itself;
     putting it in a Game-like channel as well plays it twice. Use the menu
     for apps that play to the speakers.

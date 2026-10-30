@@ -127,16 +127,18 @@ document.addEventListener('visibilitychange', () => {
 
 function onEvent({ eventType, eventData }) {
     if (eventType === 'InputVolumeMeters') {
-        const loudest = new Map();   // channel id -> loudest member, dB
+        // A channel's apps mix together on stream, so its meter adds their
+        // peaks: the worst case of the mix, not the loudest app (Code
+        // review, #118: two loud apps reach about -13 dBFS)
+        const mix = new Map();   // channel id -> summed peak multiplier
         for (const input of eventData.inputs) {
-            const db = peakDb(input.inputLevelsMul, cfg.meterFloorDb);
             const ch = memberOf.get(input.inputName);
-            if (ch) loudest.set(ch, Math.max(loudest.get(ch) ?? cfg.meterFloorDb, db));
+            if (ch) mix.set(ch, (mix.get(ch) || 0) + Math.max(0, ...(input.inputLevelsMul || []).map(c => c?.[1] || 0)));
             const m = meterEls.get(input.inputName);
-            if (m) showLevel(m, db);
+            if (m) showLevel(m, peakDb(input.inputLevelsMul, cfg.meterFloorDb));
         }
         for (const [id, m] of channelEls) {
-            showLevel(m, loudest.get(id) ?? cfg.meterFloorDb);
+            showLevel(m, peakDb([[0, mix.get(id) || 0]], cfg.meterFloorDb));
             // AJ won't be watching the dock live: a channel peak in the red
             // stays flagged until clicked (no clipping ever, docs/AUDIO.md;
             // QA, #116)
@@ -293,7 +295,7 @@ function renderChannels() {
         fader.max = String(acfg.channelMaxDb);
         fader.step = '0.5';
         fader.value = String(toDb(channelMul(c)));
-        fader.title = `${c.label} volume (at most ${acfg.channelMaxDb} dB, so it can't go red)`;
+        fader.title = `${c.label} volume. At most ${acfg.channelMaxDb} dB: each app then peaks at -19 dBFS at worst, but several loud apps together add up`;
         const db = document.createElement('span');
         db.className = 'db';
         const showDb = () => { db.textContent = `${Number(fader.value).toFixed(1)} dB`; };
@@ -326,7 +328,10 @@ function renderChannels() {
 
 /** Move a channel's fader or mute: every app in it, then remember it. */
 async function setChannelMix(id, change) {
-    if (busy || !obs?.ready) return;
+    if (busy || !obs?.ready) {
+        renderChannels();   // put the fader back where OBS has it
+        return;
+    }
     busy = true;
     document.body.classList.add('busy');
     try {

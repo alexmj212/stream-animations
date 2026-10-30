@@ -252,6 +252,12 @@ try {
     check('two apps share the channel, each copying Local Game (A)', !!ff && !!sp && ff.tracks['2'] === true
         && sp.filters.map(f => f.filterKind).join() === 'gain_filter,limiter_filter'
         && await page.$$eval('#channels .apps', els => els[2]?.textContent === '2 apps'));
+    // Each app is yellow (-14 dBFS) but the two together could reach -8: red
+    obs.state.appPeak = 0.2;
+    check('a channel meter adds its apps up, so two yellow apps flag red',
+        await until(async () => (await page.$$eval('#channels .meter', els => els[2]?.classList.contains('clipped')))));
+    obs.state.appPeak = 0.05;
+    await page.$$eval('#channels .meter', els => els[2].click());
     const fader = async (i, db) => {
         await page.$$eval('#channels .controls input[type=range]', (els, [i, db]) => {
             els[i].value = String(db);
