@@ -1434,8 +1434,10 @@ export const config = {
     // (mGBA puts the ROM and fps in it, Firefox the page) keeps the capture
     windowPriority: 2,
     // Windows that are never the game, hidden unless "show all" is on
+    // (not applicationframehost.exe: the window capture lists Store apps,
+    // such as Realtek Audio Console, under it; Defiant, 2026-10-30)
     ignoreExes: [
-      'obs64.exe', 'explorer.exe', 'textinputhost.exe', 'applicationframehost.exe',
+      'obs64.exe', 'explorer.exe', 'textinputhost.exe',
       'systemsettings.exe', 'mixitup.exe', 'streamdeck.exe', 'discord.exe',
       'nvidia overlay.exe', 'nvidia app.exe', 'steamwebhelper.exe', 'shellexperiencehost.exe',
       'searchhost.exe', 'startmenuexperiencehost.exe', 'lockapp.exe', 'code.exe',

@@ -127,13 +127,26 @@ try {
     // hook (a stale choice): the hook gives no picture at all (null), which
     // must count as failed and fall back to window capture
     await reopen({ 'telegram.exe': 'window', 'spotify.exe': 'hook' });
-    check('marks a hook-only window as minimised', (await (await rowOf('Telegram.exe')).$eval('.title', e => e.textContent)).endsWith('minimised?'));
+    check('marks a hook-only window as minimised', (await (await rowOf('Telegram.exe')).$eval('.title', e => e.textContent)).includes('minimised?'));
+    const visibleBefore = visible();
     const windowBefore = obs.state.inputs['Window Capture'].settings.window;
+    const hookBefore = obs.state.inputs['Game Capture 2'].settings.window;
     await pickAndWait('Telegram.exe');
-    check('a hook-only window goes to the hook', visible() === 'Game Capture 2'
-        && obs.state.inputs['Game Capture 2'].settings.window.includes('Telegram.exe')
-        && obs.state.inputs['Window Capture'].settings.window === windowBefore, visible());
+    const tried = obs.state.log.some(r => r.requestType === 'SetInputSettings' && r.requestData.inputName === 'Game Capture 2'
+        && String(r.requestData.inputSettings.window).includes('Telegram.exe'));
+    check('a hook-only window is tried on the hook (never window capture)', tried
+        && !obs.state.log.some(r => r.requestType === 'SetInputSettings' && r.requestData.inputName === 'Window Capture'
+            && String(r.requestData.inputSettings.window).includes('Telegram.exe')));
+    check('and when it shows nothing, the picture stays as it was (Defiant: it went black)',
+        visible() === visibleBefore && obs.state.inputs['Game Capture 2'].settings.window === hookBefore
+        && obs.state.inputs['Window Capture'].settings.window === windowBefore, `${visible()} vs ${visibleBefore}`);
     check('and asks to restore it', /looks minimised/.test(await noteText()), await noteText());
+
+    // Restored, then picked once: the dock re-lists first, so one click works
+    obs.restore('Telegram.exe');
+    await pickAndWait('Telegram.exe');
+    check('a window restored a moment ago works on the first click', visible() === 'Window Capture'
+        && obs.state.inputs['Window Capture'].settings.window.includes('Telegram.exe'), `${visible()} ${await noteText()}`);
 
     await pickAndWait('Spotify.exe');
     check('no picture from the hook (null) falls back to window capture', visible() === 'Window Capture'
@@ -164,10 +177,11 @@ try {
         await settled();
     };
     const inp = n => obs.state.inputs[n];
+    const inScene = n => obs.state.audioScene.some(i => i.name === n);
     await route('firefox.exe', 'music');
     const music = inp('App Audio: firefox.exe (Music)');
     check('Firefox to Music adds an app capture in the Audio scene', !!music && music.kind === 'wasapi_process_output_capture'
-        && obs.state.audioScene.includes('App Audio: firefox.exe (Music)') && music.settings.window.includes('firefox.exe')
+        && inScene('App Audio: firefox.exe (Music)') && music.settings.window.includes('firefox.exe')
         && music.settings.priority === 2, JSON.stringify(music?.settings));
     check('with BG Music’s tracks (off the VOD track 2), volume and no monitoring', !!music
         && JSON.stringify(music.tracks) === JSON.stringify(inp('BG Music').tracks) && music.tracks['2'] === false
@@ -180,12 +194,13 @@ try {
     await route('firefox.exe', 'game');
     const game = inp('App Audio: firefox.exe (Game)');
     check('switching to Game replaces it, with Local Game (A)’s tracks, volume and filters',
-        !inp('App Audio: firefox.exe (Music)') && !!game && game.tracks['2'] === true
+        !inp('App Audio: firefox.exe (Music)') && !inScene('App Audio: firefox.exe (Music)') && !!game && game.tracks['2'] === true
         && game.volume === inp('Local Game (A)').volume && game.filters.map(f => f.filterKind).join() === 'gain_filter,limiter_filter');
 
     await route('firefox.exe', 'off');
     check('off stream removes it', !Object.keys(obs.state.inputs).some(n => n.startsWith('App Audio:'))
-        && !obs.state.audioScene.some(n => n.startsWith('App Audio:')));
+        && !obs.state.audioScene.some(i => i.name.startsWith('App Audio:')), JSON.stringify(obs.state.audioScene));
+    check('and the dock says so', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'off'));
 
     check('meters move', await until(() => page.$eval('#meters .bar', b => parseFloat(b.style.width) > 50)));
     const own = ['Mic', 'Local Game (A)', 'Ext Capture (B)', 'BG Music'];

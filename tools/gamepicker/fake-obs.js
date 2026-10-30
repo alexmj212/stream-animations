@@ -60,7 +60,9 @@ export const WINDOWS = [
     '#fat-content | G-word Girlies - Discord:Chrome_WidgetWin_1:Discord.exe'
 ];
 const HOOK_SKIPS = /firefox|explorer|discord/i;
-const WINDOW_SKIPS = /telegram/i;
+// Minimised windows (Telegram here) list only in the hook; restore() moves
+// one into the window capture's list too
+const minimised = new Set(['Telegram.exe']);
 
 /**
  * @param {Object} opts
@@ -105,7 +107,8 @@ export async function startFakeObs({
             { sceneItemId: 10, sourceName: 'mGBA', inputKind: 'window_capture', sceneItemEnabled: false },
             { sceneItemId: 1, sourceName: 'Game Capture', inputKind: null, sceneItemEnabled: false }
         ],
-        audioScene: ['Mic', 'BG Music', 'Ext Capture (B)', 'Local Game (A)'],
+        audioScene: ['Mic', 'BG Music', 'Ext Capture (B)', 'Local Game (A)'].map((name, i) => ({ id: i + 1, name })),
+        nextItemId: 10,
         log: []
     };
     const lit = solidPng(16, 9, [70, 140, 220]);
@@ -119,10 +122,13 @@ export async function startFakeObs({
     const handlers = {
         GetInputPropertiesListPropertyItems: ({ inputName }) => ({
             propertyItems: WINDOWS
-                .filter(v => !(input(inputName).kind === 'game_capture' ? HOOK_SKIPS : WINDOW_SKIPS).test(exeOf(v)))
+                .filter(v => input(inputName).kind === 'game_capture' ? !HOOK_SKIPS.test(exeOf(v)) : !minimised.has(exeOf(v)))
                 .map(v => ({ itemName: `[${exeOf(v)}]: ${v.split(':')[0]}`, itemValue: v, itemEnabled: true }))
         }),
         GetSceneItemList: ({ sceneName }) => {
+            if (sceneName === 'Audio') {
+                return { sceneItems: state.audioScene.map(({ id, name }) => ({ sceneItemId: id, sourceName: name, inputKind: state.inputs[name]?.kind, sceneItemEnabled: true })) };
+            }
             if (sceneName !== '16:9 Game') throw new Error('No source was found');
             return { sceneItems: state.items.map(i => ({ ...i })) };
         },
@@ -152,15 +158,24 @@ export async function startFakeObs({
                 kind: inputKind, settings: { ...inputSettings }, volume: 1, tracks: tracks([1, 2, 3, 4, 5, 6]),
                 filters: [], monitor: 'OBS_MONITORING_TYPE_NONE', muted: false
             };
-            state.audioScene.push(inputName);
+            const id = state.nextItemId++;
+            state.audioScene.push({ id, name: inputName });
             broadcast('InputCreated', { inputName, inputKind });
-            return { sceneItemId: 100 + state.audioScene.length };
+            return { sceneItemId: id };
         },
+        // As on Defiant (OBS 33, 2026-10-30): RemoveInput reports success but
+        // an input still in a scene stays there, capturing
         RemoveInput: ({ inputName }) => {
             input(inputName);
+            if (state.audioScene.some(i => i.name === inputName)) return {};
             delete state.inputs[inputName];
-            state.audioScene = state.audioScene.filter(n => n !== inputName);
             broadcast('InputRemoved', { inputName });
+            return {};
+        },
+        RemoveSceneItem: ({ sceneName, sceneItemId }) => {
+            if (sceneName !== 'Audio') throw new Error(`fake: unexpected scene ${sceneName}`);
+            if (!state.audioScene.some(i => i.id === sceneItemId)) throw new Error('No scene items were found');
+            state.audioScene = state.audioScene.filter(i => i.id !== sceneItemId);
             return {};
         },
         GetInputAudioTracks: ({ inputName }) => ({ inputAudioTracks: { ...input(inputName).tracks } }),
@@ -233,6 +248,8 @@ export async function startFakeObs({
         state,
         gameExes,
         windowBlackExes,
+        /** Un-minimise a window: the window capture lists it again. */
+        restore: exe => minimised.delete(exe),
         /** Change an input the way the source properties do, with OBS's event. */
         setFromProperties: (inputName, settings) => handlers.SetInputSettings({ inputName, inputSettings: settings }),
         close: () => new Promise(r => { for (const c of wss.clients) c.terminate(); wss.close(r); })

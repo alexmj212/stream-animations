@@ -204,20 +204,42 @@ async function setupMeters() {
     }
 }
 
-/** The dock's App Audio inputs, by app. */
+/**
+ * The dock's App Audio inputs, by app, from the Audio scene: an input there
+ * is on stream whatever else OBS says about it.
+ */
 async function readRoutes() {
     try {
-        const { inputs } = await obs.call('GetInputList', { inputKind: 'wasapi_process_output_capture' });
+        const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: acfg.scene });
         routes = new Map();
-        for (const { inputName } of inputs) {
-            const r = parseAppAudioName(inputName, acfg.prefix, acfg.targets);
-            if (r) routes.set(r.exe.toLowerCase(), { ...r, inputName });
+        for (const { sourceName, sceneItemId } of sceneItems) {
+            const r = parseAppAudioName(sourceName, acfg.prefix, acfg.targets);
+            if (!r) continue;
+            const key = r.exe.toLowerCase();
+            const route = routes.get(key) || { ...r, inputName: sourceName, items: [] };
+            route.items.push({ sceneItemId, inputName: sourceName });
+            routes.set(key, route);
         }
         await setupMeters();
         renderList();
     } catch (err) {
         note(`Couldn't read app audio: ${err.message}`);
     }
+}
+
+/**
+ * Take an app's sound off stream. RemoveInput alone reports success but
+ * leaves the input in the Audio scene, still capturing (Defiant, OBS 33,
+ * 2026-10-30), so the scene item goes first; then it checks it's gone.
+ */
+async function removeRoute(route) {
+    for (const { sceneItemId, inputName } of route.items) {
+        await obs.call('RemoveSceneItem', { sceneName: acfg.scene, sceneItemId });
+        await obs.call('RemoveInput', { inputName }).catch(() => { /* already gone with its last item */ });
+    }
+    const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: acfg.scene });
+    const left = sceneItems.filter(i => route.items.some(r => r.inputName === i.sourceName));
+    if (left.length) throw new Error(`${left[0].sourceName} is still in ${acfg.scene}`);
 }
 
 /**
@@ -232,7 +254,7 @@ async function setRoute(win, target) {
     const key = win.exe.toLowerCase();
     try {
         const old = routes.get(key);
-        if (old) await obs.call('RemoveInput', { inputName: old.inputName });
+        if (old) await removeRoute(old);
         if (target !== 'off') {
             const t = acfg.targets[target];
             const inputName = appAudioName(acfg.prefix, win.exe, t.label);
@@ -322,6 +344,30 @@ async function show(target) {
     debug.mark('show', { target, changes });
 }
 
+/** The 16:9 Game captures' windows and which items show, to undo a pick. */
+async function snapshot() {
+    const [items, hook, win] = await Promise.all([
+        sceneItems(),
+        obs.call('GetInputSettings', { inputName: cfg.sources.hook }),
+        obs.call('GetInputSettings', { inputName: cfg.sources.window })
+    ]);
+    return { items, hook: hook.inputSettings, window: win.inputSettings };
+}
+
+async function restore(before) {
+    if (!before) return;
+    await obs.call('SetInputSettings', { inputName: cfg.sources.hook, inputSettings: before.hook, overlay: true });
+    await obs.call('SetInputSettings', { inputName: cfg.sources.window, inputSettings: before.window, overlay: true });
+    const now = await sceneItems();
+    for (const it of before.items) {
+        const cur = now.find(i => i.sceneItemId === it.sceneItemId);
+        if (cur && cur.sceneItemEnabled !== it.sceneItemEnabled) {
+            await obs.call('SetSceneItemEnabled', { sceneName: cfg.scene, sceneItemId: it.sceneItemId, sceneItemEnabled: it.sceneItemEnabled });
+        }
+    }
+    debug.mark('restore', {});
+}
+
 async function capture(method, value) {
     await obs.call('SetInputSettings', {
         inputName: cfg.sources[method],
@@ -341,8 +387,21 @@ async function pick(win, forced) {
     busy = true;
     document.body.classList.add('busy');
     const exe = win.exe.toLowerCase();
-    const method = forced || chooseMethod(exe, { remembered: state.remembered, inHook: win.inHook, inWindow: win.inWindow });
+    let before = null;
     try {
+        // Fresh lists first: a window restored a moment ago is in the window
+        // capture's list now (Defiant, 2026-10-30: it took a second click)
+        await refreshWindows();
+        const now = windowItems.find(i => i.itemValue === win.value) || windowItems.find(i => sameWindow(i.itemValue, win.value));
+        if (!now) {
+            note(`${win.exe} has closed.`);
+            return;
+        }
+        win = { ...win, value: now.itemValue, inHook: now.inHook, inWindow: now.inWindow };
+        const method = forced || chooseMethod(exe, { remembered: state.remembered, inHook: win.inHook, inWindow: win.inWindow });
+        // What the scene shows now, to put back if nothing captures the window
+        // (a minimised window used to leave the game feed black)
+        before = await snapshot();
         note(`Capturing ${win.exe}…`);
         await capture(method, win.value);
         state.recents = pushRecent(state.recents, exe, cfg.recentMax);
@@ -376,10 +435,12 @@ async function pick(win, forced) {
                 saveState();
                 note(`The ${CAPTURE_NAME[method]} showed nothing for ${win.exe}, so it uses the ${CAPTURE_NAME[other]} now (remembered).`);
             } else {
-                note(`Neither capture shows ${win.exe}. Is it minimised? Restore it and pick it again.`);
+                await restore(before);
+                note(`Neither capture shows ${win.exe}, so the picture stays as it was. Is it minimised? Restore it and pick it again.`);
             }
         } else if (failed(luma) && !win.inWindow) {
-            note(`${win.exe} looks minimised (only the game hook lists it). Restore the window and pick it again.`);
+            await restore(before);
+            note(`${win.exe} looks minimised (only the game hook lists it), so the picture stays as it was. Restore the window and pick it again.`);
         } else if (failed(luma)) {
             note(`${win.exe} shows nothing. If it's minimised or loading, bring it up; otherwise try the other mode (⇄).`);
         } else {
@@ -456,7 +517,7 @@ function renderList() {
         main.className = 'pick';
         main.innerHTML = '<span class="exe"></span><span class="title"></span>';
         main.querySelector('.exe').textContent = `${w.recent ? '★ ' : ''}${w.exe}`;
-        main.querySelector('.title').textContent = w.inWindow ? w.title : `${w.title} · minimised?`;
+        main.querySelector('.title').textContent = w.inWindow ? w.title : `${w.title} · minimised? restore it first`;
         main.title = `Capture with ${METHOD_LABEL[method]}`;
         main.addEventListener('click', () => pick(w));
         const other = method === 'hook' ? 'window' : 'hook';
