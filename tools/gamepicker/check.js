@@ -16,7 +16,9 @@
  *   - the capture card button shows only the Game Capture scene,
  *   - an app's sound goes to Music or Game as an app capture with that
  *     source's tracks, volume and filters (no fade filters), and off again,
- *   - an app meter that goes red stays flagged until clicked,
+ *   - a channel meter that goes red stays flagged until clicked,
+ *   - AJ can make a channel, put several apps in it and move them with
+ *     one fader (capped out of the red) and mute, kept in OBS,
  *   - the meters move, and AJ's own audio sources are never changed.
  *
  * Usage: npm run gamepicker:check [-- --shot=dock.png]
@@ -214,14 +216,14 @@ try {
         && music.volume === inp('BG Music').volume && music.monitor === 'OBS_MONITORING_TYPE_NONE');
     check('and BG Music’s filters, without its fade (Move) filters', !!music
         && music.filters.map(f => f.filterKind).join() === 'limiter_filter', music?.filters.map(f => f.filterKind).join());
-    check('its meter shows in the dock', await until(() => page.$$eval('#meters .name', els => els.some(e => e.textContent === 'firefox.exe (Music)'))));
-    const flagged = () => page.$$eval('#meters .meter.clipped', els => els.length);
-    check('an app meter in the green isn\u2019t flagged', !(await wait(300)) && await flagged() === 0);
+    check('the Music channel counts it', await until(() => page.$$eval('#channels .apps', els => els.map(e => e.textContent).join() === 'empty,1 app')));
+    const flagged = () => page.$$eval('#channels .meter.clipped', els => els.length);
+    check('a channel meter in the green isn\u2019t flagged', !(await wait(300)) && await flagged() === 0);
     obs.state.appPeak = 0.5;    // -6 dBFS: red
-    check('an app meter that goes red stays flagged', await until(async () => await flagged() === 1));
+    check('a channel meter that goes red stays flagged', await until(async () => await flagged() === 1));
     obs.state.appPeak = 0.05;
     await wait(300);
-    check('until clicked', await flagged() === 1 && await page.$eval('#meters .meter.clipped', el => { el.click(); return true; })
+    check('until clicked', await flagged() === 1 && await page.$eval('#channels .meter.clipped', el => { el.click(); return true; })
         && await flagged() === 0);
     check('the row shows where it goes', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'music'));
 
@@ -235,6 +237,57 @@ try {
     check('off stream removes it', !Object.keys(obs.state.inputs).some(n => n.startsWith('App Audio:'))
         && !obs.state.audioScene.some(i => i.name.startsWith('App Audio:')), JSON.stringify(obs.state.audioScene));
     check('and the dock says so', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'off'));
+
+    // Channels AJ makes (AJ, 2026-10-30): several apps in one, one fader
+    await page.type('#channelName', 'Browser');
+    await page.select('#channelLike', 'game');
+    await page.click('#newChannel button');
+    await settled();
+    const slot = () => obs.state.persistent['gamePicker.channels'];
+    check('a new channel is saved in OBS', slot()?.custom?.[0]?.label === 'Browser' && slot().custom[0].like === 'game', JSON.stringify(slot()));
+    check('and shows in the Sound menu', await (await rowOf('Spotify.exe')).$$eval('select.audio option', os => os.some(o => o.textContent.includes('Browser'))));
+    await route('firefox.exe', 'ch-browser');
+    await route('Spotify.exe', 'ch-browser');
+    const ff = inp('App Audio: firefox.exe (Browser)'), sp = inp('App Audio: Spotify.exe (Browser)');
+    check('two apps share the channel, each copying Local Game (A)', !!ff && !!sp && ff.tracks['2'] === true
+        && sp.filters.map(f => f.filterKind).join() === 'gain_filter,limiter_filter'
+        && await page.$$eval('#channels .apps', els => els[2]?.textContent === '2 apps'));
+    // Each app is yellow (-14 dBFS) but the two together could reach -8: red
+    obs.state.appPeak = 0.2;
+    check('a channel meter adds its apps up, so two yellow apps flag red',
+        await until(async () => (await page.$$eval('#channels .meter', els => els[2]?.classList.contains('clipped')))));
+    obs.state.appPeak = 0.05;
+    await page.$$eval('#channels .meter', els => els[2].click());
+    const fader = async (i, db) => {
+        await page.$$eval('#channels .controls input[type=range]', (els, [i, db]) => {
+            els[i].value = String(db);
+            els[i].dispatchEvent(new Event('change'));
+        }, [i, db]);
+        await wait(100);
+        await settled();
+    };
+    await fader(2, -30);
+    const near = (v, db) => Math.abs(20 * Math.log10(v) - db) < 0.01;
+    check('the channel fader moves both apps', near(inp('App Audio: firefox.exe (Browser)').volume, -30)
+        && near(inp('App Audio: Spotify.exe (Browser)').volume, -30), `${inp('App Audio: firefox.exe (Browser)').volume}`);
+    check('and is saved', near(slot().mix['ch-browser'].volumeMul, -30));
+    await fader(2, 0);
+    check('the fader stops at -12 dB (out of the red with the copied Limiter)', near(inp('App Audio: firefox.exe (Browser)').volume, -12));
+    await (await page.$$('#channels .controls button'))[2].click();   // Game, Music: one Mute each; Browser: Mute, ✕
+    await wait(100);
+    await settled();
+    check('channel mute mutes both apps', inp('App Audio: firefox.exe (Browser)').muted && inp('App Audio: Spotify.exe (Browser)').muted);
+    await reopen({});
+    check('the channel and its apps are there after a reload', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'ch-browser')
+        && await page.$$eval('#channels .apps', els => els[2]?.textContent === '2 apps'));
+    await route('Telegram.exe', 'ch-browser');
+    const tg = inp('App Audio: Telegram.exe (Browser)');
+    check('an app added later gets the channel\u2019s fader and mute', !!tg && near(tg.volume, -12) && tg.muted === true);
+    await (await page.$$('#channels .controls button'))[3].click();   // Browser ✕
+    await wait(100);
+    await settled();
+    check('removing the channel takes its apps off stream', !Object.keys(obs.state.inputs).some(n => n.startsWith('App Audio:'))
+        && !obs.state.audioScene.some(i => i.name.startsWith('App Audio:')) && !slot().custom.length, JSON.stringify(obs.state.audioScene));
 
     check('meters move', await until(() => page.$eval('#meters .bar', b => parseFloat(b.style.width) > 50)));
     const own = ['Mic', 'Local Game (A)', 'Ext Capture (B)', 'BG Music'];

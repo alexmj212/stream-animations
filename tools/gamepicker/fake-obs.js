@@ -119,6 +119,7 @@ export async function startFakeObs({
         ],
         audioScene: ['Mic', 'BG Music', 'Ext Capture (B)', 'Local Game (A)'].map((name, i) => ({ id: i + 1, name })),
         nextItemId: 10,
+        persistent: {},
         failOn: null,               // a request type that fails once, to test a half-done change
         appPeak: 0.05,              // App Audio peak (multiplier) the meters report
         log: []
@@ -204,6 +205,17 @@ export async function startFakeObs({
             return { inputVolumeMul: v, inputVolumeDb: 20 * Math.log10(v) };
         },
         SetInputVolume: ({ inputName, inputVolumeMul }) => { input(inputName).volume = inputVolumeMul; return {}; },
+        SetInputMute: ({ inputName, inputMuted }) => { input(inputName).muted = inputMuted; return {}; },
+        // As on Defiant: an unknown slot reads null, and null can't be written
+        GetPersistentData: ({ realm, slotName }) => {
+            if (realm !== 'OBS_WEBSOCKET_DATA_REALM_PROFILE') throw new Error('fake: unexpected realm');
+            return { slotValue: state.persistent[slotName] ?? null };
+        },
+        SetPersistentData: ({ slotName, slotValue }) => {
+            if (slotValue === undefined || slotValue === null) throw new Error('Your request is missing the `slotValue` field.');
+            state.persistent[slotName] = JSON.parse(JSON.stringify(slotValue));
+            return {};
+        },
         SetInputAudioMonitorType: ({ inputName, monitorType }) => { input(inputName).monitor = monitorType; return {}; },
         GetSourceFilterList: ({ sourceName }) => ({ filters: input(sourceName).filters.map(f => ({ ...f })) }),
         CreateSourceFilter: ({ sourceName, filterName, filterKind, filterSettings }) => {

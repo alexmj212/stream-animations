@@ -1477,7 +1477,16 @@ export const config = {
         music: { label: 'Music', template: 'BG Music' }        // tracks 1,4,5,6: stream, kept off the VOD (track 2)
       },
       // BG Music's Move filters run the music fades; they stay on BG Music
-      skipFilterKinds: ['move_audio_value_filter', 'audio_move_filter', 'move_value_filter']
+      skipFilterKinds: ['move_audio_value_filter', 'audio_move_filter', 'move_value_filter'],
+      // Channels AJ makes in the dock, with every channel's fader and mute,
+      // live in obs-websocket persistent data (per OBS profile), so they
+      // follow OBS rather than this browser
+      dataSlot: 'gamePicker.channels',
+      // Highest channel fader: a full-scale app hits the copied Limiter at
+      // -7 dB, so the meter peaks at -7 + this = -19 dBFS at most: just
+      // inside yellow, never red (AJ: no clipping, nothing above yellow;
+      // docs/AUDIO.md)
+      channelMaxDb: -12
     },
     meterFloorDb: -60,
     storageKey: 'gamePicker:v1'
