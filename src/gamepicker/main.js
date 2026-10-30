@@ -130,8 +130,9 @@ function onEvent({ eventType, eventData }) {
         readShowing();
     } else if (eventType === 'InputSettingsChanged' && Object.values(cfg.sources).includes(eventData.inputName)) {
         // Changed in the source properties: show what OBS has, not what the
-        // dock last set (AJ, 2026-10-30: they disagreed)
-        readShowing();
+        // dock last set (AJ, 2026-10-30: they disagreed). The lists too, so
+        // a window opened since is found (Code review, #114)
+        refreshWindows().then(readShowing);
     }
 }
 

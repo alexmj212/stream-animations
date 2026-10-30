@@ -107,13 +107,25 @@ try {
 
     // Telegram is only in the hook's list: never sent to window capture,
     // even with the black fallback, and the ⇄ window button is off
+    // Black through the hook and remembered as window: both must still give
+    // the hook, the only capture that can see it (Code review, #114)
     obs.state.inputs['Window Capture'].settings.window = 'x:y:none.exe';
+    obs.blackExes.push('Telegram.exe');
+    await page.evaluate(() => {
+        const s = JSON.parse(localStorage.getItem('gamePicker:v1'));
+        s.remembered['telegram.exe'] = 'window';
+        localStorage.setItem('gamePicker:v1', JSON.stringify(s));
+    });
+    await page.goto(`${baseUrl}/src/gamepicker/index.html?obs=${encodeURIComponent(obs.url)}&password=pw`);
+    await until(() => page.$eval('#status', el => el.textContent === 'Connected to OBS'));
+    await until(() => page.$$eval('#windows .pick', els => els.length > 0));
     await clickExe('Telegram.exe');
     await wait(100);
     await settled();
     check('a hook-only window goes to the hook', visible() === 'Game Capture 2'
         && obs.state.inputs['Game Capture 2'].settings.window.includes('Telegram.exe')
         && obs.state.inputs['Window Capture'].settings.window === 'x:y:none.exe', visible());
+    obs.blackExes.pop();
 
     // Changed by hand in the source properties: the dock follows OBS
     await clickExe('firefox.exe');

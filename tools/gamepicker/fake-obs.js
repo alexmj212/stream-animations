@@ -157,6 +157,7 @@ export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'
     return {
         url: `ws://127.0.0.1:${wss.address().port}`,
         state,
+        blackExes,
         /** Change an input the way the source properties do, with OBS's event. */
         setFromProperties: (inputName, settings) => handlers.SetInputSettings({ inputName, inputSettings: settings }),
         close: () => new Promise(r => { for (const c of wss.clients) c.terminate(); wss.close(r); })
