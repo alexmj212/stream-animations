@@ -15,7 +15,7 @@ import {
     buildWindowList, chooseMethod, captureSettings, visibilityChanges,
     litFraction, peakDb, meterZone, pushRecent, parseWindowValue,
     mergeWindowLists, sameWindow, windowCaptureTarget, captureFailed, appAudioName, parseAppAudioName,
-    copyableFilters, channelList, newChannel, faderMul, readSetup, guessSetup, tracksObject, activity
+    copyableFilters, channelList, newChannel, faderMul, readSetup, guessSetup, tracksObject, activity, cleanTracks
 } from './picker.js';
 
 const cfg = config.gamePicker;
@@ -321,6 +321,10 @@ function renderChannels() {
         row.title = `${c.label}: ${n ? members(c.id).map(r => r.exe).join(', ') : 'no apps yet'}. ` +
             `${c.copyFrom ? `Copies ${c.copyFrom}'s filters. ` : ''}Light: green while sound plays; red means too loud (turn it down, then click to clear)`;
         row.addEventListener('click', () => row.classList.remove('clipped'));
+        const name = row.querySelector('.name');
+        name.title = `Change ${c.label}'s tracks or what it copies`;
+        name.style.cursor = 'pointer';
+        name.addEventListener('click', () => showNewForm(true, c));
         const fader = document.createElement('input');
         fader.type = 'range';
         fader.className = 'fader';
@@ -434,13 +438,66 @@ async function removeChannel(id) {
     }
 }
 
-function showNewForm(open) {
+let editing = null;   // id of the channel the form edits, or null to add one
+
+/**
+ * The channel form: open to add a channel, or with `channel` to change an
+ * existing one's tracks and what it copies (its name ends its apps' input
+ * names, so it stays). Changes reach apps that join from then on.
+ */
+async function showNewForm(open, channel = null) {
+    editing = open && channel ? channel.id : null;
     $('newChannel').hidden = !open;
     $('newToggle').setAttribute('aria-expanded', String(open));
     $('newToggle').textContent = open ? 'Cancel' : '+ New';
-    if (open) {
-        fillChannelForm();
+    $('channelName').readOnly = !!editing;
+    $('channelName').value = editing ? channel.label : '';
+    $('newChannel').querySelector('button[type=submit]').textContent = editing ? 'Save' : 'Add';
+    if (!open) return;
+    await fillChannelForm();
+    if (editing) {
+        $('channelCopy').value = channel.copyFrom || '';
+        for (const i of document.querySelectorAll('#channelTracks input')) i.checked = channel.tracks ? channel.tracks.includes(Number(i.value)) : false;
+        // Nothing set yet: suggest the audio source named like the channel
+        // ("Music" -> a source with "music" in its name), with its tracks,
+        // for the streamer to check and save (QA, #120)
+        if (!channel.copyFrom && !channel.tracks) {
+            const word = channel.label.toLowerCase();
+            const like = [...$('channelCopy').options].find(o => o.value && o.value.toLowerCase().includes(word));
+            if (like) {
+                $('channelCopy').value = like.value;
+                await tickTracksOf(like.value);
+            }
+        }
+    } else {
         $('channelName').focus();
+    }
+}
+
+/** Change a channel's tracks and copied source, then remember it. */
+async function updateChannel(id, { tracks, copyFrom }) {
+    if (busy || !obs?.ready) return;
+    const c = channels.find(x => x.id === id);
+    const clean = cleanTracks(tracks);
+    if (!c) return;
+    if (!clean) {
+        note('Tick at least one track.');
+        return;
+    }
+    busy = true;
+    document.body.classList.add('busy');
+    try {
+        Object.assign(c, { tracks: clean, copyFrom: copyFrom || null });
+        await readCopyMul();
+        await saveChannels();
+        showNewForm(false);
+        note(`${c.label} plays on ${tracksText(clean)} for apps added from now on.`);
+    } catch (err) {
+        note(`Couldn't change ${c.label}: ${err.message}`);
+    } finally {
+        busy = false;
+        document.body.classList.remove('busy');
+        renderChannels();
     }
 }
 
@@ -464,15 +521,14 @@ async function fillChannelForm() {
     } catch { /* Plain still works */ }
 }
 
-$('channelCopy').addEventListener('change', async () => {
-    // Start from the copied source's tracks; still changeable
-    const name = $('channelCopy').value;
-    if (!name) return;
+/** Tick the tracks a source plays on: a copied channel starts there. */
+async function tickTracksOf(name) {
     try {
         const { inputAudioTracks } = await obs.call('GetInputAudioTracks', { inputName: name });
         for (const i of document.querySelectorAll('#channelTracks input')) i.checked = !!inputAudioTracks[i.value];
     } catch { /* keep what's ticked */ }
-});
+}
+$('channelCopy').addEventListener('change', () => $('channelCopy').value && tickTracksOf($('channelCopy').value));
 
 // Inputs that carry sound: audio devices, app and media sources
 const isAudioKind = k => /wasapi|pulse|coreaudio|alsa|jack|ffmpeg|vlc|sck_audio|asio|process_output/.test(k || '');
@@ -480,7 +536,9 @@ $('newToggle').addEventListener('click', () => showNewForm($('newChannel').hidde
 $('newChannel').addEventListener('submit', (e) => {
     e.preventDefault();
     const tracks = [...document.querySelectorAll('#channelTracks input:checked')].map(i => Number(i.value));
-    addChannel($('channelName').value, { tracks, copyFrom: $('channelCopy').value || null });
+    const copyFrom = $('channelCopy').value || null;
+    if (editing) updateChannel(editing, { tracks, copyFrom });
+    else addChannel($('channelName').value, { tracks, copyFrom });
 });
 
 /**
@@ -588,6 +646,14 @@ async function setRoute(win, target) {
         const old = routes.get(key);
         if (old) await removeRoute(old);
         const t = channels.find(c => c.id === target);
+        // Nothing to say where it plays (no tracks, nothing copied, no app
+        // already in it): OBS would put it on every track, the VOD too, with
+        // no limiter, so ask first (Code review, #120)
+        if (t && !t.tracks && !t.copyFrom && !members(t.id).some(r => r.exe.toLowerCase() !== key)) {
+            note(`Pick ${t.label}'s tracks first (or a source to copy), then choose it again for ${win.exe}.`);
+            showNewForm(true, t);
+            return;
+        }
         if (t) {
             const inputName = appAudioName(acfg.prefix, win.exe, t.label);
             // Hidden until it has the channel's tracks, volume and filters:

@@ -143,7 +143,11 @@ sources, and needs no virtual cables or extra Windows audio devices.
   optionally an audio source to copy filters and a starting fader from (say,
   a music source so its channel stays off the VOD track). An app joining a
   channel that already has apps copies their tracks and filters unless the
-  channel says otherwise, so channels from an older dock stay whole. Each app in a channel is an
+  channel says otherwise, so channels from an older dock stay whole.
+  A channel with nothing set (no tracks, no copy, no apps yet) asks before
+  its first app, suggesting the source named like it with that source's
+  tracks (Music: a source with "music" in its name). Click a channel's name
+  to change its tracks or copy later. Each app in a channel is an
   Application Audio Capture ("App Audio: firefox.exe (Browser)") in the
   setup's audio scene; the app keeps playing to its usual device, so you
   still hear it. The dock never changes your own sources.

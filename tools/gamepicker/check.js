@@ -224,6 +224,35 @@ try {
         await page.click('#newChannel button[type=submit]');
         await settled();
     };
+    // A fresh dock: Music has no tracks, nothing to copy and no app yet, so
+    // the first app sent there would land on every track (VOD too) with no
+    // limiter. The dock asks for its tracks instead (Code review, #120)
+    await (await (await rowOf('firefox.exe')).$('select.audio')).select('music');
+    await settled();
+    check('a fresh channel asks for its tracks before its first app', !Object.keys(obs.state.inputs).some(n => n.startsWith('App Audio:'))
+        && /tracks first/.test(await noteText()) && await page.$eval('#newChannel', f => !f.hidden)
+        && await page.$eval('#channelName', i => i.readOnly && i.value === 'Music'), await noteText());
+    // It suggests the source named like it, with that source's tracks: on
+    // AJ's OBS, Music copies BG Music, off the VOD track 2 (QA, #120)
+    const ticked = () => page.$$eval('#channelTracks input:checked', els => els.map(e => e.value).join());
+    check('and suggests the source named like it, with its tracks', await until(async () => await ticked() === '1,4,5,6')
+        && await page.$eval('#channelCopy', s => s.value === 'BG Music'), await ticked());
+    await page.click('#newChannel button[type=submit]');
+    await settled();
+    const saved = () => obs.state.persistent['gamePicker.channels']?.channels?.find(c => c.id === 'music');
+    check('saving keeps it', JSON.stringify(saved()?.tracks) === '[1,4,5,6]' && saved()?.copyFrom === 'BG Music', JSON.stringify(saved()));
+    await (await (await rowOf('firefox.exe')).$('select.audio')).select('music');
+    await settled();
+    const firstMusic = obs.state.inputs['App Audio: firefox.exe (Music)'];
+    check('then the app goes in off the VOD track, with the Limiter', JSON.stringify(firstMusic?.tracks) === JSON.stringify(obs.state.inputs['BG Music'].tracks)
+        && firstMusic?.filters.map(f => f.filterKind).join() === 'limiter_filter', JSON.stringify(firstMusic?.tracks));
+    await (await (await rowOf('firefox.exe')).$('select.audio')).select('off');
+    await settled();
+    // Game the same way: Local Game (A), on 1,2,4,5,6
+    await page.$$eval('#channels .chan', rows => rows[0].querySelector('.name').click());
+    check('Game suggests Local Game (A) and its tracks', await until(async () => await ticked() === '1,2,4,5,6')
+        && await page.$eval('#channelCopy', s => s.value === 'Local Game (A)'), await ticked());
+    await page.click('#newToggle');
     await page.click('#newToggle');
     await until(() => page.$$eval('#channelCopy option', os => os.length > 1));
     const copyOpts = await page.$$eval('#channelCopy option', os => os.map(o => o.value));
