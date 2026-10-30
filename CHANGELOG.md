@@ -4,6 +4,16 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.13.0 - 2026-10-30
+
+- The Game Switcher dock works with any OBS setup, in any dock shape. A
+  first-run setup screen (reopened with the gear) picks the scene, its
+  captures, pinned sources and the fader max, guessed from the scenes in
+  OBS and saved in OBS. Channels are plain track sets that can copy another
+  source's filters. Each channel shows a working light instead of a meter.
+  The layout adapts to tall, wide and small docks. AJ's dock opens on setup
+  once, until setup is saved. ([#120])
+
 ## v2.12.0 - 2026-10-30
 
 - The Game Picker dock can make its own audio channels. Name a channel and
@@ -254,3 +264,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#114]: https://github.com/alexmj212/stream-animations/pull/114
 [#116]: https://github.com/alexmj212/stream-animations/pull/116
 [#118]: https://github.com/alexmj212/stream-animations/pull/118
+[#120]: https://github.com/alexmj212/stream-animations/pull/120
