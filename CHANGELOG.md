@@ -9,9 +9,10 @@ minor for new scenes, features or a visible style change, patch for fixes.
 - The Game Picker dock can make its own audio channels. Name a channel and
   choose whether it goes on the VOD (like Game) or stays off it (like Music),
   then send several apps to it. Each channel has one fader, mute and meter
-  in the dock that moves every app in it. The fader stops at -12 dB, so a
-  channel peaks around -19 dBFS, out of the red. Channels are saved in OBS,
-  not the browser. Reload the dock to pick it up. ([#118])
+  in the dock that moves every app in it. The fader stops at -12 dB, so
+  each app peaks at -19 dBFS at most; several loud apps in one channel add
+  up, and the channel meter flags it if they reach the red. Channels are
+  saved in OBS, not the browser. Reload the dock to pick it up. ([#118])
 
 ## v2.11.0 - 2026-10-30
 
