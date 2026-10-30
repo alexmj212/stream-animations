@@ -116,14 +116,38 @@ browser source shown by a Mix It Up command; each show plays it once.
 
 ### Game picker (OBS dock)
 Not a scene: a Custom Browser Dock inside OBS that points the 16:9 Game
-capture at a window in one click. It lists the open windows (recent games
-first, OBS / Mix It Up / Explorer hidden), sets the game capture to that
-window, hides every other capture in the scene, and checks the picture: if
-the game hook shows black it switches to window capture and remembers that
-for the game. Browsers go straight to window capture. A "Console" button
-shows the capture card instead. Level meters for Local Game (A), Ext
-Capture (B) and BG Music show at a glance whether game sound arrives and
-whether a source is muted; the dock never changes audio.
+capture at a window in one click, and sends each app's sound where AJ wants
+it. It lists the open windows both captures can see (recent games first, OBS
+/ Mix It Up / Explorer hidden) and shows what OBS really has, even after a
+change in the source properties.
+
+- **Picture**: window capture is the default and shows any app. If it shows
+  a game black (exclusive fullscreen), the dock switches to the game hook;
+  if the hook gives no picture, back to window capture. Either way it
+  remembers the choice for that game. A window only the hook lists is
+  probably minimised; the dock marks it and asks to restore it. A "Console"
+  button shows the capture card.
+- **Sound**: each window has a "Sound" menu: off stream, Game (stream and
+  VOD) or Music (stream only, kept off the VOD). It adds an Application
+  Audio Capture of that app ("App Audio: firefox.exe (Music)") to the Audio
+  scene with the tracks, volume and filters of Local Game (A) or BG Music
+  (not BG Music's fade filters). The app keeps playing to the speakers, so
+  AJ still hears it. Meters show Local Game (A), Ext Capture (B), BG Music
+  and every App Audio input. The dock never changes AJ's own sources.
+  - The copy is made once, when the input is created: a later change to
+    Local Game (A)'s or BG Music's fader, tracks or filters doesn't reach it.
+    Set the sound again to pick the change up.
+  - A Music app doesn't follow the music fades: when BG Music is faded
+    down, the app stays at its level.
+  - Level: the copied filters run before the copied fader, so with AJ's
+    sources as they are (Limiter at -7 dB, faders at -19.4 dB for Game and
+    -30 dB for Music) an app can't go over about -26 dBFS on Game or
+    -37 dBFS on Music, however loud it plays. If those filters or faders
+    change, an App Audio meter that goes red stays marked "went red" until
+    clicked: turn the app down.
+  - A game that already plays to CABLE-A reaches Local Game (A) by itself;
+    setting it to Game as well plays it twice. Use the menu for apps that
+    play to the speakers.
 
 **URL**: `gamepicker/index.html` (`password`, `obs`)
 

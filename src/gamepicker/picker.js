@@ -16,6 +16,34 @@ export function parseWindowValue(value) {
 }
 
 /**
+ * The stored form of a window, the inverse of parseWindowValue.
+ * @param {{title: string, cls: string, exe: string}} w
+ * @returns {string}
+ */
+export function windowValue({ title, cls, exe }) {
+    const encode = s => (s || '').replace(/#/g, '#22').replace(/:/g, '#3A');
+    return `${encode(title)}:${encode(cls)}:${encode(exe)}`;
+}
+
+/**
+ * What window capture should look for to show a listed window. A Store
+ * (UWP) app is listed by its inner CoreWindow, which OBS finds but can't
+ * capture; window capture shows it through the frame around it, which
+ * ApplicationFrameHost.exe owns and which has the same title (Defiant,
+ * 2026-10-30: Realtek Audio Console gave no picture until Window Capture
+ * pointed at its outer window). Every Store app shares that class and
+ * executable, so the frame is matched by title (WINDOW_PRIORITY_TITLE).
+ * @param {string} value - "title:class:exe" from the window list
+ * @param {number} priority - the usual match priority
+ * @returns {{value: string, priority: number}}
+ */
+export function windowCaptureTarget(value, priority) {
+    const w = parseWindowValue(value);
+    if (w.cls !== 'Windows.UI.Core.CoreWindow') return { value, priority };
+    return { value: windowValue({ title: w.title, cls: 'ApplicationFrameWindow', exe: 'ApplicationFrameHost.exe' }), priority: 1 };
+}
+
+/**
  * One list from both captures' own `window` lists. They differ: the game
  * capture leaves out browsers, Explorer, Discord and other apps it can't
  * hook (win-capture's blacklist), and each lists some windows the other
@@ -102,22 +130,97 @@ export function buildWindowList(items, { ignoreExes = [], recents = [], showAll 
 
 /**
  * Which capture shows this window: a capture that can't see the window is
- * never picked; then a remembered per-exe choice; then 'window' for
- * browsers, else 'hook' (game capture).
+ * never picked; then a remembered per-exe choice; then window capture.
+ * Window capture (Windows Graphics Capture) shows any app; the game hook
+ * shows nothing for desktop apps and is only needed for games that window
+ * capture shows black (Defiant, 2026-10-30: the hook got nothing for
+ * Claude, Steam, Mix It Up, Telegram, Spotify and Realtek; window capture
+ * showed all 7 of its windows).
  * @param {string} exe
  * @param {Object} opts
- * @param {string[]} [opts.windowExes] - always window capture
  * @param {Object<string, 'hook'|'window'>} [opts.remembered] - per-exe choice
  * @param {boolean} [opts.inHook] - the game capture lists this window
  * @param {boolean} [opts.inWindow] - the window capture lists this window
  * @returns {'hook'|'window'}
  */
-export function chooseMethod(exe, { windowExes = [], remembered = {}, inHook = true, inWindow = true } = {}) {
+export function chooseMethod(exe, { remembered = {}, inHook = true, inWindow = true } = {}) {
     if (!inHook && inWindow) return 'window';
     if (!inWindow && inHook) return 'hook';
     const key = String(exe || '').toLowerCase();
     if (remembered[key] === 'hook' || remembered[key] === 'window') return remembered[key];
-    return windowExes.map(e => e.toLowerCase()).includes(key) ? 'window' : 'hook';
+    return 'window';
+}
+
+/**
+ * Whether a capture check means the picture failed: OBS couldn't render a
+ * screenshot (null: a hook that never attached, a hidden or minimised
+ * window) or almost no pixel is lit. A failed capture is solid black; a
+ * dark app or a night scene still has some lit text or detail (Defiant,
+ * 2026-10-30: Realtek Audio Console's dark UI averaged under the old
+ * mean-luma bar and was called black).
+ * @param {number|null} lit - litFraction of the screenshot, or null when none
+ * @param {number} minLit - under this share of lit pixels counts as black
+ * @returns {boolean}
+ */
+export function captureFailed(lit, minLit) {
+    return lit === null || lit < minLit;
+}
+
+/**
+ * Share (0-1) of RGBA pixels with Rec. 601 luma at or over `minLuma`,
+ * alpha ignored.
+ * @param {Uint8ClampedArray|number[]} rgba
+ * @param {number} minLuma - 0-255
+ * @returns {number}
+ */
+export function litFraction(rgba, minLuma) {
+    const n = Math.floor(rgba.length / 4);
+    if (n === 0) return 0;
+    let lit = 0;
+    for (let i = 0; i < n * 4; i += 4) {
+        if (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2] >= minLuma) lit++;
+    }
+    return lit / n;
+}
+
+/**
+ * Name of the dock's audio input for one app and destination, as the OBS
+ * mixer shows it: "App Audio: firefox.exe (Music)".
+ * @param {string} prefix
+ * @param {string} exe
+ * @param {string} label - destination label
+ * @returns {string}
+ */
+export function appAudioName(prefix, exe, label) {
+    return `${prefix}${exe} (${label})`;
+}
+
+/**
+ * The app and destination of an input the dock made, or null for any
+ * other input.
+ * @param {string} name
+ * @param {string} prefix
+ * @param {Object<string, {label: string}>} targets
+ * @returns {{exe: string, target: string}|null}
+ */
+export function parseAppAudioName(name, prefix, targets) {
+    if (!name || !name.startsWith(prefix)) return null;
+    const m = /^(.*) \((.*)\)$/.exec(name.slice(prefix.length));
+    if (!m) return null;
+    const target = Object.keys(targets).find(k => targets[k].label === m[2]);
+    return target ? { exe: m[1], target } : null;
+}
+
+/**
+ * The filters to copy from a destination's own source onto an app's audio
+ * input: everything but the Move filters, which belong to that source's
+ * fades (Music Fade Up/Down move BG Music's volume).
+ * @param {Array<{filterKind: string}>} filters - GetSourceFilterList
+ * @param {string[]} skipKinds
+ * @returns {Array}
+ */
+export function copyableFilters(filters, skipKinds) {
+    return (filters || []).filter(f => !skipKinds.includes(f.filterKind));
 }
 
 /**
@@ -131,7 +234,8 @@ export function captureSettings(method, value, priority) {
     if (method === 'hook') return { capture_mode: 'window', window: value, priority };
     // method 2: Windows 10 (1903 and up), the one that captures browsers
     // without a black picture (the existing Window Capture uses it)
-    return { window: value, priority, method: 2 };
+    const target = windowCaptureTarget(value, priority);
+    return { window: target.value, priority: target.priority, method: 2 };
 }
 
 /**
@@ -157,19 +261,6 @@ export function visibilityChanges(items, target, { sources = [], keep = [] } = {
         if (it.sceneItemEnabled !== enabled) changes.push({ sceneItemId: it.sceneItemId, sourceName: it.sourceName, enabled });
     }
     return changes;
-}
-
-/**
- * Mean Rec. 601 luma (0-255) of RGBA pixels, alpha ignored.
- * @param {Uint8ClampedArray|number[]} rgba
- * @returns {number}
- */
-export function meanLuma(rgba) {
-    const n = Math.floor(rgba.length / 4);
-    if (n === 0) return 0;
-    let sum = 0;
-    for (let i = 0; i < n * 4; i += 4) sum += 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
-    return sum / n;
 }
 
 /**
