@@ -262,6 +262,16 @@ export function visibilityChanges(items, target, { sources = [], hideOthers = fa
 }
 
 /**
+ * Whether a scene is only a divider in OBS's scene list ("------ SCENES
+ * ------"), never a scene to pick (Defiant, 2026-10-30).
+ * @param {string} name
+ * @returns {boolean}
+ */
+export function isDividerScene(name) {
+    return /^\s*[-=_~*#—–.]{3,}/.test(name) || /^[\s\-=_~*#—–.]*$/.test(name);
+}
+
+/**
  * The dock's settings for this OBS, from persistent data, filled in and
  * checked. Nothing about any one streamer's OBS is built in (AJ,
  * 2026-10-30: "assume someone is coming in with an entire different setup").
@@ -294,13 +304,16 @@ export function readSetup(raw, defaultMaxDb = -12) {
  *   - of each kind, a shown one, else one pointed at a window, else the
  *     first (a hidden duplicate with no window is the last pick);
  *   - other captures hidden too when the scene has more than those two;
- *   - app sound in the scene nested in the most other scenes (one live
- *     whenever any of them is), else the capture scene.
+ *   - app sound in the scene already holding the dock's App Audio inputs,
+ *     else the one nested in the most other scenes (live whenever any of
+ *     them is), else the capture scene (Defiant, 2026-10-30: it guessed
+ *     Alerts, nested as often as Audio).
  * @param {Array<{sceneName: string, items: Array<{sourceName: string, inputKind?: string|null, sceneItemEnabled?: boolean, hasWindow?: boolean}>}>} scenes
  * @param {number} [faderMaxDb]
+ * @param {string} [appAudioPrefix] - names of the dock's own app inputs
  * @returns {{scene: string|null, window: string|null, hook: string|null, pinned: string[], hideOthers: boolean, sound: boolean, audioScene: string|null, faderMaxDb: number}}
  */
-export function guessSetup(scenes, faderMaxDb = -12) {
+export function guessSetup(scenes, faderMaxDb = -12, appAudioPrefix = 'App Audio: ') {
     const isCapture = i => i.inputKind === 'window_capture' || i.inputKind === 'game_capture';
     const count = sc => sc.items.filter(isCapture).length;
     let best = null;
@@ -318,9 +331,16 @@ export function guessSetup(scenes, faderMaxDb = -12) {
     for (const sc of scenes || []) {
         for (const i of sc.items) if (names.has(i.sourceName) && i.sourceName !== sc.sceneName) nestedIn.set(i.sourceName, (nestedIn.get(i.sourceName) || 0) + 1);
     }
+    // The most-nested scene, and on a tie the one with more audio sources
+    // (Defiant nests Alerts as often as Audio)
+    const audioCount = name => (scenes.find(sc => sc.sceneName === name)?.items || []).filter(i => isAudioKind(i.inputKind)).length;
     let audioScene = best?.sceneName || null;
     let most = 0;
-    for (const [name, n] of nestedIn) if (n > most) [audioScene, most] = [name, n];
+    for (const [name, n] of nestedIn) {
+        if (n > most || (n === most && audioCount(name) > audioCount(audioScene))) [audioScene, most] = [name, n];
+    }
+    const holding = (scenes || []).find(sc => sc.items.some(i => String(i.sourceName).startsWith(appAudioPrefix)));
+    if (holding) audioScene = holding.sceneName;
     return {
         scene: best?.sceneName || null,
         window, hook,
@@ -330,6 +350,15 @@ export function guessSetup(scenes, faderMaxDb = -12) {
         audioScene,
         faderMaxDb
     };
+}
+
+/**
+ * Whether an OBS input kind carries sound (capture devices, media, app audio).
+ * @param {string} kind
+ * @returns {boolean}
+ */
+export function isAudioKind(kind) {
+    return /wasapi|pulse|coreaudio|alsa|jack|ffmpeg|vlc|sck_audio|asio|process_output/.test(kind || '');
 }
 
 /**

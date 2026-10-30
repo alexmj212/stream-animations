@@ -4,7 +4,7 @@ import {
     parseWindowValue, buildWindowList, chooseMethod, captureSettings,
     visibilityChanges, litFraction, windowValue, windowCaptureTarget, peakDb, meterZone, pushRecent,
     captureFailed, appAudioName, parseAppAudioName, copyableFilters,
-    channelList, newChannel, faderMul, readSetup, guessSetup, tracksObject, cleanTracks, activity, DEFAULT_CHANNELS
+    channelList, newChannel, faderMul, readSetup, guessSetup, isDividerScene, isAudioKind, tracksObject, cleanTracks, activity, DEFAULT_CHANNELS
 } from '../../src/gamepicker/picker.js';
 import { authString, ObsSocket } from '../../src/shared/obs.js';
 import { config } from '../../src/config/config.js';
@@ -153,6 +153,22 @@ describe('setup', () => {
             { sceneName: 'Starting', items: [{ sourceName: 'Audio' }] }
         ];
         expect(guessSetup(aj)).toMatchObject({ scene: '16:9 Game', window: 'Window Capture', hook: 'Game Capture 2', audioScene: 'Audio', hideOthers: true });
+    });
+    it('breaks a nesting tie toward the scene with audio sources (Defiant nests Alerts as often as Audio)', () => {
+        const scenes = [
+            { sceneName: 'Alerts', items: [{ sourceName: 'Shade', inputKind: 'browser_source' }] },
+            { sceneName: 'Audio', items: [{ sourceName: 'Mic', inputKind: 'wasapi_input_capture' }] },
+            { sceneName: 'Game', items: [{ sourceName: 'Cap', inputKind: 'game_capture', sceneItemEnabled: true }] },
+            { sceneName: 'Full', items: [{ sourceName: 'Game' }, { sourceName: 'Alerts' }, { sourceName: 'Audio' }] },
+            { sceneName: 'Starting', items: [{ sourceName: 'Alerts' }, { sourceName: 'Audio' }] }
+        ];
+        expect(guessSetup(scenes).audioScene).toBe('Audio');
+        expect(isAudioKind('wasapi_output_capture')).toBe(true);
+        expect(isAudioKind('browser_source')).toBe(false);
+    });
+    it('spots divider scenes in the scene list', () => {
+        for (const name of ['------ SCENES ------', '=====', '   ', '— — —', '---Gaming---']) expect(isDividerScene(name)).toBe(true);
+        for (const name of ['16:9 Game', 'Starting', 'Be Right Back', 'A-1 Game']) expect(isDividerScene(name)).toBe(false);
     });
     it('needs a scene and at least one capture', () => {
         expect(readSetup(null)).toBeNull();

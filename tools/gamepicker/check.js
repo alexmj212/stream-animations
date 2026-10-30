@@ -82,6 +82,8 @@ try {
         .map(id => document.getElementById(id).value).join('|') + `|${document.getElementById('setHideOthers').checked}`);
     check('guesses the scene, the captures in use, the nested audio scene and -12 dB',
         guess === '16:9 Game|Window Capture|Game Capture 2|Audio|-12|true', guess);
+    const sceneOpts = await page.$$eval('#setScene option, #setAudioScene option', els => els.map(e => e.value));
+    check('leaves divider scenes out of setup', !sceneOpts.some(v => v.includes('---')), sceneOpts.join(','));
     const html = await page.evaluate(() => document.documentElement.innerHTML.replace(/<select[\s\S]*?<\/select>|<div id="setPinned">[\s\S]*?<\/div>/g, ''));
     check('no names from any one OBS in the page', !/Local Game|BG Music|Ext Capture|16:9 Game|Console/.test(html));
     await page.$$eval('#setPinned input', els => els.forEach(e => { e.checked = e.value === 'Game Capture'; }));
@@ -97,8 +99,8 @@ try {
         li.querySelector('.pick').firstElementChild.className === 'title' && /^[A-Z0-9?]$/.test(li.querySelector('.ico').textContent)));
     check('lists windows only the window capture sees (Firefox)', exes.includes('firefox.exe'), exes.join(' '));
     check('lists windows only the hook sees (Telegram)', exes.includes('Telegram.exe'), exes.join(' '));
-    check('shows what 16:9 Game shows now',
-        (await page.$eval('#showing', el => el.textContent)) === 'Showing: RACCOIN.exe (game hook)');
+    const shown = () => page.$eval('.showtext', el => `${el.querySelector('#showing').textContent} | ${el.querySelector('#showMeta').textContent}`);
+    check('shows what 16:9 Game shows now, title first', await shown() === 'RACCOIN | RACCOIN.exe · game hook', await shown());
 
     const rowOf = async (exe) => {
         for (const li of await page.$$('#windows li')) {
@@ -145,9 +147,9 @@ try {
         && obs.state.inputs['Window Capture'].settings.window === 'Realtek Audio Console:ApplicationFrameWindow:ApplicationFrameHost.exe'
         && obs.state.inputs['Window Capture'].settings.priority === 1, `${visible()} ${obs.state.inputs['Window Capture'].settings.window}`);
     check('and its dark picture counts as a picture', await noteText() === '', await noteText());
-    check('and the dock shows it as picked', (await page.$eval('#showing', el => el.textContent)) === 'Showing: RtkUWP.exe (window)'
+    check('and the dock shows it as picked', await shown() === 'Realtek Audio Console | RtkUWP.exe · window'
         && (await page.$$eval('#windows li.current .exe', els => els.map(e => e.textContent))).join() === 'RtkUWP.exe',
-    await page.$eval('#showing', el => el.textContent));
+    await shown());
 
     // Exclusive fullscreen: black through window capture, so the hook
     await pickAndWait('Balatro.exe');
@@ -200,7 +202,7 @@ try {
     check('highlights only the picked window', (await page.$$eval('#windows li.current .exe', els => els.map(e => e.textContent))).join() === 'firefox.exe');
     obs.setFromProperties('Window Capture', { window: 'Claude:Chrome_WidgetWin_1:claude.exe' });
     check('follows a change made in the source properties', await until(() =>
-        page.$eval('#showing', el => el.textContent.startsWith('Showing: claude.exe (window) - window not found'))));
+        page.$eval('#showMeta', el => el.textContent === 'claude.exe · window · window not found')));
 
     // Action Cam is MIU's: shown by MIU, the picker must leave it shown
     obs.state.items.find(i => i.sourceName === 'Action Cam').sceneItemEnabled = true;
@@ -208,8 +210,8 @@ try {
     await wait(600);
     check('a pinned source\u2019s button shows only it (Action Cam left alone)',
         visible() === 'Action Cam,Game Capture', visible());
-    check('says so, without the window-not-found warning', await page.$eval('#showing',
-        el => el.textContent === 'Showing: Game Capture' && !el.classList.contains('missing')));
+    check('says so, without the window-not-found warning', await shown() === 'Game Capture | pinned source'
+        && await page.$eval('#showing', el => !el.classList.contains('missing')), await shown());
 
     // Channels made in the dock (AJ, 2026-10-30): a name, tracks, and
     // optionally a source to copy. The offered plain Game and Music go, then
