@@ -71,6 +71,9 @@
       #showing.missing { color: var(--bad); }
       #status { font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #status.bad { color: var(--bad); }
+      #status.ok { display: none; }   /* the green dot says it */
+      #showMeta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #showMeta:empty { display: none; }
       #preview { display: block; width: 100%; max-height: 32vh; object-fit: contain; border-radius: 4px; background: #000; cursor: pointer; }
       #preview[hidden] { display: none; }
       #note { color: var(--yellow); font-size: 12px; }
@@ -195,6 +198,7 @@
           <span id="dot" class="dot" aria-hidden="true"></span>
           <div class="showtext">
             <span id="showing">…</span>
+            <span id="showMeta" class="muted-text"></span>
             <span id="status">Loading…</span>
           </div>
           <button id="setupBtn" class="gear" type="button" title="Setup: which scene and captures the dock drives" aria-label="Setup">⚙</button>

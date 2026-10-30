@@ -143,13 +143,15 @@ export async function startFakeObs({
         }),
         // OBS lists scenes bottom first
         // Audio is nested in the other scenes, as on Defiant
-        GetSceneList: () => ({ scenes: ['Audio', '16:9 Game', 'Full 16:9', 'Starting'].map((sceneName, sceneIndex) => ({ sceneName, sceneIndex })) }),
+        // Alerts is nested as often as Audio, and a divider sits in the list (Defiant)
+        GetSceneList: () => ({ scenes: ['Audio', 'Alerts', '------ SCENES ------', '16:9 Game', 'Full 16:9', 'Starting'].map((sceneName, sceneIndex) => ({ sceneName, sceneIndex })) }),
         GetSceneItemList: ({ sceneName }) => {
             if (sceneName === 'Audio') {
                 return { sceneItems: state.audioScene.map(({ id, name, enabled = true }) => ({ sceneItemId: id, sourceName: name, inputKind: state.inputs[name]?.kind, sceneItemEnabled: enabled })) };
             }
-            if (sceneName === 'Full 16:9') return { sceneItems: [{ sceneItemId: 1, sourceName: '16:9 Game', inputKind: null, sceneItemEnabled: true }, { sceneItemId: 2, sourceName: 'Audio', inputKind: null, sceneItemEnabled: true }] };
-            if (sceneName === 'Starting') return { sceneItems: [{ sceneItemId: 1, sourceName: 'Audio', inputKind: null, sceneItemEnabled: true }] };
+            if (sceneName === 'Full 16:9') return { sceneItems: ['16:9 Game', 'Alerts', 'Audio'].map((sourceName, i) => ({ sceneItemId: i + 1, sourceName, inputKind: null, sceneItemEnabled: true })) };
+            if (sceneName === 'Starting') return { sceneItems: ['Alerts', 'Audio'].map((sourceName, i) => ({ sceneItemId: i + 1, sourceName, inputKind: null, sceneItemEnabled: true })) };
+            if (sceneName === 'Alerts' || sceneName === '------ SCENES ------') return { sceneItems: [] };
             if (sceneName !== '16:9 Game') throw new Error('No source was found');
             return { sceneItems: state.items.map(i => ({ ...i })) };
         },

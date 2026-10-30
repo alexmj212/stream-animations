@@ -15,7 +15,7 @@ import {
     buildWindowList, chooseMethod, captureSettings, visibilityChanges,
     litFraction, peakDb, meterZone, pushRecent, parseWindowValue,
     mergeWindowLists, sameWindow, windowCaptureTarget, captureFailed, appAudioName, parseAppAudioName,
-    copyableFilters, channelList, newChannel, faderMul, readSetup, guessSetup, tracksObject, activity, cleanTracks
+    copyableFilters, channelList, newChannel, faderMul, readSetup, guessSetup, isDividerScene, isAudioKind, tracksObject, activity, cleanTracks
 } from './picker.js';
 
 const cfg = config.gamePicker;
@@ -76,6 +76,7 @@ function setStatus(text, kind = '') {
     el.textContent = text;
     el.className = kind;
     $('dot').className = `dot ${kind}`;
+    $('dot').title = text;
 }
 
 function note(text) {
@@ -531,7 +532,6 @@ async function tickTracksOf(name) {
 $('channelCopy').addEventListener('change', () => $('channelCopy').value && tickTracksOf($('channelCopy').value));
 
 // Inputs that carry sound: audio devices, app and media sources
-const isAudioKind = k => /wasapi|pulse|coreaudio|alsa|jack|ffmpeg|vlc|sck_audio|asio|process_output/.test(k || '');
 $('newToggle').addEventListener('click', () => showNewForm($('newChannel').hidden));
 $('newChannel').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -871,21 +871,26 @@ const CAPTURE_NAME = { hook: 'game hook', window: 'window capture' };
 const SWAP_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
     '<path d="M2 4.5h9M8.5 2l2.5 2.5L8.5 7M12 9.5H3M5.5 7L3 9.5 5.5 12"/></svg>';
 
+/** What's showing: the window title first, the app and capture under it (AJ, 2026-10-30). */
 function renderShowing() {
     const el = $('showing');
+    const meta = $('showMeta');
     el.classList.remove('missing');
     if (!showing) {
-        el.textContent = `Nothing is showing in ${setup.scene}`;
+        el.textContent = 'Nothing showing';
+        meta.textContent = setup.scene;
         return;
     }
     if (showing.method === 'pinned') {
-        el.textContent = `Showing: ${showing.name}`;
+        el.textContent = showing.name;
+        meta.textContent = 'pinned source';
         return;
     }
     const w = parseWindowValue(showing.value);
     const flag = showing.method === 'hook' ? 'inHook' : 'inWindow';
     const open = windowItems.some(i => i[flag] && sameWindow(i.itemValue, showing.value));
-    el.textContent = `Showing: ${w.exe || '?'} (${METHOD_LABEL[showing.method]})${open || !windowItems.length ? '' : ' - window not found'}`;
+    el.textContent = w.title || w.exe || '?';
+    meta.textContent = `${w.exe || '?'} · ${METHOD_LABEL[showing.method]}${open || !windowItems.length ? '' : ' · window not found'}`;
     el.classList.toggle('missing', !open && windowItems.length > 0);
     el.title = w.title;
 }
@@ -997,7 +1002,7 @@ async function openSetup() {
     try {
         const { scenes } = await obs.call('GetSceneList');
         // OBS lists scenes bottom first
-        setupScenes = await Promise.all([...scenes].reverse().map(async ({ sceneName }) => ({
+        setupScenes = await Promise.all([...scenes].reverse().filter(sc => !isDividerScene(sc.sceneName)).map(async ({ sceneName }) => ({
             sceneName,
             items: await Promise.all((await obs.call('GetSceneItemList', { sceneName })).sceneItems.map(async (i) => {
                 // A capture pointed at a window beats an empty duplicate
@@ -1009,7 +1014,7 @@ async function openSetup() {
     } catch (err) {
         $('setupError').textContent = `Couldn't read your scenes: ${err.message}`;
     }
-    const s = setup || guessSetup(setupScenes, acfg.defaultFaderMaxDb);
+    const s = setup || guessSetup(setupScenes, acfg.defaultFaderMaxDb, acfg.prefix);
     const names = setupScenes.map(sc => sc.sceneName);
     fill($('setScene'), names.map(n => [n, n]), s.scene);
     fill($('setAudioScene'), names.map(n => [n, n]), s.audioScene || s.scene);
