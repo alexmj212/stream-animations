@@ -263,12 +263,14 @@ export function visibilityChanges(items, target, { sources = [], hideOthers = fa
 
 /**
  * Whether a scene is only a divider in OBS's scene list ("------ SCENES
- * ------"), never a scene to pick (Defiant, 2026-10-30).
+ * ------"): it starts with a line of dashes or is all punctuation. Names
+ * like "...Soon" or "***Live***" stay (review of #124). Never a scene to
+ * pick (Defiant, 2026-10-30).
  * @param {string} name
  * @returns {boolean}
  */
 export function isDividerScene(name) {
-    return /^\s*[-=_~*#—–.]{3,}/.test(name) || /^[\s\-=_~*#—–.]*$/.test(name);
+    return /^\s*[-=_~—–]{3,}/.test(name) || /^[\s\-=_~*#—–.]*$/.test(name);
 }
 
 /**

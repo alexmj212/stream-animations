@@ -168,7 +168,7 @@ describe('setup', () => {
     });
     it('spots divider scenes in the scene list', () => {
         for (const name of ['------ SCENES ------', '=====', '   ', '— — —', '---Gaming---']) expect(isDividerScene(name)).toBe(true);
-        for (const name of ['16:9 Game', 'Starting', 'Be Right Back', 'A-1 Game']) expect(isDividerScene(name)).toBe(false);
+        for (const name of ['16:9 Game', 'Starting', 'Be Right Back', 'A-1 Game', '...Soon', '***Live***', '#1 Fan']) expect(isDividerScene(name)).toBe(false);
     });
     it('needs a scene and at least one capture', () => {
         expect(readSetup(null)).toBeNull();
