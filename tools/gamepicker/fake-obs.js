@@ -43,15 +43,23 @@ export function solidPng(w, h, [r, g, b]) {
     return `data:image/png;base64,${png.toString('base64')}`;
 }
 
+// Both lists differ, like OBS's: the game capture leaves out browsers,
+// Explorer and Discord (win-capture's blacklist), and Telegram minimised to
+// the tray shows only in the hook's list (Defiant, 2026-10-30)
 export const WINDOWS = [
     'RACCOIN:UnityWndClass:RACCOIN.exe',
     'mGBA - Pokemon - FireRed Version (USA, Europe) (Rev 1) (60 fps) - 0.10.5:Qt51516QWindowIcon:mGBA.exe',
     'Sumoomoo - Twitch — Mozilla Firefox:MozillaWindowClass:firefox.exe',
+    'Account API tokens — Mozilla Firefox:MozillaWindowClass:firefox.exe',
     'Balatro:SDL_app:Balatro.exe',
     'OBS 31.1.2 - Profile#3A Stream:Qt663QWindowIcon:obs64.exe',
     'Mix It Up:HwndWrapper[MixItUp.exe]:MixItUp.exe',
-    'Program Manager:Progman:explorer.exe'
+    'Program Manager:Progman:explorer.exe',
+    'General \u2013 (11976):Qt51517QWindowIcon:Telegram.exe',
+    '#fat-content | G-word Girlies - Discord:Chrome_WidgetWin_1:Discord.exe'
 ];
+const HOOK_SKIPS = /firefox|explorer|discord/i;
+const WINDOW_SKIPS = /telegram/i;
 
 /**
  * @param {Object} opts
@@ -83,8 +91,10 @@ export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'
     const exeOf = v => (v || '').split(':')[2] || '';
 
     const handlers = {
-        GetInputPropertiesListPropertyItems: () => ({
-            propertyItems: WINDOWS.map(v => ({ itemName: `[${exeOf(v)}]: ${v.split(':')[0]}`, itemValue: v, itemEnabled: true }))
+        GetInputPropertiesListPropertyItems: ({ inputName }) => ({
+            propertyItems: WINDOWS
+                .filter(v => !(state.inputs[inputName].kind === 'game_capture' ? HOOK_SKIPS : WINDOW_SKIPS).test(exeOf(v)))
+                .map(v => ({ itemName: `[${exeOf(v)}]: ${v.split(':')[0]}`, itemValue: v, itemEnabled: true }))
         }),
         GetSceneItemList: ({ sceneName }) => {
             if (sceneName !== '16:9 Game') throw new Error('No source was found');
@@ -97,6 +107,7 @@ export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'
         GetInputSettings: ({ inputName }) => ({ inputSettings: { ...state.inputs[inputName].settings } }),
         SetInputSettings: ({ inputName, inputSettings }) => {
             Object.assign(state.inputs[inputName].settings, inputSettings);
+            broadcast('InputSettingsChanged', { inputName, inputSettings: state.inputs[inputName].settings });
             return {};
         },
         GetInputMute: ({ inputName }) => {
@@ -111,6 +122,9 @@ export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'
     };
 
     const wss = new WebSocketServer({ port: 0, host: '127.0.0.1' });
+    function broadcast(eventType, eventData) {
+        for (const c of wss.clients) c.send(JSON.stringify({ op: 5, d: { eventType, eventIntent: 8, eventData } }));
+    }
     await new Promise(r => wss.on('listening', r));
     const salt = 'fakesalt', challenge = 'fakechallenge';
     wss.on('connection', (ws) => {
@@ -144,6 +158,9 @@ export async function startFakeObs({ password = 'pw', blackExes = ['Balatro.exe'
     return {
         url: `ws://127.0.0.1:${wss.address().port}`,
         state,
+        blackExes,
+        /** Change an input the way the source properties do, with OBS's event. */
+        setFromProperties: (inputName, settings) => handlers.SetInputSettings({ inputName, inputSettings: settings }),
         close: () => new Promise(r => { for (const c of wss.clients) c.terminate(); wss.close(r); })
     };
 }

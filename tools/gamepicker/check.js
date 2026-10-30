@@ -5,7 +5,10 @@
  * the dock in headless Chrome and checks that:
  *   - a wrong password shows the password box, the right one connects and
  *     is never stored (localStorage is shared across the Pages origin),
- *   - the list hides OBS / MIU / Explorer and pins recents,
+ *   - the list merges both captures' window lists (the hook's leaves out
+ *     browsers and Discord), hides OBS / MIU / Explorer and pins recents,
+ *   - a window only the hook can see goes to the hook, and what the dock
+ *     says it shows follows changes made in the source properties,
  *   - picking a game hooks it and hides every other capture (not Action Cam),
  *   - a browser goes straight to window capture,
  *   - a hook that shows black falls back to window capture and remembers it,
@@ -61,6 +64,8 @@ try {
     await until(() => page.$$eval('#windows .pick', els => els.length > 0));
     const exes = await page.$$eval('#windows .exe', els => els.map(e => e.textContent));
     check('hides OBS, MIU and Explorer', !exes.some(e => /obs64|MixItUp|explorer/.test(e)), exes.join(' '));
+    check('lists windows only the window capture sees (Firefox)', exes.includes('firefox.exe'), exes.join(' '));
+    check('lists windows only the hook sees (Telegram)', exes.includes('Telegram.exe'), exes.join(' '));
     check('shows what 16:9 Game shows now',
         (await page.$eval('#showing', el => el.textContent)) === 'Showing: RACCOIN.exe (game hook)');
 
@@ -97,8 +102,39 @@ try {
     const remembered = await page.evaluate(() => JSON.parse(localStorage.getItem('gamePicker:v1')).remembered);
     check('remembers window capture for it', remembered['balatro.exe'] === 'window', JSON.stringify(remembered));
     check('never stores the password', !(await page.evaluate(() => JSON.stringify(localStorage))).includes('pw'));
-    const top = await page.$$eval('#windows .exe', els => els.slice(0, 3).map(e => e.textContent));
+    const top = [...new Set(await page.$$eval('#windows .exe', els => els.map(e => e.textContent)))].slice(0, 3);
     check('recents pinned on top, newest first', top.join('|') === '★ Balatro.exe|★ firefox.exe|★ mGBA.exe', top.join('|'));
+
+    // Telegram is only in the hook's list: never sent to window capture,
+    // even with the black fallback, and the ⇄ window button is off
+    // Black through the hook and remembered as window: both must still give
+    // the hook, the only capture that can see it (Code review, #114)
+    obs.state.inputs['Window Capture'].settings.window = 'x:y:none.exe';
+    obs.blackExes.push('Telegram.exe');
+    await page.evaluate(() => {
+        const s = JSON.parse(localStorage.getItem('gamePicker:v1'));
+        s.remembered['telegram.exe'] = 'window';
+        localStorage.setItem('gamePicker:v1', JSON.stringify(s));
+    });
+    await page.goto(`${baseUrl}/src/gamepicker/index.html?obs=${encodeURIComponent(obs.url)}&password=pw`);
+    await until(() => page.$eval('#status', el => el.textContent === 'Connected to OBS'));
+    await until(() => page.$$eval('#windows .pick', els => els.length > 0));
+    await clickExe('Telegram.exe');
+    await wait(100);
+    await settled();
+    check('a hook-only window goes to the hook', visible() === 'Game Capture 2'
+        && obs.state.inputs['Game Capture 2'].settings.window.includes('Telegram.exe')
+        && obs.state.inputs['Window Capture'].settings.window === 'x:y:none.exe', visible());
+    obs.blackExes.pop();
+
+    // Changed by hand in the source properties: the dock follows OBS
+    await clickExe('firefox.exe');
+    await wait(100);
+    await settled();
+    check('highlights only the picked window', (await page.$$eval('#windows li.current .exe', els => els.map(e => e.textContent))).join() === '★ firefox.exe');
+    obs.setFromProperties('Window Capture', { window: 'Claude:Chrome_WidgetWin_1:claude.exe' });
+    check('follows a change made in the source properties', await until(() =>
+        page.$eval('#showing', el => el.textContent.startsWith('Showing: claude.exe (window) - window not found'))));
 
     // Action Cam is MIU's: shown by MIU, the picker must leave it shown
     obs.state.items.find(i => i.sourceName === 'Action Cam').sceneItemEnabled = true;
@@ -106,6 +142,8 @@ try {
     await wait(600);
     check('capture card shows only Game Capture (Action Cam left alone)',
         visible() === 'Action Cam,Game Capture', visible());
+    check('says so, without the window-not-found warning', await page.$eval('#showing',
+        el => el.textContent === 'Showing: console (capture card)' && !el.classList.contains('missing')));
 
     check('meters move', await until(() => page.$eval('#meters .bar', b => parseFloat(b.style.width) > 50)));
     const audio = obs.state.log.filter(r => /Volume|Mute$|SetInputMute|Audio|Monitor/.test(r.requestType) && r.requestType !== 'GetInputMute');
