@@ -71,6 +71,12 @@
       .meter .mute { visibility: hidden; color: var(--bad); font-weight: 600; }
       .meter.muted .mute { visibility: visible; }
       .meter.missing { opacity: 0.4; }
+      #channelName, #channelLike { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px; min-width: 0; color: var(--text); font: inherit; }
+      .controls { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 11px; color: var(--dim); }
+      .controls input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+      .controls .db { width: 4.5em; text-align: right; }
+      .controls .apps { width: 4em; }
+      button.small { padding: 2px 6px; font-size: 11px; }
       .meter.clipped { cursor: pointer; }
       .meter.clipped .name { color: var(--red); font-weight: 600; }
       .meter.clipped .name::after { content: " · went red"; }
@@ -93,7 +99,17 @@
       <button id="previewBtn" type="button">Check picture</button>
     </div>
 
-    <h2>Audio</h2>
+    <h2>Channels</h2>
+    <div id="channels"></div>
+    <form id="newChannel" class="row">
+      <input id="channelName" placeholder="New channel, e.g. Browser" maxlength="24" autocomplete="off">
+      <select id="channelLike" title="Which source's tracks and filters it copies">
+        <option value="game">on VOD (like Game)</option>
+        <option value="music">off VOD (like Music)</option>
+      </select>
+      <button type="submit" style="flex: none">Add</button>
+    </form>
+    <h2>Your sources</h2>
     <div id="meters"></div>
     <div class="opts">Meters move while a scene with the Audio scene is live (Full 16:9, Just Chatting…).</div>
 
@@ -103,7 +119,7 @@
       <button id="refresh" type="button" style="flex: none">Refresh</button>
     </div>
     <div class="opts">
-      <span>★ recent · click to show · 🔊 sends its sound</span>
+      <span>★ recent · click to show · 🔊 puts its sound in a channel</span>
       <label><input id="showAll" type="checkbox"> show all</label>
     </div>
     <ul id="windows"></ul>

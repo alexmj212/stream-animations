@@ -2,8 +2,9 @@
  * Game picker dock: lists open windows and points the 16:9 Game capture at
  * one in a click. Runs as an OBS Custom Browser Dock and talks to OBS over
  * obs-websocket (docs/SCENES.md, "gamepicker"). Each window can also send
- * its app's sound to Game or Music (config.gamePicker.audio); the dock
- * never changes AJ's own audio sources, only its "App Audio:" inputs.
+ * its app's sound to an audio channel: Game, Music or one AJ made in the
+ * dock (config.gamePicker.audio); the dock never changes AJ's own audio
+ * sources, only its "App Audio:" inputs.
  */
 
 import { config } from '../config/config.js';
@@ -13,7 +14,7 @@ import {
     buildWindowList, chooseMethod, captureSettings, visibilityChanges,
     litFraction, peakDb, meterZone, pushRecent, parseWindowValue,
     mergeWindowLists, sameWindow, windowCaptureTarget, captureFailed, appAudioName, parseAppAudioName,
-    copyableFilters
+    copyableFilters, channelList, newChannel, faderMul
 } from './picker.js';
 
 const cfg = config.gamePicker;
@@ -62,6 +63,13 @@ let busy = false;
 const meterEls = new Map();  // inputName -> { bar, label, row }
 const acfg = cfg.audio;
 let routes = new Map();      // lower-case exe -> { exe, target, inputName }
+let saved = {};              // persistent data: { custom, mix } (channelList)
+let channels = channelList(acfg.targets, saved);
+let templateMul = {};        // template source -> its fader, the default for its channels
+const channelEls = new Map(); // channel id -> { row, bar }
+const memberOf = new Map();  // App Audio input name -> channel id
+const REALM = 'OBS_WEBSOCKET_DATA_REALM_PROFILE';
+const byId = () => Object.fromEntries(channels.map(c => [c.id, c]));
 
 function setStatus(text, kind = '') {
     const el = $('status');
@@ -99,7 +107,7 @@ async function connect() {
     $('auth').hidden = true;
     setStatus('Connected to OBS', 'ok');
     debug.mark('connect', { url });
-    await Promise.all([refreshWindows(), readShowing(), readRoutes()]);
+    await Promise.all([refreshWindows(), readShowing(), readChannels().then(readRoutes)]);
 }
 
 $('auth').addEventListener('submit', (e) => {
@@ -119,17 +127,20 @@ document.addEventListener('visibilitychange', () => {
 
 function onEvent({ eventType, eventData }) {
     if (eventType === 'InputVolumeMeters') {
+        const loudest = new Map();   // channel id -> loudest member, dB
         for (const input of eventData.inputs) {
-            const m = meterEls.get(input.inputName);
-            if (!m) continue;
             const db = peakDb(input.inputLevelsMul, cfg.meterFloorDb);
-            const pct = 100 * (db - cfg.meterFloorDb) / -cfg.meterFloorDb;
-            m.bar.style.width = `${pct.toFixed(1)}%`;
-            m.bar.dataset.zone = meterZone(db);
-            // An app's own volume is unknown, and AJ won't be watching the
-            // dock live: a peak in the red stays flagged until clicked
-            // (no clipping ever, docs/AUDIO.md; QA, #116)
-            if (m.app && m.bar.dataset.zone === 'red') m.row.classList.add('clipped');
+            const ch = memberOf.get(input.inputName);
+            if (ch) loudest.set(ch, Math.max(loudest.get(ch) ?? cfg.meterFloorDb, db));
+            const m = meterEls.get(input.inputName);
+            if (m) showLevel(m, db);
+        }
+        for (const [id, m] of channelEls) {
+            showLevel(m, loudest.get(id) ?? cfg.meterFloorDb);
+            // AJ won't be watching the dock live: a channel peak in the red
+            // stays flagged until clicked (no clipping ever, docs/AUDIO.md;
+            // QA, #116)
+            if (m.bar.dataset.zone === 'red') m.row.classList.add('clipped');
         }
     } else if (eventType === 'InputMuteStateChanged') {
         const m = meterEls.get(eventData.inputName);
@@ -145,6 +156,12 @@ function onEvent({ eventType, eventData }) {
         // An App Audio input added or removed in OBS itself
         readRoutes();
     }
+}
+
+function showLevel(m, db) {
+    const pct = 100 * (db - cfg.meterFloorDb) / -cfg.meterFloorDb;
+    m.bar.style.width = `${pct.toFixed(1)}%`;
+    m.bar.dataset.zone = meterZone(db);
 }
 
 // ---- reading OBS ----
@@ -193,29 +210,195 @@ async function readShowing() {
     }
 }
 
+/** Meters for AJ's own sources, which the dock only reads. */
 async function setupMeters() {
     const box = $('meters');
     box.textContent = '';
     meterEls.clear();
-    const names = [...cfg.meters, ...[...routes.values()].map(r => r.inputName)];
-    for (const name of names) {
-        const row = document.createElement('div');
-        row.className = 'meter';
-        row.innerHTML = '<span class="name"></span><span class="track"><span class="bar"></span></span><span class="mute">muted</span>';
-        row.querySelector('.name').textContent = name.startsWith(acfg.prefix) ? name.slice(acfg.prefix.length) : name;
-        row.title = name;
-        const app = name.startsWith(acfg.prefix);
-        if (app) {
-            row.title = `${name}: went red if flagged; turn the app down, then click to clear`;
-            row.addEventListener('click', () => row.classList.remove('clipped'));
-        }
+    for (const name of cfg.meters) {
+        const row = meterRow(name);
         box.appendChild(row);
-        meterEls.set(name, { row, bar: row.querySelector('.bar'), app });
+        meterEls.set(name, { row, bar: row.querySelector('.bar') });
         obs.call('GetInputMute', { inputName: name })
             .then(({ inputMuted }) => row.classList.toggle('muted', inputMuted))
             .catch(() => row.classList.add('missing'));
     }
 }
+
+function meterRow(name) {
+    const row = document.createElement('div');
+    row.className = 'meter';
+    row.innerHTML = '<span class="name"></span><span class="track"><span class="bar"></span></span><span class="mute">muted</span>';
+    row.querySelector('.name').textContent = name;
+    row.title = name;
+    return row;
+}
+
+// ---- channels ----
+
+/** Channels and their faders, from OBS's persistent data. */
+async function readChannels() {
+    try {
+        const { slotValue } = await obs.call('GetPersistentData', { realm: REALM, slotName: acfg.dataSlot });
+        saved = slotValue && typeof slotValue === 'object' ? slotValue : {};
+    } catch (err) {
+        note(`Couldn't read the audio channels: ${err.message}`);
+    }
+    channels = channelList(acfg.targets, saved);
+    templateMul = {};
+    for (const t of new Set(channels.map(c => c.template))) {
+        try {
+            templateMul[t] = (await obs.call('GetInputVolume', { inputName: t })).inputVolumeMul;
+        } catch { /* source missing: its channels start at the floor */ }
+    }
+}
+
+async function saveChannels() {
+    saved = {
+        custom: channels.filter(c => !c.builtin).map(({ id, label, like }) => ({ id, label, like })),
+        mix: Object.fromEntries(channels.filter(c => c.volumeMul !== null || c.muted)
+            .map(c => [c.id, { volumeMul: c.volumeMul, muted: c.muted }]))
+    };
+    await obs.call('SetPersistentData', { realm: REALM, slotName: acfg.dataSlot, slotValue: saved });
+}
+
+/** A channel's fader: its own once moved, else its template source's. */
+function channelMul(c) {
+    return c.volumeMul ?? Math.min(templateMul[c.template] ?? 0, faderMul(acfg.channelMaxDb, cfg.meterFloorDb, acfg.channelMaxDb));
+}
+
+const toDb = mul => (mul > 0 ? 20 * Math.log10(mul) : cfg.meterFloorDb);
+
+function members(id) {
+    return [...routes.values()].filter(r => r.target === id && r.live);
+}
+
+function renderChannels() {
+    const box = $('channels');
+    box.textContent = '';
+    channelEls.clear();
+    for (const c of channels) {
+        const row = meterRow(`${c.label}${c.like === 'music' ? ' (not on VOD)' : ''}`);
+        row.classList.add('channel');
+        row.classList.toggle('muted', c.muted);
+        const n = members(c.id).length;
+        row.title = `${c.label}: ${n ? members(c.id).map(r => r.exe).join(', ') : 'no apps yet'}. ` +
+            `Copies ${c.template}'s tracks and filters. Flagged "went red": turn it down, then click to clear`;
+        row.addEventListener('click', () => row.classList.remove('clipped'));
+        const ctl = document.createElement('div');
+        ctl.className = 'controls';
+        const fader = document.createElement('input');
+        fader.type = 'range';
+        fader.min = String(cfg.meterFloorDb);
+        fader.max = String(acfg.channelMaxDb);
+        fader.step = '0.5';
+        fader.value = String(toDb(channelMul(c)));
+        fader.title = `${c.label} volume (at most ${acfg.channelMaxDb} dB, so it can't go red)`;
+        const db = document.createElement('span');
+        db.className = 'db';
+        const showDb = () => { db.textContent = `${Number(fader.value).toFixed(1)} dB`; };
+        showDb();
+        fader.addEventListener('input', showDb);
+        fader.addEventListener('change', () => setChannelMix(c.id, { volumeMul: faderMul(fader.value, cfg.meterFloorDb, acfg.channelMaxDb) }));
+        const mute = document.createElement('button');
+        mute.type = 'button';
+        mute.className = 'small';
+        mute.textContent = c.muted ? 'Unmute' : 'Mute';
+        mute.addEventListener('click', (e) => { e.stopPropagation(); setChannelMix(c.id, { muted: !c.muted }); });
+        ctl.append(fader, db, mute);
+        if (!c.builtin) {
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'small';
+            del.textContent = '✕';
+            del.title = `Remove the ${c.label} channel (its apps go off stream)`;
+            del.addEventListener('click', (e) => { e.stopPropagation(); removeChannel(c.id); });
+            ctl.append(del);
+        }
+        const count = document.createElement('span');
+        count.className = 'apps';
+        count.textContent = n ? `${n} app${n > 1 ? 's' : ''}` : 'empty';
+        ctl.append(count);
+        box.append(row, ctl);
+        channelEls.set(c.id, { row, bar: row.querySelector('.bar') });
+    }
+}
+
+/** Move a channel's fader or mute: every app in it, then remember it. */
+async function setChannelMix(id, change) {
+    if (busy || !obs?.ready) return;
+    busy = true;
+    document.body.classList.add('busy');
+    try {
+        const c = channels.find(x => x.id === id);
+        Object.assign(c, change);
+        for (const r of members(id)) await applyMix(r.inputName, c);
+        await saveChannels();
+        debug.mark('mix', { id, ...change });
+    } catch (err) {
+        note(`Couldn't change the channel: ${err.message}`);
+    } finally {
+        busy = false;
+        document.body.classList.remove('busy');
+        renderChannels();
+    }
+}
+
+async function applyMix(inputName, c) {
+    await obs.call('SetInputVolume', { inputName, inputVolumeMul: channelMul(c) });
+    await obs.call('SetInputMute', { inputName, inputMuted: c.muted });
+}
+
+async function addChannel(name, like) {
+    if (busy || !obs?.ready) return;
+    const made = newChannel(name, like, channels, acfg.targets);
+    if (made.error) {
+        note(made.error);
+        return;
+    }
+    busy = true;
+    document.body.classList.add('busy');
+    try {
+        channels = channelList(acfg.targets, {
+            ...saved, custom: [...(saved.custom || []), made.channel]
+        });
+        await saveChannels();
+        $('channelName').value = '';
+        note(`Made the ${made.channel.label} channel. Pick it in an app's Sound menu.`);
+    } catch (err) {
+        note(`Couldn't make the channel: ${err.message}`);
+        await readChannels();
+    } finally {
+        busy = false;
+        document.body.classList.remove('busy');
+        renderChannels();
+        renderList();
+    }
+}
+
+async function removeChannel(id) {
+    if (busy || !obs?.ready) return;
+    busy = true;
+    document.body.classList.add('busy');
+    const c = channels.find(x => x.id === id);
+    try {
+        for (const r of [...routes.values()].filter(x => x.target === id)) await removeRoute(r);
+        channels = channels.filter(x => x.id !== id);
+        await saveChannels();
+        note(`Removed the ${c.label} channel.`);
+    } catch (err) {
+        note(`Couldn't remove ${c.label}: ${err.message}`);
+    } finally {
+        busy = false;
+        document.body.classList.remove('busy');
+        await readRoutes();
+    }
+}
+
+$('newChannel').addEventListener('submit', (e) => {
+    e.preventDefault();
+    addChannel($('channelName').value, $('channelLike').value);
+});
 
 /**
  * The dock's App Audio inputs, by app, from the Audio scene: an input there
@@ -226,7 +409,7 @@ async function readRoutes() {
         const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: acfg.scene });
         routes = new Map();
         for (const { sourceName, sceneItemId, sceneItemEnabled } of sceneItems) {
-            const r = parseAppAudioName(sourceName, acfg.prefix, acfg.targets);
+            const r = parseAppAudioName(sourceName, acfg.prefix, byId());
             if (!r) continue;
             const key = r.exe.toLowerCase();
             const route = routes.get(key) || { ...r, inputName: sourceName, items: [], live: false };
@@ -236,8 +419,13 @@ async function readRoutes() {
         }
         // A hidden input is half made (or hidden by hand): it plays nothing,
         // so the menu says off; choosing Game or Music replaces it
-        for (const route of routes.values()) if (!route.live) route.target = 'off';
+        memberOf.clear();
+        for (const route of routes.values()) {
+            if (route.live) memberOf.set(route.inputName, route.target);
+            else route.target = 'off';
+        }
         await setupMeters();
+        renderChannels();
         renderList();
     } catch (err) {
         note(`Couldn't read app audio: ${err.message}`);
@@ -281,9 +469,9 @@ async function copyFromTemplate(inputName, template) {
 }
 
 /**
- * Send an app's sound to a destination ('game', 'music') or take it off
- * stream ('off'). Replaces the app's App Audio input with one that copies
- * the destination source's tracks, volume and filters.
+ * Send an app's sound to a channel (by id) or take it off stream ('off').
+ * Replaces the app's App Audio input with one that copies the channel's
+ * template source's tracks and filters, at the channel's fader and mute.
  */
 async function setRoute(win, target) {
     if (busy || !obs?.ready) return;
@@ -293,8 +481,8 @@ async function setRoute(win, target) {
     try {
         const old = routes.get(key);
         if (old) await removeRoute(old);
-        if (target !== 'off') {
-            const t = acfg.targets[target];
+        const t = channels.find(c => c.id === target);
+        if (t) {
             const inputName = appAudioName(acfg.prefix, win.exe, t.label);
             // Hidden until it has the destination's tracks, volume and
             // filters: a new input plays on every track (VOD too) at 0 dB
@@ -308,12 +496,13 @@ async function setRoute(win, target) {
             });
             try {
                 await copyFromTemplate(inputName, t.template);
+                await applyMix(inputName, t);
             } catch (err) {
                 await removeRoute({ items: [{ sceneItemId, inputName }] }).catch(() => {});
                 throw err;
             }
             await obs.call('SetSceneItemEnabled', { sceneName: acfg.scene, sceneItemId, sceneItemEnabled: true });
-            note(`${win.exe} sound now goes to ${t.label}${target === 'music' ? ' (stream only, not the VOD; it doesn\'t follow the music fades)' : ' (if it already plays to CABLE-A, it\'s on twice now)'}. Turn the app down if its meter goes red.`);
+            note(`${win.exe} sound now goes to ${t.label}${t.like === 'music' ? ' (stream only, not the VOD; it doesn\'t follow the music fades)' : ' (if it already plays to CABLE-A, it\'s on twice now)'}.`);
         } else {
             note(`${win.exe} sound is off stream (you still hear it).`);
         }
@@ -566,7 +755,7 @@ function renderList() {
         const sel = document.createElement('select');
         sel.className = 'audio';
         sel.title = `Where ${w.exe}'s sound goes on stream`;
-        for (const [value, label] of [['off', '🔇 Sound: off stream'], ...Object.entries(acfg.targets).map(([k, t]) => [k, `🔊 Sound: ${t.label}${k === 'music' ? ' (not on VOD)' : ''}`])]) {
+        for (const [value, label] of [['off', '🔇 Sound: off stream'], ...channels.map(c => [c.id, `🔊 Sound: ${c.label}${c.like === 'music' ? ' (not on VOD)' : ''}`])]) {
             const o = document.createElement('option');
             o.value = value;
             o.textContent = label;

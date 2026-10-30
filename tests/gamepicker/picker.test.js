@@ -3,7 +3,8 @@ import { createHash } from 'crypto';
 import {
     parseWindowValue, buildWindowList, chooseMethod, captureSettings,
     visibilityChanges, litFraction, windowValue, windowCaptureTarget, peakDb, meterZone, pushRecent,
-    captureFailed, appAudioName, parseAppAudioName, copyableFilters
+    captureFailed, appAudioName, parseAppAudioName, copyableFilters,
+    channelList, newChannel, faderMul
 } from '../../src/gamepicker/picker.js';
 import { authString, ObsSocket } from '../../src/shared/obs.js';
 import { config } from '../../src/config/config.js';
@@ -246,5 +247,36 @@ describe('both window lists (AJ, 2026-10-30)', () => {
         expect(sameWindow('General - (11976):Qt:Telegram.exe', 'General - (11980):Qt:Telegram.exe')).toBe(true);
         expect(sameWindow('A:Qt:Telegram.exe', 'A:Other:Telegram.exe')).toBe(false);
         expect(sameWindow('A:Qt:a.exe', '')).toBe(false);
+    });
+});
+
+describe('channels', () => {
+    const { targets, channelMaxDb } = config.gamePicker.audio;
+    it('always has the built-in Game and Music, then saved ones', () => {
+        expect(channelList(targets, null).map(c => c.id)).toEqual(['game', 'music']);
+        const list = channelList(targets, {
+            custom: [{ id: 'ch-browser', label: 'Browser', like: 'game' }, { id: 'bad', label: 'X', like: 'nope' }, { id: 'ch-g', label: 'Game', like: 'music' }],
+            mix: { 'ch-browser': { volumeMul: 0.1, muted: true } }
+        });
+        expect(list.map(c => c.label)).toEqual(['Game', 'Music', 'Browser']);
+        expect(list[2]).toMatchObject({ template: 'Local Game (A)', builtin: false, volumeMul: 0.1, muted: true });
+        expect(list[0]).toMatchObject({ volumeMul: null, muted: false });
+        expect(channelList(targets, {}).length).toBe(2);   // what Defiant returns for an emptied slot
+    });
+    it('makes a new channel with a safe label and a unique id', () => {
+        const existing = channelList(targets, {});
+        expect(newChannel('  Chat (apps) ', 'music', existing, targets).channel).toEqual({ id: 'ch-chat-apps', label: 'Chat apps', like: 'music' });
+        expect(newChannel('game', 'game', existing, targets).error).toMatch(/already/);
+        expect(newChannel('', 'game', existing, targets).error).toMatch(/name/);
+        expect(newChannel('X', 'nope', existing, targets).error).toBeTruthy();
+        const label = newChannel('Browser', 'game', existing, targets).channel;
+        expect(parseAppAudioName(appAudioName('App Audio: ', 'firefox.exe', label.label), 'App Audio: ', { [label.id]: label }))
+            .toEqual({ exe: 'firefox.exe', target: label.id });
+    });
+    it('caps the fader so the Limiter keeps it out of the red', () => {
+        expect(20 * Math.log10(faderMul(0, -60, channelMaxDb))).toBeCloseTo(channelMaxDb);
+        expect(-7 + channelMaxDb).toBeLessThanOrEqual(-9);
+        expect(faderMul(-60, -60, channelMaxDb)).toBe(0);
+        expect(20 * Math.log10(faderMul(-30, -60, channelMaxDb))).toBeCloseTo(-30);
     });
 });

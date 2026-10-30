@@ -302,3 +302,66 @@ export function pushRecent(recents, exe, max) {
     if (!key) return recents.slice(0, max);
     return [key, ...recents.filter(e => e !== key)].slice(0, max);
 }
+
+/**
+ * The audio channels the dock offers: the built-in ones (config targets,
+ * each copying one of AJ's sources) and the ones AJ made in the dock, with
+ * their saved fader and mute. A channel is the set of App Audio inputs whose
+ * name ends in its label, so several apps share it (AJ, 2026-10-30: "create
+ * those channels ... just inside OBS"). OBS has no audio bus, so the dock
+ * keeps each member's volume, mute, tracks and filters in step.
+ * @param {Object<string, {label: string, template: string}>} targets - built-in channels
+ * @param {*} saved - persistent data: {custom: [{id, label, like}], mix: {id: {volumeMul, muted}}}
+ * @returns {Array<{id: string, label: string, like: string, template: string, builtin: boolean, volumeMul: number|null, muted: boolean}>}
+ */
+export function channelList(targets, saved) {
+    const s = saved && typeof saved === 'object' ? saved : {};
+    const mix = s.mix && typeof s.mix === 'object' ? s.mix : {};
+    const one = (id, label, like, builtin) => ({
+        id, label, like, template: targets[like].template, builtin,
+        volumeMul: Number.isFinite(mix[id]?.volumeMul) ? mix[id].volumeMul : null,
+        muted: mix[id]?.muted === true
+    });
+    const list = Object.entries(targets).map(([id, t]) => one(id, t.label, id, true));
+    for (const c of Array.isArray(s.custom) ? s.custom : []) {
+        if (!c || typeof c.id !== 'string' || typeof c.label !== 'string' || !targets[c.like]) continue;
+        if (list.some(x => x.id === c.id || x.label === c.label)) continue;
+        list.push(one(c.id, c.label, c.like, false));
+    }
+    return list;
+}
+
+/**
+ * A new channel from what AJ typed, or the reason it can't be made. Labels
+ * end input names ("App Audio: firefox.exe (Browser)"), so no brackets.
+ * @param {string} name
+ * @param {string} like - built-in channel whose tracks and filters it copies
+ * @param {Array<{id: string, label: string}>} existing
+ * @param {Object} targets
+ * @returns {{channel?: {id: string, label: string, like: string}, error?: string}}
+ */
+export function newChannel(name, like, existing, targets) {
+    const label = String(name || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
+    if (!label) return { error: 'Give the channel a name.' };
+    if (!targets[like]) return { error: 'Pick what it copies.' };
+    if (existing.some(c => c.label.toLowerCase() === label.toLowerCase())) return { error: `There's already a ${label} channel.` };
+    const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'channel';
+    let id = `ch-${slug}`;
+    for (let n = 2; existing.some(c => c.id === id); n++) id = `ch-${slug}-${n}`;
+    return { channel: { id, label, like } };
+}
+
+/**
+ * A channel fader position, kept at or under `maxDb` so a full-scale app
+ * through the copied -7 dB Limiter stays out of the red (Defiant 2026-10-30:
+ * Limiter -7 plus the fader is the peak).
+ * @param {number} db
+ * @param {number} floorDb
+ * @param {number} maxDb
+ * @returns {number} volume multiplier (0 at the floor)
+ */
+export function faderMul(db, floorDb, maxDb) {
+    const d = Math.min(maxDb, Number(db));
+    if (!Number.isFinite(d) || d <= floorDb) return 0;
+    return 10 ** (d / 20);
+}

@@ -127,27 +127,32 @@ change in the source properties.
   remembers the choice for that game. A window only the hook lists is
   probably minimised; the dock marks it and asks to restore it. A "Console"
   button shows the capture card.
-- **Sound**: each window has a "Sound" menu: off stream, Game (stream and
-  VOD) or Music (stream only, kept off the VOD). It adds an Application
-  Audio Capture of that app ("App Audio: firefox.exe (Music)") to the Audio
-  scene with the tracks, volume and filters of Local Game (A) or BG Music
-  (not BG Music's fade filters). The app keeps playing to the speakers, so
-  AJ still hears it. Meters show Local Game (A), Ext Capture (B), BG Music
-  and every App Audio input. The dock never changes AJ's own sources.
-  - The copy is made once, when the input is created: a later change to
-    Local Game (A)'s or BG Music's fader, tracks or filters doesn't reach it.
-    Set the sound again to pick the change up.
-  - A Music app doesn't follow the music fades: when BG Music is faded
-    down, the app stays at its level.
-  - Level: the copied filters run before the copied fader, so with AJ's
-    sources as they are (Limiter at -7 dB, faders at -19.4 dB for Game and
-    -30 dB for Music) an app can't go over about -26 dBFS on Game or
-    -37 dBFS on Music, however loud it plays. If those filters or faders
-    change, an App Audio meter that goes red stays marked "went red" until
-    clicked: turn the app down.
+- **Sound**: each window has a "Sound" menu that puts the app's sound in a
+  channel, or takes it off stream. Game (stream and VOD) and Music (stream
+  only, kept off the VOD) are built in, and "Add" under Channels makes more
+  (say "Browser"), each copying Game or Music. Several apps can share a
+  channel. Each app in a channel is an Application Audio Capture in the
+  Audio scene ("App Audio: firefox.exe (Browser)") with the tracks and
+  filters of Local Game (A) or BG Music (not BG Music's fade filters). The
+  app keeps playing to the speakers, so AJ still hears it. The dock never
+  changes AJ's own sources.
+  - Each channel has one fader, a mute and a meter (its loudest app) in the
+    dock. They move every app in it. OBS has no audio bus, so OBS's own
+    mixer still shows one row per app: use the dock's fader. A new channel
+    starts at its template source's fader. Channels and their faders are
+    kept in OBS (obs-websocket persistent data, per profile).
+  - The tracks and filters are copied when an app joins: a later change to
+    Local Game (A)'s or BG Music's tracks or filters doesn't reach it. Set
+    the sound again to pick the change up.
+  - A Music-like channel doesn't follow the music fades: when BG Music is
+    faded down, its apps stay at their level.
+  - Level: the copied Limiter (-7 dB) runs before the fader, and the
+    channel fader stops at -12 dB, so an app can't go over -19 dBFS however
+    loud it plays (measured on Defiant: -26 dBFS at Game's -19.4 dB fader).
+    A channel meter that goes red stays marked "went red" until clicked.
   - A game that already plays to CABLE-A reaches Local Game (A) by itself;
-    setting it to Game as well plays it twice. Use the menu for apps that
-    play to the speakers.
+    putting it in a Game-like channel as well plays it twice. Use the menu
+    for apps that play to the speakers.
 
 **URL**: `gamepicker/index.html` (`password`, `obs`)
 
