@@ -246,6 +246,14 @@ try {
     const firstMusic = obs.state.inputs['App Audio: firefox.exe (Music)'];
     check('then the app goes in off the VOD track, with the Limiter', JSON.stringify(firstMusic?.tracks) === JSON.stringify(obs.state.inputs['BG Music'].tracks)
         && firstMusic?.filters.map(f => f.filterKind).join() === 'limiter_filter', JSON.stringify(firstMusic?.tracks));
+    // An app moved to a channel that still needs its tracks stays where it was
+    await page.$$eval('#channels .chan', rows => rows[0].querySelector('.name').click());
+    await page.click('#newToggle');
+    await (await (await rowOf('firefox.exe')).$('select.audio')).select('game');
+    await settled();
+    check('moving an app to a channel that needs tracks leaves it where it was', !!obs.state.inputs['App Audio: firefox.exe (Music)']
+        && await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'music'));
+    await page.click('#newToggle');
     await (await (await rowOf('firefox.exe')).$('select.audio')).select('off');
     await settled();
     // Game the same way: Local Game (A), on 1,2,4,5,6

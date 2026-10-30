@@ -643,17 +643,18 @@ async function setRoute(win, target) {
     document.body.classList.add('busy');
     const key = win.exe.toLowerCase();
     try {
-        const old = routes.get(key);
-        if (old) await removeRoute(old);
         const t = channels.find(c => c.id === target);
         // Nothing to say where it plays (no tracks, nothing copied, no app
         // already in it): OBS would put it on every track, the VOD too, with
-        // no limiter, so ask first (Code review, #120)
+        // no limiter, so ask first, leaving the app where it was (Code
+        // review, #120)
         if (t && !t.tracks && !t.copyFrom && !members(t.id).some(r => r.exe.toLowerCase() !== key)) {
             note(`Pick ${t.label}'s tracks first (or a source to copy), then choose it again for ${win.exe}.`);
             showNewForm(true, t);
             return;
         }
+        const old = routes.get(key);
+        if (old) await removeRoute(old);
         if (t) {
             const inputName = appAudioName(acfg.prefix, win.exe, t.label);
             // Hidden until it has the channel's tracks, volume and filters:
