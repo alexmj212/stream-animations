@@ -24,7 +24,7 @@
     "build:banner": "vite build --mode banner",
     "build:spheal": "vite build --mode spheal",
     "build:gamepicker": "vite build --mode gamepicker",
-    "watch": "vite build --watch --mode stinger & vite build --watch --mode background & vite build --watch --mode sidebar & vite build --watch --mode shade & vite build --watch --mode notifications & vite build --watch --mode followers & vite build --watch --mode epcot & vite build --watch --mode title & vite build --watch --mode banner & vite build --watch --mode spheal",
+    "watch": "vite build --watch --mode stinger & vite build --watch --mode background & vite build --watch --mode sidebar & vite build --watch --mode shade & vite build --watch --mode notifications & vite build --watch --mode followers & vite build --watch --mode epcot & vite build --watch --mode title & vite build --watch --mode banner & vite build --watch --mode spheal & vite build --watch --mode gamepicker",
     "watch:stinger": "vite build --watch --mode stinger",
     "watch:background": "vite build --watch --mode background",
     "watch:sidebar": "vite build --watch --mode sidebar",

@@ -18,18 +18,38 @@ const debug = createDebug('gamepicker');
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
 
-// Per-viewer conveniences only (password, recents, per-exe method). The
-// dock works without them.
+// Per-viewer conveniences only (recents, per-exe method). The dock works
+// without them. Never the password: localStorage is shared by every page on
+// the Pages origin, and the password controls all of OBS (Code review, #111).
+// It comes from ?password= in the dock URL (OBS keeps that URL in its own
+// config, next to the password itself) or the box, held in memory only.
 function loadState() {
     try {
-        return { recents: [], remembered: {}, password: '', ...JSON.parse(localStorage.getItem(cfg.storageKey) || '{}') };
+        const { recents = [], remembered = {} } = JSON.parse(localStorage.getItem(cfg.storageKey) || '{}');
+        return { recents, remembered };
     } catch {
-        return { recents: [], remembered: {}, password: '' };
+        return { recents: [], remembered: {} };
     }
 }
 const state = loadState();
 function saveState() {
     try { localStorage.setItem(cfg.storageKey, JSON.stringify(state)); } catch { /* private mode */ }
+}
+let typedPassword = null;
+
+/**
+ * The obs-websocket address: ?obs= only to this machine, so a crafted dock
+ * link can't send the auth hash elsewhere for an offline guess (#111).
+ */
+function obsUrl() {
+    const asked = params.get('obs');
+    if (!asked) return cfg.obs.url;
+    try {
+        const u = new URL(asked);
+        if (u.protocol === 'ws:' && ['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname)) return asked;
+    } catch { /* not a URL */ }
+    note(`Ignored ?obs=${asked}: only ws://127.0.0.1 or ws://localhost`);
+    return cfg.obs.url;
 }
 
 let obs = null;
@@ -51,8 +71,8 @@ function note(text) {
 // ---- connection ----
 
 async function connect() {
-    const password = params.get('password') ?? state.password;
-    const url = params.get('obs') || cfg.obs.url;
+    const password = typedPassword ?? params.get('password') ?? '';
+    const url = obsUrl();
     obs = new ObsSocket({ url, password, events: EVENTS.ALL | meterBit() });
     obs.on('event', onEvent);
     obs.on('close', ({ reason }) => {
@@ -79,8 +99,7 @@ async function connect() {
 
 $('auth').addEventListener('submit', (e) => {
     e.preventDefault();
-    state.password = $('password').value;
-    saveState();
+    typedPassword = $('password').value;
     connect();
 });
 
@@ -246,17 +265,25 @@ async function pick(win, forced) {
         renderShowing();
         renderList();
 
+        // Look twice before calling it black, so a game on a loading screen
+        // isn't switched and remembered for good (QA, #111)
+        const isBlack = l => l !== null && l < cfg.blackLuma;
         await new Promise(r => setTimeout(r, cfg.blackCheckMs));
-        const luma = await lumaOf(cfg.sources[method]);
+        let luma = await lumaOf(cfg.sources[method]);
+        if (isBlack(luma)) {
+            note(`${win.exe} looks black, checking again…`);
+            await new Promise(r => setTimeout(r, cfg.blackCheckMs));
+            luma = await lumaOf(cfg.sources[method]);
+        }
         debug.mark('pick', { exe, method, forced: !!forced, luma });
-        if (luma !== null && luma < cfg.blackLuma && method === 'hook' && !forced) {
+        if (isBlack(luma) && method === 'hook' && !forced) {
             note(`The game hook showed black for ${win.exe}, so it switched to window capture (remembered).`);
             await capture('window', win.value);
             state.remembered[exe] = 'window';
             saveState();
             renderShowing();
             renderList();
-        } else if (luma !== null && luma < cfg.blackLuma) {
+        } else if (isBlack(luma)) {
             note(`${win.exe} looks black. If it isn't a loading screen, try the other mode (⇄).`);
         } else {
             note('');

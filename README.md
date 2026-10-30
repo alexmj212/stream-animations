@@ -127,11 +127,11 @@ whether a source is muted; the dock never changes audio.
 
 **URL**: `gamepicker/index.html` (`password`, `obs`)
 
-- `password` - the obs-websocket password (otherwise asked once and kept by the dock)
-- `obs` - obs-websocket address (default `ws://127.0.0.1:4455`)
+- `password` - the obs-websocket password. Put it in the dock URL: the dock never stores it, because browser storage is shared by every page on the site and the password controls all of OBS
+- `obs` - obs-websocket address on this PC (default `ws://127.0.0.1:4455`; other hosts are refused)
 
 OBS: Docks > Custom Browser Docks, name "Game Picker", URL
-`https://alexmj212.dev/stream-animations/gamepicker/`. Needs obs-websocket on
+`https://alexmj212.dev/stream-animations/gamepicker/?password=<websocket password>`. Needs obs-websocket on
 (Tools > WebSocket Server Settings). Source names are in
 `config.gamePicker`. Check it without OBS: `npm run gamepicker:check`.
 

@@ -1444,9 +1444,10 @@ export const config = {
     // The game capture hook can't show these (browsers draw outside it), so
     // they go straight to window capture
     windowExes: ['firefox.exe', 'chrome.exe', 'msedge.exe', 'brave.exe', 'opera.exe'],
-    // After a pick, look at the capture this long for a black picture. The
-    // hook shows black for some windowed games; then the picker switches to
-    // window capture once and remembers that for the executable
+    // After a pick, look at the capture this long for a black picture, and
+    // again after the same wait if it is. The hook shows black for some
+    // windowed games; black both times switches to window capture once and
+    // remembers that for the executable
     blackCheckMs: 2500,
     blackLuma: 6,                   // mean 0-255 luma under this counts as black
     previewWidth: 320,              // px; screenshots only after a pick or a click, never on a timer

@@ -3,7 +3,8 @@
  * End-to-end check of the game picker dock against a fake obs-websocket
  * (tools/gamepicker/fake-obs.js) holding AJ's real 16:9 Game scene. Drives
  * the dock in headless Chrome and checks that:
- *   - a wrong password shows the password box, the right one connects,
+ *   - a wrong password shows the password box, the right one connects and
+ *     is never stored (localStorage is shared across the Pages origin),
  *   - the list hides OBS / MIU / Explorer and pins recents,
  *   - picking a game hooks it and hides every other capture (not Action Cam),
  *   - a browser goes straight to window capture,
@@ -41,6 +42,11 @@ try {
     const page = await browser.newPage();
     await page.setViewport({ width: 360, height: 860 });
     const errors = [];
+
+    // ?obs= only reaches this machine
+    await page.goto(`${baseUrl}/src/gamepicker/index.html?obs=${encodeURIComponent('wss://example.com:4455')}`);
+    check('refuses a remote ?obs=', await until(() => page.$eval('#note', el => /Ignored \?obs=/.test(el.textContent))));
+
     page.on('pageerror', e => errors.push(e.message));
 
     // wrong password first
@@ -90,6 +96,7 @@ try {
     check('and says so', /switched to window capture/.test(await page.$eval('#note', el => el.textContent)));
     const remembered = await page.evaluate(() => JSON.parse(localStorage.getItem('gamePicker:v1')).remembered);
     check('remembers window capture for it', remembered['balatro.exe'] === 'window', JSON.stringify(remembered));
+    check('never stores the password', !(await page.evaluate(() => JSON.stringify(localStorage))).includes('pw'));
     const top = await page.$$eval('#windows .exe', els => els.slice(0, 3).map(e => e.textContent));
     check('recents pinned on top, newest first', top.join('|') === '★ Balatro.exe|★ firefox.exe|★ mGBA.exe', top.join('|'));
 

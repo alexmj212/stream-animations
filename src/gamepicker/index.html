@@ -39,7 +39,8 @@
       .status { color: var(--dim); font-size: 12px; }
       .status.ok { color: var(--ok); }
       .status.bad { color: var(--bad); }
-      #auth { margin: 6px 0; display: flex; gap: 6px; }
+      #auth { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+      #auth small { flex-basis: 100%; color: var(--dim); }
       #auth[hidden] { display: none; }
       #auth input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px; }
       #showing { margin: 6px 0 4px; font-weight: 600; }
@@ -74,6 +75,7 @@
     <form id="auth" hidden>
       <input id="password" type="password" placeholder="obs-websocket password" autocomplete="current-password">
       <button type="submit">Connect</button>
+      <small>To skip this, end the dock URL with <code>?password=…</code></small>
     </form>
 
     <div id="showing">…</div>
