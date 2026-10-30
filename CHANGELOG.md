@@ -4,6 +4,17 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.11.0 - 2026-10-30
+
+- The Game Picker dock uses window capture by default and falls back to the
+  game hook only for games that show black, remembered per game. Store apps
+  and minimised windows now work, and a failed pick puts the old picture
+  back.
+- Each app in the dock has a sound menu: off stream, Game, or Music (Music
+  stays off the VOD track). The dock adds its own audio source for that app
+  and never changes AJ's existing ones. Reload the dock to pick it up.
+  ([#116])
+
 ## v2.10.1 - 2026-10-30
 
 - The Game Picker dock lists every window OBS lists, from both the game
@@ -231,3 +242,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#106]: https://github.com/alexmj212/stream-animations/pull/106
 [#111]: https://github.com/alexmj212/stream-animations/pull/111
 [#114]: https://github.com/alexmj212/stream-animations/pull/114
+[#116]: https://github.com/alexmj212/stream-animations/pull/116
