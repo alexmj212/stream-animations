@@ -43,6 +43,27 @@ cycles look the same), stops redrawing when static, and has a perf floor at
   visible pixels, because a full-diagonal square doubles the fill
   [2026-10-29, Spheal march].
 
+## OBS GPU
+
+OBS's own GPU use counts as much as any scene's frame time (AJ, 2026-10-30:
+~30% GPU while idle). Measured idle on Defiant that day: video encode 23% and
+CUDA 13% from the always-on Replay Buffer and Aitum Vertical Backtrack, 3D 23%
+from drawing both canvases at 60 fps, browser pages about 4%. So look at the
+encoders and the canvases before the pages. Target (not met as of
+2026-10-30): OBS idle GPU under 10% on every engine when not live.
+
+- `tools/gpu/obs-gpu-log.ps1` (on Defiant, read only) logs OBS's GPU use per
+  engine every 5 s to `tools/gpu-results/obs-gpu-<date>.csv`, with the
+  browser pages' 3D share and the whole machine beside it. Task Manager's one
+  number is roughly the busiest engine, so compare engines, not totals.
+- `npm run gpu:summary -- <csv> [--from=HH:MM --to=HH:MM]` gives median, p95
+  and max per engine for a stretch, to compare before and after a change.
+- To find what costs what, stop one thing for 30 s while off-air, read the
+  drop, and put it back.
+- A browser source that draws continuously (WebGL, video, a loop) should have
+  "Shutdown source when not visible" on, or pause itself when hidden;
+  otherwise it costs GPU in every scene.
+
 ## Known leads
 
 From the 2026-05-25 benchmark and the 2026-01-17 audit: `save()` dominates the

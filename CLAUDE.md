@@ -109,6 +109,7 @@ npm run motion              # motion harness: renders and checks every scene (do
 npm run motion:export -- stinger  # transparent video of a scene for OBS
 npm run bench               # headless benchmark, see docs/PERFORMANCE.md
 npm run audio -- curves --collection=Archive_1.json  # audio harness, see docs/AUDIO.md
+npm run gpu:summary -- <csv> # OBS GPU per engine, logged on Defiant by tools/gpu/obs-gpu-log.ps1
 tools/loopcut.sh --help     # frame-exact loop cuts from OBS recordings
 ```
 
