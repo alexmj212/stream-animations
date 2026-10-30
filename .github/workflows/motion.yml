@@ -25,6 +25,14 @@ jobs:
       - name: Unit tests
         run: npm test -- --run
 
+      # AJ (2026-10-29): "no audio clipping ever". Every sound file a page
+      # plays must stay out of OBS's red zone at its configured gain
+      # (docs/AUDIO.md, "Levels and clipping").
+      - name: Audio levels
+        run: |
+          command -v ffmpeg || (sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ffmpeg)
+          npm run audio -- assets
+
       # Renders every scene frame-by-frame on a virtual clock and checks
       # timing, cut-point coverage, smoothness and per-frame CPU.
       # ubuntu-latest ships Google Chrome at /usr/bin/google-chrome.
