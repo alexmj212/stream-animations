@@ -8,6 +8,7 @@
       :root {
         --bg: #1e1f29;
         --panel: #272935;
+        --sunk: #22232e;
         --line: #3a3d4d;
         --text: #e8e8f0;
         --dim: #9a9cb0;
@@ -19,110 +20,219 @@
         --red: #ff4d4d;
       }
       * { box-sizing: border-box; }
+      html, body { height: 100%; }
       body {
         margin: 0;
-        padding: 8px;
         background: var(--bg);
         color: var(--text);
         font: 13px/1.35 system-ui, "Segoe UI", sans-serif;
+        overflow: hidden;
       }
       body.busy { cursor: progress; }
-      button, input { font: inherit; color: inherit; }
+      button, input, select { font: inherit; color: inherit; }
       button {
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 4px;
-        padding: 6px 8px;
+        padding: 5px 8px;
         cursor: pointer;
       }
       button:hover { border-color: var(--accent); }
-      .status { color: var(--dim); font-size: 12px; }
-      .status.ok { color: var(--ok); }
-      .status.bad { color: var(--bad); }
-      #auth { margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px; }
-      #auth small { flex-basis: 100%; color: var(--dim); }
-      #auth[hidden] { display: none; }
-      #auth input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px; }
-      #showing { margin: 6px 0 4px; font-weight: 600; }
+      button:disabled { opacity: 0.35; cursor: default; border-color: var(--line); }
+      input[type=search], input[type=text], select {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 5px 7px;
+        min-width: 0;
+      }
+      h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); margin: 0; }
+      .muted-text { color: var(--dim); font-size: 11px; }
+
+      /* ---- layout: one design, arranged by the dock's shape ---- */
+      #app {
+        height: 100%;
+        display: grid;
+        grid-template-areas: "head" "tabs" "pick" "mix";
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+      }
+      #head { grid-area: head; padding: 8px 8px 6px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+      #pick { grid-area: pick; display: flex; flex-direction: column; min-height: 0; min-width: 0; padding: 6px 8px 0; }
+      #mix { grid-area: mix; background: var(--sunk); border-top: 1px solid var(--line); padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow: auto; max-height: 45vh; }
+      #tabs { grid-area: tabs; display: none; }
+
+      /* ---- header: what's showing ---- */
+      .showline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; }
+      .dot.ok { background: var(--ok); }
+      .dot.bad { background: var(--bad); }
+      .showtext { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      #showing { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #showing.missing { color: var(--bad); }
-      .swap:disabled { opacity: 0.35; cursor: default; }
-      #preview { display: block; width: 100%; border-radius: 4px; margin: 4px 0; background: #000; }
-      #note { color: var(--yellow); min-height: 1em; margin: 4px 0; }
-      .row { display: flex; gap: 6px; margin: 6px 0; }
-      .row > * { flex: 1; }
-      #search { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px; min-width: 0; }
-      .opts { display: flex; justify-content: space-between; align-items: center; color: var(--dim); font-size: 12px; }
-      #windows { list-style: none; margin: 4px 0; padding: 0; }
-      #windows li { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
-      #windows li.current .pick { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
-      #windows li.empty { color: var(--dim); padding: 6px; }
-      .pick { flex: 1 1 100%; min-width: 0; text-align: left; display: flex; flex-direction: column; }
-      .pick .exe { font-weight: 600; }
-      .pick .title { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .swap { flex: 1; padding: 3px 6px; font-size: 11px; color: var(--dim); }
-      .audio { flex: 1; padding: 3px 4px; font-size: 11px; color: var(--dim); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
-      .audio.on { color: var(--text); border-color: var(--ok); }
-      #meters { margin: 8px 0; }
-      .meter { display: grid; grid-template-columns: 9em 1fr 3.5em; gap: 6px; align-items: center; font-size: 12px; margin: 2px 0; }
-      .meter .track { height: 8px; background: var(--panel); border-radius: 4px; overflow: hidden; }
-      .meter .bar { display: block; height: 100%; width: 0; background: var(--green); }
-      .meter .bar[data-zone="yellow"] { background: var(--yellow); }
-      .meter .bar[data-zone="red"] { background: var(--red); }
-      .meter .mute { visibility: hidden; color: var(--bad); font-weight: 600; }
-      .meter.muted .mute { visibility: visible; }
-      .meter.missing { opacity: 0.4; }
-      #channelName, #channelLike { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px; min-width: 0; color: var(--text); font: inherit; }
-      .controls { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 11px; color: var(--dim); }
-      .controls input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
-      .controls .db { width: 4.5em; text-align: right; }
-      .controls .apps { width: 4em; }
-      button.small { padding: 2px 6px; font-size: 11px; }
-      .meter.clipped { cursor: pointer; }
-      .meter.clipped .name { color: var(--red); font-weight: 600; }
-      .meter.clipped .name::after { content: " · went red"; }
-      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); margin: 10px 0 2px; }
+      #status { font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #status.bad { color: var(--bad); }
+      #preview { display: block; width: 100%; max-height: 32vh; object-fit: contain; border-radius: 4px; background: #000; cursor: pointer; }
+      #preview[hidden] { display: none; }
+      #note { color: var(--yellow); font-size: 12px; }
+      #note:empty { display: none; }
+      #auth { display: flex; flex-wrap: wrap; gap: 6px; }
+      #auth[hidden] { display: none; }
+      #auth input { flex: 1; }
+      #auth small { flex-basis: 100%; color: var(--dim); }
+
+      /* ---- windows ---- */
+      .searchrow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+      .searchrow input[type=search] { flex: 1; }
+      .searchrow label { font-size: 11px; color: var(--dim); display: flex; gap: 3px; align-items: center; white-space: nowrap; }
+      #windows { list-style: none; margin: 0; padding: 0 0 8px; overflow: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+      #windows li { display: flex; align-items: center; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px 3px 2px; min-height: 40px; }
+      #windows li.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+      #windows li.min { opacity: 0.6; }
+      #windows li.empty { color: var(--dim); padding: 8px; }
+      .pick { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; background: none; border: 0; padding: 2px 6px; }
+      .pick .exe { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .pick .title { color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .swap { flex: none; width: 28px; height: 28px; padding: 0; color: var(--dim); background: none; }
+      .swap svg { display: block; margin: auto; }
+      select.audio {
+        flex: none; max-width: 9em; border-radius: 12px; padding: 2px 6px; font-size: 11px;
+        color: var(--chip-text, var(--dim)); border-color: var(--chip, var(--line)); background: var(--chip-bg, transparent);
+      }
+      select.audio option { color: var(--text); background: var(--panel); }
+
+      /* ---- channels (a small mixer) ---- */
+      .mixhead { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+      .linkish { background: none; border: 0; padding: 0 2px; color: #d58cf2; font-size: 12px; }
+      #channels, #meters { display: flex; flex-direction: column; gap: 4px; }
+      .chan {
+        display: grid; grid-template-areas: "name track db mute"; grid-template-columns: 6.5em minmax(0, 1fr) 3.4em auto;
+        gap: 6px; align-items: center; font-size: 12px;
+      }
+      .chan .name { grid-area: name; min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+      .chan .name b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .chan .name b { border-left: 3px solid var(--chip, transparent); padding-left: 4px; }
+      .chan.source .name b { border-left-color: transparent; }
+      .chan .apps { font-size: 10px; color: var(--dim); padding-left: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .chan .apps.vod { color: #e3a43a; }
+      .chan.source.muted .apps { color: var(--bad); }
+      .chan .track { grid-area: track; position: relative; height: 20px; background: var(--panel); border-radius: 3px; overflow: hidden; }
+      .chan .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--green); opacity: 0.8; }
+      .chan .bar[data-zone="yellow"] { background: var(--yellow); }
+      .chan .bar[data-zone="red"] { background: var(--red); }
+      /* The fader is a thin handle over the channel's meter, like OBS's mixer */
+      .chan .fader { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+      .chan .fader::-webkit-slider-runnable-track { height: 100%; background: transparent; }
+      .chan .fader::-webkit-slider-thumb { -webkit-appearance: none; width: 6px; height: 100%; background: var(--text); border-radius: 2px; box-shadow: 0 0 0 1px var(--bg); }
+      .chan .fader:focus-visible { outline: 1px solid var(--accent); }
+      .chan .db { grid-area: db; text-align: right; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+      .chan .btns { grid-area: mute; display: flex; gap: 3px; }
+      .chan .btns button { padding: 1px 6px; font-size: 11px; height: 22px; }
+      .chan.muted .mute { background: #5a2330; border-color: var(--bad); }
+      .chan.muted .bar { opacity: 0.25; }
+      .chan.source .name b { color: var(--dim); }
+      .chan.missing { opacity: 0.4; }
+      .chan.clipped { cursor: pointer; }
+      .chan.clipped .name b { color: var(--red); font-weight: 700; }
+      .chan.clipped .name b::after { content: " · red"; }
+      #newChannel { display: flex; gap: 4px; flex-wrap: wrap; }
+      #newChannel[hidden] { display: none; }
+      #newChannel input { flex: 1 1 8em; }
+
+      /* ---- arrangements by the dock's shape (last, so they win) ---- */
+      /* Medium: windows left; picture and mixer right */
+      @media (min-width: 560px) {
+        #app { grid-template-areas: "pick head" "pick mix"; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+        #head { border-bottom: 0; }
+        #mix { border-top: 0; background: none; max-height: none; }
+        #pick { padding-bottom: 8px; border-right: 1px solid var(--line); }
+      }
+      /* Wide and short (a bottom dock): picture | windows grid | vertical faders */
+      @media (min-width: 900px) and (max-height: 460px) {
+        #app { grid-template-areas: "head pick mix"; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); }
+        #head { border-right: 1px solid var(--line); overflow: auto; }
+        #pick { padding-bottom: 8px; border-right: 1px solid var(--line); }
+        #windows { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); align-content: start; }
+        #mix { flex-direction: row; flex-wrap: nowrap; align-items: stretch; overflow-x: auto; }
+        #mix > .mixhead { flex-direction: column; justify-content: flex-start; writing-mode: vertical-rl; transform: rotate(180deg); }
+        #channels, #meters { flex-direction: row; }
+        .chan { grid-template-areas: "name" "track" "db" "mute"; grid-template-columns: 64px; grid-template-rows: auto minmax(60px, 1fr) auto auto; width: 64px; justify-items: center; }
+        .chan { align-items: stretch; }
+        .chan .track { width: 26px; height: auto; min-height: 60px; }
+        .chan .name { width: 100%; align-items: center; }
+        .chan .name b, .chan .apps { max-width: 100%; padding-left: 0; }
+        .chan .db { text-align: center; }
+        .chan .bar { width: 100% !important; height: var(--lvl, 0%); top: auto; }
+        .chan .fader { writing-mode: vertical-lr; direction: rtl; width: 100%; height: 100%; }
+        .chan .fader::-webkit-slider-runnable-track { width: 100%; height: auto; }
+        .chan .fader::-webkit-slider-thumb { width: 100%; height: 6px; }
+        .chan .name { text-align: center; }
+        #newChannel { flex-direction: column; width: 160px; }
+      }
+      /* Short and not wide (a small dock): tabs, so nothing scrolls past the fold */
+      @media (max-height: 460px) and (max-width: 899px) {
+        #app { grid-template-areas: "head" "tabs" "pick"; grid-template-columns: 1fr; grid-template-rows: auto auto minmax(0, 1fr); }
+        #tabs { display: flex; gap: 4px; padding: 6px 8px 0; }
+        #tabs button { flex: 1; padding: 4px; }
+        #tabs button[aria-selected=true] { border-color: var(--accent); background: #33284a; }
+        #mix { grid-area: pick; max-height: none; border-top: 0; background: none; }
+        body[data-tab=windows] #mix, body[data-tab=sound] #pick { display: none; }
+        #preview { display: none !important; }
+        #pick { border-right: 0; }
+      }
+
     </style>
   </head>
-  <body>
-    <div id="status" class="status">Loading…</div>
-    <form id="auth" hidden>
-      <input id="password" type="password" placeholder="obs-websocket password" autocomplete="current-password">
-      <button type="submit">Connect</button>
-      <small>To skip this, end the dock URL with <code>?password=…</code></small>
-    </form>
+  <body data-tab="windows">
+    <div id="app">
+      <section id="head" aria-label="What 16:9 Game shows">
+        <div class="showline">
+          <span id="dot" class="dot" aria-hidden="true"></span>
+          <div class="showtext">
+            <span id="showing">…</span>
+            <span id="status">Loading…</span>
+          </div>
+          <button id="console" type="button" title="Show the capture card">Console</button>
+        </div>
+        <form id="auth" hidden>
+          <input id="password" type="password" placeholder="obs-websocket password" autocomplete="current-password">
+          <button type="submit">Connect</button>
+          <small>To skip this, end the dock URL with <code>?password=…</code></small>
+        </form>
+        <img id="preview" alt="16:9 Game preview: click to refresh" title="Click to refresh" hidden>
+        <div id="note"></div>
+      </section>
 
-    <div id="showing">…</div>
-    <img id="preview" alt="16:9 Game preview" hidden>
-    <div id="note"></div>
-    <div class="row">
-      <button id="console" type="button">Console (capture card)</button>
-      <button id="previewBtn" type="button">Check picture</button>
-    </div>
+      <div id="tabs" role="tablist">
+        <button id="tabWindows" type="button" role="tab" aria-selected="true">Windows</button>
+        <button id="tabSound" type="button" role="tab" aria-selected="false">Sound</button>
+      </div>
 
-    <h2>Channels</h2>
-    <div id="channels"></div>
-    <form id="newChannel" class="row">
-      <input id="channelName" placeholder="New channel, e.g. Browser" maxlength="24" autocomplete="off">
-      <select id="channelLike" title="Which source's tracks and filters it copies">
-        <option value="game">on VOD (like Game)</option>
-        <option value="music">off VOD (like Music)</option>
-      </select>
-      <button type="submit" style="flex: none">Add</button>
-    </form>
-    <h2>Your sources</h2>
-    <div id="meters"></div>
-    <div class="opts">Meters move while a scene with the Audio scene is live (Full 16:9, Just Chatting…).</div>
+      <section id="pick" aria-label="Windows">
+        <div class="searchrow">
+          <input id="search" type="search" placeholder="Filter windows" aria-label="Filter windows">
+          <label title="Also list OBS, Discord, Explorer and the like"><input id="showAll" type="checkbox"> all</label>
+          <button id="refresh" type="button" title="Re-read the window lists" aria-label="Refresh">⟳</button>
+        </div>
+        <ul id="windows"></ul>
+      </section>
 
-    <h2>Windows</h2>
-    <div class="row">
-      <input id="search" type="search" placeholder="Filter by game or title">
-      <button id="refresh" type="button" style="flex: none">Refresh</button>
+      <section id="mix" aria-label="Sound">
+        <div class="mixhead">
+          <h2>Channels</h2>
+          <button id="newToggle" class="linkish" type="button" aria-expanded="false">+ New</button>
+        </div>
+        <form id="newChannel" hidden>
+          <input id="channelName" type="text" placeholder="Name, e.g. Browser" maxlength="24" autocomplete="off" aria-label="New channel name">
+          <select id="channelLike" title="Which source's tracks and filters it copies" aria-label="Copies">
+            <option value="game">on VOD (like Game)</option>
+            <option value="music">off VOD (like Music)</option>
+          </select>
+          <button type="submit">Add</button>
+        </form>
+        <div id="channels"></div>
+        <div id="meters" title="Your own sources: the dock only reads them. Meters move while a scene with the Audio scene is live."></div>
+      </section>
     </div>
-    <div class="opts">
-      <span>★ recent · click to show · 🔊 puts its sound in a channel</span>
-      <label><input id="showAll" type="checkbox"> show all</label>
-    </div>
-    <ul id="windows"></ul>
 
     <script type="module" src="./main.js"></script>
   </body>

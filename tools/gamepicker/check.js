@@ -21,12 +21,15 @@
  *     one fader (capped out of the red) and mute, kept in OBS,
  *   - the meters move, and AJ's own audio sources are never changed.
  *
- * Usage: npm run gamepicker:check [-- --shot=dock.png]
+ *   - at tall, medium, small and wide dock sizes nothing scrolls off.
+ *
+ * Usage: npm run gamepicker:check [-- --shot=dock.png] [-- --shots=dir]
  */
 import { startServer, launchBrowser } from '../lib/browser.js';
 import { startFakeObs } from './fake-obs.js';
 
 const shot = process.argv.find(a => a.startsWith('--shot='))?.slice(7);
+const shotDir = process.argv.find(a => a.startsWith('--shots='))?.slice(8);
 const results = [];
 const check = (name, pass, detail = '') => {
     results.push({ name, pass });
@@ -216,14 +219,14 @@ try {
         && music.volume === inp('BG Music').volume && music.monitor === 'OBS_MONITORING_TYPE_NONE');
     check('and BG Music’s filters, without its fade (Move) filters', !!music
         && music.filters.map(f => f.filterKind).join() === 'limiter_filter', music?.filters.map(f => f.filterKind).join());
-    check('the Music channel counts it', await until(() => page.$$eval('#channels .apps', els => els.map(e => e.textContent).join() === 'empty,1 app')));
-    const flagged = () => page.$$eval('#channels .meter.clipped', els => els.length);
+    check('the Music channel counts it', await until(() => page.$$eval('#channels .apps:not(.vod)', els => els.map(e => e.textContent).join() === 'empty,1 app')));
+    const flagged = () => page.$$eval('#channels .chan.clipped', els => els.length);
     check('a channel meter in the green isn\u2019t flagged', !(await wait(300)) && await flagged() === 0);
     obs.state.appPeak = 0.5;    // -6 dBFS: red
     check('a channel meter that goes red stays flagged', await until(async () => await flagged() === 1));
     obs.state.appPeak = 0.05;
     await wait(300);
-    check('until clicked', await flagged() === 1 && await page.$eval('#channels .meter.clipped', el => { el.click(); return true; })
+    check('until clicked', await flagged() === 1 && await page.$eval('#channels .chan.clipped', el => { el.click(); return true; })
         && await flagged() === 0);
     check('the row shows where it goes', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'music'));
 
@@ -239,6 +242,7 @@ try {
     check('and the dock says so', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'off'));
 
     // Channels AJ makes (AJ, 2026-10-30): several apps in one, one fader
+    await page.click('#newToggle');
     await page.type('#channelName', 'Browser');
     await page.select('#channelLike', 'game');
     await page.click('#newChannel button');
@@ -251,15 +255,15 @@ try {
     const ff = inp('App Audio: firefox.exe (Browser)'), sp = inp('App Audio: Spotify.exe (Browser)');
     check('two apps share the channel, each copying Local Game (A)', !!ff && !!sp && ff.tracks['2'] === true
         && sp.filters.map(f => f.filterKind).join() === 'gain_filter,limiter_filter'
-        && await page.$$eval('#channels .apps', els => els[2]?.textContent === '2 apps'));
+        && await page.$$eval('#channels .apps:not(.vod)', els => els[2]?.textContent === '2 apps'));
     // Each app is yellow (-14 dBFS) but the two together could reach -8: red
     obs.state.appPeak = 0.2;
     check('a channel meter adds its apps up, so two yellow apps flag red',
-        await until(async () => (await page.$$eval('#channels .meter', els => els[2]?.classList.contains('clipped')))));
+        await until(async () => (await page.$$eval('#channels .chan', els => els[2]?.classList.contains('clipped')))));
     obs.state.appPeak = 0.05;
-    await page.$$eval('#channels .meter', els => els[2].click());
+    await page.$$eval('#channels .chan', els => els[2].click());
     const fader = async (i, db) => {
-        await page.$$eval('#channels .controls input[type=range]', (els, [i, db]) => {
+        await page.$$eval('#channels .fader', (els, [i, db]) => {
             els[i].value = String(db);
             els[i].dispatchEvent(new Event('change'));
         }, [i, db]);
@@ -273,17 +277,17 @@ try {
     check('and is saved', near(slot().mix['ch-browser'].volumeMul, -30));
     await fader(2, 0);
     check('the fader stops at -12 dB (out of the red with the copied Limiter)', near(inp('App Audio: firefox.exe (Browser)').volume, -12));
-    await (await page.$$('#channels .controls button'))[2].click();   // Game, Music: one Mute each; Browser: Mute, ✕
+    await (await page.$$('#channels .btns button'))[2].click();   // Game, Music: one Mute each; Browser: Mute, ✕
     await wait(100);
     await settled();
     check('channel mute mutes both apps', inp('App Audio: firefox.exe (Browser)').muted && inp('App Audio: Spotify.exe (Browser)').muted);
     await reopen({});
     check('the channel and its apps are there after a reload', await (await rowOf('firefox.exe')).$eval('select.audio', s => s.value === 'ch-browser')
-        && await page.$$eval('#channels .apps', els => els[2]?.textContent === '2 apps'));
+        && await page.$$eval('#channels .apps:not(.vod)', els => els[2]?.textContent === '2 apps'));
     await route('Telegram.exe', 'ch-browser');
     const tg = inp('App Audio: Telegram.exe (Browser)');
     check('an app added later gets the channel\u2019s fader and mute', !!tg && near(tg.volume, -12) && tg.muted === true);
-    await (await page.$$('#channels .controls button'))[3].click();   // Browser ✕
+    await (await page.$$('#channels .btns button'))[3].click();   // Browser ✕
     await wait(100);
     await settled();
     check('removing the channel takes its apps off stream', !Object.keys(obs.state.inputs).some(n => n.startsWith('App Audio:'))
@@ -294,6 +298,54 @@ try {
     const touched = obs.state.log.filter(r => /^(Set|Remove|Create)/.test(r.requestType)
         && own.includes(r.requestData.inputName ?? r.requestData.sourceName));
     check('never changes your own audio sources', touched.length === 0, touched.map(r => r.requestType).join(','));
+    // The dock can be any shape in AJ's dock layout (AJ, 2026-10-30): at
+    // each size the picture, the windows and the mixer are on screen without
+    // scrolling the page, nothing runs off the side, and a short dock that
+    // can't fit both halves shows them as tabs
+    const inView = sel => page.$$eval(sel, (els) => els.length > 0 && els.every((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
+    }));
+    const firstInView = sel => page.$eval(sel, (el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
+    });
+    // A lived-in dock for the pictures: a game showing, an app in Music
+    await pickAndWait('mGBA.exe');
+    await route('firefox.exe', 'music');
+    obs.state.appPeak = 0.08;
+    for (const size of [
+        { name: 'tall', width: 340, height: 860 },
+        { name: 'medium', width: 640, height: 540 },
+        { name: 'small', width: 300, height: 380, tabs: true },
+        { name: 'wide', width: 1240, height: 300, upright: true }
+    ]) {
+        await page.setViewport({ width: size.width, height: size.height });
+        await page.evaluate(() => document.getElementById('tabWindows').click());
+        await wait(150);
+        const tag = `${size.name} ${size.width}x${size.height}`;
+        check(`${tag}: nothing runs off the side`, await page.evaluate(() =>
+            document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('#app > *')]
+                .every(el => el.scrollWidth <= el.clientWidth + 1)));
+        check(`${tag}: what's showing and Console on screen`, await inView('#showing, #console, #search'));
+        check(`${tag}: the window list starts on screen`, await firstInView('#windows li'));
+        check(`${tag}: tabs only when short and narrow`, await page.$eval('#tabs', el => getComputedStyle(el).display !== 'none') === !!size.tabs);
+        if (size.tabs) await page.click('#tabSound');
+        await wait(100);
+        check(`${tag}: every channel strip on screen`, await inView('#channels .chan'));
+        if (size.upright) {
+            check(`${tag}: faders stand upright`, await page.$eval('#channels .fader', el => el.offsetHeight > el.offsetWidth * 2));
+        }
+        if (shotDir) {
+            await page.screenshot({ path: `${shotDir}/dock-${size.name}.png` });
+            if (size.tabs) {
+                await page.click('#tabWindows');
+                await wait(100);
+                await page.screenshot({ path: `${shotDir}/dock-${size.name}-windows.png` });
+            }
+        }
+    }
+
     check('no page errors', errors.length === 0, errors.join('; '));
 
     if (shot) {

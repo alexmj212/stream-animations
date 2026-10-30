@@ -74,7 +74,8 @@ const byId = () => Object.fromEntries(channels.map(c => [c.id, c]));
 function setStatus(text, kind = '') {
     const el = $('status');
     el.textContent = text;
-    el.className = `status ${kind}`;
+    el.className = kind;
+    $('dot').className = `dot ${kind}`;
 }
 
 function note(text) {
@@ -146,7 +147,7 @@ function onEvent({ eventType, eventData }) {
         }
     } else if (eventType === 'InputMuteStateChanged') {
         const m = meterEls.get(eventData.inputName);
-        if (m) m.row.classList.toggle('muted', eventData.inputMuted);
+        if (m) sourceMuted(m.row, eventData.inputMuted);
     } else if (eventType === 'SceneItemEnableStateChanged' && eventData.sceneName === cfg.scene) {
         readShowing();
     } else if (eventType === 'InputSettingsChanged' && Object.values(cfg.sources).includes(eventData.inputName)) {
@@ -162,7 +163,9 @@ function onEvent({ eventType, eventData }) {
 
 function showLevel(m, db) {
     const pct = 100 * (db - cfg.meterFloorDb) / -cfg.meterFloorDb;
+    // Width across, --lvl up (the wide dock's faders stand upright)
     m.bar.style.width = `${pct.toFixed(1)}%`;
+    m.bar.style.setProperty('--lvl', `${pct.toFixed(1)}%`);
     m.bar.dataset.zone = meterZone(db);
 }
 
@@ -218,22 +221,41 @@ async function setupMeters() {
     box.textContent = '';
     meterEls.clear();
     for (const name of cfg.meters) {
-        const row = meterRow(name);
+        const row = chanRow(name, 'yours');
+        row.classList.add('source');
+        row.title = `${name}: your own source, the dock only reads it`;
         box.appendChild(row);
         meterEls.set(name, { row, bar: row.querySelector('.bar') });
         obs.call('GetInputMute', { inputName: name })
-            .then(({ inputMuted }) => row.classList.toggle('muted', inputMuted))
+            .then(({ inputMuted }) => sourceMuted(row, inputMuted))
             .catch(() => row.classList.add('missing'));
     }
 }
 
-function meterRow(name) {
+function sourceMuted(row, muted) {
+    row.classList.toggle('muted', muted);
+    row.querySelector('.apps').textContent = muted ? 'muted' : 'yours';
+}
+
+/** One mixer strip: name, meter, dB and buttons, laid out by the dock's shape. */
+function chanRow(label, sub) {
     const row = document.createElement('div');
-    row.className = 'meter';
-    row.innerHTML = '<span class="name"></span><span class="track"><span class="bar"></span></span><span class="mute">muted</span>';
-    row.querySelector('.name').textContent = name;
-    row.title = name;
+    row.className = 'chan';
+    row.innerHTML = '<span class="name"><b></b><span class="apps"></span></span>' +
+        '<span class="track"><span class="bar"></span></span><span class="db"></span><span class="btns"></span>';
+    row.querySelector('b').textContent = label;
+    row.querySelector('.apps').textContent = sub;
     return row;
+}
+
+// Chip colours for the Sound menus: Game green, Music amber, AJ's own
+// channels take the rest in turn (Square/Wide mocks, 2026-10-30)
+const CHIP = { game: ['#4fd18b', '#1f3a2c', '#bff0d4'], music: ['#e3a43a', '#3a2a14', '#f6dcae'] };
+const CHIP_MORE = [['#6ea8ff', '#1f2c44', '#cfe0ff'], ['#e07ad8', '#3a1f3a', '#f6cff2'], ['#4fd1d1', '#173538', '#c4f2f2']];
+function chipOf(id) {
+    if (CHIP[id]) return CHIP[id];
+    const i = channels.filter(c => !c.builtin).findIndex(c => c.id === id);
+    return i < 0 ? null : CHIP_MORE[i % CHIP_MORE.length];
 }
 
 // ---- channels ----
@@ -280,48 +302,49 @@ function renderChannels() {
     box.textContent = '';
     channelEls.clear();
     for (const c of channels) {
-        const row = meterRow(`${c.label}${c.like === 'music' ? ' (not on VOD)' : ''}`);
-        row.classList.add('channel');
-        row.classList.toggle('muted', c.muted);
         const n = members(c.id).length;
+        const row = chanRow(c.label, `${n ? `${n} app${n > 1 ? 's' : ''}` : 'empty'}`);
+        if (c.like === 'music') row.querySelector('.name').insertAdjacentHTML('beforeend', '<span class="apps vod">off VOD</span>');
+        row.classList.toggle('muted', c.muted);
+        row.style.setProperty('--chip', chipOf(c.id)?.[0] || 'var(--line)');
         row.title = `${c.label}: ${n ? members(c.id).map(r => r.exe).join(', ') : 'no apps yet'}. ` +
-            `Copies ${c.template}'s tracks and filters. Flagged "went red": turn it down, then click to clear`;
+            `Copies ${c.template}'s tracks and filters. Flagged "red": turn it down, then click to clear`;
         row.addEventListener('click', () => row.classList.remove('clipped'));
-        const ctl = document.createElement('div');
-        ctl.className = 'controls';
         const fader = document.createElement('input');
         fader.type = 'range';
+        fader.className = 'fader';
         fader.min = String(cfg.meterFloorDb);
         fader.max = String(acfg.channelMaxDb);
         fader.step = '0.5';
         fader.value = String(toDb(channelMul(c)));
+        fader.setAttribute('aria-label', `${c.label} volume`);
         fader.title = `${c.label} volume. At most ${acfg.channelMaxDb} dB: each app then peaks at -19 dBFS at worst, but several loud apps together add up`;
-        const db = document.createElement('span');
-        db.className = 'db';
-        const showDb = () => { db.textContent = `${Number(fader.value).toFixed(1)} dB`; };
+        row.querySelector('.track').append(fader);
+        const db = row.querySelector('.db');
+        const showDb = () => { db.textContent = Number(fader.value).toFixed(1); };
         showDb();
         fader.addEventListener('input', showDb);
         fader.addEventListener('change', () => setChannelMix(c.id, { volumeMul: faderMul(fader.value, cfg.meterFloorDb, acfg.channelMaxDb) }));
+        const btns = row.querySelector('.btns');
         const mute = document.createElement('button');
         mute.type = 'button';
-        mute.className = 'small';
-        mute.textContent = c.muted ? 'Unmute' : 'Mute';
+        mute.className = 'mute';
+        mute.textContent = 'Mute';
+        mute.setAttribute('aria-pressed', String(c.muted));
+        mute.title = c.muted ? `${c.label} is muted: click to unmute` : `Mute ${c.label}`;
         mute.addEventListener('click', (e) => { e.stopPropagation(); setChannelMix(c.id, { muted: !c.muted }); });
-        ctl.append(fader, db, mute);
+        btns.append(mute);
         if (!c.builtin) {
             const del = document.createElement('button');
             del.type = 'button';
-            del.className = 'small';
+            del.className = 'del';
             del.textContent = '✕';
             del.title = `Remove the ${c.label} channel (its apps go off stream)`;
+            del.setAttribute('aria-label', del.title);
             del.addEventListener('click', (e) => { e.stopPropagation(); removeChannel(c.id); });
-            ctl.append(del);
+            btns.append(del);
         }
-        const count = document.createElement('span');
-        count.className = 'apps';
-        count.textContent = n ? `${n} app${n > 1 ? 's' : ''}` : 'empty';
-        ctl.append(count);
-        box.append(row, ctl);
+        box.append(row);
         channelEls.set(c.id, { row, bar: row.querySelector('.bar') });
     }
 }
@@ -369,6 +392,7 @@ async function addChannel(name, like) {
         });
         await saveChannels();
         $('channelName').value = '';
+        showNewForm(false);
         note(`Made the ${made.channel.label} channel. Pick it in an app's Sound menu.`);
     } catch (err) {
         note(`Couldn't make the channel: ${err.message}`);
@@ -400,6 +424,13 @@ async function removeChannel(id) {
     }
 }
 
+function showNewForm(open) {
+    $('newChannel').hidden = !open;
+    $('newToggle').setAttribute('aria-expanded', String(open));
+    $('newToggle').textContent = open ? 'Cancel' : '+ New';
+    if (open) $('channelName').focus();
+}
+$('newToggle').addEventListener('click', () => showNewForm($('newChannel').hidden));
 $('newChannel').addEventListener('submit', (e) => {
     e.preventDefault();
     addChannel($('channelName').value, $('channelLike').value);
@@ -700,6 +731,8 @@ async function pickConsole() {
 
 const METHOD_LABEL = { hook: 'game hook', window: 'window', console: 'capture card' };
 const CAPTURE_NAME = { hook: 'game hook', window: 'window capture' };
+const SWAP_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
+    '<path d="M2 4.5h9M8.5 2l2.5 2.5L8.5 7M12 9.5H3M5.5 7L3 9.5 5.5 12"/></svg>';
 
 function renderShowing() {
     const el = $('showing');
@@ -737,20 +770,22 @@ function renderList() {
         // two Firefox windows don't both light up (QA, #114)
         const current = showing && showing.method !== 'console' &&
             (exact ? w.value === showing.value : sameWindow(showing.value, w.value));
-        li.className = current ? 'current' : '';
+        li.className = `${current ? 'current' : ''}${w.inWindow ? '' : ' min'}`.trim();
         const main = document.createElement('button');
         main.className = 'pick';
         main.innerHTML = '<span class="exe"></span><span class="title"></span>';
         main.querySelector('.exe').textContent = `${w.recent ? '★ ' : ''}${w.exe}`;
-        main.querySelector('.title').textContent = w.inWindow ? w.title : `${w.title} · minimised? restore it first`;
+        main.querySelector('.title').textContent = w.inWindow ? w.title : `${w.title} · minimised? restore it`;
         main.title = `Capture with ${METHOD_LABEL[method]}`;
         main.addEventListener('click', () => pick(w));
         const other = method === 'hook' ? 'window' : 'hook';
         const canSwap = other === 'hook' ? w.inHook : w.inWindow;
         const swap = document.createElement('button');
         swap.disabled = !canSwap;
+        swap.type = 'button';
         swap.className = 'swap';
-        swap.textContent = `⇄ use ${CAPTURE_NAME[other]}`;
+        swap.innerHTML = SWAP_ICON;
+        swap.setAttribute('aria-label', `Use ${CAPTURE_NAME[other]}`);
         swap.title = canSwap
             ? `Capture with ${METHOD_LABEL[other]} instead, and remember it for ${w.exe}`
             : `The ${METHOD_LABEL[other]} can't see this window`;
@@ -759,17 +794,18 @@ function renderList() {
         const route = routes.get(w.exe.toLowerCase());
         const sel = document.createElement('select');
         sel.className = 'audio';
-        sel.title = `Where ${w.exe}'s sound goes on stream`;
-        for (const [value, label] of [['off', '🔇 Sound: off stream'], ...channels.map(c => [c.id, `🔊 Sound: ${c.label}${c.like === 'music' ? ' (not on VOD)' : ''}`])]) {
+        sel.title = `Where ${w.exe}'s sound goes on stream. Channels marked "off VOD" in the mixer stay off the VOD track`;
+        for (const [value, label] of [['off', 'Off'], ...channels.map(c => [c.id, c.label])]) {
             const o = document.createElement('option');
             o.value = value;
             o.textContent = label;
             sel.appendChild(o);
         }
         sel.value = route?.target || 'off';
-        sel.classList.toggle('on', !!route);
+        const chip = route && chipOf(route.target);
+        if (chip) ['--chip', '--chip-bg', '--chip-text'].forEach((v, i) => sel.style.setProperty(v, chip[i]));
         sel.addEventListener('change', () => setRoute(w, sel.value));
-        li.append(main, swap, sel);
+        li.append(main, sel, swap);
         ul.appendChild(li);
     }
     if (list.length === 0) {
@@ -784,6 +820,14 @@ $('search').addEventListener('input', renderList);
 $('showAll').addEventListener('change', renderList);
 $('refresh').addEventListener('click', () => obs?.ready && refreshWindows());
 $('console').addEventListener('click', pickConsole);
-$('previewBtn').addEventListener('click', () => obs?.ready && showPreview());
+$('preview').addEventListener('click', () => obs?.ready && showPreview());
+// Short docks show one half at a time
+for (const [id, tab] of [['tabWindows', 'windows'], ['tabSound', 'sound']]) {
+    $(id).addEventListener('click', () => {
+        document.body.dataset.tab = tab;
+        $('tabWindows').setAttribute('aria-selected', String(tab === 'windows'));
+        $('tabSound').setAttribute('aria-selected', String(tab === 'sound'));
+    });
+}
 
 connect();
