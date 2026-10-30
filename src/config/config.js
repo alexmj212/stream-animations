@@ -1332,7 +1332,13 @@ export const config = {
       beatS: 0.3529,
       loopStartS: 0.7059,
       loopEndS: 6.3529,
-      fadeOutMs: 400        // the song fades this fast once the wave is gone
+      fadeOutMs: 400,       // the song fades this fast once the wave is gone
+      // The clip is mastered hot (+1.3 dBTP, -6.3 LUFS) and sat in the red
+      // on OBS's meter. AJ: "audio should never peak above yellow" (red is
+      // above -9 dBFS, 2026-10-29), and a lower level beats a limiter.
+      // -12 dB gives -10.7 dBTP and -18.3 LUFS (ffmpeg -i march.ogg -af
+      // volume=-12dB,ebur128=peak=true -f null -)
+      gainDb: -12
     },
     spawn: {
       // Spawns per second start at rate0 and double every doubleS, so the
