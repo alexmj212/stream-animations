@@ -16,6 +16,76 @@ export function parseWindowValue(value) {
 }
 
 /**
+ * The stored form of a window, the inverse of parseWindowValue.
+ * @param {{title: string, cls: string, exe: string}} w
+ * @returns {string}
+ */
+export function windowValue({ title, cls, exe }) {
+    const encode = s => (s || '').replace(/#/g, '#22').replace(/:/g, '#3A');
+    return `${encode(title)}:${encode(cls)}:${encode(exe)}`;
+}
+
+/**
+ * What window capture should look for to show a listed window. A Store
+ * (UWP) app is listed by its inner CoreWindow, which OBS finds but can't
+ * capture; window capture shows it through the frame around it, which
+ * ApplicationFrameHost.exe owns and which has the same title (Defiant,
+ * 2026-10-30: Realtek Audio Console gave no picture until Window Capture
+ * pointed at its outer window). Every Store app shares that class and
+ * executable, so the frame is matched by title (WINDOW_PRIORITY_TITLE).
+ * @param {string} value - "title:class:exe" from the window list
+ * @param {number} priority - the usual match priority
+ * @returns {{value: string, priority: number}}
+ */
+export function windowCaptureTarget(value, priority) {
+    const w = parseWindowValue(value);
+    if (w.cls !== 'Windows.UI.Core.CoreWindow') return { value, priority };
+    return { value: windowValue({ title: w.title, cls: 'ApplicationFrameWindow', exe: 'ApplicationFrameHost.exe' }), priority: 1 };
+}
+
+/**
+ * One list from both captures' own `window` lists. They differ: the game
+ * capture leaves out browsers, Explorer, Discord and other apps it can't
+ * hook (win-capture's blacklist), and each lists some windows the other
+ * doesn't (AJ, 2026-10-30: the dock showed 3 windows where OBS showed 9,
+ * and a Telegram window the window capture couldn't find). Each entry says
+ * which capture can see it.
+ *
+ * @param {Array<{itemValue: string, itemEnabled?: boolean}>} hookItems
+ * @param {Array<{itemValue: string, itemEnabled?: boolean}>} windowItems
+ * @returns {Array<{itemValue: string, inHook: boolean, inWindow: boolean}>}
+ */
+export function mergeWindowLists(hookItems, windowItems) {
+    const byValue = new Map();
+    const add = (items, flag) => {
+        for (const item of items || []) {
+            if (!item.itemValue || item.itemEnabled === false) continue;
+            const e = byValue.get(item.itemValue) || { itemValue: item.itemValue, inHook: false, inWindow: false };
+            e[flag] = true;
+            byValue.set(item.itemValue, e);
+        }
+    };
+    add(hookItems, 'inHook');
+    add(windowItems, 'inWindow');
+    return [...byValue.values()];
+}
+
+/**
+ * Whether two stored windows are the same window: the same value, or the
+ * same executable and class (a title like Telegram's "General - (11976)"
+ * changes with the unread count; OBS's executable match finds it anyway).
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+export function sameWindow(a, b) {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const x = parseWindowValue(a), y = parseWindowValue(b);
+    return !!x.exe && x.exe.toLowerCase() === y.exe.toLowerCase() && x.cls === y.cls;
+}
+
+/**
  * The window list to show, from GetInputPropertiesListPropertyItems on the
  * `window` property. Recent executables first (most recent on top), then
  * the rest by executable and title. Ignored executables are dropped unless
@@ -43,7 +113,10 @@ export function buildWindowList(items, { ignoreExes = [], recents = [], showAll 
         if (!exe) continue;
         if (!showAll && ignore.has(exe)) continue;
         if (q && !w.title.toLowerCase().includes(q) && !exe.includes(q)) continue;
-        list.push({ value, ...w, recent: recents.includes(exe) });
+        list.push({
+            value, ...w, recent: recents.includes(exe),
+            inHook: item.inHook ?? true, inWindow: item.inWindow ?? true
+        });
     }
     const rank = w => {
         const i = recents.indexOf(w.exe.toLowerCase());
@@ -56,18 +129,98 @@ export function buildWindowList(items, { ignoreExes = [], recents = [], showAll 
 }
 
 /**
- * Which capture shows this executable: 'window' for browsers and anything
- * the hook showed black before, else 'hook' (game capture).
+ * Which capture shows this window: a capture that can't see the window is
+ * never picked; then a remembered per-exe choice; then window capture.
+ * Window capture (Windows Graphics Capture) shows any app; the game hook
+ * shows nothing for desktop apps and is only needed for games that window
+ * capture shows black (Defiant, 2026-10-30: the hook got nothing for
+ * Claude, Steam, Mix It Up, Telegram, Spotify and Realtek; window capture
+ * showed all 7 of its windows).
  * @param {string} exe
  * @param {Object} opts
- * @param {string[]} [opts.windowExes] - always window capture
  * @param {Object<string, 'hook'|'window'>} [opts.remembered] - per-exe choice
+ * @param {boolean} [opts.inHook] - the game capture lists this window
+ * @param {boolean} [opts.inWindow] - the window capture lists this window
  * @returns {'hook'|'window'}
  */
-export function chooseMethod(exe, { windowExes = [], remembered = {} } = {}) {
+export function chooseMethod(exe, { remembered = {}, inHook = true, inWindow = true } = {}) {
+    if (!inHook && inWindow) return 'window';
+    if (!inWindow && inHook) return 'hook';
     const key = String(exe || '').toLowerCase();
     if (remembered[key] === 'hook' || remembered[key] === 'window') return remembered[key];
-    return windowExes.map(e => e.toLowerCase()).includes(key) ? 'window' : 'hook';
+    return 'window';
+}
+
+/**
+ * Whether a capture check means the picture failed: OBS couldn't render a
+ * screenshot (null: a hook that never attached, a hidden or minimised
+ * window) or almost no pixel is lit. A failed capture is solid black; a
+ * dark app or a night scene still has some lit text or detail (Defiant,
+ * 2026-10-30: Realtek Audio Console's dark UI averaged under the old
+ * mean-luma bar and was called black).
+ * @param {number|null} lit - litFraction of the screenshot, or null when none
+ * @param {number} minLit - under this share of lit pixels counts as black
+ * @returns {boolean}
+ */
+export function captureFailed(lit, minLit) {
+    return lit === null || lit < minLit;
+}
+
+/**
+ * Share (0-1) of RGBA pixels with Rec. 601 luma at or over `minLuma`,
+ * alpha ignored.
+ * @param {Uint8ClampedArray|number[]} rgba
+ * @param {number} minLuma - 0-255
+ * @returns {number}
+ */
+export function litFraction(rgba, minLuma) {
+    const n = Math.floor(rgba.length / 4);
+    if (n === 0) return 0;
+    let lit = 0;
+    for (let i = 0; i < n * 4; i += 4) {
+        if (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2] >= minLuma) lit++;
+    }
+    return lit / n;
+}
+
+/**
+ * Name of the dock's audio input for one app and destination, as the OBS
+ * mixer shows it: "App Audio: firefox.exe (Music)".
+ * @param {string} prefix
+ * @param {string} exe
+ * @param {string} label - destination label
+ * @returns {string}
+ */
+export function appAudioName(prefix, exe, label) {
+    return `${prefix}${exe} (${label})`;
+}
+
+/**
+ * The app and destination of an input the dock made, or null for any
+ * other input.
+ * @param {string} name
+ * @param {string} prefix
+ * @param {Object<string, {label: string}>} targets
+ * @returns {{exe: string, target: string}|null}
+ */
+export function parseAppAudioName(name, prefix, targets) {
+    if (!name || !name.startsWith(prefix)) return null;
+    const m = /^(.*) \((.*)\)$/.exec(name.slice(prefix.length));
+    if (!m) return null;
+    const target = Object.keys(targets).find(k => targets[k].label === m[2]);
+    return target ? { exe: m[1], target } : null;
+}
+
+/**
+ * The filters to copy from a destination's own source onto an app's audio
+ * input: everything but the Move filters, which belong to that source's
+ * fades (Music Fade Up/Down move BG Music's volume).
+ * @param {Array<{filterKind: string}>} filters - GetSourceFilterList
+ * @param {string[]} skipKinds
+ * @returns {Array}
+ */
+export function copyableFilters(filters, skipKinds) {
+    return (filters || []).filter(f => !skipKinds.includes(f.filterKind));
 }
 
 /**
@@ -81,7 +234,8 @@ export function captureSettings(method, value, priority) {
     if (method === 'hook') return { capture_mode: 'window', window: value, priority };
     // method 2: Windows 10 (1903 and up), the one that captures browsers
     // without a black picture (the existing Window Capture uses it)
-    return { window: value, priority, method: 2 };
+    const target = windowCaptureTarget(value, priority);
+    return { window: target.value, priority: target.priority, method: 2 };
 }
 
 /**
@@ -107,19 +261,6 @@ export function visibilityChanges(items, target, { sources = [], keep = [] } = {
         if (it.sceneItemEnabled !== enabled) changes.push({ sceneItemId: it.sceneItemId, sourceName: it.sourceName, enabled });
     }
     return changes;
-}
-
-/**
- * Mean Rec. 601 luma (0-255) of RGBA pixels, alpha ignored.
- * @param {Uint8ClampedArray|number[]} rgba
- * @returns {number}
- */
-export function meanLuma(rgba) {
-    const n = Math.floor(rgba.length / 4);
-    if (n === 0) return 0;
-    let sum = 0;
-    for (let i = 0; i < n * 4; i += 4) sum += 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
-    return sum / n;
 }
 
 /**
@@ -160,4 +301,67 @@ export function pushRecent(recents, exe, max) {
     const key = String(exe || '').toLowerCase();
     if (!key) return recents.slice(0, max);
     return [key, ...recents.filter(e => e !== key)].slice(0, max);
+}
+
+/**
+ * The audio channels the dock offers: the built-in ones (config targets,
+ * each copying one of AJ's sources) and the ones AJ made in the dock, with
+ * their saved fader and mute. A channel is the set of App Audio inputs whose
+ * name ends in its label, so several apps share it (AJ, 2026-10-30: "create
+ * those channels ... just inside OBS"). OBS has no audio bus, so the dock
+ * keeps each member's volume, mute, tracks and filters in step.
+ * @param {Object<string, {label: string, template: string}>} targets - built-in channels
+ * @param {*} saved - persistent data: {custom: [{id, label, like}], mix: {id: {volumeMul, muted}}}
+ * @returns {Array<{id: string, label: string, like: string, template: string, builtin: boolean, volumeMul: number|null, muted: boolean}>}
+ */
+export function channelList(targets, saved) {
+    const s = saved && typeof saved === 'object' ? saved : {};
+    const mix = s.mix && typeof s.mix === 'object' ? s.mix : {};
+    const one = (id, label, like, builtin) => ({
+        id, label, like, template: targets[like].template, builtin,
+        volumeMul: Number.isFinite(mix[id]?.volumeMul) ? mix[id].volumeMul : null,
+        muted: mix[id]?.muted === true
+    });
+    const list = Object.entries(targets).map(([id, t]) => one(id, t.label, id, true));
+    for (const c of Array.isArray(s.custom) ? s.custom : []) {
+        if (!c || typeof c.id !== 'string' || typeof c.label !== 'string' || !targets[c.like]) continue;
+        if (list.some(x => x.id === c.id || x.label === c.label)) continue;
+        list.push(one(c.id, c.label, c.like, false));
+    }
+    return list;
+}
+
+/**
+ * A new channel from what AJ typed, or the reason it can't be made. Labels
+ * end input names ("App Audio: firefox.exe (Browser)"), so no brackets.
+ * @param {string} name
+ * @param {string} like - built-in channel whose tracks and filters it copies
+ * @param {Array<{id: string, label: string}>} existing
+ * @param {Object} targets
+ * @returns {{channel?: {id: string, label: string, like: string}, error?: string}}
+ */
+export function newChannel(name, like, existing, targets) {
+    const label = String(name || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
+    if (!label) return { error: 'Give the channel a name.' };
+    if (!targets[like]) return { error: 'Pick what it copies.' };
+    if (existing.some(c => c.label.toLowerCase() === label.toLowerCase())) return { error: `There's already a ${label} channel.` };
+    const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'channel';
+    let id = `ch-${slug}`;
+    for (let n = 2; existing.some(c => c.id === id); n++) id = `ch-${slug}-${n}`;
+    return { channel: { id, label, like } };
+}
+
+/**
+ * A channel fader position, kept at or under `maxDb` so a full-scale app
+ * through the copied -7 dB Limiter stays out of the red (Defiant 2026-10-30:
+ * Limiter -7 plus the fader is the peak).
+ * @param {number} db
+ * @param {number} floorDb
+ * @param {number} maxDb
+ * @returns {number} volume multiplier (0 at the floor)
+ */
+export function faderMul(db, floorDb, maxDb) {
+    const d = Math.min(maxDb, Number(db));
+    if (!Number.isFinite(d) || d <= floorDb) return 0;
+    return 10 ** (d / 20);
 }

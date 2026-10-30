@@ -4,6 +4,35 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.12.0 - 2026-10-30
+
+- The Game Picker dock can make its own audio channels. Name a channel and
+  choose whether it goes on the VOD (like Game) or stays off it (like Music),
+  then send several apps to it. Each channel has one fader, mute and meter
+  in the dock that moves every app in it. The fader stops at -12 dB, so
+  each app peaks at -19 dBFS at most; several loud apps in one channel add
+  up, and the channel meter flags it if they reach the red. Channels are
+  saved in OBS, not the browser. Reload the dock to pick it up. ([#118])
+
+## v2.11.0 - 2026-10-30
+
+- The Game Picker dock uses window capture by default and falls back to the
+  game hook only for games that show black, remembered per game. Store apps
+  and minimised windows now work, and a failed pick puts the old picture
+  back.
+- Each app in the dock has a sound menu: off stream, Game, or Music (Music
+  stays off the VOD track). The dock adds its own audio source for that app
+  and never changes AJ's existing ones. Reload the dock to pick it up.
+  ([#116])
+
+## v2.10.1 - 2026-10-30
+
+- The Game Picker dock lists every window OBS lists, from both the game
+  capture and the window capture, and sends each window only to a capture
+  that can see it. It shows what 16:9 Game really has, including changes
+  made in the source properties, and flags a stored window that isn't open.
+  Reload the dock to pick it up. ([#114])
+
 ## v2.10.0 - 2026-10-30
 
 - New Game Picker dock for OBS. It lists open windows and points the 16:9
@@ -222,3 +251,6 @@ release (`npm run motion:export -- stinger` renders your own).
 [#102]: https://github.com/alexmj212/stream-animations/pull/102
 [#106]: https://github.com/alexmj212/stream-animations/pull/106
 [#111]: https://github.com/alexmj212/stream-animations/pull/111
+[#114]: https://github.com/alexmj212/stream-animations/pull/114
+[#116]: https://github.com/alexmj212/stream-animations/pull/116
+[#118]: https://github.com/alexmj212/stream-animations/pull/118

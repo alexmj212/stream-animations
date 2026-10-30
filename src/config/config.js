@@ -1423,8 +1423,8 @@ export const config = {
     // time; picking one hides the rest and every other capture in the scene
     // (the hidden mGBA / Window Capture 2 duplicates)
     sources: {
-      hook: 'Game Capture 2',       // game_capture: games, emulators
-      window: 'Window Capture',     // window_capture (Windows 10+ method): browsers, anything the hook shows black
+      hook: 'Game Capture 2',       // game_capture: only for games window capture shows black
+      window: 'Window Capture',     // window_capture (Windows 10+ method): the default, shows any app
       console: 'Game Capture'       // nested scene with the Elgato 4K X capture card
     },
     // Scene items the picker never touches (MIU shows and hides Action Cam)
@@ -1434,6 +1434,9 @@ export const config = {
     // (mGBA puts the ROM and fps in it, Firefox the page) keeps the capture
     windowPriority: 2,
     // Windows that are never the game, hidden unless "show all" is on
+    // (OBS lists a Store app under its own executable, not
+    // ApplicationFrameHost.exe; the dock captures its frame itself, see
+    // windowCaptureTarget; Defiant, 2026-10-30)
     ignoreExes: [
       'obs64.exe', 'explorer.exe', 'textinputhost.exe', 'applicationframehost.exe',
       'systemsettings.exe', 'mixitup.exe', 'streamdeck.exe', 'discord.exe',
@@ -1441,21 +1444,50 @@ export const config = {
       'searchhost.exe', 'startmenuexperiencehost.exe', 'lockapp.exe', 'code.exe',
       'windowsterminal.exe', 'obsidian.exe', 'claude.exe', 'vb-audio voicemeeter.exe'
     ],
-    // The game capture hook can't show these (browsers draw outside it), so
-    // they go straight to window capture
-    windowExes: ['firefox.exe', 'chrome.exe', 'msedge.exe', 'brave.exe', 'opera.exe'],
-    // After a pick, look at the capture this long for a black picture, and
-    // again after the same wait if it is. The hook shows black for some
-    // windowed games; black both times switches to window capture once and
-    // remembers that for the executable
+    // After a pick, look at the capture this long. No picture (OBS can't
+    // render it) or black twice in a row switches to the other capture once,
+    // if it can see the window, and remembers that for the executable:
+    // window capture shows black for some exclusive-fullscreen games, and
+    // the hook shows nothing for desktop apps
     blackCheckMs: 2500,
-    blackLuma: 6,                   // mean 0-255 luma under this counts as black
+    // Black means almost no lit pixel, not a dark average: a dark app or a
+    // night scene has lit text or detail, a failed capture has none
+    // (Defiant, 2026-10-30: Realtek's dark UI was called black)
+    litLuma: 24,                    // 0-255 luma at or over this is a lit pixel
+    minLit: 0.005,                  // under this share of lit pixels counts as black
     previewWidth: 320,              // px; screenshots only after a pick or a click, never on a timer
     recentMax: 8,                   // recent executables pinned to the top
-    // Read-only level meters, so a glance says whether game sound arrives.
-    // The picker never changes audio: audio changes need the proof in
-    // docs/AUDIO.md (AJ, 2026-10-29)
+    // Level meters, so a glance says whether game sound arrives. The dock
+    // never changes these sources; it only adds and removes its own
+    // "App Audio:" inputs (below)
     meters: ['Local Game (A)', 'Ext Capture (B)', 'BG Music'],
+    // Per-app audio (AJ, 2026-10-30: "select the audio source it outputs
+    // to", e.g. Firefox to BG Music to keep it off the recording). Windows
+    // per-app output needs a helper and an install; instead the dock adds an
+    // Application Audio Capture of that app to the Audio scene (nested in
+    // every scene that has sound) and copies the destination source's
+    // tracks, volume and filters, so the app lands exactly where that
+    // source does. The app keeps playing to the speakers, so AJ still hears
+    // it; monitoring stays off to avoid hearing it twice
+    audio: {
+      scene: 'Audio',
+      prefix: 'App Audio: ',
+      targets: {
+        game: { label: 'Game', template: 'Local Game (A)' },   // tracks 1,2,4,5,6: stream and VOD
+        music: { label: 'Music', template: 'BG Music' }        // tracks 1,4,5,6: stream, kept off the VOD (track 2)
+      },
+      // BG Music's Move filters run the music fades; they stay on BG Music
+      skipFilterKinds: ['move_audio_value_filter', 'audio_move_filter', 'move_value_filter'],
+      // Channels AJ makes in the dock, with every channel's fader and mute,
+      // live in obs-websocket persistent data (per OBS profile), so they
+      // follow OBS rather than this browser
+      dataSlot: 'gamePicker.channels',
+      // Highest channel fader: a full-scale app hits the copied Limiter at
+      // -7 dB, so the meter peaks at -7 + this = -19 dBFS at most: just
+      // inside yellow, never red (AJ: no clipping, nothing above yellow;
+      // docs/AUDIO.md)
+      channelMaxDb: -12
+    },
     meterFloorDb: -60,
     storageKey: 'gamePicker:v1'
   },
