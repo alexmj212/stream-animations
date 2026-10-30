@@ -115,47 +115,40 @@ browser source shown by a Mix It Up command; each show plays it once.
 - `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 2.5 s)
 
 ### Game picker (OBS dock)
-Not a scene: a Custom Browser Dock inside OBS that points the 16:9 Game
-capture at a window in one click, and sends each app's sound where AJ wants
-it. It lists the open windows both captures can see (recent games first, OBS
-/ Mix It Up / Explorer hidden) and shows what OBS really has, even after a
-change in the source properties.
+Not a scene: a Custom Browser Dock inside OBS that points a game scene's
+capture at a window in one click, and can put each app's sound on stream.
+Nothing about any one OBS is built in: it works with anyone's scenes and
+sources, and needs no virtual cables or extra Windows audio devices.
 
-- **Picture**: window capture is the default and shows any app. If it shows
-  a game black (exclusive fullscreen), the dock switches to the game hook;
-  if the hook gives no picture, back to window capture. Either way it
-  remembers the choice for that game. A window only the hook lists is
-  probably minimised; the dock marks it and asks to restore it. A "Console"
-  button shows the capture card.
-- **Sound**: each window has a "Sound" menu that puts the app's sound in a
-  channel, or takes it off stream. Game (stream and VOD) and Music (stream
-  only, kept off the VOD) are built in, and "Add" under Channels makes more
-  (say "Browser"), each copying Game or Music. Several apps can share a
-  channel. Each app in a channel is an Application Audio Capture in the
-  Audio scene ("App Audio: firefox.exe (Browser)") with the tracks and
-  filters of Local Game (A) or BG Music (not BG Music's fade filters). The
-  app keeps playing to the speakers, so AJ still hears it. The dock never
-  changes AJ's own sources.
-  - Each channel has one fader, a mute and a meter (its apps added up) in the
-    dock. They move every app in it. OBS has no audio bus, so OBS's own
-    mixer still shows one row per app: use the dock's fader. A new channel
-    starts at its template source's fader. Channels and their faders are
-    kept in OBS (obs-websocket persistent data, per profile).
-  - The tracks and filters are copied when an app joins: a later change to
-    Local Game (A)'s or BG Music's tracks or filters doesn't reach it. Set
-    the sound again to pick the change up.
-  - A Music-like channel doesn't follow the music fades: when BG Music is
-    faded down, its apps stay at their level.
-  - Level: the copied Limiter (-7 dB) runs before the fader, and the
-    channel fader stops at -12 dB, so each app can't go over -19 dBFS
-    however loud it plays (measured on Defiant: -26 dBFS at Game's -19.4 dB
-    fader). Apps in one channel add up: two loud ones together reach about
-    -13 dBFS, more can reach the red. A channel meter adds up its apps'
-    peaks (the worst case of the mix), and one that goes red stays marked
-    "went red" until clicked.
-  - A game that already plays to CABLE-A reaches Local Game (A) by itself;
-    putting it in a Game-like channel as well plays it twice. Use the menu
-    for apps that play to the speakers.
+- **Setup** (first run, then ⚙): the dock guesses the scene with your window
+  or game capture; you confirm the scene, its window capture and/or game
+  capture, any other sources to pin as one-click buttons (a capture card, a
+  camera), whether to also hide the scene's other captures, whether the dock
+  handles app sound, the scene app sound goes in (one that's live whenever
+  the game is), and the fader max. It's saved in OBS (obs-websocket
+  persistent data, per profile) and changes nothing until you save.
+- **Picture**: windows are listed by title, the app under it, recent ones
+  first (OBS and Explorer hidden unless "all"). Window capture is the
+  default and shows any app. If it shows a game black (exclusive
+  fullscreen), the dock switches to the game hook; if the hook gives no
+  picture, back to window capture. Either way it remembers the choice. A
+  window only the hook lists is probably minimised; the dock says so.
+- **Sound**: each window has a menu that puts the app's sound in a channel,
+  or takes it off stream. A new dock has one plain channel, "Stream". "+ New"
+  makes more: a name, the OBS tracks it plays on, and optionally an audio
+  source to copy filters and a starting fader from (say, a music source so
+  its channel stays off the VOD track). Each app in a channel is an
+  Application Audio Capture ("App Audio: firefox.exe (Browser)") in the
+  setup's audio scene; the app keeps playing to its usual device, so you
+  still hear it. The dock never changes your own sources.
+  - Each channel has one fader (capped at the setup's max), a mute and a
+    light: grey while quiet, green while sound arrives, red if the apps
+    together go too loud (it stays red until clicked). OBS has no audio bus,
+    so OBS's own mixer shows one row per app: use the dock's fader.
+  - Copied filters are a snapshot taken when an app joins; set the sound
+    again to pick up a later change. Move filters (fades) aren't copied.
+  - AJ's setup: fader max -12 dB, since the copied Limiter (-7 dB) then
+    keeps each app at or under -19 dBFS (measured on Defiant).
 
 **URL**: `gamepicker/index.html` (`password`, `obs`)
 
@@ -164,8 +157,8 @@ change in the source properties.
 
 OBS: Docks > Custom Browser Docks, name "Game Picker", URL
 `https://alexmj212.dev/stream-animations/gamepicker/?password=<websocket password>`. Needs obs-websocket on
-(Tools > WebSocket Server Settings). Source names are in
-`config.gamePicker`. Check it without OBS: `npm run gamepicker:check`.
+(Tools > WebSocket Server Settings). Check it without OBS:
+`npm run gamepicker:check`.
 
 ### Background Animation
 Subtle continuously looping background with drifting bars.

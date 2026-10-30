@@ -39,7 +39,7 @@
       }
       button:hover { border-color: var(--accent); }
       button:disabled { opacity: 0.35; cursor: default; border-color: var(--line); }
-      input[type=search], input[type=text], select {
+      input[type=search], input[type=text], input[type=number], select {
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 4px;
@@ -89,9 +89,10 @@
       #windows li.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
       #windows li.min { opacity: 0.6; }
       #windows li.empty { color: var(--dim); padding: 8px; }
+      .ico { flex: none; width: 26px; height: 26px; margin-left: 4px; border-radius: 6px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: hsl(var(--hue) 70% 85%); background: hsl(var(--hue) 45% 26%); }
       .pick { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; background: none; border: 0; padding: 2px 6px; }
-      .pick .exe { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .pick .title { color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .pick .title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .pick .exe { color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .swap { flex: none; width: 28px; height: 28px; padding: 0; color: var(--dim); background: none; }
       .swap svg { display: block; margin: auto; }
       select.audio {
@@ -100,43 +101,60 @@
       }
       select.audio option { color: var(--text); background: var(--panel); }
 
-      /* ---- channels (a small mixer) ---- */
+      /* ---- channels: a working light, fader and mute each ---- */
       .mixhead { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
       .linkish { background: none; border: 0; padding: 0 2px; color: #d58cf2; font-size: 12px; }
-      #channels, #meters { display: flex; flex-direction: column; gap: 4px; }
+      #channels { display: flex; flex-direction: column; gap: 4px; }
+      #channels:empty::after { content: "No channels, so app sound stays off stream. Add one with + New."; color: var(--dim); font-size: 11px; }
       .chan {
-        display: grid; grid-template-areas: "name track db mute"; grid-template-columns: 6.5em minmax(0, 1fr) 3.4em auto;
-        gap: 6px; align-items: center; font-size: 12px;
+        display: grid; grid-template-columns: 8px minmax(6em, 10em) minmax(3em, 1fr) 2.6em auto;
+        gap: 6px; align-items: center; font-size: 12px; min-height: 28px;
       }
-      .chan .name { grid-area: name; min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
-      .chan .name b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .chan .name b { border-left: 3px solid var(--chip, transparent); padding-left: 4px; }
-      .chan.source .name b { border-left-color: transparent; }
+      .sig { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+      .chan[data-act=live] .sig { background: var(--green); box-shadow: 0 0 5px var(--green); }
+      .chan[data-act=red] .sig, .chan.clipped .sig { background: var(--red); box-shadow: 0 0 5px var(--red); }
+      .chan.muted .sig { background: var(--line); box-shadow: none; }
+      .chan .name { min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+      .chan .name b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--chip, transparent); padding-left: 4px; }
       .chan .apps { font-size: 10px; color: var(--dim); padding-left: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .chan .apps.vod { color: #e3a43a; }
-      .chan.source.muted .apps { color: var(--bad); }
-      .chan .track { grid-area: track; position: relative; height: 20px; background: var(--panel); border-radius: 3px; overflow: hidden; }
-      .chan .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--green); opacity: 0.8; }
-      .chan .bar[data-zone="yellow"] { background: var(--yellow); }
-      .chan .bar[data-zone="red"] { background: var(--red); }
-      /* The fader is a thin handle over the channel's meter, like OBS's mixer */
-      .chan .fader { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
-      .chan .fader::-webkit-slider-runnable-track { height: 100%; background: transparent; }
-      .chan .fader::-webkit-slider-thumb { -webkit-appearance: none; width: 6px; height: 100%; background: var(--text); border-radius: 2px; box-shadow: 0 0 0 1px var(--bg); }
-      .chan .fader:focus-visible { outline: 1px solid var(--accent); }
-      .chan .db { grid-area: db; text-align: right; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
-      .chan .btns { grid-area: mute; display: flex; gap: 3px; }
+      .chan .fader { width: 100%; min-width: 0; margin: 0; accent-color: #c7c8d6; cursor: pointer; }
+      .chan .db { text-align: right; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+      .chan .btns { display: flex; gap: 3px; }
       .chan .btns button { padding: 1px 6px; font-size: 11px; height: 22px; }
       .chan.muted .mute { background: #5a2330; border-color: var(--bad); }
-      .chan.muted .bar { opacity: 0.25; }
-      .chan.source .name b { color: var(--dim); }
-      .chan.missing { opacity: 0.4; }
+      .chan.muted .fader { opacity: 0.4; }
       .chan.clipped { cursor: pointer; }
       .chan.clipped .name b { color: var(--red); font-weight: 700; }
-      .chan.clipped .name b::after { content: " · red"; }
-      #newChannel { display: flex; gap: 4px; flex-wrap: wrap; }
+      .chan.clipped .apps::before { content: "too loud · "; color: var(--red); }
+      #newChannel { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
       #newChannel[hidden] { display: none; }
-      #newChannel input { flex: 1 1 8em; }
+      #newChannel input[type=text], #newChannel select { flex: 1 1 8em; }
+      .tracks { display: flex; gap: 3px; align-items: center; font-size: 11px; color: var(--dim); flex-wrap: wrap; }
+      .tracks label { display: flex; align-items: center; }
+
+      /* ---- setup ---- */
+      #setup { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; z-index: 2; }
+      #setup[hidden] { display: none; }
+      #setup header { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; }
+      #setup .body { flex: 1; min-height: 0; overflow: auto; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px 18px; align-content: start; }
+      #setup fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+      #setup legend { padding: 0; margin-bottom: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+      #setup p { margin: 0; font-size: 12px; color: #c5c6d6; }
+      #setup .field { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px; align-items: center; font-size: 12px; }
+      #setup .field > span { color: var(--dim); }
+      #setup .check { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+      #setPinned { display: flex; flex-direction: column; gap: 3px; max-height: 9em; overflow: auto; }
+      #setPinned:empty::after { content: "Nothing else in this scene."; color: var(--dim); font-size: 11px; }
+      #setup footer { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--line); background: var(--sunk); align-items: center; }
+      #setup footer .save { flex: 1; background: #3a1f4a; border-color: var(--accent); font-weight: 600; }
+      #setupError { color: var(--bad); font-size: 12px; }
+      #setupError:empty { display: none; }
+      #pinned { display: flex; gap: 4px; flex-wrap: wrap; }
+      #pinned:empty { display: none; }
+      #pinned button { padding: 3px 8px; font-size: 12px; max-width: 12em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #pinned button.on { border-color: var(--accent); background: #33284a; }
+      .gear { padding: 3px 7px; color: var(--dim); }
+      body.nosound #mix, body.nosound select.audio, body.nosound #tabs { display: none !important; }
 
       /* ---- arrangements by the dock's shape (last, so they win) ---- */
       /* Medium: windows left; picture and mixer right */
@@ -146,27 +164,13 @@
         #mix { border-top: 0; background: none; max-height: none; }
         #pick { padding-bottom: 8px; border-right: 1px solid var(--line); }
       }
-      /* Wide and short (a bottom dock): picture | windows grid | vertical faders */
+      /* Wide and short (a bottom dock): picture | windows grid | channels */
       @media (min-width: 900px) and (max-height: 460px) {
-        #app { grid-template-areas: "head pick mix"; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); }
+        #app { grid-template-areas: "head pick mix"; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr) minmax(280px, 360px); grid-template-rows: minmax(0, 1fr); }
         #head { border-right: 1px solid var(--line); overflow: auto; }
         #pick { padding-bottom: 8px; border-right: 1px solid var(--line); }
         #windows { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); align-content: start; }
-        #mix { flex-direction: row; flex-wrap: nowrap; align-items: stretch; overflow-x: auto; }
-        #mix > .mixhead { flex-direction: column; justify-content: flex-start; writing-mode: vertical-rl; transform: rotate(180deg); }
-        #channels, #meters { flex-direction: row; }
-        .chan { grid-template-areas: "name" "track" "db" "mute"; grid-template-columns: 64px; grid-template-rows: auto minmax(60px, 1fr) auto auto; width: 64px; justify-items: center; }
-        .chan { align-items: stretch; }
-        .chan .track { width: 26px; height: auto; min-height: 60px; }
-        .chan .name { width: 100%; align-items: center; }
-        .chan .name b, .chan .apps { max-width: 100%; padding-left: 0; }
-        .chan .db { text-align: center; }
-        .chan .bar { width: 100% !important; height: var(--lvl, 0%); top: auto; }
-        .chan .fader { writing-mode: vertical-lr; direction: rtl; width: 100%; height: 100%; }
-        .chan .fader::-webkit-slider-runnable-track { width: 100%; height: auto; }
-        .chan .fader::-webkit-slider-thumb { width: 100%; height: 6px; }
-        .chan .name { text-align: center; }
-        #newChannel { flex-direction: column; width: 160px; }
+        #mix { border-top: 0; background: none; max-height: none; }
       }
       /* Short and not wide (a small dock): tabs, so nothing scrolls past the fold */
       @media (max-height: 460px) and (max-width: 899px) {
@@ -176,6 +180,8 @@
         #tabs button[aria-selected=true] { border-color: var(--accent); background: #33284a; }
         #mix { grid-area: pick; max-height: none; border-top: 0; background: none; }
         body[data-tab=windows] #mix, body[data-tab=sound] #pick { display: none; }
+        body.nosound #app { grid-template-areas: "head" "pick"; grid-template-rows: auto minmax(0, 1fr); }
+        body.nosound #pick { display: flex; }
         #preview { display: none !important; }
         #pick { border-right: 0; }
       }
@@ -184,21 +190,22 @@
   </head>
   <body data-tab="windows">
     <div id="app">
-      <section id="head" aria-label="What 16:9 Game shows">
+      <section id="head" aria-label="What the game scene shows">
         <div class="showline">
           <span id="dot" class="dot" aria-hidden="true"></span>
           <div class="showtext">
             <span id="showing">…</span>
             <span id="status">Loading…</span>
           </div>
-          <button id="console" type="button" title="Show the capture card">Console</button>
+          <button id="setupBtn" class="gear" type="button" title="Setup: which scene and captures the dock drives" aria-label="Setup">⚙</button>
         </div>
+        <div id="pinned"></div>
         <form id="auth" hidden>
           <input id="password" type="password" placeholder="obs-websocket password" autocomplete="current-password">
           <button type="submit">Connect</button>
           <small>To skip this, end the dock URL with <code>?password=…</code></small>
         </form>
-        <img id="preview" alt="16:9 Game preview: click to refresh" title="Click to refresh" hidden>
+        <img id="preview" alt="Scene preview: click to refresh" title="Click to refresh" hidden>
         <div id="note"></div>
       </section>
 
@@ -223,16 +230,49 @@
         </div>
         <form id="newChannel" hidden>
           <input id="channelName" type="text" placeholder="Name, e.g. Browser" maxlength="24" autocomplete="off" aria-label="New channel name">
-          <select id="channelLike" title="Which source's tracks and filters it copies" aria-label="Copies">
-            <option value="game">on VOD (like Game)</option>
-            <option value="music">off VOD (like Music)</option>
+          <select id="channelCopy" title="Copy the filters and starting fader of an audio source you already have, or start plain" aria-label="Start from">
+            <option value="">Plain</option>
           </select>
+          <span class="tracks" id="channelTracks" title="The OBS audio tracks its apps play on">Tracks</span>
           <button type="submit">Add</button>
         </form>
         <div id="channels"></div>
-        <div id="meters" title="Your own sources: the dock only reads them. Meters move while a scene with the Audio scene is live."></div>
       </section>
     </div>
+
+    <form id="setup" hidden>
+      <header><b>Set up Game Switcher</b><span class="muted-text" id="setupHint">Filled in from your OBS. Check it, then save.</span></header>
+      <div class="body">
+        <fieldset>
+          <legend>1 · Where the game shows</legend>
+          <label class="field"><span>Scene</span><select id="setScene"></select></label>
+        </fieldset>
+        <fieldset>
+          <legend>2 · Captures it switches</legend>
+          <p>The dock points these at the window you click and shows one at a time. You need at least one.</p>
+          <label class="field"><span>Window capture</span><select id="setWindow"></select></label>
+          <label class="field"><span>Game capture</span><select id="setHook"></select></label>
+          <label class="check"><input id="setHideOthers" type="checkbox"> Also hide the scene's other captures</label>
+        </fieldset>
+        <fieldset>
+          <legend>3 · Buttons (optional)</legend>
+          <p>Other sources in the scene to show in one click, like a capture card or a camera.</p>
+          <div id="setPinned"></div>
+        </fieldset>
+        <fieldset>
+          <legend>4 · App sound</legend>
+          <label class="check"><input id="setSound" type="checkbox" checked> Let the dock put app sound on stream</label>
+          <p>No virtual cables or extra Windows audio devices: it captures each app's sound inside OBS.</p>
+          <label class="field"><span>Put it in</span><select id="setAudioScene" title="A scene that's live whenever the game is: the game scene, or one nested in all your scenes"></select></label>
+          <label class="field"><span>Fader max (dB)</span><input id="setMaxDb" type="number" min="-30" max="0" step="1" value="0" title="Lower it if a limiter on the copied source should keep apps out of the red"></label>
+        </fieldset>
+      </div>
+      <footer>
+        <button class="save" type="submit">Save</button>
+        <button id="setupCancel" type="button">Cancel</button>
+        <span id="setupError"></span>
+      </footer>
+    </form>
 
     <script type="module" src="./main.js"></script>
   </body>

@@ -141,6 +141,8 @@ export async function startFakeObs({
                 .filter(v => input(inputName).kind === 'game_capture' ? !HOOK_SKIPS.test(exeOf(v)) : !minimised.has(exeOf(v)))
                 .map(v => ({ itemName: `[${exeOf(v)}]: ${v.split(':')[0]}`, itemValue: v, itemEnabled: true }))
         }),
+        // OBS lists scenes bottom first
+        GetSceneList: () => ({ scenes: [{ sceneName: 'Audio', sceneIndex: 0 }, { sceneName: '16:9 Game', sceneIndex: 1 }] }),
         GetSceneItemList: ({ sceneName }) => {
             if (sceneName === 'Audio') {
                 return { sceneItems: state.audioScene.map(({ id, name, enabled = true }) => ({ sceneItemId: id, sourceName: name, inputKind: state.inputs[name]?.kind, sceneItemEnabled: enabled })) };
