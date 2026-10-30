@@ -4,6 +4,12 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.9.2 - 2026-10-30
+
+- The Spheal march song plays 12 dB quieter, so it stays out of the red on
+  the OBS meter (it peaks around -11 dB instead of clipping). `?volume`
+  still works on top of it. ([#106])
+
 ## v2.9.1 - 2026-10-29
 
 - The Spheal march holds a smooth frame rate at its peak crowd. Each
@@ -206,3 +212,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#86]: https://github.com/alexmj212/stream-animations/pull/86
 [#97]: https://github.com/alexmj212/stream-animations/pull/97
 [#102]: https://github.com/alexmj212/stream-animations/pull/102
+[#106]: https://github.com/alexmj212/stream-animations/pull/106
