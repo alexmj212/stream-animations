@@ -529,15 +529,22 @@ function planChange(action) {
     const src = id => m.sources.find(s => s.name === id);
     if (action.type === 'monitor') {
         const s = src(action.source);
+        // A Monitor Only source plays on no track; taking its monitoring
+        // off puts it on every track it's ticked on (code review, #131)
+        const onAir = !action.on && s.monitor === MON_ONLY ? s.tracks : [];
+        const label = action.on ? `Monitor ${s.name}`
+            : onAir.length ? `Stop monitoring ${s.name}: it starts playing on ${onAir.map(n => m.names[n]).join(', ')}`
+                : `Stop monitoring ${s.name}`;
         return {
-            label: action.on ? `Monitor ${s.name}` : `Stop monitoring ${s.name}`,
-            tracks: [],
+            label, tracks: onAir, adds: onAir, undoAdds: [],
             inputs: [{ name: s.name, monitor: action.on ? (s.monitor === MON_NONE ? MON_BOTH : s.monitor) : MON_NONE, before: { monitor: s.monitor } }]
         };
     }
     // tracks: a source, or every app in a channel
     const { add, remove } = action;
     const touched = [add, remove].filter(Boolean);
+    // what a change, or its undo, newly puts on a track
+    const adds = add ? [add] : [], undoAdds = remove ? [remove] : [];
     if (action.channel) {
         const c = m.channels.find(x => x.id === action.channel);
         const inputs = c.members.map(n => {
@@ -545,10 +552,10 @@ function planChange(action) {
             return { name: n, tracks: changeTracks(s.tracks, { add, remove }), before: { tracks: s.tracks } };
         });
         const saved = c.unsaved ? null : changeTracks(c.flow.all.concat(c.flow.planned ? [] : c.flow.some), { add, remove });
-        return { label: describe(`${c.label} channel`, add, remove), tracks: touched, inputs, channel: c.unsaved ? null : { id: c.id, tracks: saved, before: c.tracks } };
+        return { label: describe(`${c.label} channel`, add, remove), tracks: touched, adds, undoAdds, inputs, channel: c.unsaved ? null : { id: c.id, tracks: saved, before: c.tracks } };
     }
     const s = src(action.source);
-    return { label: describe(s.name, add, remove), tracks: touched, inputs: [{ name: s.name, tracks: changeTracks(s.tracks, { add, remove }), before: { tracks: s.tracks } }] };
+    return { label: describe(s.name, add, remove), tracks: touched, adds, undoAdds, inputs: [{ name: s.name, tracks: changeTracks(s.tracks, { add, remove }), before: { tracks: s.tracks } }] };
 }
 
 function describe(what, add, remove) {
@@ -566,29 +573,58 @@ function describe(what, add, remove) {
 function request(action) {
     const change = planChange(action);
     if (!change.inputs.length && !change.channel) return;
+    gate(change, false);
+}
+
+/**
+ * Every path to a track goes through here, Undo included (code review,
+ * #131): a running output it touches, or anything newly on the VOD track,
+ * waits for one tap.
+ */
+function gate(change, isUndo) {
     const hit = touchesRunning(change.tracks, model.outputs, model.running);
-    const vod = addsToVod(action.add, model.outputs);
+    const vod = (isUndo ? change.undoAdds : change.adds).some(t => addsToVod(t, model.outputs));
     if (hit.length || vod) {
-        pending = change;
+        pending = { change, isUndo };
         const why = [
             hit.length ? `${hit.join(' and ')} ${hit.length > 1 ? 'are' : 'is'} running.` : '',
-            vod ? 'That track is the Twitch VOD: music on it can get the VOD muted.' : ''
+            vod ? 'That puts it on the Twitch VOD track: music on it can get the VOD muted.' : ''
         ].filter(Boolean).join(' ');
-        $('confirmText').textContent = `${change.label}? ${why}`;
+        $('confirmText').textContent = `${isUndo ? 'Undo: ' : ''}${change.label}? ${why}`;
         $('confirm').hidden = false;
-        return;
+        return false;
     }
-    apply(change);
+    apply(change, isUndo);
+    return true;
 }
-$('confirmYes').addEventListener('click', () => { const c = pending; closeConfirm(); if (c) apply(c); });
+$('confirmYes').addEventListener('click', () => {
+    const p = pending;
+    closeConfirm();
+    if (!p) return;
+    if (p.isUndo) undoStack.pop();
+    apply(p.change, p.isUndo);
+});
 $('confirmNo').addEventListener('click', closeConfirm);
 function closeConfirm() { pending = null; $('confirm').hidden = true; }
 
+/**
+ * Set each input; if one fails, put back the ones already set, so a
+ * channel never ends up half changed with nothing to undo (code review, #131).
+ */
 async function setInputs(inputs, which) {
-    for (const i of inputs) {
-        const want = which === 'before' ? i.before : i;
+    const done = [];
+    const set = async (i, want) => {
         if (want.tracks) await obs.call('SetInputAudioTracks', { inputName: i.name, inputAudioTracks: tracksObject(want.tracks) });
         if (want.monitor) await obs.call('SetInputAudioMonitorType', { inputName: i.name, monitorType: want.monitor });
+    };
+    try {
+        for (const i of inputs) {
+            await set(i, which === 'before' ? i.before : i);
+            done.push(i);
+        }
+    } catch (err) {
+        for (const i of done.reverse()) await set(i, which === 'before' ? i : i.before).catch(() => {});
+        throw err;
     }
 }
 
@@ -629,8 +665,10 @@ function updateUndo() {
     $('undo').title = last ? `Undo: ${last.label}` : 'Nothing to undo';
 }
 $('undo').addEventListener('click', () => {
-    const last = undoStack.pop();
-    if (last) apply(last, true);
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    // popped once applied (here or after the confirm), so Cancel keeps it
+    if (gate(last, true)) undoStack.pop();
 });
 
 function disconnect(w, moveTo = null) {

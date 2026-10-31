@@ -149,6 +149,8 @@ export async function startFakeObs({
             'Twitch Alerts': { ...audio(1, [1, 2, 3, 4, 5, 6], [], 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'), kind: 'browser_source', settings: { reroute_audio: true } },
             'Chatbox': { ...audio(1, [1, 2, 3, 4, 5, 6], [filter('Stroke', 'obs_stroke_filter')]), kind: 'browser_source', settings: { reroute_audio: false } },
             'Applause': { ...audio(1, [1, 2, 3, 4, 5, 6], []), kind: 'ffmpeg_source', monitor: 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT' },
+            // Monitor Only: heard locally, on no track, though tracks 1-2 are ticked
+            'Cue Tone': { ...audio(1, [1, 2], [], 'OBS_MONITORING_TYPE_MONITOR_ONLY'), kind: 'ffmpeg_source' },
             'App Audio: firefox.exe (Game)': { ...audio(0.1, [1, 2, 4, 5, 6], [filter('Gain', 'gain_filter'), filter('Limiter', 'limiter_filter')]), kind: 'wasapi_process_output_capture' },
             'App Audio: Spotify.exe (Music)': { ...audio(0.03, [1, 4, 5, 6], [filter('Spotify Fade Up', 'move_audio_value_filter'), filter('Limiter', 'limiter_filter')]), kind: 'wasapi_process_output_capture' }
         });

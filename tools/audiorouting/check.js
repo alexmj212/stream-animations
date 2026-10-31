@@ -18,6 +18,8 @@
  *   - a channel dragged to a track moves every app in it and the saved
  *     channel tracks; dropping on Monitor turns monitoring on,
  *   - anything joining the Twitch VOD track asks first (music can mute it),
+ *   - a Monitor Only source taken off Monitor, and an Undo back onto the
+ *     VOD track, ask first too,
  *   - while the stream runs, a change to a streamed track waits for one
  *     confirm, and Cancel leaves OBS as it was,
  *   - nothing else in OBS is changed (only the tracks and monitoring asked for),
@@ -131,6 +133,21 @@ try {
     const m = await wireMid('t:BG Music:2');
     await dragTo(m, { x: m.x, y: m.y + 220 });
     check('dragging a wire away disconnects it', await until(() => tracksOf('BG Music') === '1,4,5,6'), tracksOf('BG Music'));
+    // Undo goes through the same confirm: this one puts it back on the VOD (code review, #131)
+    await until(() => page.evaluate(() => !document.body.classList.contains('busy')));
+    await page.click('#undo');
+    check('an Undo back onto the VOD track asks first', await until(() => page.$eval('#confirm', el => !el.hidden && /^Undo: .*VOD muted/.test(document.getElementById('confirmText').textContent))));
+    await page.click('#confirmNo');
+    check('and Cancel keeps it, still undoable', tracksOf('BG Music') === '1,4,5,6' && await page.$eval('#undo', el => !el.disabled && /BG Music/.test(el.title)));
+
+    // Monitor Only: unplugging Monitor puts it on its tracks, so it asks
+    await until(() => page.evaluate(() => window.__audioRouting.wires.some(w => w.id === 'mon:Cue Tone')));
+    const cue = await wireMid('mon:Cue Tone');
+    await dragTo(cue, { x: cue.x, y: cue.y + 200 });
+    check('unplugging a Monitor Only source\'s Monitor asks, naming the tracks it starts on',
+        await until(() => page.$eval('#confirm', el => !el.hidden && /starts playing on Stream, VOD.*VOD muted/.test(el.textContent))));
+    await page.click('#confirmNo');
+    check('and Cancel leaves it Monitor Only', obs.state.inputs['Cue Tone'].monitor === 'OBS_MONITORING_TYPE_MONITOR_ONLY');
 
     await until(() => page.evaluate(() => !document.body.classList.contains('busy')));
     const mm = await wireMid('t:Mic:6');
