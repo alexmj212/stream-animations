@@ -37,6 +37,8 @@ const check = (name, pass, detail = '') => {
     console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${pass || !detail ? '' : `  (${detail})`}`);
 };
 const wait = ms => new Promise(r => setTimeout(r, ms));
+// longer than the dock's refresh debounce (config.audioRouting.refreshDebounceMs)
+const cfgSettle = 250;
 async function until(fn, ms = 6000) {
     const t0 = Date.now();
     while (Date.now() - t0 < ms) {
@@ -105,7 +107,14 @@ try {
         await page.mouse.move(to.x, to.y, { steps: 4 });
         await page.mouse.up();
     }
+    // wait out the last OBS write and its re-read before the next step: the
+    // chart redraws then, and a click mid-redraw lands on the old one
+    const idle = async () => {
+        await until(() => page.evaluate(() => !document.body.classList.contains('busy')));
+        await wait(cfgSettle);
+    };
     const before = writes().length;
+    await idle();
     await dragTo(await center('#colSources .node[data-id="BG Music"] .port.out'), await center('#colTracks .node[data-id="3"]'));
     check('dragging a source to a track adds it', await until(() => tracksOf('BG Music') === '1,3,4,5,6'), tracksOf('BG Music'));
     await until(() => page.evaluate(() => window.__audioRouting.wires.some(w => w.id === 't:BG Music:3')));
@@ -123,6 +132,7 @@ try {
         }
         return null;
     }, id);
+    await idle();
     await dragTo(await wireMid('t:BG Music:3'), await center('#colTracks .node[data-id="2"]'));
     // track 2 is the Twitch VOD in this profile: music there can mute the VOD (QA, #131)
     check('putting anything on the VOD track asks first, saying why', await until(() => page.$eval('#confirm', el => !el.hidden && /VOD muted/.test(el.textContent))));
@@ -130,11 +140,14 @@ try {
     await page.click('#confirmYes');
     check('dragging a wire to another track moves it', await until(() => tracksOf('BG Music') === '1,2,4,5,6'), tracksOf('BG Music'));
     await until(() => page.evaluate(() => window.__audioRouting.wires.some(w => w.id === 't:BG Music:2')));
+    await idle();
     const m = await wireMid('t:BG Music:2');
+    await idle();
     await dragTo(m, { x: m.x, y: m.y + 220 });
     check('dragging a wire away disconnects it', await until(() => tracksOf('BG Music') === '1,4,5,6'), tracksOf('BG Music'));
     // Undo goes through the same confirm: this one puts it back on the VOD (code review, #131)
     await until(() => page.evaluate(() => !document.body.classList.contains('busy')));
+    await idle();
     await page.click('#undo');
     check('an Undo back onto the VOD track asks first', await until(() => page.$eval('#confirm', el => !el.hidden && /^Undo: .*VOD muted/.test(document.getElementById('confirmText').textContent))));
     await page.click('#confirmNo');
@@ -142,7 +155,9 @@ try {
 
     // Monitor Only: unplugging Monitor puts it on its tracks, so it asks
     await until(() => page.evaluate(() => window.__audioRouting.wires.some(w => w.id === 'mon:Cue Tone')));
+    await idle();
     const cue = await wireMid('mon:Cue Tone');
+    await idle();
     await dragTo(cue, { x: cue.x, y: cue.y + 200 });
     check('unplugging a Monitor Only source\'s Monitor asks, naming the tracks it starts on',
         await until(() => page.$eval('#confirm', el => !el.hidden && /starts playing on Stream, VOD.*VOD muted/.test(el.textContent))));
@@ -150,28 +165,33 @@ try {
     check('and Cancel leaves it Monitor Only', obs.state.inputs['Cue Tone'].monitor === 'OBS_MONITORING_TYPE_MONITOR_ONLY');
 
     await until(() => page.evaluate(() => !document.body.classList.contains('busy')));
+    await idle();
     const mm = await wireMid('t:Mic:6');
     await page.mouse.click(mm.x, mm.y);
     check('a click selects a wire and shows ×', await until(() => page.$eval('#unplug', el => !el.hidden)));
     await page.click('#unplug');
     check('× disconnects it', await until(() => tracksOf('Mic') === '1,2,3,4,5'), tracksOf('Mic'));
     await until(() => page.$eval('#undo', el => /Mic/.test(el.title)));
+    await idle();
     await page.click('#undo');
     check('Undo puts it back', await until(() => tracksOf('Mic') === '1,2,3,4,5,6'), tracksOf('Mic'));
 
     // ---- channels and monitoring ----
-    const idle = () => until(() => page.evaluate(() => !document.body.classList.contains('busy')));
+        await idle();
     await idle();
     await dragTo(await center('#colSources .node.chan[data-id="music"] .port.out'), await center('#colTracks .node[data-id="3"]'));
     check('a channel to a track moves every app in it', await until(() => tracksOf('App Audio: Spotify.exe (Music)') === '1,3,4,5,6'), tracksOf('App Audio: Spotify.exe (Music)'));
     await idle();
     const savedMusic = obs.state.persistent['gamePicker.channels'].channels.find(c => c.id === 'music').tracks;
     check('and saves the channel\'s tracks for its next app', String(savedMusic) === '1,3,4,5,6', String(savedMusic));
+    await idle();
     await dragTo(await center('#colTracks .node[data-id="4"] .port.in'), await center('#colSources .node[data-id="Applause"]'));
     check('a track\'s dot dragged to a source connects too', await until(() => tracksOf('Applause') === '1,2,3,4,5,6'));
     await idle();
+    await idle();
     await dragTo(await center('#colSources .node[data-id="Mic"] .port.out'), await center('#colOutputs .node[data-id="monitor"]'));
     check('dropping on Monitor turns on Monitor and Output', await until(() => obs.state.inputs.Mic.monitor === 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'));
+    await idle();
     await idle();
     await page.click('#undo');
     check('and Undo turns it off', await until(() => obs.state.inputs.Mic.monitor === 'OBS_MONITORING_TYPE_NONE'));
@@ -180,20 +200,26 @@ try {
     obs.setOutput('stream', true);
     check('shows LIVE while streaming', await until(() => page.$eval('#liveBadge', el => !el.hidden)));
     await until(() => page.evaluate(() => window.__audioRouting.model.running.stream));
+    await idle();
     await dragTo(await center('#colSources .node[data-id="Applause"] .port.out'), await center('#colTracks .node[data-id="1"]'));
     check('while live, a streamed track already there changes nothing', tracksOf('Applause') === '1,2,3,4,5,6');
+    await idle();
     const lm = await wireMid('t:Local Game (A):1');
+    await idle();
     await dragTo(lm, { x: lm.x, y: lm.y + 260 });
     check('while live, taking a source off the stream track asks first', await until(() => page.$eval('#confirm', el => !el.hidden && /Stream/.test(el.textContent))));
     check('and nothing changes until confirmed', tracksOf('Local Game (A)') === '1,2,4,5,6');
     if (shotDir) await page.screenshot({ path: `${shotDir}/routing-live-confirm.png` });
     await page.click('#confirmNo');
     check('Cancel leaves it', await until(() => page.$eval('#confirm', el => el.hidden)) && tracksOf('Local Game (A)') === '1,2,4,5,6');
+    await idle();
     const lm2 = await wireMid('t:Local Game (A):1');
+    await idle();
     await dragTo(lm2, { x: lm2.x, y: lm2.y + 260 });
     await until(() => page.$eval('#confirm', el => !el.hidden));
     await page.click('#confirmYes');
     check('Change it applies', await until(() => tracksOf('Local Game (A)') === '2,4,5,6'));
+    await idle();
     await page.click('#undo');
     await until(() => tracksOf('Local Game (A)') === '1,2,4,5,6');
     obs.setOutput('stream', false);

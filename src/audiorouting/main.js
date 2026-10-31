@@ -601,7 +601,8 @@ $('confirmYes').addEventListener('click', () => {
     const p = pending;
     closeConfirm();
     if (!p) return;
-    if (p.isUndo) undoStack.pop();
+    // by identity: a change applied while this confirm was open is on top now (code review, #131)
+    if (p.isUndo) undoStack.splice(undoStack.lastIndexOf(p.change), 1);
     apply(p.change, p.isUndo);
 });
 $('confirmNo').addEventListener('click', closeConfirm);
@@ -668,7 +669,7 @@ $('undo').addEventListener('click', () => {
     const last = undoStack[undoStack.length - 1];
     if (!last) return;
     // popped once applied (here or after the confirm), so Cancel keeps it
-    if (gate(last, true)) undoStack.pop();
+    if (gate(last, true)) undoStack.splice(undoStack.lastIndexOf(last), 1);
 });
 
 function disconnect(w, moveTo = null) {
