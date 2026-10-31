@@ -36,13 +36,15 @@ broken.
 ## Steps
 
 1. In the stream-animations checkout on Defiant (the WSL one; Windows has no
-   Node), run `git pull`. It needs Node 22 or newer (`node --version`). From
-   WSL the script reaches Windows through interop (`tasklist.exe`,
-   `powershell.exe`, `/mnt/c/...`) and tries the websocket at 127.0.0.1, then
-   at the Windows host's WSL address. If neither connects, pass the address
-   OBS's Tools > WebSocket Server Settings > Show Connect Info gives:
-   `--url=ws://<ip>:4455`. The output's `url` says which one worked.
-   Set `OBS_WS_PASSWORD` in the shell; never write it to a file.
+   Node), run `git pull`. It needs Node 22 or newer (`node --version`).
+   From WSL the script can't reach OBS's websocket directly (NAT plus the
+   Hyper-V firewall, 2026-10-31), so it talks to OBS through Windows Python
+   and `obsws_python` (`tools/obs/obs-bridge.py`), the same route the
+   obs-ops skill uses. Other Windows tools go through interop
+   (`tasklist.exe`, `powershell.exe`, `/mnt/c/...`). The password comes from
+   `OBS_WS_PASSWORD` if set, else from obs-websocket's own `config.json`, and
+   it's never printed. `--python=<cmd>` overrides the Windows Python command,
+   and `--url=ws://...` connects directly instead of through the bridge.
 2. Run `npm run obs:restart -- --dry-run`. It must say `"ok": true`. If it
    aborts as live, stop and report. It also aborts when it can't read the
    vertical canvas status (`verticalRaw` in the output shows what Aitum

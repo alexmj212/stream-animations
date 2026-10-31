@@ -14,10 +14,13 @@
  * tools/obs/host.js).
  *
  * Usage (from the repo on Defiant):
- *   set OBS_WS_PASSWORD=...            (never stored in the repo)
+ *   (password: OBS_WS_PASSWORD, else read from obs-websocket's config.json)
  *   npm run obs:restart -- --dry-run   checks only
  *   npm run obs:restart -- --camera    restart + camera check
- * Options: --url=ws://127.0.0.1:4455 --obs-dir="C:\Program Files\obs-studio"
+ * From WSL it reaches OBS through Windows Python + obsws_python
+ * (tools/obs/obs-bridge.py); --url connects directly instead.
+ * Options: --url=ws://127.0.0.1:4455 --python=<windows python command>
+ *          --obs-dir="C:\Program Files\obs-studio"
  *          --shots=<dir> (default: the claude folder on the Desktop)
  */
 import { execFile } from 'node:child_process';
@@ -27,6 +30,7 @@ import { join, posix, win32 } from 'node:path';
 import { ObsSocket, EVENTS } from '../../src/shared/obs.js';
 import { restartObs } from './restart-flow.js';
 import { isWsl, wslHostIps, wsCandidates, localPath } from './host.js';
+import { connectBridge } from './bridge.js';
 
 if (typeof globalThis.WebSocket !== 'function') {
     console.error(`obs:restart needs Node 22 or newer (global WebSocket); this is ${process.version}.`);
@@ -55,17 +59,36 @@ const hostIps = wsl
         await read('/etc/resolv.conf'))
     : [];
 const urls = wsCandidates(args.url, hostIps);
-const password = process.env.OBS_WS_PASSWORD || '';
 const obsDir = args['obs-dir'] || 'C:\\Program Files\\obs-studio';
 const appData = localPath(await winEnv('APPDATA'), wsl);
 const sceneFile = P.join(appData, 'obs-studio', 'basic', 'scenes', 'Archive_1.json');
 const logDir = P.join(appData, 'obs-studio', 'logs');
+// The password: OBS_WS_PASSWORD, else obs-websocket's own config (the same
+// source Defiant's obs-ops skill reads). Never printed.
+const wsConfig = P.join(appData, 'obs-studio', 'plugin_config', 'obs-websocket', 'config.json');
+const password = process.env.OBS_WS_PASSWORD ||
+    (await read(wsConfig).then(t => JSON.parse(t).server_password).catch(() => '')) || '';
+// From WSL, talk to OBS through Windows Python (tools/obs/obs-bridge.py)
+// unless --url is given: WSL's NAT network can't reach it (2026-10-31).
+const useBridge = wsl && !args.url;
+const bridgeScript = useBridge
+    ? (await run('wslpath', ['-w', new URL('./obs-bridge.py', import.meta.url).pathname])).stdout.trim()
+    : '';
 const shotDir = args.shots || P.join(localPath(await winEnv('USERPROFILE'), wsl), 'OneDrive', 'Desktop', 'claude');
 
 const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
 
 let goodUrl = null;
 async function connect() {
+    if (useBridge) {
+        const obs = await connectBridge({
+            command: ['cmd.exe', '/c', args.python || 'python', bridgeScript, 'localhost', '4455'],
+            password,
+            spawnOptions: { cwd: '/mnt/c' }
+        });
+        goodUrl = 'bridge: Windows Python -> ws://localhost:4455';
+        return obs;
+    }
     let last;
     for (const url of goodUrl ? [goodUrl] : urls) {
         const obs = new ObsSocket({ url, password, events: EVENTS.GENERAL });
