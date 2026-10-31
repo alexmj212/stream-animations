@@ -83,6 +83,7 @@ mic once, so every render is measured over the same moments.
 | `npm run audio -- render --collection=... --source=Mic --raw=raw.flac --ns=ns.flac --proposal=p.json --baseline=baseline.json --match-level` | Render and check every chain over a capture; writes `index.html`, `results.json` and A/B clips (as recorded and level-matched) |
 | `npm run audio -- verify --collection=... --source=Mic --raw=raw.flac --obs=current.flac` | Null test: today's chain emulated over the raw mic minus what OBS recorded through it, skipping the first second (OBS's filters were already running). Passes at 40 dB of cancellation overall and 20 dB in the worst 400 ms window, so a gate that opens a block late fails |
 | `npm run audio -- meter <files...> [--gain-db=n]` | How a sound file reads on OBS's meter at a gain: loudness, true peak, time in the red, clipped samples, baked-in clipping, and the gain that keeps it in the yellow |
+| `npm run audio -- music <track1> <track2\|silent> [...pairs] [--gain-db=n] [--kbps=160]` | Music level in past streams: track 2 (VOD) is track 1 without the music, so track 1 minus track 2 is the music, down to an AAC coding-noise floor it estimates per excerpt. Gives its loudness, peak and meter zone, and how far it sits under the rest of the mix. Pass `silent` where track 2 is digital silence (Starting, Ending); `--gain-db` previews a fader change |
 | `npm run audio -- assets` | CI gate: every sound file under `src/` at its configured gain (rules above) |
 | `npm run audio -- report --baseline=... --curves=... --render=... --out=page.html` | One page from whatever results exist, to publish for AJ |
 
@@ -142,3 +143,36 @@ From one capture:
   fader matched to past streams, shouts would land about 7 dB further above
   talk than viewers are used to. Its limiter never engages on that shout
   (same peak with and without it).
+
+## Music level (2026-10-31)
+
+Measured with `npm run audio -- music` on 8-minute excerpts from the start
+and end of the 10-08, 10-15 and 10-25 streams, plus two 5-minute excerpts
+from the middle of 10-25.
+
+Track 1 minus track 2 isn't quite the music alone. Each track is AAC-encoded
+on its own, so their coding noise doesn't cancel. It leaves a floor about
+20 to 30 LU under the rest of the mix (code review, #128). The command
+estimates that floor per excerpt by re-encoding both tracks. It also measures
+the music where track 2 is silent, which has no floor, and that's the number
+to trust while AJ talks. The recordings use CoreAudio AAC at 160 kb/s on every
+track (profile Exogenesis, checked 2026-10-31). The command re-encodes with
+ffmpeg's AAC at the same bitrate, which is noisier than CoreAudio, so its
+floor errs high.
+
+| Moment | Music | Peak | How it was measured |
+|---|---|---|---|
+| Starting (all three streams) | -26 to -28 LUFS | -16 to -18 dBFS (yellow) | 20+ dB above the floor |
+| Ending (10-08, 10-25) | -26 LUFS | -16 to -18 dBFS | 20 dB above the floor |
+| Talking and gameplay, 10-25 | -44 to -47 LUFS | about -25 dBFS (green) | in 12 to 100 s of gaps per excerpt where track 2 is silent; the mix-wide figure sits at the floor |
+| Talking and gameplay, 10-15 | below about -50 LUFS | | at the floor, with no gaps, so it can't be measured |
+| Talking and gameplay, 10-08 | off | | track 1 equals track 2 |
+
+The 18 dB step between Starting/Ending and talking is the Music Fade
+Up/Down automations: BG Music moves between 25% and 3% over 3 s. Since the
+game picker (2026-10-30), the music plays through
+`App Audio: Spotify.exe (Music)`, which copied BG Music's fader, tracks and
+Limiter but not its two fade filters. So the music stays at 3% everywhere.
+A live read on 2026-10-31 had it peaking at -38 dBFS while AJ talked. That's
+quieter than 10-25 and within what 10-15 allows. On Starting and Ending it
+is about 18 dB below where it used to be.
