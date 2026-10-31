@@ -49,6 +49,7 @@ they change.
 | Task Manager's single GPU number is roughly the busiest engine: compare engines, not totals | `docs/PERFORMANCE.md` |
 | A hidden browser source that keeps drawing costs GPU in every scene unless "Shutdown source when not visible" is on or the page pauses itself | `docs/PERFORMANCE.md` |
 | Owed since v1.0: a real-OBS validation and the 8-hour soak | `docs/PERFORMANCE.md`, QA charter |
+| After a GPU reset (TDR: Windows nvlddmkm event 153, OBS log "Device Remove/Reset"), OBS rebuilds its own assets but NVIDIA video effects (Background Removal) can stay broken, passing frames through untouched, until the filter is rebuilt or OBS restarts | Camera transparency issue thread, 2026-10-31 |
 
 ## How to answer an issue thread
 
@@ -131,3 +132,4 @@ side-by-side mocks.
 | 2026-10-28 | A CPU check on fewer than 200 drawn frames is one slow frame from failing; shortening a scene can break it. Add a `-cpu` scenario, never a higher budget | QA Learnings, #63, #65 | scene length changes | active |
 | 2026-10-29 | Rotated `drawImage` costs about 3.5x a plain one in Chromium's software raster, in OBS too. Stamp pre-turned sprites, baked only as large as the visible pixels | Spheal march, `docs/PERFORMANCE.md` | sprite-heavy pages | active |
 | 2026-10-30 | OBS's own GPU (encoders, canvases, NVIDIA filters) outweighed every browser page combined. Look at outputs and canvases before tuning pages | `docs/PERFORMANCE.md`, "OBS GPU" | OBS cost questions | active |
+| 2026-10-31 | When an NVIDIA effect or GPU feature in OBS stops working, read the OBS log and the Windows System log for a device reset ("Device Remove/Reset", event 153) before comparing settings. I pointed the camera transparency thread at a Move action change; the cause was a GPU reset at 12:15 local that the Background Removal filter never recovered from | Camera transparency issue thread, 2026-10-31 | OBS GPU questions; first step of any "stopped working" ask | active |
