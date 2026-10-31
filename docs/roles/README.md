@@ -25,13 +25,18 @@ circumstance"). The rules are in `CLAUDE.md`, "Experts facilitate, issue
 threads own". Each expert writes its own charter here when its thread
 starts, with the same Learnings table.
 
-| Expert | Consulted on | Skills to build for issue threads (planned; none exist yet except Defiant's `obs-ops`) | Charter |
+| Expert | Consulted on | Skills for issue threads (in `.claude/skills/` unless marked) | Charter |
 |---|---|---|---|
-| Audio | Everything viewers and AJ hear: mic chain, music, game and alert sound levels, routing, no clipping and no limiters (`docs/AUDIO.md`, `npm run audio`) | `mic-diagnose`, `audio-change-proof` | `audio.md` |
-| OBS and stream setup | How the broadcast is put together: scenes, sources, filters, automations, capture, the OBS docks, MIU and Stream Deck wiring, backups and safe-change rules | Recipes the Defiant thread runs; `obs-ops` with Defiant | `obs.md` |
-| Alerts and integrations | How the stream reacts to viewers: alert and gag pages, MIU commands, Twitch events, the BRB clip reel (`alexmj212/twitch-clip-reel-overlay`) | `alert-test-safe` (never posts to chat), `miu-command-edit` | `alerts.md` |
-| Performance | CPU and GPU cost of every scene and of OBS, the project's top goal (`docs/PERFORMANCE.md`, `npm run bench`, `npm run gpu:summary`) | `gpu-check`, `bench-compare` | `performance.md` |
-| Avatars | AJ's on-stream characters and their control apps: `alexmj212/vtuber` and `alexmj212/discoball`, their deploys and OBS sources | `vtuber-audit`, deploy-and-swap | `avatars.md` |
+| Audio | Everything viewers and AJ hear: mic chain, music, game and alert sound levels, routing, no clipping and no limiters (`docs/AUDIO.md`, `npm run audio`) | `mic-diagnose` (planned), `audio-change-proof` (planned) | `audio.md` |
+| OBS and stream setup | How the broadcast is put together: scenes, sources, filters, automations, capture, the OBS docks, MIU and Stream Deck wiring, backups and safe-change rules | Recipes the Defiant thread runs; `obs-ops` (on Defiant, `~/.claude/skills/`) | `obs.md` |
+| Alerts and integrations | How the stream reacts to viewers: alert and gag pages, MIU commands, Twitch events, the BRB clip reel (`alexmj212/twitch-clip-reel-overlay`) | `alert-test-safe` (planned; never posts to chat), `miu-command-edit` (planned) | `alerts.md` |
+| Performance | CPU and GPU cost of every scene and of OBS, the project's top goal (`docs/PERFORMANCE.md`, `npm run bench`, `npm run gpu:summary`) | `gpu-check` (planned), `bench-compare` (planned) | `performance.md` |
+| Avatars | AJ's on-stream characters and their control apps: `alexmj212/vtuber` and `alexmj212/discoball`, their deploys and OBS sources | `vtuber-audit` (planned), deploy-and-swap (planned) | `avatars.md` |
+
+Each expert keeps its own row current: the PR that ships a skill drops its
+"(planned)" mark, and a planned skill that stops earning its keep comes off
+the list (2026-10-31, after the column went stale when `gpu-check` shipped in
+#152).
 
 ### When a thread becomes permanent
 
