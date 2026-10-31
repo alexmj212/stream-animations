@@ -49,8 +49,8 @@ These hold for every thread that tests or changes anything in this domain.
    - call `Fullscreen Alert` / `Sidescreen Alert` directly with `text|1`.
    `Show Toast` never posts. Check a command's chat actions before firing it.
 2. **Never fire anything while AJ is live**, and never deploy then.
-3. **Only the Defiant thread touches AJ's PC** (MIU and OBS edits, test runs),
-   through the coordinator. It backs up first (`Archive_1.json.bak-*`,
+3. **Changes on AJ's PC go through the Defiant thread** (MIU and OBS edits,
+   test runs), via the coordinator. It backs up first (`Archive_1.json.bak-*`,
    `*.db3.bak-*`) and may close, edit and restart MIU while AJ is offline.
    Cloud threads may read the db3 and `Archive_1.json` with read-only folder
    access.
