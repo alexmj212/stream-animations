@@ -12,7 +12,7 @@ for (const p of ['python3', 'python']) {
 const opts = password => ({
     command: [python, script, 'localhost', '4455'],
     password,
-    spawnOptions: { env: { ...process.env, PYTHONPATH: fixtures } }
+    spawnOptions: { env: { ...process.env, PYTHONPATH: fixtures, PYTHONDONTWRITEBYTECODE: '1' } }
 });
 
 describe.skipIf(!python)('obs bridge (real obs-bridge.py, fake obsws_python)', () => {
