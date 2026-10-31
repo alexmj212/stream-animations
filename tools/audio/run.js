@@ -10,6 +10,7 @@
  *       [--start=s] [--duration=s] [--match-level] [--out=dir]
  *   npm run audio -- verify --collection=Archive_1.json --source=Mic --raw=raw.flac --obs=obs.flac
  *   npm run audio -- meter <files...> [--gain-db=n]
+ *   npm run audio -- music <track1> <track2|silent> [...pairs] [--gain-db=n] [--kbps=160]
  *   npm run audio -- assets   (CI: every sound file a page plays, at its configured gain)
  *   npm run audio -- report [--baseline=b.json] [--curves=c.json] [--render=results.json] [--status=status.html] --out=page.html
  */
@@ -343,6 +344,89 @@ function meter(args) {
     if (args.out) fs.writeFileSync(args.out, JSON.stringify(rows, round, 1));
 }
 
+/**
+ * Music level in past streams. Track 2 (VOD) is track 1 without the music,
+ * so track 1 minus track 2 is the music alone (they are encoded from the
+ * mix in one recording, so they line up to the sample; `--lag` if not). Pass `silent` for a track 2
+ * excerpt that is digital silence (Starting/Ending, where only music
+ * plays). `--gain-db` previews a fader change, such as a fade to 25%.
+ *
+ * The recordings are AAC, and each track is encoded on its own, so their
+ * coding noise doesn't cancel: the difference has a floor that follows the
+ * rest of the mix (about 29 LU under it at 160 kb/s, code review on #128).
+ * Each excerpt's floor is estimated by re-encoding both tracks with
+ * ffmpeg's AAC at `--kbps` and measuring what that adds; music within
+ * 6 dB of it is reported "at floor", meaning the mix-wide number can't be
+ * trusted. Where track 2 is silent there is no floor, so the music measured
+ * in those gaps is reported too.
+ * The recordings are CoreAudio AAC at 160 kb/s (profile Exogenesis);
+ * ffmpeg's encoder is noisier, so the estimate errs high.
+ */
+function music(args) {
+    const files = args._.slice(1);
+    const gainDb = args['gain-db'] !== undefined ? Number(args['gain-db']) : 0;
+    const kbps = Number(args.kbps || 160);
+    const g = dbToMul(gainDb);
+    const rows = [];
+    for (let i = 0; i + 1 < files.length; i += 2) {
+        const a = decode(files[i], { fs: FS }).channels;
+        const b = files[i + 1] === 'silent' ? a.map((c) => new Float32Array(c.length)) : decode(files[i + 1], { fs: FS }).channels;
+        const n = Math.min(a[0].length, b[0].length);
+        const lag = Number(args.lag || 0);
+        const m = a.map((c, ch) => {
+            const o = new Float32Array(n);
+            for (let k = 0; k < n; k++) { const j = k + lag; o[k] = g * (c[k] - (j >= 0 && j < n ? b[ch][j] : 0)); }
+            return o;
+        });
+        const restL = loudness(b.map((c) => c.subarray(0, n)), FS), rest = restL.integrated;
+        const l = loudness(m, FS), pk = peaks(m), mp = meterPeaks(m, FS);
+        const e1 = codecError(a, kbps), e2 = files[i + 1] === 'silent' ? null : codecError(b, kbps);
+        const floor = loudness(e1.map((c, ch) => {
+            const o = new Float32Array(n);
+            for (let k = 0; k < n; k++) o[k] = g * (c[k] - (e2 ? e2[ch][k] : 0));
+            return o;
+        }), FS).integrated;
+        // Where track 2 is silent its coding noise is zero, so the music
+        // measured there has no floor to speak of.
+        let gp = 0, gn = 0;
+        restL.momentary.forEach((v, k) => { if (!(v > -70) && Number.isFinite(l.momentary[k])) { gp += Math.pow(10, (l.momentary[k] + 0.691) / 10); gn++; } });
+        const gaps = gn ? { lufs: 10 * Math.log10(gp / gn) - 0.691, sec: gn * 0.1 } : null;
+        const atFloor = !(l.integrated > floor + FLOOR_MARGIN_DB);
+        const row = { file: path.basename(files[i]), lag, musicLufs: l.integrated, restLufs: rest, floorLufs: floor, atFloor, gaps, samplePeakDbfs: pk.samplePeak, truePeakDbtp: pk.truePeak, redPct: mp.redPct, p999Dbfs: mp.p999Dbfs };
+        rows.push(row);
+        const gap = !(l.integrated > -70) ? '' : Number.isFinite(rest) ? `, ${num1(rest - l.integrated)} LU under the rest of the mix (${num1(rest)} LUFS)` : ', nothing else playing';
+        const zone = pk.samplePeak > audioConfig.checks.meterRedDbfs ? 'red' : pk.samplePeak > -20 ? 'yellow' : 'green';
+        const level = !(l.integrated > -70) ? 'no music' : atFloor ? `music at floor (${num1(l.integrated)} LUFS measured, codec floor ${num1(floor)}): the mix-wide figure is mostly coding noise` : `music ${num1(l.integrated)} LUFS, peak ${num1(pk.samplePeak)} dBFS (${zone}), true ${num1(pk.truePeak)} dBTP, codec floor ${num1(floor)} LUFS`;
+        const gapNote = gaps && Number.isFinite(rest) ? `; ${num1(gaps.lufs)} LUFS in ${gaps.sec.toFixed(1)} s where the rest is silent (no floor there)` : '';
+        console.log(`${row.file}${gainDb ? ` at ${gainDb >= 0 ? '+' : ''}${gainDb} dB` : ''}: ${level}${gap}${gapNote}${lag ? `; lag ${lag}` : ''}`);
+    }
+    if (args.out) fs.writeFileSync(args.out, JSON.stringify(rows, round, 1));
+}
+
+/** Music this close to the codec floor (dB) can't be told from coding noise. */
+const FLOOR_MARGIN_DB = 6;
+
+/** What one more AAC encode at `kbps` adds to a signal: decoded re-encode minus the input. */
+function codecError(channels, kbps) {
+    const tmp = path.join(fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'audio-floor-')), 'x.m4a');
+    try {
+        encode(tmp, channels, FS, { kbps });
+        const d = decode(tmp, { fs: FS }).channels;
+        // ffmpeg trims the encoder delay, so 0 is usually right; the
+        // correlation search can lock onto a beat on music alone.
+        const diff = (lag) => channels.map((c, ch) => {
+            const o = new Float32Array(c.length);
+            for (let k = 0; k < c.length; k++) { const j = k + lag; o[k] = (j >= 0 && j < d[ch].length ? d[ch][j] : 0) - c[k]; }
+            return o;
+        });
+        const power = (x) => x.reduce((s, c) => s + c.reduce((t, v) => t + v * v, 0), 0);
+        const [e0, e1] = [diff(0), diff(bestLag(channels[0], d[0], FS))];
+        return power(e0) <= power(e1) ? e0 : e1;
+    } finally {
+        fs.rmSync(path.dirname(tmp), { recursive: true, force: true });
+    }
+}
+
 const num1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : String(v));
 
 /**
@@ -430,9 +514,9 @@ function report(args) {
 
 const args = parseArgs(process.argv.slice(2));
 const cmd = args._[0];
-const commands = { baseline, curves, render, verify, report, meter, assets };
+const commands = { baseline, curves, render, verify, report, meter, music, assets };
 if (!commands[cmd]) {
-    console.log('usage: npm run audio -- <baseline|curves|render|verify|meter|assets|report> ... (see docs/AUDIO.md)');
+    console.log('usage: npm run audio -- <baseline|curves|render|verify|meter|music|assets|report> ... (see docs/AUDIO.md)');
     process.exitCode = 1;
 } else {
     commands[cmd](args);

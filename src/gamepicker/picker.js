@@ -196,25 +196,23 @@ export function appAudioName(prefix, exe, label) {
 }
 
 /**
- * The app and destination of an input the dock made, or null for any
- * other input.
+ * The app and channel label of an input the dock made, or null for any
+ * other input. The label is matched to a channel by the caller, so an input
+ * whose channel isn't saved (made by an older dock) still shows.
  * @param {string} name
  * @param {string} prefix
- * @param {Object<string, {label: string}>} targets
- * @returns {{exe: string, target: string}|null}
+ * @returns {{exe: string, label: string}|null}
  */
-export function parseAppAudioName(name, prefix, targets) {
+export function parseAppAudioName(name, prefix) {
     if (!name || !name.startsWith(prefix)) return null;
-    const m = /^(.*) \((.*)\)$/.exec(name.slice(prefix.length));
-    if (!m) return null;
-    const target = Object.keys(targets).find(k => targets[k].label === m[2]);
-    return target ? { exe: m[1], target } : null;
+    const m = /^(.*) \(([^()]*)\)$/.exec(name.slice(prefix.length));
+    return m && m[2] ? { exe: m[1], label: m[2] } : null;
 }
 
 /**
- * The filters to copy from a destination's own source onto an app's audio
- * input: everything but the Move filters, which belong to that source's
- * fades (Music Fade Up/Down move BG Music's volume).
+ * The filters to copy from a channel's "copy from" source onto an app's
+ * audio input: everything but Move filters, which animate that source
+ * itself (a music fade, say) and mean nothing on a copy.
  * @param {Array<{filterKind: string}>} filters - GetSourceFilterList
  * @param {string[]} skipKinds
  * @returns {Array}
@@ -239,28 +237,130 @@ export function captureSettings(method, value, priority) {
 }
 
 /**
- * Which scene items to show and hide so only `target` is visible.
- * Every other capture (game, window, capture card, and nested scenes listed
- * as sources) is hidden; items in `keep` are left as they are.
+ * Which scene items to show and hide so only `target` is visible. The
+ * dock's own sources (its captures and pinned sources) are hidden; with
+ * `hideOthers`, every other window, game and display capture in the scene
+ * too. Anything else in the scene is never touched.
  *
  * @param {Array<{sceneItemId: number, sourceName: string, inputKind?: string|null, sceneItemEnabled: boolean}>} items
  * @param {string} target - source name to show
  * @param {Object} opts
- * @param {string[]} [opts.sources] - the picker's own source names
- * @param {string[]} [opts.keep] - never touched
+ * @param {string[]} [opts.sources] - the dock's own source names
+ * @param {boolean} [opts.hideOthers] - also hide the scene's other captures
  * @returns {Array<{sceneItemId: number, sourceName: string, enabled: boolean}>} only the changes
  */
-export function visibilityChanges(items, target, { sources = [], keep = [] } = {}) {
+export function visibilityChanges(items, target, { sources = [], hideOthers = false } = {}) {
     const captureKinds = new Set(['game_capture', 'window_capture', 'monitor_capture']);
     const changes = [];
     for (const it of items || []) {
-        if (keep.includes(it.sourceName)) continue;
-        const ours = it.sourceName === target || sources.includes(it.sourceName) || captureKinds.has(it.inputKind);
+        const ours = it.sourceName === target || sources.includes(it.sourceName) || (hideOthers && captureKinds.has(it.inputKind));
         if (!ours) continue;
         const enabled = it.sourceName === target;
         if (it.sceneItemEnabled !== enabled) changes.push({ sceneItemId: it.sceneItemId, sourceName: it.sourceName, enabled });
     }
     return changes;
+}
+
+/**
+ * Whether a scene is only a divider in OBS's scene list ("------ SCENES
+ * ------"): it starts with a line of dashes or is all punctuation. Names
+ * like "...Soon" or "***Live***" stay (review of #124). Never a scene to
+ * pick (Defiant, 2026-10-30).
+ * @param {string} name
+ * @returns {boolean}
+ */
+export function isDividerScene(name) {
+    return /^\s*[-=_~—–]{3,}/.test(name) || /^[\s\-=_~*#—–.]*$/.test(name);
+}
+
+/**
+ * The dock's settings for this OBS, from persistent data, filled in and
+ * checked. Nothing about any one streamer's OBS is built in (AJ,
+ * 2026-10-30: "assume someone is coming in with an entire different setup").
+ * @param {*} raw
+ * @param {number} [defaultMaxDb] - fader max when none is saved
+ * @returns {{scene: string, window: string|null, hook: string|null, pinned: string[], hideOthers: boolean, sound: boolean, audioScene: string, faderMaxDb: number}|null}
+ *   null until a scene and at least one capture are set
+ */
+export function readSetup(raw, defaultMaxDb = -12) {
+    const s = raw && typeof raw === 'object' ? raw : {};
+    const str = v => (typeof v === 'string' && v ? v : null);
+    const scene = str(s.scene);
+    const window = str(s.window);
+    const hook = str(s.hook);
+    if (!scene || (!window && !hook)) return null;
+    return {
+        scene, window, hook,
+        pinned: Array.isArray(s.pinned) ? s.pinned.filter(p => str(p) && p !== window && p !== hook) : [],
+        hideOthers: s.hideOthers === true,
+        sound: s.sound !== false,
+        audioScene: str(s.audioScene) || scene,
+        faderMaxDb: Number.isFinite(s.faderMaxDb) ? Math.min(0, s.faderMaxDb) : defaultMaxDb
+    };
+}
+
+/**
+ * A first guess at the setup from the scenes in OBS, so a streamer mostly
+ * checks and saves (QA, #120: it should be right for AJ's OBS as it is):
+ *   - the scene with the most window and game captures;
+ *   - of each kind, a shown one, else one pointed at a window, else the
+ *     first (a hidden duplicate with no window is the last pick);
+ *   - other captures hidden too when the scene has more than those two;
+ *   - app sound in the scene already holding the dock's App Audio inputs,
+ *     else the one nested in the most other scenes (live whenever any of
+ *     them is), else the capture scene (Defiant, 2026-10-30: it guessed
+ *     Alerts, nested as often as Audio).
+ * @param {Array<{sceneName: string, items: Array<{sourceName: string, inputKind?: string|null, sceneItemEnabled?: boolean, hasWindow?: boolean}>}>} scenes
+ * @param {number} [faderMaxDb]
+ * @param {string} [appAudioPrefix] - names of the dock's own app inputs
+ * @returns {{scene: string|null, window: string|null, hook: string|null, pinned: string[], hideOthers: boolean, sound: boolean, audioScene: string|null, faderMaxDb: number}}
+ */
+export function guessSetup(scenes, faderMaxDb = -12, appAudioPrefix = 'App Audio: ') {
+    const isCapture = i => i.inputKind === 'window_capture' || i.inputKind === 'game_capture';
+    const count = sc => sc.items.filter(isCapture).length;
+    let best = null;
+    for (const sc of scenes || []) if (count(sc) > 0 && (!best || count(sc) > count(best))) best = sc;
+    const score = i => (i.sceneItemEnabled ? 2 : 0) + (i.hasWindow ? 1 : 0);
+    const first = (kind) => {
+        let pick = null;
+        for (const i of best?.items || []) if (i.inputKind === kind && (!pick || score(i) > score(pick))) pick = i;
+        return pick?.sourceName || null;
+    };
+    const window = first('window_capture');
+    const hook = first('game_capture');
+    const names = new Set((scenes || []).map(sc => sc.sceneName));
+    const nestedIn = new Map();
+    for (const sc of scenes || []) {
+        for (const i of sc.items) if (names.has(i.sourceName) && i.sourceName !== sc.sceneName) nestedIn.set(i.sourceName, (nestedIn.get(i.sourceName) || 0) + 1);
+    }
+    // The most-nested scene, and on a tie the one with more audio sources
+    // (Defiant nests Alerts as often as Audio)
+    const audioCount = name => (scenes.find(sc => sc.sceneName === name)?.items || []).filter(i => isAudioKind(i.inputKind)).length;
+    let audioScene = best?.sceneName || null;
+    let most = 0;
+    for (const [name, n] of nestedIn) {
+        if (n > most || (n === most && audioCount(name) > audioCount(audioScene))) [audioScene, most] = [name, n];
+    }
+    const holding = (scenes || []).find(sc => sc.items.some(i => String(i.sourceName).startsWith(appAudioPrefix)));
+    if (holding) audioScene = holding.sceneName;
+    return {
+        scene: best?.sceneName || null,
+        window, hook,
+        pinned: [],
+        hideOthers: best ? count(best) > [window, hook].filter(Boolean).length : false,
+        sound: true,
+        audioScene,
+        faderMaxDb
+    };
+}
+
+/**
+ * Whether an OBS input kind carries sound (capture devices, media, app audio).
+ * @param {string} kind
+ * @returns {boolean}
+ */
+export function isAudioKind(kind) {
+    return /wasapi|pulse|coreaudio|alsa|jack|ffmpeg|vlc|sck_audio|asio|process_output/.test(kind || '');
 }
 
 /**
@@ -304,57 +404,103 @@ export function pushRecent(recents, exe, max) {
 }
 
 /**
- * The audio channels the dock offers: the built-in ones (config targets,
- * each copying one of AJ's sources) and the ones AJ made in the dock, with
- * their saved fader and mute. A channel is the set of App Audio inputs whose
- * name ends in its label, so several apps share it (AJ, 2026-10-30: "create
- * those channels ... just inside OBS"). OBS has no audio bus, so the dock
- * keeps each member's volume, mute, tracks and filters in step.
- * @param {Object<string, {label: string, template: string}>} targets - built-in channels
- * @param {*} saved - persistent data: {custom: [{id, label, like}], mix: {id: {volumeMul, muted}}}
- * @returns {Array<{id: string, label: string, like: string, template: string, builtin: boolean, volumeMul: number|null, muted: boolean}>}
+ * The channels a new dock offers until the streamer changes them: Game and
+ * Music, both plain and removable (AJ, 2026-10-30: "music + game as the
+ * offered defaults but if they want another, they should be able to make
+ * it"). The ids match the older dock's built-ins, so saved faders carry over.
  */
-export function channelList(targets, saved) {
+export const DEFAULT_CHANNELS = Object.freeze([
+    Object.freeze({ id: 'game', label: 'Game', tracks: null, copyFrom: null }),
+    Object.freeze({ id: 'music', label: 'Music', tracks: null, copyFrom: null })
+]);
+
+/**
+ * Tracks as OBS track numbers 1-6, sorted, or null for OBS's defaults.
+ * @param {*} tracks
+ * @returns {number[]|null}
+ */
+export function cleanTracks(tracks) {
+    if (!Array.isArray(tracks)) return null;
+    const t = [...new Set(tracks.map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= 6))].sort((a, b) => a - b);
+    return t.length ? t : null;
+}
+
+/**
+ * The audio channels, with their saved fader and mute. A channel is the set
+ * of App Audio inputs whose name ends in its label, so several apps share
+ * it; OBS has no audio bus, so the dock keeps each member's volume, mute,
+ * tracks and filters in step. Nothing saved yet means the offered Game and
+ * Music; none needs extra Windows audio devices.
+ * @param {*} saved - persistent data: {channels: [{id, label, tracks, copyFrom}], mix: {id: {volumeMul, muted}}};
+ *   an older dock's {custom: [{id, label}]} is read as Game, Music and those
+ * @returns {Array<{id: string, label: string, tracks: number[]|null, copyFrom: string|null, volumeMul: number|null, muted: boolean}>}
+ */
+export function channelList(saved) {
     const s = saved && typeof saved === 'object' ? saved : {};
     const mix = s.mix && typeof s.mix === 'object' ? s.mix : {};
-    const one = (id, label, like, builtin) => ({
-        id, label, like, template: targets[like].template, builtin,
-        volumeMul: Number.isFinite(mix[id]?.volumeMul) ? mix[id].volumeMul : null,
-        muted: mix[id]?.muted === true
-    });
-    const list = Object.entries(targets).map(([id, t]) => one(id, t.label, id, true));
-    for (const c of Array.isArray(s.custom) ? s.custom : []) {
-        if (!c || typeof c.id !== 'string' || typeof c.label !== 'string' || !targets[c.like]) continue;
+    const raw = Array.isArray(s.channels) ? s.channels
+        : Array.isArray(s.custom) ? [...DEFAULT_CHANNELS, ...s.custom] : DEFAULT_CHANNELS;
+    const list = [];
+    for (const c of raw) {
+        if (!c || typeof c.id !== 'string' || typeof c.label !== 'string' || !c.label) continue;
         if (list.some(x => x.id === c.id || x.label === c.label)) continue;
-        list.push(one(c.id, c.label, c.like, false));
+        list.push({
+            id: c.id, label: c.label,
+            tracks: cleanTracks(c.tracks),
+            copyFrom: typeof c.copyFrom === 'string' && c.copyFrom ? c.copyFrom : null,
+            volumeMul: Number.isFinite(mix[c.id]?.volumeMul) ? mix[c.id].volumeMul : null,
+            muted: mix[c.id]?.muted === true
+        });
     }
     return list;
 }
 
 /**
- * A new channel from what AJ typed, or the reason it can't be made. Labels
+ * A new channel from what was typed, or the reason it can't be made. Labels
  * end input names ("App Audio: firefox.exe (Browser)"), so no brackets.
  * @param {string} name
- * @param {string} like - built-in channel whose tracks and filters it copies
  * @param {Array<{id: string, label: string}>} existing
- * @param {Object} targets
- * @returns {{channel?: {id: string, label: string, like: string}, error?: string}}
+ * @param {{tracks?: number[]|null, copyFrom?: string|null}} [opts]
+ * @returns {{channel?: {id: string, label: string, tracks: number[]|null, copyFrom: string|null}, error?: string}}
  */
-export function newChannel(name, like, existing, targets) {
+export function newChannel(name, existing, { tracks = null, copyFrom = null } = {}) {
     const label = String(name || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
     if (!label) return { error: 'Give the channel a name.' };
-    if (!targets[like]) return { error: 'Pick what it copies.' };
     if (existing.some(c => c.label.toLowerCase() === label.toLowerCase())) return { error: `There's already a ${label} channel.` };
+    if (Array.isArray(tracks) && !cleanTracks(tracks)) return { error: 'Tick at least one track.' };
     const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'channel';
     let id = `ch-${slug}`;
     for (let n = 2; existing.some(c => c.id === id); n++) id = `ch-${slug}-${n}`;
-    return { channel: { id, label, like } };
+    return { channel: { id, label, tracks: cleanTracks(tracks), copyFrom: copyFrom || null } };
 }
 
 /**
- * A channel fader position, kept at or under `maxDb` so a full-scale app
- * through the copied -7 dB Limiter stays out of the red (Defiant 2026-10-30:
- * Limiter -7 plus the fader is the peak).
+ * OBS's inputAudioTracks object for a track list.
+ * @param {number[]} tracks
+ * @returns {Object<string, boolean>}
+ */
+export function tracksObject(tracks) {
+    return Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [String(n), tracks.includes(n)]));
+}
+
+/**
+ * Whether a channel is working, at a glance: idle (nothing playing), live,
+ * or red (too loud). All the dock shows of levels (AJ, 2026-10-30: "focus
+ * on indicators that show it's working").
+ * @param {number} db - peak dBFS
+ * @param {number} [quietDb] - under this counts as nothing playing
+ * @returns {'idle'|'live'|'red'}
+ */
+export function activity(db, quietDb = -50) {
+    if (meterZone(db) === 'red') return 'red';
+    return db > quietDb ? 'live' : 'idle';
+}
+
+/**
+ * A channel fader position, kept at or under `maxDb` (the setup's fader
+ * max: a streamer with a limiter on the copied source can cap it so a
+ * full-scale app stays out of the red; AJ's is -12 dB under a -7 dB
+ * Limiter, Defiant 2026-10-30).
  * @param {number} db
  * @param {number} floorDb
  * @param {number} maxDb

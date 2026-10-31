@@ -1,10 +1,11 @@
 /**
- * Game picker dock: lists open windows and points the 16:9 Game capture at
+ * Game picker dock: lists open windows and points a game scene's capture at
  * one in a click. Runs as an OBS Custom Browser Dock and talks to OBS over
- * obs-websocket (docs/SCENES.md, "gamepicker"). Each window can also send
- * its app's sound to an audio channel: Game, Music or one AJ made in the
- * dock (config.gamePicker.audio); the dock never changes AJ's own audio
- * sources, only its "App Audio:" inputs.
+ * obs-websocket (docs/SCENES.md, "gamepicker"). Which scene and captures it
+ * drives comes from its setup screen, saved in OBS: nothing about any one
+ * streamer's OBS is built in. Each window can also send its app's sound to
+ * a channel (config.gamePicker.audio); the dock never changes anyone's own
+ * audio sources, only its "App Audio:" inputs.
  */
 
 import { config } from '../config/config.js';
@@ -14,7 +15,7 @@ import {
     buildWindowList, chooseMethod, captureSettings, visibilityChanges,
     litFraction, peakDb, meterZone, pushRecent, parseWindowValue,
     mergeWindowLists, sameWindow, windowCaptureTarget, captureFailed, appAudioName, parseAppAudioName,
-    copyableFilters, channelList, newChannel, faderMul
+    copyableFilters, channelList, newChannel, faderMul, readSetup, guessSetup, isDividerScene, isAudioKind, tracksObject, activity, cleanTracks
 } from './picker.js';
 
 const cfg = config.gamePicker;
@@ -58,23 +59,24 @@ function obsUrl() {
 
 let obs = null;
 let windowItems = [];        // both captures' lists, merged (mergeWindowLists)
-let showing = null;          // { method, value } or { method: 'console' }
+let showing = null;          // { method, value } or { method: 'pinned', name }
 let busy = false;
-const meterEls = new Map();  // inputName -> { bar, label, row }
+let setup = null;            // readSetup(): the scene, captures and options picked in setup
 const acfg = cfg.audio;
 let routes = new Map();      // lower-case exe -> { exe, target, inputName }
-let saved = {};              // persistent data: { custom, mix } (channelList)
-let channels = channelList(acfg.targets, saved);
-let templateMul = {};        // template source -> its fader, the default for its channels
-const channelEls = new Map(); // channel id -> { row, bar }
+let saved = {};              // persistent data: { channels, mix } (channelList)
+let channels = channelList(saved);
+let copyMul = {};            // "copy from" source -> its fader, the default for its channels
+const channelEls = new Map(); // channel id -> { row }
 const memberOf = new Map();  // App Audio input name -> channel id
 const REALM = 'OBS_WEBSOCKET_DATA_REALM_PROFILE';
-const byId = () => Object.fromEntries(channels.map(c => [c.id, c]));
 
 function setStatus(text, kind = '') {
     const el = $('status');
     el.textContent = text;
-    el.className = `status ${kind}`;
+    el.className = kind;
+    $('dot').className = `dot ${kind}`;
+    $('dot').title = text;
 }
 
 function note(text) {
@@ -107,6 +109,23 @@ async function connect() {
     $('auth').hidden = true;
     setStatus('Connected to OBS', 'ok');
     debug.mark('connect', { url });
+    await start();
+}
+
+/** Read the saved setup and everything it points at; ask for one if none. */
+async function start() {
+    try {
+        const { slotValue } = await obs.call('GetPersistentData', { realm: REALM, slotName: cfg.setupSlot });
+        setup = readSetup(slotValue, acfg.defaultFaderMaxDb);
+    } catch (err) {
+        note(`Couldn't read the setup: ${err.message}`);
+    }
+    if (!setup) {
+        await openSetup();
+        return;
+    }
+    document.body.classList.toggle('nosound', !setup.sound);
+    renderPinned();
     await Promise.all([refreshWindows(), readShowing(), readChannels().then(readRoutes)]);
 }
 
@@ -125,6 +144,17 @@ document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && obs?.ready) refreshWindows();
 });
 
+// OBS doesn't announce windows opening or closing, so the dock asks: on a
+// timer while it's on screen, and as the pointer arrives. A refresh costs
+// about 1 ms with no effect on OBS's frame times (Defiant, 2026-10-30).
+// Skipped mid-pick, and while a Sound menu is open
+function autoRefresh() {
+    const menuOpen = document.activeElement?.matches?.('select.audio');
+    if (obs?.ready && !busy && !menuOpen && document.visibilityState === 'visible') refreshWindows();
+}
+setInterval(autoRefresh, cfg.refreshMs);
+document.addEventListener('pointerenter', autoRefresh);
+
 function onEvent({ eventType, eventData }) {
     if (eventType === 'InputVolumeMeters') {
         // A channel's apps mix together on stream, so its meter adds their
@@ -134,22 +164,21 @@ function onEvent({ eventType, eventData }) {
         for (const input of eventData.inputs) {
             const ch = memberOf.get(input.inputName);
             if (ch) mix.set(ch, (mix.get(ch) || 0) + Math.max(0, ...(input.inputLevelsMul || []).map(c => c?.[1] || 0)));
-            const m = meterEls.get(input.inputName);
-            if (m) showLevel(m, peakDb(input.inputLevelsMul, cfg.meterFloorDb));
         }
+        // Only whether each channel works: a light, not a meter (AJ,
+        // 2026-10-30: "focus on indicators that show it's working")
         for (const [id, m] of channelEls) {
-            showLevel(m, peakDb([[0, mix.get(id) || 0]], cfg.meterFloorDb));
-            // AJ won't be watching the dock live: a channel peak in the red
-            // stays flagged until clicked (no clipping ever, docs/AUDIO.md;
-            // QA, #116)
-            if (m.bar.dataset.zone === 'red') m.row.classList.add('clipped');
+            const act = activity(peakDb([[0, mix.get(id) || 0]], cfg.meterFloorDb), acfg.quietDb);
+            m.row.dataset.act = act;
+            // Nobody watches the dock live: a channel peak in the red stays
+            // flagged until clicked (no clipping ever, docs/AUDIO.md; QA, #116)
+            if (act === 'red') m.row.classList.add('clipped');
         }
-    } else if (eventType === 'InputMuteStateChanged') {
-        const m = meterEls.get(eventData.inputName);
-        if (m) m.row.classList.toggle('muted', eventData.inputMuted);
-    } else if (eventType === 'SceneItemEnableStateChanged' && eventData.sceneName === cfg.scene) {
+    } else if (!setup) {
+        // nothing to follow until set up
+    } else if (eventType === 'SceneItemEnableStateChanged' && eventData.sceneName === setup.scene) {
         readShowing();
-    } else if (eventType === 'InputSettingsChanged' && Object.values(cfg.sources).includes(eventData.inputName)) {
+    } else if (eventType === 'InputSettingsChanged' && [setup.window, setup.hook].includes(eventData.inputName)) {
         // Changed in the source properties: show what OBS has, not what the
         // dock last set (AJ, 2026-10-30: they disagreed). The lists too, so
         // a window opened since is found (Code review, #114)
@@ -160,42 +189,44 @@ function onEvent({ eventType, eventData }) {
     }
 }
 
-function showLevel(m, db) {
-    const pct = 100 * (db - cfg.meterFloorDb) / -cfg.meterFloorDb;
-    m.bar.style.width = `${pct.toFixed(1)}%`;
-    m.bar.dataset.zone = meterZone(db);
-}
-
 // ---- reading OBS ----
 
 async function refreshWindows() {
+    if (!setup) return;
     try {
-        const list = name => obs.call('GetInputPropertiesListPropertyItems', { inputName: name, propertyName: 'window' })
-            .then(r => r.propertyItems);
-        const [hookItems, winItems] = await Promise.all([list(cfg.sources.hook), list(cfg.sources.window)]);
-        windowItems = mergeWindowLists(hookItems, winItems);
+        // A capture the setup leaves out lists nothing
+        const list = name => (name
+            ? obs.call('GetInputPropertiesListPropertyItems', { inputName: name, propertyName: 'window' }).then(r => r.propertyItems)
+            : []);
+        const [hookItems, winItems] = await Promise.all([list(setup.hook), list(setup.window)]);
+        const next = mergeWindowLists(hookItems, winItems);
+        // Redraw only on a change, so rows never jump under the pointer
+        if (JSON.stringify(next) === JSON.stringify(windowItems)) return;
+        windowItems = next;
         renderShowing();
         renderList();
     } catch (err) {
-        note(`Couldn't list windows: ${err.message}`);
+        note(`Couldn't list apps: ${err.message}`);
     }
 }
 
 async function sceneItems() {
-    const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: cfg.scene });
+    const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: setup.scene });
     return sceneItems;
 }
 
 async function readShowing() {
+    if (!setup) return;
     try {
         const items = await sceneItems();
         const on = name => items.some(i => i.sourceName === name && i.sceneItemEnabled);
-        if (on(cfg.sources.console)) {
-            showing = { method: 'console' };
+        const pinned = setup.pinned.find(on);
+        if (pinned) {
+            showing = { method: 'pinned', name: pinned };
         } else {
-            const method = on(cfg.sources.hook) ? 'hook' : on(cfg.sources.window) ? 'window' : null;
+            const method = setup.hook && on(setup.hook) ? 'hook' : setup.window && on(setup.window) ? 'window' : null;
             if (method) {
-                const { inputSettings } = await obs.call('GetInputSettings', { inputName: cfg.sources[method] });
+                const { inputSettings } = await obs.call('GetInputSettings', { inputName: setup[method] });
                 // A Store app's frame stands for its listed window
                 const listed = method === 'window' && windowItems.find(i =>
                     i.itemValue !== inputSettings.window &&
@@ -206,34 +237,31 @@ async function readShowing() {
             }
         }
         renderShowing();
+        renderPinned();
         renderList();
     } catch (err) {
-        note(`Couldn't read ${cfg.scene}: ${err.message}`);
+        note(`Couldn't read ${setup.scene}: ${err.message}`);
     }
 }
 
-/** Meters for AJ's own sources, which the dock only reads. */
-async function setupMeters() {
-    const box = $('meters');
-    box.textContent = '';
-    meterEls.clear();
-    for (const name of cfg.meters) {
-        const row = meterRow(name);
-        box.appendChild(row);
-        meterEls.set(name, { row, bar: row.querySelector('.bar') });
-        obs.call('GetInputMute', { inputName: name })
-            .then(({ inputMuted }) => row.classList.toggle('muted', inputMuted))
-            .catch(() => row.classList.add('missing'));
-    }
-}
-
-function meterRow(name) {
+/** One channel row: a working light, name, fader, dB and buttons. */
+function chanRow(label, sub) {
     const row = document.createElement('div');
-    row.className = 'meter';
-    row.innerHTML = '<span class="name"></span><span class="track"><span class="bar"></span></span><span class="mute">muted</span>';
-    row.querySelector('.name').textContent = name;
-    row.title = name;
+    row.className = 'chan';
+    row.dataset.act = 'idle';
+    row.innerHTML = '<span class="sig" aria-hidden="true"></span><span class="name"><b></b><span class="apps"></span></span>' +
+        '<span class="track"></span><span class="db"></span><span class="btns"></span>';
+    row.querySelector('b').textContent = label;
+    row.querySelector('.apps').textContent = sub;
     return row;
+}
+
+// Chip colours for the Sound menus, one per channel in turn
+const CHIPS = [['#4fd18b', '#1f3a2c', '#bff0d4'], ['#e3a43a', '#3a2a14', '#f6dcae'], ['#6ea8ff', '#1f2c44', '#cfe0ff'],
+    ['#e07ad8', '#3a1f3a', '#f6cff2'], ['#4fd1d1', '#173538', '#c4f2f2']];
+function chipOf(id) {
+    const i = channels.findIndex(c => c.id === id);
+    return i < 0 ? null : CHIPS[i % CHIPS.length];
 }
 
 // ---- channels ----
@@ -246,28 +274,35 @@ async function readChannels() {
     } catch (err) {
         note(`Couldn't read the audio channels: ${err.message}`);
     }
-    channels = channelList(acfg.targets, saved);
-    templateMul = {};
-    for (const t of new Set(channels.map(c => c.template))) {
+    channels = channelList(saved);
+    await readCopyMul();
+}
+
+async function readCopyMul() {
+    copyMul = {};
+    for (const t of new Set(channels.map(c => c.copyFrom).filter(Boolean))) {
         try {
-            templateMul[t] = (await obs.call('GetInputVolume', { inputName: t })).inputVolumeMul;
-        } catch { /* source missing: its channels start at the floor */ }
+            copyMul[t] = (await obs.call('GetInputVolume', { inputName: t })).inputVolumeMul;
+        } catch { /* source gone: its channels start at the fader max */ }
     }
 }
 
 async function saveChannels() {
     saved = {
-        custom: channels.filter(c => !c.builtin).map(({ id, label, like }) => ({ id, label, like })),
+        channels: channels.map(({ id, label, tracks, copyFrom }) => ({ id, label, tracks, copyFrom })),
         mix: Object.fromEntries(channels.filter(c => c.volumeMul !== null || c.muted)
             .map(c => [c.id, { volumeMul: c.volumeMul, muted: c.muted }]))
     };
     await obs.call('SetPersistentData', { realm: REALM, slotName: acfg.dataSlot, slotValue: saved });
 }
 
-/** A channel's fader: its own once moved, else its template source's. */
+/** A channel's fader: its own once moved, else its copy-from source's, under the fader max. */
 function channelMul(c) {
-    return c.volumeMul ?? Math.min(templateMul[c.template] ?? 0, faderMul(acfg.channelMaxDb, cfg.meterFloorDb, acfg.channelMaxDb));
+    const max = faderMul(setup.faderMaxDb, cfg.meterFloorDb, setup.faderMaxDb);
+    return Math.min(c.volumeMul ?? copyMul[c.copyFrom] ?? max, max);
 }
+
+const tracksText = t => (t ? `track${t.length > 1 ? 's' : ''} ${t.join(',')}` : 'all tracks');
 
 const toDb = mul => (mul > 0 ? 20 * Math.log10(mul) : cfg.meterFloorDb);
 
@@ -280,49 +315,53 @@ function renderChannels() {
     box.textContent = '';
     channelEls.clear();
     for (const c of channels) {
-        const row = meterRow(`${c.label}${c.like === 'music' ? ' (not on VOD)' : ''}`);
-        row.classList.add('channel');
-        row.classList.toggle('muted', c.muted);
         const n = members(c.id).length;
+        const row = chanRow(c.label, `${n ? `${n} app${n > 1 ? 's' : ''}` : 'empty'} · ${tracksText(c.tracks)}`);
+        row.classList.toggle('muted', c.muted);
+        row.style.setProperty('--chip', chipOf(c.id)?.[0] || 'var(--line)');
         row.title = `${c.label}: ${n ? members(c.id).map(r => r.exe).join(', ') : 'no apps yet'}. ` +
-            `Copies ${c.template}'s tracks and filters. Flagged "went red": turn it down, then click to clear`;
+            `${c.copyFrom ? `Copies ${c.copyFrom}'s filters. ` : ''}Light: green while sound plays; red means too loud (turn it down, then click to clear)`;
         row.addEventListener('click', () => row.classList.remove('clipped'));
-        const ctl = document.createElement('div');
-        ctl.className = 'controls';
+        const name = row.querySelector('.name');
+        name.title = `Change ${c.label}'s tracks or what it copies`;
+        name.style.cursor = 'pointer';
+        name.addEventListener('click', () => showNewForm(true, c));
         const fader = document.createElement('input');
         fader.type = 'range';
+        fader.className = 'fader';
         fader.min = String(cfg.meterFloorDb);
-        fader.max = String(acfg.channelMaxDb);
+        fader.max = String(setup.faderMaxDb);
         fader.step = '0.5';
         fader.value = String(toDb(channelMul(c)));
-        fader.title = `${c.label} volume. At most ${acfg.channelMaxDb} dB: each app then peaks at -19 dBFS at worst, but several loud apps together add up`;
-        const db = document.createElement('span');
-        db.className = 'db';
-        const showDb = () => { db.textContent = `${Number(fader.value).toFixed(1)} dB`; };
+        fader.setAttribute('aria-label', `${c.label} volume`);
+        fader.title = `${c.label} volume, at most ${setup.faderMaxDb} dB (the setup's fader max). Several loud apps together add up`;
+        row.querySelector('.track').append(fader);
+        const db = row.querySelector('.db');
+        const showDb = () => { db.textContent = Number(fader.value).toFixed(1); };
         showDb();
         fader.addEventListener('input', showDb);
-        fader.addEventListener('change', () => setChannelMix(c.id, { volumeMul: faderMul(fader.value, cfg.meterFloorDb, acfg.channelMaxDb) }));
+        fader.addEventListener('change', () => setChannelMix(c.id, { volumeMul: faderMul(fader.value, cfg.meterFloorDb, setup.faderMaxDb) }));
+        const btns = row.querySelector('.btns');
         const mute = document.createElement('button');
         mute.type = 'button';
-        mute.className = 'small';
-        mute.textContent = c.muted ? 'Unmute' : 'Mute';
+        mute.className = 'mute';
+        mute.textContent = 'Mute';
+        mute.setAttribute('aria-pressed', String(c.muted));
+        mute.title = c.muted ? `${c.label} is muted: click to unmute` : `Mute ${c.label}`;
         mute.addEventListener('click', (e) => { e.stopPropagation(); setChannelMix(c.id, { muted: !c.muted }); });
-        ctl.append(fader, db, mute);
-        if (!c.builtin) {
+        btns.append(mute);
+        {
             const del = document.createElement('button');
             del.type = 'button';
-            del.className = 'small';
+            del.className = 'del';
             del.textContent = '✕';
             del.title = `Remove the ${c.label} channel (its apps go off stream)`;
+            del.setAttribute('aria-label', del.title);
             del.addEventListener('click', (e) => { e.stopPropagation(); removeChannel(c.id); });
-            ctl.append(del);
+            btns.append(del);
         }
-        const count = document.createElement('span');
-        count.className = 'apps';
-        count.textContent = n ? `${n} app${n > 1 ? 's' : ''}` : 'empty';
-        ctl.append(count);
-        box.append(row, ctl);
-        channelEls.set(c.id, { row, bar: row.querySelector('.bar') });
+        box.append(row);
+        channelEls.set(c.id, { row });
     }
 }
 
@@ -354,9 +393,9 @@ async function applyMix(inputName, c) {
     await obs.call('SetInputMute', { inputName, inputMuted: c.muted });
 }
 
-async function addChannel(name, like) {
+async function addChannel(name, opts) {
     if (busy || !obs?.ready) return;
-    const made = newChannel(name, like, channels, acfg.targets);
+    const made = newChannel(name, channels, opts);
     if (made.error) {
         note(made.error);
         return;
@@ -364,11 +403,11 @@ async function addChannel(name, like) {
     busy = true;
     document.body.classList.add('busy');
     try {
-        channels = channelList(acfg.targets, {
-            ...saved, custom: [...(saved.custom || []), made.channel]
-        });
+        channels = [...channels, { ...made.channel, volumeMul: null, muted: false }];
+        await readCopyMul();
         await saveChannels();
         $('channelName').value = '';
+        showNewForm(false);
         note(`Made the ${made.channel.label} channel. Pick it in an app's Sound menu.`);
     } catch (err) {
         note(`Couldn't make the channel: ${err.message}`);
@@ -400,9 +439,106 @@ async function removeChannel(id) {
     }
 }
 
+let editing = null;   // id of the channel the form edits, or null to add one
+
+/**
+ * The channel form: open to add a channel, or with `channel` to change an
+ * existing one's tracks and what it copies (its name ends its apps' input
+ * names, so it stays). Changes reach apps that join from then on.
+ */
+async function showNewForm(open, channel = null) {
+    editing = open && channel ? channel.id : null;
+    $('newChannel').hidden = !open;
+    $('newToggle').setAttribute('aria-expanded', String(open));
+    $('newToggle').textContent = open ? 'Cancel' : '+ New';
+    $('channelName').readOnly = !!editing;
+    $('channelName').value = editing ? channel.label : '';
+    $('newChannel').querySelector('button[type=submit]').textContent = editing ? 'Save' : 'Add';
+    if (!open) return;
+    await fillChannelForm();
+    if (editing) {
+        $('channelCopy').value = channel.copyFrom || '';
+        for (const i of document.querySelectorAll('#channelTracks input')) i.checked = channel.tracks ? channel.tracks.includes(Number(i.value)) : false;
+        // Nothing set yet: suggest the audio source named like the channel
+        // ("Music" -> a source with "music" in its name), with its tracks,
+        // for the streamer to check and save (QA, #120)
+        if (!channel.copyFrom && !channel.tracks) {
+            const word = channel.label.toLowerCase();
+            const like = [...$('channelCopy').options].find(o => o.value && o.value.toLowerCase().includes(word));
+            if (like) {
+                $('channelCopy').value = like.value;
+                await tickTracksOf(like.value);
+            }
+        }
+    } else {
+        $('channelName').focus();
+    }
+}
+
+/** Change a channel's tracks and copied source, then remember it. */
+async function updateChannel(id, { tracks, copyFrom }) {
+    if (busy || !obs?.ready) return;
+    const c = channels.find(x => x.id === id);
+    const clean = cleanTracks(tracks);
+    if (!c) return;
+    if (!clean) {
+        note('Tick at least one track.');
+        return;
+    }
+    busy = true;
+    document.body.classList.add('busy');
+    try {
+        Object.assign(c, { tracks: clean, copyFrom: copyFrom || null });
+        await readCopyMul();
+        await saveChannels();
+        showNewForm(false);
+        note(`${c.label} plays on ${tracksText(clean)} for apps added from now on.`);
+    } catch (err) {
+        note(`Couldn't change ${c.label}: ${err.message}`);
+    } finally {
+        busy = false;
+        document.body.classList.remove('busy');
+        renderChannels();
+    }
+}
+
+/** The new-channel form: any audio source to start from, and tracks 1-6. */
+async function fillChannelForm() {
+    const box = $('channelTracks');
+    if (!box.querySelector('input')) {
+        for (let n = 1; n <= 6; n++) {
+            box.insertAdjacentHTML('beforeend', `<label title="Track ${n}"><input type="checkbox" value="${n}"${n === 1 ? ' checked' : ''}>${n}</label>`);
+        }
+    }
+    const sel = $('channelCopy');
+    try {
+        const { inputs } = await obs.call('GetInputList', {});
+        const keep = sel.value;
+        sel.length = 1;
+        for (const i of inputs.filter(i => isAudioKind(i.inputKind) && !i.inputName.startsWith(acfg.prefix))) {
+            sel.add(new Option(i.inputName, i.inputName));
+        }
+        sel.value = keep;
+    } catch { /* Plain still works */ }
+}
+
+/** Tick the tracks a source plays on: a copied channel starts there. */
+async function tickTracksOf(name) {
+    try {
+        const { inputAudioTracks } = await obs.call('GetInputAudioTracks', { inputName: name });
+        for (const i of document.querySelectorAll('#channelTracks input')) i.checked = !!inputAudioTracks[i.value];
+    } catch { /* keep what's ticked */ }
+}
+$('channelCopy').addEventListener('change', () => $('channelCopy').value && tickTracksOf($('channelCopy').value));
+
+// Inputs that carry sound: audio devices, app and media sources
+$('newToggle').addEventListener('click', () => showNewForm($('newChannel').hidden));
 $('newChannel').addEventListener('submit', (e) => {
     e.preventDefault();
-    addChannel($('channelName').value, $('channelLike').value);
+    const tracks = [...document.querySelectorAll('#channelTracks input:checked')].map(i => Number(i.value));
+    const copyFrom = $('channelCopy').value || null;
+    if (editing) updateChannel(editing, { tracks, copyFrom });
+    else addChannel($('channelName').value, { tracks, copyFrom });
 });
 
 /**
@@ -411,11 +547,23 @@ $('newChannel').addEventListener('submit', (e) => {
  */
 async function readRoutes() {
     try {
-        const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: acfg.scene });
+        if (!setup?.sound) return;
+        const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: setup.audioScene });
         routes = new Map();
         for (const { sourceName, sceneItemId, sceneItemEnabled } of sceneItems) {
-            const r = parseAppAudioName(sourceName, acfg.prefix, byId());
-            if (!r) continue;
+            const parsed = parseAppAudioName(sourceName, acfg.prefix);
+            if (!parsed) continue;
+            // An input whose channel isn't saved (an older dock made it)
+            // still shows, as a plain channel of its own, so it can be moved
+            // or taken off
+            let ch = channels.find(c => c.label === parsed.label);
+            if (!ch) {
+                const made = newChannel(parsed.label, channels).channel;
+                if (!made) continue;
+                ch = { ...made, label: parsed.label, volumeMul: null, muted: false };
+                channels.push(ch);
+            }
+            const r = { exe: parsed.exe, target: ch.id };
             const key = r.exe.toLowerCase();
             const route = routes.get(key) || { ...r, inputName: sourceName, items: [], live: false };
             route.items.push({ sceneItemId, inputName: sourceName });
@@ -423,13 +571,12 @@ async function readRoutes() {
             routes.set(key, route);
         }
         // A hidden input is half made (or hidden by hand): it plays nothing,
-        // so the menu says off; choosing Game or Music replaces it
+        // so the menu says off; choosing a channel replaces it
         memberOf.clear();
         for (const route of routes.values()) {
             if (route.live) memberOf.set(route.inputName, route.target);
             else route.target = 'off';
         }
-        await setupMeters();
         renderChannels();
         renderList();
     } catch (err) {
@@ -444,39 +591,51 @@ async function readRoutes() {
  */
 async function removeRoute(route) {
     for (const { sceneItemId, inputName } of route.items) {
-        await obs.call('RemoveSceneItem', { sceneName: acfg.scene, sceneItemId });
+        await obs.call('RemoveSceneItem', { sceneName: setup.audioScene, sceneItemId });
         await obs.call('RemoveInput', { inputName }).catch(() => { /* already gone with its last item */ });
     }
-    const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: acfg.scene });
+    const { sceneItems } = await obs.call('GetSceneItemList', { sceneName: setup.audioScene });
     const left = sceneItems.filter(i => route.items.some(r => r.inputName === i.sourceName));
-    if (left.length) throw new Error(`${left[0].sourceName} is still in ${acfg.scene}`);
+    if (left.length) throw new Error(`${left[0].sourceName} is still in ${setup.audioScene}`);
 }
 
-/** Give an app's input the tracks, volume and filters of `template`. */
-async function copyFromTemplate(inputName, template) {
-    const [{ inputAudioTracks }, { inputVolumeMul }, { filters }] = await Promise.all([
-        obs.call('GetInputAudioTracks', { inputName: template }),
-        obs.call('GetInputVolume', { inputName: template }),
-        obs.call('GetSourceFilterList', { sourceName: template })
-    ]);
-    await obs.call('SetInputAudioTracks', { inputName, inputAudioTracks });
-    await obs.call('SetInputVolume', { inputName, inputVolumeMul });
-    // The app still plays to the speakers, so monitoring would double it
+/**
+ * Give an app's input its channel's tracks and filters: the channel's own
+ * tracks, else those of the source it copies, else those of an app already
+ * in it, else OBS's defaults; filters from the copied source, else from an
+ * app already in it. Copying a member keeps a channel whole when its
+ * settings weren't saved (an older dock's Game and Music, or one adopted
+ * from an input name): the next app matches the ones there instead of
+ * landing on every track with no limiter (Code review, #120). Volume and
+ * mute come from the channel (applyMix).
+ */
+async function setUpInput(inputName, c) {
+    // The app still plays to its own device, so monitoring would double it
     await obs.call('SetInputAudioMonitorType', { inputName, monitorType: 'OBS_MONITORING_TYPE_NONE' });
-    for (const f of copyableFilters(filters, acfg.skipFilterKinds)) {
-        await obs.call('CreateSourceFilter', {
-            sourceName: inputName, filterName: f.filterName, filterKind: f.filterKind, filterSettings: f.filterSettings
-        });
-        if (f.filterEnabled === false) {
-            await obs.call('SetSourceFilterEnabled', { sourceName: inputName, filterName: f.filterName, filterEnabled: false });
+    let inputAudioTracks = c.tracks ? tracksObject(c.tracks) : null;
+    const like = c.copyFrom || members(c.id).find(r => r.inputName !== inputName)?.inputName;
+    if (like) {
+        const [{ inputAudioTracks: copied }, { filters }] = await Promise.all([
+            obs.call('GetInputAudioTracks', { inputName: like }),
+            obs.call('GetSourceFilterList', { sourceName: like })
+        ]);
+        inputAudioTracks ??= copied;
+        for (const f of copyableFilters(filters, acfg.skipFilterKinds)) {
+            await obs.call('CreateSourceFilter', {
+                sourceName: inputName, filterName: f.filterName, filterKind: f.filterKind, filterSettings: f.filterSettings
+            });
+            if (f.filterEnabled === false) {
+                await obs.call('SetSourceFilterEnabled', { sourceName: inputName, filterName: f.filterName, filterEnabled: false });
+            }
         }
     }
+    if (inputAudioTracks) await obs.call('SetInputAudioTracks', { inputName, inputAudioTracks });
 }
 
 /**
  * Send an app's sound to a channel (by id) or take it off stream ('off').
- * Replaces the app's App Audio input with one that copies the channel's
- * template source's tracks and filters, at the channel's fader and mute.
+ * Replaces the app's App Audio input with one set up for the channel, at
+ * the channel's fader and mute.
  */
 async function setRoute(win, target) {
     if (busy || !obs?.ready) return;
@@ -484,30 +643,39 @@ async function setRoute(win, target) {
     document.body.classList.add('busy');
     const key = win.exe.toLowerCase();
     try {
+        const t = channels.find(c => c.id === target);
+        // Nothing to say where it plays (no tracks, nothing copied, no app
+        // already in it): OBS would put it on every track, the VOD too, with
+        // no limiter, so ask first, leaving the app where it was (Code
+        // review, #120)
+        if (t && !t.tracks && !t.copyFrom && !members(t.id).some(r => r.exe.toLowerCase() !== key)) {
+            note(`Pick ${t.label}'s tracks first (or a source to copy), then choose it again for ${win.exe}.`);
+            showNewForm(true, t);
+            return;
+        }
         const old = routes.get(key);
         if (old) await removeRoute(old);
-        const t = channels.find(c => c.id === target);
         if (t) {
             const inputName = appAudioName(acfg.prefix, win.exe, t.label);
-            // Hidden until it has the destination's tracks, volume and
-            // filters: a new input plays on every track (VOD too) at 0 dB
-            // with no limiter (Code review, #116)
+            // Hidden until it has the channel's tracks, volume and filters:
+            // a new input plays on every track at 0 dB with no limiter
+            // (Code review, #116)
             const { sceneItemId } = await obs.call('CreateInput', {
-                sceneName: acfg.scene,
+                sceneName: setup.audioScene,
                 inputName,
                 inputKind: 'wasapi_process_output_capture',
                 inputSettings: { window: win.value, priority: cfg.windowPriority },
                 sceneItemEnabled: false
             });
             try {
-                await copyFromTemplate(inputName, t.template);
+                await setUpInput(inputName, t);
                 await applyMix(inputName, t);
             } catch (err) {
                 await removeRoute({ items: [{ sceneItemId, inputName }] }).catch(() => {});
                 throw err;
             }
-            await obs.call('SetSceneItemEnabled', { sceneName: acfg.scene, sceneItemId, sceneItemEnabled: true });
-            note(`${win.exe} sound now goes to ${t.label}${t.like === 'music' ? ' (stream only, not the VOD; it doesn\'t follow the music fades)' : ' (if it already plays to CABLE-A, it\'s on twice now)'}.`);
+            await obs.call('SetSceneItemEnabled', { sceneName: setup.audioScene, sceneItemId, sceneItemEnabled: true });
+            note(`${win.exe} sound now goes to ${t.label} (${tracksText(t.tracks)}).`);
         } else {
             note(`${win.exe} sound is off stream (you still hear it).`);
         }
@@ -548,7 +716,7 @@ async function litOf(sourceName) {
 
 async function showPreview() {
     try {
-        $('preview').src = await screenshot(cfg.scene, cfg.previewWidth);
+        $('preview').src = await screenshot(setup.scene, cfg.previewWidth);
         $('preview').hidden = false;
     } catch (err) {
         note(`No preview: ${err.message}`);
@@ -559,35 +727,33 @@ async function showPreview() {
 
 async function show(target) {
     const changes = visibilityChanges(await sceneItems(), target, {
-        sources: Object.values(cfg.sources), keep: cfg.keep
+        sources: [setup.window, setup.hook, ...setup.pinned].filter(Boolean), hideOthers: setup.hideOthers
     });
     for (const c of changes) {
         await obs.call('SetSceneItemEnabled', {
-            sceneName: cfg.scene, sceneItemId: c.sceneItemId, sceneItemEnabled: c.enabled
+            sceneName: setup.scene, sceneItemId: c.sceneItemId, sceneItemEnabled: c.enabled
         });
     }
     debug.mark('show', { target, changes });
 }
 
-/** The 16:9 Game captures' windows and which items show, to undo a pick. */
+/** The captures' windows and which items show, to undo a pick. */
 async function snapshot() {
-    const [items, hook, win] = await Promise.all([
-        sceneItems(),
-        obs.call('GetInputSettings', { inputName: cfg.sources.hook }),
-        obs.call('GetInputSettings', { inputName: cfg.sources.window })
-    ]);
-    return { items, hook: hook.inputSettings, window: win.inputSettings };
+    const settings = name => (name ? obs.call('GetInputSettings', { inputName: name }).then(r => r.inputSettings) : null);
+    const [items, hook, win] = await Promise.all([sceneItems(), settings(setup.hook), settings(setup.window)]);
+    return { items, hook, window: win };
 }
 
 async function restore(before) {
     if (!before) return;
-    await obs.call('SetInputSettings', { inputName: cfg.sources.hook, inputSettings: before.hook, overlay: true });
-    await obs.call('SetInputSettings', { inputName: cfg.sources.window, inputSettings: before.window, overlay: true });
+    for (const method of ['hook', 'window']) {
+        if (setup[method]) await obs.call('SetInputSettings', { inputName: setup[method], inputSettings: before[method], overlay: true });
+    }
     const now = await sceneItems();
     for (const it of before.items) {
         const cur = now.find(i => i.sceneItemId === it.sceneItemId);
         if (cur && cur.sceneItemEnabled !== it.sceneItemEnabled) {
-            await obs.call('SetSceneItemEnabled', { sceneName: cfg.scene, sceneItemId: it.sceneItemId, sceneItemEnabled: it.sceneItemEnabled });
+            await obs.call('SetSceneItemEnabled', { sceneName: setup.scene, sceneItemId: it.sceneItemId, sceneItemEnabled: it.sceneItemEnabled });
         }
     }
     debug.mark('restore', {});
@@ -595,11 +761,11 @@ async function restore(before) {
 
 async function capture(method, value) {
     await obs.call('SetInputSettings', {
-        inputName: cfg.sources[method],
+        inputName: setup[method],
         inputSettings: captureSettings(method, value, cfg.windowPriority),
         overlay: true
     });
-    await show(cfg.sources[method]);
+    await show(setup[method]);
     showing = { method, value };
 }
 
@@ -641,11 +807,11 @@ async function pick(win, forced) {
         // (Defiant, 2026-10-30)
         const failed = l => captureFailed(l, cfg.minLit);
         await new Promise(r => setTimeout(r, cfg.blackCheckMs));
-        let lit = await litOf(cfg.sources[method]);
+        let lit = await litOf(setup[method]);
         if (failed(lit)) {
             note(`No picture from ${win.exe} yet, checking again…`);
             await new Promise(r => setTimeout(r, cfg.blackCheckMs));
-            lit = await litOf(cfg.sources[method]);
+            lit = await litOf(setup[method]);
         }
         debug.mark('pick', { exe, method, forced: !!forced, lit });
         const other = method === 'hook' ? 'window' : 'hook';
@@ -653,7 +819,7 @@ async function pick(win, forced) {
         if (failed(lit) && !forced && otherSees) {
             await capture(other, win.value);
             await new Promise(r => setTimeout(r, cfg.blackCheckMs));
-            const lit2 = await litOf(cfg.sources[other]);
+            const lit2 = await litOf(setup[other]);
             debug.mark('fallback', { exe, method: other, lit: lit2 });
             if (!failed(lit2)) {
                 state.remembered[exe] = other;
@@ -681,41 +847,50 @@ async function pick(win, forced) {
     }
 }
 
-async function pickConsole() {
+/** Show one of the sources pinned in setup (a capture card, a camera). */
+async function pickPinned(name) {
     if (busy || !obs?.ready) return;
     try {
         note('');
-        await show(cfg.sources.console);
-        showing = { method: 'console' };
+        await show(name);
+        showing = { method: 'pinned', name };
         renderShowing();
+        renderPinned();
         renderList();
         await new Promise(r => setTimeout(r, 300));
         await showPreview();
     } catch (err) {
-        note(`Couldn't show the capture card: ${err.message}`);
+        note(`Couldn't show ${name}: ${err.message}`);
     }
 }
 
 // ---- rendering ----
 
-const METHOD_LABEL = { hook: 'game hook', window: 'window', console: 'capture card' };
+const METHOD_LABEL = { hook: 'game hook', window: 'window' };
 const CAPTURE_NAME = { hook: 'game hook', window: 'window capture' };
+const SWAP_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
+    '<path d="M2 4.5h9M8.5 2l2.5 2.5L8.5 7M12 9.5H3M5.5 7L3 9.5 5.5 12"/></svg>';
 
+/** What's showing: the window title first, the app and capture under it (AJ, 2026-10-30). */
 function renderShowing() {
     const el = $('showing');
+    const meta = $('showMeta');
     el.classList.remove('missing');
     if (!showing) {
-        el.textContent = 'Nothing is showing in 16:9 Game';
+        el.textContent = 'Nothing showing';
+        meta.textContent = setup.scene;
         return;
     }
-    if (showing.method === 'console') {
-        el.textContent = 'Showing: console (capture card)';
+    if (showing.method === 'pinned') {
+        el.textContent = showing.name;
+        meta.textContent = 'pinned source';
         return;
     }
     const w = parseWindowValue(showing.value);
     const flag = showing.method === 'hook' ? 'inHook' : 'inWindow';
     const open = windowItems.some(i => i[flag] && sameWindow(i.itemValue, showing.value));
-    el.textContent = `Showing: ${w.exe || '?'} (${METHOD_LABEL[showing.method]})${open || !windowItems.length ? '' : ' - window not found'}`;
+    el.textContent = w.title || w.exe || '?';
+    meta.textContent = `${w.exe || '?'} · ${METHOD_LABEL[showing.method]}${open || !windowItems.length ? '' : ' · app not found'}`;
     el.classList.toggle('missing', !open && windowItems.length > 0);
     el.title = w.title;
 }
@@ -735,22 +910,31 @@ function renderList() {
         const li = document.createElement('li');
         // Exact value first; exe + class only when the title has changed, so
         // two Firefox windows don't both light up (QA, #114)
-        const current = showing && showing.method !== 'console' &&
+        const current = showing && showing.method !== 'pinned' &&
             (exact ? w.value === showing.value : sameWindow(showing.value, w.value));
-        li.className = current ? 'current' : '';
+        li.className = `${current ? 'current' : ''}${w.inWindow ? '' : ' min'}`.trim();
         const main = document.createElement('button');
         main.className = 'pick';
-        main.innerHTML = '<span class="exe"></span><span class="title"></span>';
-        main.querySelector('.exe').textContent = `${w.recent ? '★ ' : ''}${w.exe}`;
-        main.querySelector('.title').textContent = w.inWindow ? w.title : `${w.title} · minimised? restore it first`;
+        // Window title first, the app under it (AJ, 2026-10-30)
+        main.innerHTML = '<span class="title"></span><span class="exe"></span>';
+        main.querySelector('.title').textContent = `${w.recent ? '★ ' : ''}${w.title || w.exe}`;
+        main.querySelector('.exe').textContent = w.inWindow ? w.exe : `${w.exe} · minimised? restore it`;
+        const ico = document.createElement('span');
+        ico.className = 'ico';
+        ico.setAttribute('aria-hidden', 'true');
+        ico.textContent = (w.exe.replace(/\.exe$/i, '').match(/[a-z0-9]/i)?.[0] || '?').toUpperCase();
+        ico.style.setProperty('--hue', String(hueOf(w.exe)));
         main.title = `Capture with ${METHOD_LABEL[method]}`;
         main.addEventListener('click', () => pick(w));
         const other = method === 'hook' ? 'window' : 'hook';
         const canSwap = other === 'hook' ? w.inHook : w.inWindow;
         const swap = document.createElement('button');
         swap.disabled = !canSwap;
+        swap.type = 'button';
         swap.className = 'swap';
-        swap.textContent = `⇄ use ${CAPTURE_NAME[other]}`;
+        swap.hidden = !setup[other];   // only one capture set up: nothing to swap to
+        swap.innerHTML = SWAP_ICON;
+        swap.setAttribute('aria-label', `Use ${CAPTURE_NAME[other]}`);
         swap.title = canSwap
             ? `Capture with ${METHOD_LABEL[other]} instead, and remember it for ${w.exe}`
             : `The ${METHOD_LABEL[other]} can't see this window`;
@@ -759,31 +943,159 @@ function renderList() {
         const route = routes.get(w.exe.toLowerCase());
         const sel = document.createElement('select');
         sel.className = 'audio';
-        sel.title = `Where ${w.exe}'s sound goes on stream`;
-        for (const [value, label] of [['off', '🔇 Sound: off stream'], ...channels.map(c => [c.id, `🔊 Sound: ${c.label}${c.like === 'music' ? ' (not on VOD)' : ''}`])]) {
+        sel.title = `Where ${w.exe}'s sound goes on stream. Channels marked "off VOD" in the mixer stay off the VOD track`;
+        for (const [value, label] of [['off', 'Off'], ...channels.map(c => [c.id, c.label])]) {
             const o = document.createElement('option');
             o.value = value;
             o.textContent = label;
             sel.appendChild(o);
         }
         sel.value = route?.target || 'off';
-        sel.classList.toggle('on', !!route);
+        const chip = route && chipOf(route.target);
+        if (chip) ['--chip', '--chip-bg', '--chip-text'].forEach((v, i) => sel.style.setProperty(v, chip[i]));
         sel.addEventListener('change', () => setRoute(w, sel.value));
-        li.append(main, swap, sel);
+        li.append(ico, main, sel, swap);
         ul.appendChild(li);
     }
     if (list.length === 0) {
         const li = document.createElement('li');
         li.className = 'empty';
-        li.textContent = windowItems.length ? 'No match. Tick "show all"?' : 'No windows listed yet';
+        li.textContent = windowItems.length ? 'No match. Tick "show all"?' : 'No apps listed yet';
         ul.appendChild(li);
     }
 }
 
+/** A steady colour per app for its letter tile: OBS can't hand a dock app icons. */
+function hueOf(exe) {
+    let h = 0;
+    for (const ch of exe.toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) % 360;
+    return h;
+}
+
+/** One button per source pinned in setup, lit when it's the one showing. */
+function renderPinned() {
+    const box = $('pinned');
+    box.textContent = '';
+    for (const name of setup?.pinned || []) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = name;
+        b.title = `Show ${name} and hide the captures`;
+        b.classList.toggle('on', showing?.method === 'pinned' && showing.name === name);
+        b.addEventListener('click', () => pickPinned(name));
+        box.append(b);
+    }
+}
+
+// ---- setup ----
+
+let setupScenes = [];   // [{sceneName, items}] read when setup opens
+
+/**
+ * Show the setup form, filled in from the saved setup or a guess from the
+ * scenes in OBS. Changes nothing in OBS until Save.
+ */
+async function openSetup() {
+    $('setupError').textContent = '';
+    $('setupCancel').hidden = !setup;
+    $('setupHint').textContent = setup ? 'Change what the dock drives, then save.' : 'Filled in from your OBS. Check it, then save.';
+    try {
+        const { scenes } = await obs.call('GetSceneList');
+        // OBS lists scenes bottom first
+        setupScenes = await Promise.all([...scenes].reverse().filter(sc => !isDividerScene(sc.sceneName)).map(async ({ sceneName }) => ({
+            sceneName,
+            items: await Promise.all((await obs.call('GetSceneItemList', { sceneName })).sceneItems.map(async (i) => {
+                // A capture pointed at a window beats an empty duplicate
+                if (i.inputKind !== 'window_capture' && i.inputKind !== 'game_capture') return i;
+                const { inputSettings } = await obs.call('GetInputSettings', { inputName: i.sourceName }).catch(() => ({ inputSettings: {} }));
+                return { ...i, hasWindow: !!inputSettings.window };
+            }))
+        })));
+    } catch (err) {
+        $('setupError').textContent = `Couldn't read your scenes: ${err.message}`;
+    }
+    const s = setup || guessSetup(setupScenes, acfg.defaultFaderMaxDb, acfg.prefix);
+    const names = setupScenes.map(sc => sc.sceneName);
+    fill($('setScene'), names.map(n => [n, n]), s.scene);
+    fill($('setAudioScene'), names.map(n => [n, n]), s.audioScene || s.scene);
+    $('setHideOthers').checked = s.hideOthers;
+    $('setSound').checked = s.sound;
+    $('setMaxDb').value = String(s.faderMaxDb);
+    fillSceneParts(s);
+    $('setup').hidden = false;
+}
+
+function fill(sel, options, value) {
+    sel.length = 0;
+    for (const [v, label] of options) sel.add(new Option(label, v));
+    sel.value = value ?? '';
+}
+
+/** The capture menus and pinned list for the scene picked in the form. */
+function fillSceneParts(s) {
+    const items = setupScenes.find(sc => sc.sceneName === $('setScene').value)?.items || [];
+    const of = kind => items.filter(i => i.inputKind === kind).map(i => [i.sourceName, i.sourceName]);
+    const wins = of('window_capture'), hooks = of('game_capture');
+    fill($('setWindow'), [['', 'None'], ...wins], wins.some(([n]) => n === s.window) ? s.window : wins[0]?.[0] ?? '');
+    fill($('setHook'), [['', 'None'], ...hooks], hooks.some(([n]) => n === s.hook) ? s.hook : hooks[0]?.[0] ?? '');
+    const box = $('setPinned');
+    box.textContent = '';
+    for (const it of items) {
+        if (it.inputKind === 'window_capture' || it.inputKind === 'game_capture' || isAudioKind(it.inputKind)) continue;
+        const label = document.createElement('label');
+        label.className = 'check';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = it.sourceName;
+        cb.checked = (s.pinned || []).includes(it.sourceName);
+        label.append(cb, ` ${it.sourceName}`);
+        box.append(label);
+    }
+}
+
+$('setScene').addEventListener('change', () => {
+    fillSceneParts({ pinned: [] });
+    $('setAudioScene').value = $('setScene').value;
+});
+$('setupCancel').addEventListener('click', () => { $('setup').hidden = true; });
+$('setup').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const next = readSetup({
+        scene: $('setScene').value,
+        window: $('setWindow').value,
+        hook: $('setHook').value,
+        pinned: [...document.querySelectorAll('#setPinned input:checked')].map(i => i.value),
+        hideOthers: $('setHideOthers').checked,
+        sound: $('setSound').checked,
+        audioScene: $('setAudioScene').value,
+        faderMaxDb: Number($('setMaxDb').value)
+    }, acfg.defaultFaderMaxDb);
+    if (!next) {
+        $('setupError').textContent = 'Pick a scene with a window capture or a game capture (add one in OBS first).';
+        return;
+    }
+    try {
+        await obs.call('SetPersistentData', { realm: REALM, slotName: cfg.setupSlot, slotValue: next });
+        $('setup').hidden = true;
+        debug.mark('setup', next);
+        await start();
+    } catch (err) {
+        $('setupError').textContent = `Couldn't save: ${err.message}`;
+    }
+});
+
 $('search').addEventListener('input', renderList);
 $('showAll').addEventListener('change', renderList);
 $('refresh').addEventListener('click', () => obs?.ready && refreshWindows());
-$('console').addEventListener('click', pickConsole);
-$('previewBtn').addEventListener('click', () => obs?.ready && showPreview());
+$('setupBtn').addEventListener('click', () => obs?.ready && openSetup());
+$('preview').addEventListener('click', () => obs?.ready && showPreview());
+// Short docks show one half at a time
+for (const [id, tab] of [['tabWindows', 'windows'], ['tabSound', 'sound']]) {
+    $(id).addEventListener('click', () => {
+        document.body.dataset.tab = tab;
+        $('tabWindows').setAttribute('aria-selected', String(tab === 'windows'));
+        $('tabSound').setAttribute('aria-selected', String(tab === 'sound'));
+    });
+}
 
 connect();

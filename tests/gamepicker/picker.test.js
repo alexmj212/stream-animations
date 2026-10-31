@@ -4,7 +4,7 @@ import {
     parseWindowValue, buildWindowList, chooseMethod, captureSettings,
     visibilityChanges, litFraction, windowValue, windowCaptureTarget, peakDb, meterZone, pushRecent,
     captureFailed, appAudioName, parseAppAudioName, copyableFilters,
-    channelList, newChannel, faderMul
+    channelList, newChannel, faderMul, readSetup, guessSetup, isDividerScene, isAudioKind, tracksObject, cleanTracks, activity, DEFAULT_CHANNELS
 } from '../../src/gamepicker/picker.js';
 import { authString, ObsSocket } from '../../src/shared/obs.js';
 import { config } from '../../src/config/config.js';
@@ -95,26 +95,91 @@ describe('windowCaptureTarget', () => {
 });
 
 describe('app audio names', () => {
-    const { prefix, targets } = config.gamePicker.audio;
-    it('round-trips app and destination through the input name', () => {
-        const name = appAudioName(prefix, 'firefox.exe', targets.music.label);
+    const { prefix } = config.gamePicker.audio;
+    it('round-trips app and channel label through the input name', () => {
+        const name = appAudioName(prefix, 'firefox.exe', 'Music');
         expect(name).toBe('App Audio: firefox.exe (Music)');
-        expect(parseAppAudioName(name, prefix, targets)).toEqual({ exe: 'firefox.exe', target: 'music' });
-        expect(parseAppAudioName('App Audio: Some Game (x86).exe (Game)', prefix, targets))
-            .toEqual({ exe: 'Some Game (x86).exe', target: 'game' });
+        expect(parseAppAudioName(name, prefix)).toEqual({ exe: 'firefox.exe', label: 'Music' });
+        expect(parseAppAudioName('App Audio: Some Game (x86).exe (Game)', prefix))
+            .toEqual({ exe: 'Some Game (x86).exe', label: 'Game' });
     });
     it('ignores every other input', () => {
-        expect(parseAppAudioName('BG Music', prefix, targets)).toBeNull();
-        expect(parseAppAudioName('App Audio: firefox.exe (Nope)', prefix, targets)).toBeNull();
-        expect(parseAppAudioName('App Audio: firefox.exe', prefix, targets)).toBeNull();
+        expect(parseAppAudioName('BG Music', prefix)).toBeNull();
+        expect(parseAppAudioName('App Audio: firefox.exe', prefix)).toBeNull();
+        expect(parseAppAudioName('App Audio: firefox.exe ()', prefix)).toBeNull();
     });
-    it('copies filters but not the music fades', () => {
-        const filters = [{ filterKind: 'move_audio_value_filter' }, { filterKind: 'audio_move_filter' }, { filterKind: 'limiter_filter' }];
-        expect(copyableFilters(filters, config.gamePicker.audio.skipFilterKinds)).toEqual([{ filterKind: 'limiter_filter' }]);
+    it('copies filters and volume fades, but not Move filters that drive other sources', () => {
+        const filters = [{ filterKind: 'move_audio_value_filter' }, { filterKind: 'audio_move_filter' }, { filterKind: 'move_value_filter' }, { filterKind: 'limiter_filter' }];
+        expect(copyableFilters(filters, config.gamePicker.audio.skipFilterKinds))
+            .toEqual([{ filterKind: 'move_audio_value_filter' }, { filterKind: 'limiter_filter' }]);
     });
-    it('keeps the music destination off the VOD track: BG Music is its template', () => {
-        expect(targets.music.template).toBe('BG Music');
-        expect(targets.game.template).toBe('Local Game (A)');
+});
+
+describe('nothing about one OBS is built in (AJ, 2026-10-30)', () => {
+    it('names no scene, source or audio device in the config', () => {
+        const text = JSON.stringify(config.gamePicker);
+        expect(text).not.toMatch(/16:9 Game|Game Capture|Window Capture|Local Game|BG Music|Ext Capture|Action Cam|Audio'/);
+    });
+});
+
+describe('setup', () => {
+    const scenes = [
+        { sceneName: 'Starting', items: [{ sourceName: 'Logo', inputKind: 'image_source' }] },
+        { sceneName: 'Gameplay', items: [
+            { sourceName: 'Cam', inputKind: 'dshow_input' },
+            { sourceName: 'Game', inputKind: 'game_capture' },
+            { sourceName: 'Browser', inputKind: 'window_capture' }
+        ] }
+    ];
+    it('guesses the scene with captures and its captures', () => {
+        expect(guessSetup(scenes)).toMatchObject({ scene: 'Gameplay', window: 'Browser', hook: 'Game', audioScene: 'Gameplay', pinned: [], hideOthers: false, sound: true });
+        expect(guessSetup([scenes[0]])).toMatchObject({ scene: null, window: null, hook: null });
+    });
+    it('starts the fader max out of the red with no limiter (QA, #120)', () => {
+        expect(guessSetup(scenes).faderMaxDb).toBe(-12);
+        expect(readSetup({ scene: 'G', window: 'W' }).faderMaxDb).toBe(-12);
+        expect(config.gamePicker.audio.defaultFaderMaxDb).toBeLessThanOrEqual(-9);
+    });
+    it('guesses AJ\'s OBS as it is: the capture in use, the nested audio scene, duplicates hidden', () => {
+        // Defiant's order (Archive_1.json): the hidden empty duplicate comes first
+        const aj = [
+            { sceneName: '16:9 Game', items: [
+                { sourceName: 'Window Capture 2', inputKind: 'window_capture', sceneItemEnabled: false, hasWindow: false },
+                { sourceName: 'Game Capture 2', inputKind: 'game_capture', sceneItemEnabled: true, hasWindow: true },
+                { sourceName: 'Window Capture', inputKind: 'window_capture', sceneItemEnabled: false, hasWindow: true },
+                { sourceName: 'mGBA', inputKind: 'window_capture', sceneItemEnabled: false, hasWindow: true }
+            ] },
+            { sceneName: 'Audio', items: [{ sourceName: 'BG Music', inputKind: 'wasapi_output_capture' }] },
+            { sceneName: 'Full 16:9', items: [{ sourceName: '16:9 Game' }, { sourceName: 'Audio' }] },
+            { sceneName: 'Starting', items: [{ sourceName: 'Audio' }] }
+        ];
+        expect(guessSetup(aj)).toMatchObject({ scene: '16:9 Game', window: 'Window Capture', hook: 'Game Capture 2', audioScene: 'Audio', hideOthers: true });
+    });
+    it('breaks a nesting tie toward the scene with audio sources (Defiant nests Alerts as often as Audio)', () => {
+        const scenes = [
+            { sceneName: 'Alerts', items: [{ sourceName: 'Shade', inputKind: 'browser_source' }] },
+            { sceneName: 'Audio', items: [{ sourceName: 'Mic', inputKind: 'wasapi_input_capture' }] },
+            { sceneName: 'Game', items: [{ sourceName: 'Cap', inputKind: 'game_capture', sceneItemEnabled: true }] },
+            { sceneName: 'Full', items: [{ sourceName: 'Game' }, { sourceName: 'Alerts' }, { sourceName: 'Audio' }] },
+            { sceneName: 'Starting', items: [{ sourceName: 'Alerts' }, { sourceName: 'Audio' }] }
+        ];
+        expect(guessSetup(scenes).audioScene).toBe('Audio');
+        expect(isAudioKind('wasapi_output_capture')).toBe(true);
+        expect(isAudioKind('browser_source')).toBe(false);
+    });
+    it('spots divider scenes in the scene list', () => {
+        for (const name of ['------ SCENES ------', '=====', '   ', '— — —', '---Gaming---']) expect(isDividerScene(name)).toBe(true);
+        for (const name of ['16:9 Game', 'Starting', 'Be Right Back', 'A-1 Game', '...Soon', '***Live***', '#1 Fan']) expect(isDividerScene(name)).toBe(false);
+    });
+    it('needs a scene and at least one capture', () => {
+        expect(readSetup(null)).toBeNull();
+        expect(readSetup({ scene: 'Gameplay' })).toBeNull();
+        expect(readSetup({ scene: 'Gameplay', hook: 'Game' })).toMatchObject({ window: null, hook: 'Game', audioScene: 'Gameplay', faderMaxDb: -12, sound: true });
+    });
+    it('keeps pinned sources apart from the captures and the fader max at or under 0 dB', () => {
+        const s = readSetup({ scene: 'G', window: 'W', pinned: ['Cam', 'W', '', 3], faderMaxDb: 6, sound: false, hideOthers: true });
+        expect(s).toMatchObject({ pinned: ['Cam'], faderMaxDb: 0, sound: false, hideOthers: true });
+        expect(readSetup({ scene: 'G', window: 'W', faderMaxDb: -12 }).faderMaxDb).toBe(-12);
     });
 });
 
@@ -135,8 +200,14 @@ describe('visibilityChanges', () => {
         { sceneItemId: 5, sourceName: 'mGBA', inputKind: 'window_capture', sceneItemEnabled: true },
         { sceneItemId: 6, sourceName: 'Game Capture', inputKind: null, sceneItemEnabled: false }
     ];
-    const { sources, keep } = config.gamePicker;
-    const opts = { sources: Object.values(sources), keep };
+    const opts = { sources: ['Game Capture 2', 'Window Capture', 'Game Capture'], hideOthers: true };
+
+    it('touches only the dock\'s own sources unless asked', () => {
+        expect(visibilityChanges(items, 'Window Capture', { sources: opts.sources })).toEqual([
+            { sceneItemId: 3, sourceName: 'Game Capture 2', enabled: false },
+            { sceneItemId: 4, sourceName: 'Window Capture', enabled: true }
+        ]);
+    });
 
     it('shows the target and hides every other capture, leaving Action Cam alone', () => {
         expect(visibilityChanges(items, 'Window Capture', opts)).toEqual([
@@ -251,32 +322,46 @@ describe('both window lists (AJ, 2026-10-30)', () => {
 });
 
 describe('channels', () => {
-    const { targets, channelMaxDb } = config.gamePicker.audio;
-    it('always has the built-in Game and Music, then saved ones', () => {
-        expect(channelList(targets, null).map(c => c.id)).toEqual(['game', 'music']);
-        const list = channelList(targets, {
-            custom: [{ id: 'ch-browser', label: 'Browser', like: 'game' }, { id: 'bad', label: 'X', like: 'nope' }, { id: 'ch-g', label: 'Game', like: 'music' }],
+    it('offers Game and Music until changed, then only saved ones', () => {
+        expect(channelList(null).map(c => c.id)).toEqual(['game', 'music']);
+        expect(channelList(null)[0]).toEqual({ ...DEFAULT_CHANNELS[0], volumeMul: null, muted: false });
+        expect(channelList({}).map(c => c.id)).toEqual(['game', 'music']);   // what OBS returns for an emptied slot
+        expect(channelList({ channels: [] })).toEqual([]);
+        const list = channelList({
+            channels: [{ id: 'ch-browser', label: 'Browser', tracks: [2, 1, 9], copyFrom: 'Desktop Audio' }, { id: 'bad' }, { id: 'ch-b2', label: 'Browser' }],
             mix: { 'ch-browser': { volumeMul: 0.1, muted: true } }
         });
-        expect(list.map(c => c.label)).toEqual(['Game', 'Music', 'Browser']);
-        expect(list[2]).toMatchObject({ template: 'Local Game (A)', builtin: false, volumeMul: 0.1, muted: true });
-        expect(list[0]).toMatchObject({ volumeMul: null, muted: false });
-        expect(channelList(targets, {}).length).toBe(2);   // what Defiant returns for an emptied slot
+        expect(list).toEqual([{ id: 'ch-browser', label: 'Browser', tracks: [1, 2], copyFrom: 'Desktop Audio', volumeMul: 0.1, muted: true }]);
+    });
+    it('reads an older dock\'s channels as Game, Music and its own, keeping faders', () => {
+        const list = channelList({ custom: [{ id: 'ch-x', label: 'X', like: 'game' }], mix: { music: { volumeMul: 0.03 } } });
+        expect(list.map(c => c.id)).toEqual(['game', 'music', 'ch-x']);
+        expect(list[1].volumeMul).toBe(0.03);
+        expect(list[2]).toEqual({ id: 'ch-x', label: 'X', tracks: null, copyFrom: null, volumeMul: null, muted: false });
     });
     it('makes a new channel with a safe label and a unique id', () => {
-        const existing = channelList(targets, {});
-        expect(newChannel('  Chat (apps) ', 'music', existing, targets).channel).toEqual({ id: 'ch-chat-apps', label: 'Chat apps', like: 'music' });
-        expect(newChannel('game', 'game', existing, targets).error).toMatch(/already/);
-        expect(newChannel('', 'game', existing, targets).error).toMatch(/name/);
-        expect(newChannel('X', 'nope', existing, targets).error).toBeTruthy();
-        const label = newChannel('Browser', 'game', existing, targets).channel;
-        expect(parseAppAudioName(appAudioName('App Audio: ', 'firefox.exe', label.label), 'App Audio: ', { [label.id]: label }))
-            .toEqual({ exe: 'firefox.exe', target: label.id });
+        const existing = channelList(null);
+        expect(newChannel('  Chat (apps) ', existing, { tracks: [3, 1], copyFrom: 'Mic' }).channel)
+            .toEqual({ id: 'ch-chat-apps', label: 'Chat apps', tracks: [1, 3], copyFrom: 'Mic' });
+        expect(newChannel('music', existing).error).toMatch(/already/);
+        expect(newChannel('', existing).error).toMatch(/name/);
+        expect(newChannel('X', existing, { tracks: [] }).error).toMatch(/track/);
+        const made = newChannel('Browser', existing).channel;
+        expect(made).toEqual({ id: 'ch-browser', label: 'Browser', tracks: null, copyFrom: null });
+        expect(parseAppAudioName(appAudioName('App Audio: ', 'firefox.exe', made.label), 'App Audio: ').label).toBe('Browser');
     });
-    it('caps the fader so the Limiter keeps it out of the red', () => {
-        expect(20 * Math.log10(faderMul(0, -60, channelMaxDb))).toBeCloseTo(channelMaxDb);
-        expect(-7 + channelMaxDb).toBeLessThanOrEqual(-9);
-        expect(faderMul(-60, -60, channelMaxDb)).toBe(0);
-        expect(20 * Math.log10(faderMul(-30, -60, channelMaxDb))).toBeCloseTo(-30);
+    it('turns tracks into OBS\'s track object', () => {
+        expect(tracksObject([1, 4])).toEqual({ 1: true, 2: false, 3: false, 4: true, 5: false, 6: false });
+        expect(cleanTracks('nope')).toBeNull();
+    });
+    it('caps the fader at the setup\'s max', () => {
+        expect(20 * Math.log10(faderMul(0, -60, -12))).toBeCloseTo(-12);
+        expect(faderMul(-60, -60, 0)).toBe(0);
+        expect(20 * Math.log10(faderMul(-30, -60, 0))).toBeCloseTo(-30);
+    });
+    it('says whether a channel works: idle, live or red', () => {
+        expect(activity(-60)).toBe('idle');
+        expect(activity(-30)).toBe('live');
+        expect(activity(-6)).toBe('red');
     });
 });

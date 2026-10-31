@@ -1418,17 +1418,11 @@ export const config = {
       url: 'ws://127.0.0.1:4455',   // obs-websocket default port
       reconnectMs: 3000
     },
-    scene: '16:9 Game',
-    // The three things the 16:9 Game scene can show. One is visible at a
-    // time; picking one hides the rest and every other capture in the scene
-    // (the hidden mGBA / Window Capture 2 duplicates)
-    sources: {
-      hook: 'Game Capture 2',       // game_capture: only for games window capture shows black
-      window: 'Window Capture',     // window_capture (Windows 10+ method): the default, shows any app
-      console: 'Game Capture'       // nested scene with the Elgato 4K X capture card
-    },
-    // Scene items the picker never touches (MIU shows and hides Action Cam)
-    keep: ['Action Cam'],
+    // Nothing about any one OBS is built in (AJ, 2026-10-30: "assume
+    // someone is coming in with an entire different setup"). Which scene,
+    // captures and pinned sources the dock drives is picked on its setup
+    // screen and saved in OBS's persistent data (profile realm, this slot)
+    setupSlot: 'gamePicker.setup',
     // Match title, otherwise any window of the same executable
     // (WINDOW_PRIORITY_EXE in OBS's window-helpers.h), so a title that changes
     // (mGBA puts the ROM and fps in it, Firefox the page) keeps the capture
@@ -1438,11 +1432,10 @@ export const config = {
     // ApplicationFrameHost.exe; the dock captures its frame itself, see
     // windowCaptureTarget; Defiant, 2026-10-30)
     ignoreExes: [
-      'obs64.exe', 'explorer.exe', 'textinputhost.exe', 'applicationframehost.exe',
-      'systemsettings.exe', 'mixitup.exe', 'streamdeck.exe', 'discord.exe',
-      'nvidia overlay.exe', 'nvidia app.exe', 'steamwebhelper.exe', 'shellexperiencehost.exe',
-      'searchhost.exe', 'startmenuexperiencehost.exe', 'lockapp.exe', 'code.exe',
-      'windowsterminal.exe', 'obsidian.exe', 'claude.exe', 'vb-audio voicemeeter.exe'
+      'obs64.exe', 'obs32.exe', 'explorer.exe', 'textinputhost.exe', 'applicationframehost.exe',
+      'systemsettings.exe', 'nvidia overlay.exe', 'nvidia app.exe', 'steamwebhelper.exe',
+      'shellexperiencehost.exe', 'searchhost.exe', 'startmenuexperiencehost.exe', 'lockapp.exe',
+      'windowsterminal.exe'
     ],
     // After a pick, look at the capture this long. No picture (OBS can't
     // render it) or black twice in a row switches to the other capture once,
@@ -1457,36 +1450,34 @@ export const config = {
     minLit: 0.005,                  // under this share of lit pixels counts as black
     previewWidth: 320,              // px; screenshots only after a pick or a click, never on a timer
     recentMax: 8,                   // recent executables pinned to the top
-    // Level meters, so a glance says whether game sound arrives. The dock
-    // never changes these sources; it only adds and removes its own
-    // "App Audio:" inputs (below)
-    meters: ['Local Game (A)', 'Ext Capture (B)', 'BG Music'],
-    // Per-app audio (AJ, 2026-10-30: "select the audio source it outputs
-    // to", e.g. Firefox to BG Music to keep it off the recording). Windows
-    // per-app output needs a helper and an install; instead the dock adds an
-    // Application Audio Capture of that app to the Audio scene (nested in
-    // every scene that has sound) and copies the destination source's
-    // tracks, volume and filters, so the app lands exactly where that
-    // source does. The app keeps playing to the speakers, so AJ still hears
-    // it; monitoring stays off to avoid hearing it twice
+    // Window lists re-read this often while the dock is on screen (and as
+    // the pointer arrives): OBS has no window open/close event, and a read
+    // costs about 1 ms (Defiant, 2026-10-30)
+    refreshMs: 5000,
+    // Per-app sound (AJ, 2026-10-30): the dock adds an Application Audio
+    // Capture of the app to the setup's audio scene, in a channel. No
+    // virtual cables or extra Windows audio devices: the app keeps playing
+    // to its usual device, and monitoring stays off so it isn't heard twice.
+    // A channel is a name and tracks; it can copy the filters (and starting
+    // fader) of any audio source already in OBS
     audio: {
-      scene: 'Audio',
       prefix: 'App Audio: ',
-      targets: {
-        game: { label: 'Game', template: 'Local Game (A)' },   // tracks 1,2,4,5,6: stream and VOD
-        music: { label: 'Music', template: 'BG Music' }        // tracks 1,4,5,6: stream, kept off the VOD (track 2)
-      },
-      // BG Music's Move filters run the music fades; they stay on BG Music
-      skipFilterKinds: ['move_audio_value_filter', 'audio_move_filter', 'move_value_filter'],
-      // Channels AJ makes in the dock, with every channel's fader and mute,
-      // live in obs-websocket persistent data (per OBS profile), so they
-      // follow OBS rather than this browser
+      // Move filters that drive other sources' settings or positions aren't
+      // copied. A Move Audio Value fade (move_audio_value_filter) only moves
+      // its own source's volume, so it is copied: an app in Music keeps the
+      // music fades the fade scenes trigger, and gets them back under the
+      // same name when the dock remakes its input (audio verification
+      // thread, 2026-10-31: Starting/Ending music stayed at 3% without them)
+      skipFilterKinds: ['audio_move_filter', 'move_value_filter'],
+      // Channels and every channel's fader and mute live in obs-websocket
+      // persistent data (per OBS profile), so they follow OBS, not this browser
       dataSlot: 'gamePicker.channels',
-      // Highest channel fader: a full-scale app hits the copied Limiter at
-      // -7 dB, so the meter peaks at -7 + this = -19 dBFS at most: just
-      // inside yellow, never red (AJ: no clipping, nothing above yellow;
-      // docs/AUDIO.md)
-      channelMaxDb: -12
+      // A channel shows "live" once its apps peak over this
+      quietDb: -50,
+      // Channel fader max until setup says otherwise: a full-scale app with
+      // no limiter then peaks at -12 dBFS, under the -9 red line (no
+      // clipping ever, docs/AUDIO.md; QA, #120). Setup can lower or raise it
+      defaultFaderMaxDb: -12
     },
     meterFloorDb: -60,
     storageKey: 'gamePicker:v1'
