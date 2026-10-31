@@ -24,7 +24,7 @@ commit=${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || true)}
 
 rm -rf "$out"
 mkdir -p "$out"
-for scene in stinger sidebar shade notifications followers background epcot title banner spheal; do
+for scene in stinger sidebar shade notifications followers background epcot title banner spheal gamepicker audiorouting; do
   # find: vite can nest the output path under dist/<scene>/
   src=$(find "dist/$scene" -name index.html | head -n 1)
   test -s "$src"

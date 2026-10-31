@@ -56,6 +56,11 @@ export function runChecks(current, proposed, limits, baseline, stages) {
         `true peak ${fmt(proposed.truePeakDbtp, 'dBTP')} (limit ${limits.maxTruePeakDbtp}), ${proposed.clippedSamples} clipped samples`,
         'Overs distort on Twitch\'s encoder and in VODs.');
 
+    add('meter-yellow', 'Stays out of the red on OBS\'s meter',
+        proposed.meter.redPct <= limits.meterRedMaxPct,
+        `${proposed.meter.redFrames} of ${proposed.meter.frames} meter updates above ${limits.meterRedDbfs} dBFS (${proposed.meter.redPct.toFixed(2)}%, limit ${limits.meterRedMaxPct}%); current ${current.meter.redPct.toFixed(2)}%`,
+        'AJ (2026-10-29): audio should never peak above yellow in most cases.');
+
     const target = baseline?.integratedLufs?.median;
     const dl = proposed.integratedLufs - (target ?? current.integratedLufs);
     add('level', 'Voice level matches past streams',

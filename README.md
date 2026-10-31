@@ -114,6 +114,91 @@ browser source shown by a Mix It Up command; each show plays it once.
 - `mute` - `1` plays without the song
 - `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 2.5 s)
 
+### Game picker (OBS dock)
+Not a scene: a Custom Browser Dock inside OBS that points a game scene's
+capture at a window in one click, and can put each app's sound on stream.
+Nothing about any one OBS is built in: it works with anyone's scenes and
+sources, and needs no virtual cables or extra Windows audio devices.
+
+- **Setup** (first run, then ⚙): the dock guesses the scene with your window
+  or game capture; you confirm the scene, its window capture and/or game
+  capture, any other sources to pin as one-click buttons (a capture card, a
+  camera), whether to also hide the scene's other captures, whether the dock
+  handles app sound, the scene app sound goes in (it guesses the scene
+  nested in the most others, one that's live whenever the game is), and the
+  fader max (-12 dB to start: a full-scale app with no limiter stays out of
+  the red). It's saved in OBS (obs-websocket persistent data, per profile)
+  and changes nothing until you save.
+- **Picture**: windows are listed by title, the app under it, recent ones
+  first (OBS and Explorer hidden unless "all"). Window capture is the
+  default and shows any app. If it shows a game black (exclusive
+  fullscreen), the dock switches to the game hook; if the hook gives no
+  picture, back to window capture. Either way it remembers the choice. A
+  window only the hook lists is probably minimised; the dock says so. The
+  list re-reads itself every 5 s while the dock is on screen and as the
+  pointer arrives (OBS has no event for a window opening).
+- **Sound**: each window has a menu that puts the app's sound in a channel,
+  or takes it off stream. A new dock offers Game and Music (plain, removable
+  with ✕), and "+ New" makes more: a name, the OBS tracks it plays on, and
+  optionally an audio source to copy filters and a starting fader from (say,
+  a music source so its channel stays off the VOD track). An app joining a
+  channel that already has apps copies their tracks and filters unless the
+  channel says otherwise, so channels from an older dock stay whole.
+  A channel with nothing set (no tracks, no copy, no apps yet) asks before
+  its first app, suggesting the source named like it with that source's
+  tracks (Music: a source with "music" in its name). Click a channel's name
+  to change its tracks or copy later. Each app in a channel is an
+  Application Audio Capture ("App Audio: firefox.exe (Browser)") in the
+  setup's audio scene; the app keeps playing to its usual device, so you
+  still hear it. The dock never changes your own sources.
+  - Each channel has one fader (capped at the setup's max), a mute and a
+    light: grey while quiet, green while sound arrives, red if the apps
+    together go too loud (it stays red until clicked). OBS has no audio bus,
+    so OBS's own mixer shows one row per app: use the dock's fader.
+  - Copied filters are a snapshot taken when an app joins; set the sound
+    again to pick up a later change. Move filters (fades) aren't copied.
+  - AJ's setup: fader max -12 dB, since the copied Limiter (-7 dB) then
+    keeps each app at or under -19 dBFS (measured on Defiant).
+
+**URL**: `gamepicker/index.html` (`password`, `obs`)
+
+- `password` - the obs-websocket password. Put it in the dock URL: the dock never stores it, because browser storage is shared by every page on the site and the password controls all of OBS
+- `obs` - obs-websocket address on this PC (default `ws://127.0.0.1:4455`; other hosts are refused)
+
+OBS: Docks > Custom Browser Docks, name "Game Picker", URL
+`https://alexmj212.dev/stream-animations/gamepicker/?password=<websocket password>`. Needs obs-websocket on
+(Tools > WebSocket Server Settings). Check it without OBS:
+`npm run gamepicker:check`.
+
+### Audio Routing (OBS dock)
+A flow chart of where OBS's sound goes, in its own dock. Left to right:
+every source whose sound reaches OBS's tracks (with its audio filters as
+icons, in chain order; a faded icon is a disabled filter), the Game
+Switcher's channels as boxes holding their apps, tracks 1-6 with the names
+from OBS's output settings, and the outputs that take each track (Stream,
+Twitch VOD, Recording, Replay buffer) plus Monitor (your headphones). Each
+output says which tracks it takes and shows LIVE or REC while it runs.
+
+- Drag from a source's dot (or a channel's) to a track to put it on that
+  track. Drag a track's left dot to a source works too.
+- Drag a wire to another track to move it, or away to take it off. Click a
+  wire and press × (or Delete) to take it off. Undo puts changes back.
+- Drop a source on Monitor to hear it (Monitor and Output); unplug its
+  Monitor wire to stop.
+- A channel moves every app in it and saves the tracks the Game Switcher
+  gives its next app.
+- Anything joining the Twitch VOD track asks first (music there can get
+  the VOD muted). While a stream or recording runs, a change to a track it takes asks for
+  one confirm first.
+- Hover a box to bring its wires forward. "On program only" hides sources
+  that aren't on air right now. Output settings are read-only here.
+
+**URL**: `audiorouting/index.html` (`password`, `obs`, as the Game Switcher)
+
+OBS: Docks > Custom Browser Docks, name "Audio Routing", URL
+`https://alexmj212.dev/stream-animations/audiorouting/?password=<websocket password>`.
+Check it without OBS: `npm run audiorouting:check`.
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 

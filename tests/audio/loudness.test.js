@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { loudness, peaks } from '../../tools/audio/lib/loudness.js';
-import { analyze } from '../../tools/audio/lib/analyze.js';
+import { analyze, meterPeaks, OBS_METER } from '../../tools/audio/lib/analyze.js';
 
 const FS = 48000;
 const sine = (f, amp, sec, phase = 0) => {
@@ -52,5 +52,21 @@ describe('analyze', () => {
         expect(r.speechPct).toBeLessThan(65);
         expect(r.pauseRmsDbfs).toBeLessThan(-60);
         expect(r.snrDb).toBeGreaterThan(40);
+    });
+});
+
+describe('OBS meter', () => {
+    it('uses OBS\'s zones: yellow from -20 dBFS, red above -9 dBFS', () => {
+        expect(OBS_METER).toMatchObject({ yellowDbfs: -20, redDbfs: -9 });
+    });
+
+    it('counts 50 ms meter updates whose sample peak is in the red', () => {
+        const x = sine(440, Math.pow(10, -12 / 20), 10); // peaks at -12: yellow
+        x.set(sine(440, Math.pow(10, -6 / 20), 0.5), 5 * FS); // half a second at -6: red
+        const m = meterPeaks([x, x], FS);
+        expect(m.frames).toBe(200);
+        expect(m.redFrames).toBeGreaterThanOrEqual(10);
+        expect(m.redFrames).toBeLessThanOrEqual(11);
+        expect(m.yellowPct).toBeGreaterThan(90);
     });
 });

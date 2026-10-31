@@ -4,6 +4,85 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.14.0 - 2026-10-31
+
+- New Audio Routing dock, an OBS Custom Browser Dock that draws the audio
+  as a flow chart: sources with their filters, Game Switcher channels,
+  tracks 1-6 and the outputs that take them. Drag to connect, move or
+  unplug a source's tracks, with undo and a confirm before changing a
+  track a running output uses. Add it in OBS under Docks > Custom
+  Browser Docks at `audiorouting/?password=...`. ([#131])
+
+## v2.13.2 - 2026-10-31
+
+- The Game Switcher now copies a music app's volume fade filters along
+  with its fader and Limiter, so the Starting and Ending music fades can
+  drive Music once it runs through the dock. The fade scenes' Move
+  Actions also need to point at the app's input. Reload the dock to pick
+  it up. ([#129])
+
+## v2.13.1 - 2026-10-30
+
+- Game Switcher dock fixes from the first run in AJ's OBS. The top line
+  shows the window title first, with the app and capture method below it.
+  Setup skips divider scenes, and its audio-scene guess picks the scene
+  with more audio sources when two are nested equally often. Reload the
+  dock to pick it up. ([#124])
+- The Game Switcher's list is called Apps instead of Windows. ([#126])
+
+## v2.13.0 - 2026-10-30
+
+- The Game Switcher dock works with any OBS setup, in any dock shape. A
+  first-run setup screen (reopened with the gear) picks the scene, its
+  captures, pinned sources and the fader max, guessed from the scenes in
+  OBS and saved in OBS. Channels are plain track sets that can copy another
+  source's filters. Each channel shows a working light instead of a meter.
+  The layout adapts to tall, wide and small docks. AJ's dock opens on setup
+  once, until setup is saved. ([#120])
+
+## v2.12.0 - 2026-10-30
+
+- The Game Picker dock can make its own audio channels. Name a channel and
+  choose whether it goes on the VOD (like Game) or stays off it (like Music),
+  then send several apps to it. Each channel has one fader, mute and meter
+  in the dock that moves every app in it. The fader stops at -12 dB, so
+  each app peaks at -19 dBFS at most; several loud apps in one channel add
+  up, and the channel meter flags it if they reach the red. Channels are
+  saved in OBS, not the browser. Reload the dock to pick it up. ([#118])
+
+## v2.11.0 - 2026-10-30
+
+- The Game Picker dock uses window capture by default and falls back to the
+  game hook only for games that show black, remembered per game. Store apps
+  and minimised windows now work, and a failed pick puts the old picture
+  back.
+- Each app in the dock has a sound menu: off stream, Game, or Music (Music
+  stays off the VOD track). The dock adds its own audio source for that app
+  and never changes AJ's existing ones. Reload the dock to pick it up.
+  ([#116])
+
+## v2.10.1 - 2026-10-30
+
+- The Game Picker dock lists every window OBS lists, from both the game
+  capture and the window capture, and sends each window only to a capture
+  that can see it. It shows what 16:9 Game really has, including changes
+  made in the source properties, and flags a stored window that isn't open.
+  Reload the dock to pick it up. ([#114])
+
+## v2.10.0 - 2026-10-30
+
+- New Game Picker dock for OBS. It lists open windows and points the 16:9
+  Game capture at one in a single click, hiding the other captures there
+  (Action Cam is left alone). It falls back to window capture when a game
+  hooks black, and shows read-only audio meters. It's a Custom Browser Dock,
+  not a scene, so nothing on stream changes until AJ adds the dock. ([#111])
+
+## v2.9.2 - 2026-10-30
+
+- The Spheal march song plays 12 dB quieter, so it stays out of the red on
+  the OBS meter (it peaks around -11 dB instead of clipping). `?volume`
+  still works on top of it. ([#106])
+
 ## v2.9.1 - 2026-10-29
 
 - The Spheal march holds a smooth frame rate at its peak crowd. Each
@@ -206,3 +285,13 @@ release (`npm run motion:export -- stinger` renders your own).
 [#86]: https://github.com/alexmj212/stream-animations/pull/86
 [#97]: https://github.com/alexmj212/stream-animations/pull/97
 [#102]: https://github.com/alexmj212/stream-animations/pull/102
+[#106]: https://github.com/alexmj212/stream-animations/pull/106
+[#111]: https://github.com/alexmj212/stream-animations/pull/111
+[#114]: https://github.com/alexmj212/stream-animations/pull/114
+[#116]: https://github.com/alexmj212/stream-animations/pull/116
+[#118]: https://github.com/alexmj212/stream-animations/pull/118
+[#120]: https://github.com/alexmj212/stream-animations/pull/120
+[#124]: https://github.com/alexmj212/stream-animations/pull/124
+[#126]: https://github.com/alexmj212/stream-animations/pull/126
+[#129]: https://github.com/alexmj212/stream-animations/pull/129
+[#131]: https://github.com/alexmj212/stream-animations/pull/131

@@ -43,6 +43,38 @@ cycles look the same), stops redrawing when static, and has a perf floor at
   visible pixels, because a full-diagonal square doubles the fill
   [2026-10-29, Spheal march].
 
+## OBS GPU
+
+OBS's own GPU use counts as much as any scene's frame time (AJ, 2026-10-30:
+~30% GPU while idle). Measured idle on Defiant that day: video encode 23% and
+CUDA 13% from the always-on Replay Buffer and Aitum Vertical Backtrack, 3D 23%
+from drawing both canvases at 60 fps, browser pages about 4%. So look at the
+encoders and the canvases before the pages. Target (not met as of
+2026-10-30): OBS idle GPU under 10% on every engine when not live. For 3D
+that needs the canvases below 60 fps, since the 60 fps floor alone is about
+12% (2026-10-31); that is AJ's call.
+
+- `tools/gpu/obs-gpu-log.ps1` (on Defiant, read only) logs OBS's GPU use per
+  engine (every 5 s by default, 8 s or more in practice) to `tools/gpu-results/obs-gpu-<date>.csv`, with the
+  browser pages' 3D share and the whole machine beside it. Task Manager's one
+  number is roughly the busiest engine, so compare engines, not totals.
+  `obs_3D` includes the browser pages; `browser_3D` is their part. A
+  counter read takes several seconds, which is why rows come slower.
+- `npm run gpu:summary -- <csv> [--from=HH:MM --to=HH:MM]` gives median, p95
+  and max per engine for a stretch, to compare before and after a change.
+- To find what costs what, stop one thing for 30 s while off-air, read the
+  drop, and put it back.
+- Measured 2026-10-31 (Defiant, round 2): OBS's floor at 60 fps with an
+  empty program is about 12% 3D (main canvas, preview and the vertical
+  canvas). Scenes add to it: Just Chatting 40% 3D, Starting 36%, Ending 33%,
+  Vtuber 30%, Full 16:9 28%, BRB 24%, Snapshot 19%. The vtuber page costs
+  about 13% and Discoball about 9% while shown. NVIDIA Background Removal
+  costs about 19% CUDA while the cam shows; its quality setting makes no
+  difference, but processing every 2nd frame halves it.
+- A browser source that draws continuously (WebGL, video, a loop) should have
+  "Shutdown source when not visible" on, or pause itself when hidden;
+  otherwise it costs GPU in every scene.
+
 ## Known leads
 
 From the 2026-05-25 benchmark and the 2026-01-17 audit: `save()` dominates the

@@ -37,14 +37,17 @@ export function decode(file, opts = {}) {
  * @param {string} file
  * @param {Float32Array[]} channels
  * @param {number} fs
+ * @param {object} [opts]
+ * @param {number} [opts.kbps] bitrate for lossy formats (default 192)
  */
-export function encode(file, channels, fs) {
+export function encode(file, channels, fs, opts = {}) {
     const nc = channels.length;
     const frames = channels[0].length;
     const inter = new Float32Array(frames * nc);
     for (let i = 0; i < frames; i++) for (let c = 0; c < nc; c++) inter[i * nc + c] = channels[c][i];
-    const codec = file.endsWith('.mp3') ? ['-c:a', 'libmp3lame', '-b:a', '192k']
-        : file.endsWith('.m4a') ? ['-c:a', 'aac', '-b:a', '192k'] : [];
+    const rate = `${opts.kbps || 192}k`;
+    const codec = file.endsWith('.mp3') ? ['-c:a', 'libmp3lame', '-b:a', rate]
+        : file.endsWith('.m4a') ? ['-c:a', 'aac', '-b:a', rate] : [];
     const r = spawnSync('ffmpeg', ['-v', 'error', '-y', '-f', 'f32le', '-ac', String(nc), '-ar', String(fs), '-i', '-', ...codec, file],
         { input: Buffer.from(inter.buffer), maxBuffer: 2 ** 26 });
     if (r.status !== 0) throw new Error(`ffmpeg encode failed for ${file}: ${r.stderr}`);

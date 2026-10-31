@@ -10,6 +10,47 @@
 import { loudness, peaks, percentileSorted } from './loudness.js';
 import { welch, thirdOctaveBands, spectralSummary } from './spectrum.js';
 
+/**
+ * OBS's mixer meter thresholds (VolumeMeter defaults: green below -20 dBFS,
+ * yellow -20 to -9, red above -9), and how often the meter's peak updates.
+ * AJ (2026-10-29): "audio should never peak above yellow in most cases".
+ */
+export const OBS_METER = { yellowDbfs: -20, redDbfs: -9, frameSec: 0.05 };
+
+/**
+ * How a signal reads on OBS's mixer meter: the sample peak in each 50 ms
+ * meter frame, and how many frames go into the red.
+ * @param {Float32Array[]} channels post-fader audio, as the meter sees it
+ * @param {number} fs
+ * @returns {{ frames: number, redFrames: number, redPct: number, yellowPct: number, p999Dbfs: number }}
+ */
+export function meterPeaks(channels, fs) {
+    const len = Math.round(OBS_METER.frameSec * fs);
+    const frames = Math.floor(channels[0].length / len);
+    const red = dbToMulPeak(OBS_METER.redDbfs);
+    const yellow = dbToMulPeak(OBS_METER.yellowDbfs);
+    const peaks = new Float64Array(frames);
+    let redFrames = 0, yellowFrames = 0;
+    for (let f = 0; f < frames; f++) {
+        let p = 0;
+        for (const c of channels) for (let i = f * len; i < (f + 1) * len; i++) { const a = Math.abs(c[i]); if (a > p) p = a; }
+        peaks[f] = p;
+        if (p > red) redFrames++;
+        else if (p > yellow) yellowFrames++;
+    }
+    const sorted = Array.from(peaks).sort((a, b) => a - b);
+    const p999 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(0.999 * sorted.length))] : 0;
+    return {
+        frames,
+        redFrames,
+        redPct: (100 * redFrames) / Math.max(1, frames),
+        yellowPct: (100 * yellowFrames) / Math.max(1, frames),
+        p999Dbfs: p999 > 0 ? 20 * Math.log10(p999) : -150
+    };
+}
+
+const dbToMulPeak = (db) => Math.pow(10, db / 20);
+
 /** Frame length for level and activity analysis. */
 export const FRAME_SEC = 0.02;
 
@@ -181,6 +222,7 @@ export function analyze(channels, fs, opts = {}) {
             ? percentileSorted(momSpeech, 90) - percentileSorted(momSpeech, 10) : 0,
         speechPct: (100 * spN) / Math.max(1, n),
         digitalSilencePct: (100 * silent) / Math.max(1, n),
+        meter: meterPeaks(channels, fs),
         spuriousOpensPerMin: spurious / (durationSec / 60),
         onsetLossDb,
         series: {

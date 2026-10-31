@@ -1332,7 +1332,13 @@ export const config = {
       beatS: 0.3529,
       loopStartS: 0.7059,
       loopEndS: 6.3529,
-      fadeOutMs: 400        // the song fades this fast once the wave is gone
+      fadeOutMs: 400,       // the song fades this fast once the wave is gone
+      // The clip is mastered hot (+1.3 dBTP, -6.3 LUFS) and sat in the red
+      // on OBS's meter. AJ: "audio should never peak above yellow" (red is
+      // above -9 dBFS, 2026-10-29), and a lower level beats a limiter.
+      // -12 dB gives -10.7 dBTP and -18.3 LUFS (ffmpeg -i march.ogg -af
+      // volume=-12dB,ebur128=peak=true -f null -)
+      gainDb: -12
     },
     spawn: {
       // Spawns per second start at rate0 and double every doubleS, so the
@@ -1400,6 +1406,97 @@ export const config = {
       // the ±7° hop wobble smooth
       turnSteps: 96
     }
+  },
+
+  // Game picker: an OBS browser dock (not a scene) that points the 16:9 Game
+  // capture at a window in one click, without the source properties picker.
+  // AJ (2026-10-30): picking the game window, recreating and toggling
+  // sources and checking the game audio cost time every stream. Names match
+  // Archive_1.json (2026-10-29); change them here if a source is renamed.
+  gamePicker: {
+    obs: {
+      url: 'ws://127.0.0.1:4455',   // obs-websocket default port
+      reconnectMs: 3000
+    },
+    // Nothing about any one OBS is built in (AJ, 2026-10-30: "assume
+    // someone is coming in with an entire different setup"). Which scene,
+    // captures and pinned sources the dock drives is picked on its setup
+    // screen and saved in OBS's persistent data (profile realm, this slot)
+    setupSlot: 'gamePicker.setup',
+    // Match title, otherwise any window of the same executable
+    // (WINDOW_PRIORITY_EXE in OBS's window-helpers.h), so a title that changes
+    // (mGBA puts the ROM and fps in it, Firefox the page) keeps the capture
+    windowPriority: 2,
+    // Windows that are never the game, hidden unless "show all" is on
+    // (OBS lists a Store app under its own executable, not
+    // ApplicationFrameHost.exe; the dock captures its frame itself, see
+    // windowCaptureTarget; Defiant, 2026-10-30)
+    ignoreExes: [
+      'obs64.exe', 'obs32.exe', 'explorer.exe', 'textinputhost.exe', 'applicationframehost.exe',
+      'systemsettings.exe', 'nvidia overlay.exe', 'nvidia app.exe', 'steamwebhelper.exe',
+      'shellexperiencehost.exe', 'searchhost.exe', 'startmenuexperiencehost.exe', 'lockapp.exe',
+      'windowsterminal.exe'
+    ],
+    // After a pick, look at the capture this long. No picture (OBS can't
+    // render it) or black twice in a row switches to the other capture once,
+    // if it can see the window, and remembers that for the executable:
+    // window capture shows black for some exclusive-fullscreen games, and
+    // the hook shows nothing for desktop apps
+    blackCheckMs: 2500,
+    // Black means almost no lit pixel, not a dark average: a dark app or a
+    // night scene has lit text or detail, a failed capture has none
+    // (Defiant, 2026-10-30: Realtek's dark UI was called black)
+    litLuma: 24,                    // 0-255 luma at or over this is a lit pixel
+    minLit: 0.005,                  // under this share of lit pixels counts as black
+    previewWidth: 320,              // px; screenshots only after a pick or a click, never on a timer
+    recentMax: 8,                   // recent executables pinned to the top
+    // Window lists re-read this often while the dock is on screen (and as
+    // the pointer arrives): OBS has no window open/close event, and a read
+    // costs about 1 ms (Defiant, 2026-10-30)
+    refreshMs: 5000,
+    // Per-app sound (AJ, 2026-10-30): the dock adds an Application Audio
+    // Capture of the app to the setup's audio scene, in a channel. No
+    // virtual cables or extra Windows audio devices: the app keeps playing
+    // to its usual device, and monitoring stays off so it isn't heard twice.
+    // A channel is a name and tracks; it can copy the filters (and starting
+    // fader) of any audio source already in OBS
+    audio: {
+      prefix: 'App Audio: ',
+      // Move filters that drive other sources' settings or positions aren't
+      // copied. A Move Audio Value fade (move_audio_value_filter) only moves
+      // its own source's volume, so it is copied: an app in Music keeps the
+      // music fades the fade scenes trigger, and gets them back under the
+      // same name when the dock remakes its input (audio verification
+      // thread, 2026-10-31: Starting/Ending music stayed at 3% without them)
+      skipFilterKinds: ['audio_move_filter', 'move_value_filter'],
+      // Channels and every channel's fader and mute live in obs-websocket
+      // persistent data (per OBS profile), so they follow OBS, not this browser
+      dataSlot: 'gamePicker.channels',
+      // A channel shows "live" once its apps peak over this
+      quietDb: -50,
+      // Channel fader max until setup says otherwise: a full-scale app with
+      // no limiter then peaks at -12 dBFS, under the -9 red line (no
+      // clipping ever, docs/AUDIO.md; QA, #120). Setup can lower or raise it
+      defaultFaderMaxDb: -12
+    },
+    meterFloorDb: -60,
+    storageKey: 'gamePicker:v1'
+  },
+
+  // Audio Routing dock (AJ, 2026-10-31): a flow chart of every OBS input
+  // with sound, the Game Switcher's channels, tracks 1-6 and the outputs
+  // that take them; drag to connect. Its own dock, not a Game Switcher tab
+  // (AJ: "make this visual editor a different dock"). Reads the Game
+  // Switcher's channels (config.gamePicker.audio.dataSlot) but not its setup
+  audioRouting: {
+    // OBS events come in bursts (a scene switch sends several), so one
+    // re-read of everything this long after the last
+    refreshDebounceMs: 150,
+    // Output settings and the program scene's sources have no event of
+    // their own: re-read when the pointer arrives, at most this often
+    pointerRefreshMs: 4000,
+    undoMax: 20,
+    storageKey: 'audioRouting:v1'
   },
 
   // Shared configuration across all scenes
