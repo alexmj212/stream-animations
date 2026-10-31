@@ -102,6 +102,26 @@ proposal's fader so it lands at the past streams' level, the way AJ would.
 - OBS feeds a sidechain key through a capture buffer, so ducking renders are
   aligned by assumption; `verify` warns when a chain has a sidechain.
 
+## Applying a change in OBS
+
+A filter's `enabled` flag in the scene collection proves nothing on its
+own. On 2026-10-31 the Mic's NVIDIA filter (`nvidia_audiofx_filter`, left
+over from an older OBS) was switched on to stop fan noise. OBS 33 no longer
+registers that kind, so the filter was hidden and did nothing, and a quiet
+meter reading (the gate closing) was misread as proof that it worked. AJ
+found it by opening the filter list. So, after any change on Defiant:
+
+1. Check that every filter's kind is in `GetSourceFilterKindList`. A kind
+   OBS doesn't load is kept in the JSON but is inert. Noise suppression is
+   `noise_suppress_filter_v2`, method `denoiser` (NVIDIA) or `rnnoise`.
+2. Read the filter back with `GetSourceFilterList` and confirm it's there.
+3. Measure something the change should move, at a moment where the old
+   chain would show the problem, such as a pause with the fan running for
+   noise. A reading the gate alone explains isn't evidence.
+
+The harness treats both NVIDIA kinds as unemulated (`--ns` captures stand in
+for them), so it can't catch this either.
+
 ## Capturing inputs
 
 Past recordings only hold the processed mix, so the raw mic has to be

@@ -28,3 +28,4 @@ tools/debug-results/
 tools/audio-results/
 tools/gpu-results/
 _site/
+__pycache__/
