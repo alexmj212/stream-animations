@@ -92,6 +92,9 @@ circumstance". Roster and details: `docs/roles/README.md`.
   stuck. When done, send it one line on what you learned.
 - **The coordinator starts one issue thread per ask** and names the experts
   it should consult. It doesn't hand an issue to an expert.
+- **Permanent threads are for lasting domains only** (AJ, 2026-10-31): never
+  for a short-term fix, a bug hunt or a past faulty setup. Criteria:
+  `docs/roles/README.md`, "When a thread becomes permanent".
 - **Extreme circumstance** only: AJ is live and something on stream is
   broken, or an action is causing harm right now (for example alerts posting
   to Twitch chat). Then the nearest able thread may act directly, says so

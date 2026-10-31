@@ -27,12 +27,28 @@ starts, with the same Learnings table.
 
 | Expert | Consulted on | Skills to build for issue threads (planned; none exist yet except Defiant's `obs-ops`) | Charter |
 |---|---|---|---|
-| Audio | Mic chain, music levels and fades, alert and gag sound levels, no clipping and no limiters (`docs/AUDIO.md`, `npm run audio`) | `mic-diagnose`, `audio-change-proof` | `audio.md` |
-| OBS and stream setup | Scenes, sources, filters, Move automations, MIU wiring, OBS quirks on Defiant, backups and safe-change rules | The recipes the Defiant thread runs; `obs-ops` with Defiant | `obs.md` |
-| Alerts and integrations | Alert and gag pages, MIU commands, Twitch events, the BRB clip reel (`alexmj212/twitch-clip-reel-overlay`) | `alert-test-safe` (never posts to chat), `miu-command-edit` | `alerts.md` |
-| Performance | CPU and GPU budgets for scenes and OBS (`docs/PERFORMANCE.md`, `npm run bench`, `npm run gpu:summary`) | `gpu-check`, `bench-compare` | `performance.md` |
-| Docks and capture | Game Switcher and Audio Routing docks (`src/gamepicker`, `src/audiorouting`), game capture quirks | `dock-check`, `capture-troubleshoot` | `docks.md` |
-| Couch vtuber and discoball | `alexmj212/vtuber` and `alexmj212/discoball`, their deploys and OBS sources | `vtuber-audit`, deploy-and-swap | `vtuber.md` |
+| Audio | Everything viewers and AJ hear: mic chain, music, game and alert sound levels, routing, no clipping and no limiters (`docs/AUDIO.md`, `npm run audio`) | `mic-diagnose`, `audio-change-proof` | `audio.md` |
+| OBS and stream setup | How the broadcast is put together: scenes, sources, filters, automations, capture, the OBS docks, MIU and Stream Deck wiring, backups and safe-change rules | Recipes the Defiant thread runs; `obs-ops` with Defiant | `obs.md` |
+| Alerts and integrations | How the stream reacts to viewers: alert and gag pages, MIU commands, Twitch events, the BRB clip reel (`alexmj212/twitch-clip-reel-overlay`) | `alert-test-safe` (never posts to chat), `miu-command-edit` | `alerts.md` |
+| Performance | CPU and GPU cost of every scene and of OBS, the project's top goal (`docs/PERFORMANCE.md`, `npm run bench`, `npm run gpu:summary`) | `gpu-check`, `bench-compare` | `performance.md` |
+| Avatars | AJ's on-stream characters and their control apps: `alexmj212/vtuber` and `alexmj212/discoball`, their deploys and OBS sources | `vtuber-audit`, deploy-and-swap | `avatars.md` |
+
+### When a thread becomes permanent
+
+AJ (2026-10-31): "do not create permanent thread for short term fixes or bug
+hunting expeditions, the criteria for permanent threads should be agnostic of
+past investigations or faulty setups from before."
+
+- A permanent thread covers a **lasting part of the stream** that will keep
+  getting asks however today's setup looks: what viewers see or hear, how
+  the broadcast is assembled, how it reacts to viewers, what it costs, the
+  avatars. Or a process every PR goes through (the roles above).
+- Never for a fix, a bug hunt, an investigation or a feature build. Those
+  are issue threads, even when they run for days.
+- A charter describes the domain as it should work, from the docs and the
+  current setup. It doesn't inherit an investigation thread's history or a
+  past faulty setup; open bugs stay with their issue threads, and what they
+  learn reaches the expert as Learnings when they finish.
 
 Not experts: vertical canvas and layout stay with Design system (Rotom). The
 Defiant thread ("Connect to OBS on Defiant") is the hands on AJ's PC: it
