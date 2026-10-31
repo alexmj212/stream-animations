@@ -170,6 +170,35 @@ OBS: Docks > Custom Browser Docks, name "Game Picker", URL
 (Tools > WebSocket Server Settings). Check it without OBS:
 `npm run gamepicker:check`.
 
+### Audio Routing (OBS dock)
+A flow chart of where OBS's sound goes, in its own dock. Left to right:
+every source whose sound reaches OBS's tracks (with its audio filters as
+icons, in chain order; a faded icon is a disabled filter), the Game
+Switcher's channels as boxes holding their apps, tracks 1-6 with the names
+from OBS's output settings, and the outputs that take each track (Stream,
+Twitch VOD, Recording, Replay buffer) plus Monitor (your headphones). Each
+output says which tracks it takes and shows LIVE or REC while it runs.
+
+- Drag from a source's dot (or a channel's) to a track to put it on that
+  track. Drag a track's left dot to a source works too.
+- Drag a wire to another track to move it, or away to take it off. Click a
+  wire and press × (or Delete) to take it off. Undo puts changes back.
+- Drop a source on Monitor to hear it (Monitor and Output); unplug its
+  Monitor wire to stop.
+- A channel moves every app in it and saves the tracks the Game Switcher
+  gives its next app.
+- Anything joining the Twitch VOD track asks first (music there can get
+  the VOD muted). While a stream or recording runs, a change to a track it takes asks for
+  one confirm first.
+- Hover a box to bring its wires forward. "On program only" hides sources
+  that aren't on air right now. Output settings are read-only here.
+
+**URL**: `audiorouting/index.html` (`password`, `obs`, as the Game Switcher)
+
+OBS: Docks > Custom Browser Docks, name "Audio Routing", URL
+`https://alexmj212.dev/stream-animations/audiorouting/?password=<websocket password>`.
+Check it without OBS: `npm run audiorouting:check`.
+
 ### Background Animation
 Subtle continuously looping background with drifting bars.
 
