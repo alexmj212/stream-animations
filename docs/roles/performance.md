@@ -49,7 +49,8 @@ they change.
 | Task Manager's single GPU number is roughly the busiest engine: compare engines, not totals | `docs/PERFORMANCE.md` |
 | A hidden browser source that keeps drawing costs GPU in every scene unless "Shutdown source when not visible" is on or the page pauses itself | `docs/PERFORMANCE.md` |
 | Owed since v1.0: a real-OBS validation and the 8-hour soak | `docs/PERFORMANCE.md`, QA charter |
-| After a GPU reset (TDR: Windows nvlddmkm event 153, OBS log "Device Remove/Reset"), OBS rebuilds its own assets but NVIDIA video effects (Background Removal) can stay broken, passing frames through untouched, until the filter is rebuilt or OBS restarts | Camera transparency issue thread, 2026-10-31 |
+| After a GPU reset (TDR: Windows nvlddmkm event 153, OBS log "Device Remove/Reset"), OBS rebuilds its own assets but NVIDIA video effects (Background Removal) can stay broken, passing frames through untouched. Toggling the filter doesn't recover it; only an OBS restart does (`npm run obs:restart`). Symptom details: `obs.md` Learnings, 2026-10-31 | Camera transparency issue thread, 2026-10-31; #145 |
+| Browser 3 (vtuber) renders at 1280x720 since 2026-10-31 (Vtuber scene 31% to 27% 3D). It keeps "Shutdown source when not visible" off on purpose: it reloads and loses state when shown. Capping it or Discoball at 30 fps changes the look, so it is AJ's call through Design review | Cut OBS idle GPU usage thread, 2026-10-30 and 2026-10-31 |
 
 ## How to answer an issue thread
 
@@ -133,3 +134,4 @@ side-by-side mocks.
 | 2026-10-29 | Rotated `drawImage` costs about 3.5x a plain one in Chromium's software raster, in OBS too. Stamp pre-turned sprites, baked only as large as the visible pixels | Spheal march, `docs/PERFORMANCE.md` | sprite-heavy pages | active |
 | 2026-10-30 | OBS's own GPU (encoders, canvases, NVIDIA filters) outweighed every browser page combined. Look at outputs and canvases before tuning pages | `docs/PERFORMANCE.md`, "OBS GPU" | OBS cost questions | active |
 | 2026-10-31 | When an NVIDIA effect or GPU feature in OBS stops working, read the OBS log and the Windows System log for a device reset ("Device Remove/Reset", event 153) before comparing settings. I pointed the camera transparency thread at a Move action change; the cause was a GPU reset at 12:15 local that the Background Removal filter never recovered from | Camera transparency issue thread, 2026-10-31 | OBS GPU questions; first step of any "stopped working" ask | active |
+| 2026-10-31 | Before `message_thread`, look up the target thread id (`list_threads`) and send the real message in that one call; never send a placeholder. I sent a stray "wrong thread placeholder" to the vault thread while hunting for an id | This thread, 2026-10-31 | messaging other threads | active |
