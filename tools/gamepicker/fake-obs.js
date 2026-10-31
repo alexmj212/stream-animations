@@ -82,12 +82,17 @@ const minimised = new Set(['Telegram.exe']);
  *   on Defiant (2026-10-30)
  * @param {string[]} [opts.windowBlackExes] - window capture shows these
  *   black (exclusive fullscreen)
+ * @param {boolean} [opts.routing] - add the rest of AJ's sound for the audio
+ *   routing dock (tools/audiorouting/check.js): browser pages with and
+ *   without "Control audio via OBS", a media file, App Audio in channels,
+ *   and the profile's output settings
  * @returns {Promise<{url: string, state: Object, close: Function}>}
  */
 export async function startFakeObs({
     password = 'pw',
     gameExes = ['RACCOIN.exe', 'Balatro.exe', 'mGBA.exe'],
-    windowBlackExes = ['Balatro.exe']
+    windowBlackExes = ['Balatro.exe'],
+    routing = false
 } = {}) {
     const tracks = list => Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [String(n), list.includes(n)]));
     const audio = (volume, trackList, filters, monitor = 'OBS_MONITORING_TYPE_NONE') => ({
@@ -124,6 +129,45 @@ export async function startFakeObs({
         appPeak: 0.05,              // App Audio peak (multiplier) the meters report
         log: []
     };
+    // Output settings as on Defiant (memory, 2026-10-31): advanced mode,
+    // stream track 1, Twitch VOD track 2, recording tracks 1-3
+    state.profile = {
+        'Output.Mode': 'Advanced', 'AdvOut.TrackIndex': '1', 'AdvOut.VodTrackEnabled': 'true', 'AdvOut.VodTrackIndex': '2',
+        'AdvOut.RecType': 'Standard', 'AdvOut.RecTracks': '7', 'AdvOut.Track1Name': 'Stream', 'AdvOut.Track2Name': 'VOD',
+        'AdvOut.Track3Name': 'Mic + alerts'
+    };
+    state.outputs = { stream: false, record: false, replay: false };
+    if (routing) {
+        // Kinds, tracks and filters as in Archive_1-20261031.json
+        Object.assign(state.inputs, {
+            'Mic': { ...audio(0.5, [1, 2, 3, 4, 5, 6], [
+                filter('NVIDIA Noise Removal', 'nvidia_audiofx_filter'), filter('Noise Gate', 'noise_gate_filter'),
+                filter('Upward Compressor', 'upward_compressor_filter'), filter('Compressor', 'compressor_filter'),
+                filter('Expander', 'expander_filter'), filter('3-Band Equalizer', 'basic_eq_filter'),
+                filter('Limiter', 'limiter_filter'), filter('VST 2.x Plug-in', 'vst_filter')
+            ]), kind: 'wasapi_input_capture' },
+            'Twitch Alerts': { ...audio(1, [1, 2, 3, 4, 5, 6], [], 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'), kind: 'browser_source', settings: { reroute_audio: true } },
+            'Chatbox': { ...audio(1, [1, 2, 3, 4, 5, 6], [filter('Stroke', 'obs_stroke_filter')]), kind: 'browser_source', settings: { reroute_audio: false } },
+            'Applause': { ...audio(1, [1, 2, 3, 4, 5, 6], []), kind: 'ffmpeg_source', monitor: 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT' },
+            // Monitor Only: heard locally, on no track, though tracks 1-2 are ticked
+            'Cue Tone': { ...audio(1, [1, 2], [], 'OBS_MONITORING_TYPE_MONITOR_ONLY'), kind: 'ffmpeg_source' },
+            'App Audio: firefox.exe (Game)': { ...audio(0.1, [1, 2, 4, 5, 6], [filter('Gain', 'gain_filter'), filter('Limiter', 'limiter_filter')]), kind: 'wasapi_process_output_capture' },
+            'App Audio: Spotify.exe (Music)': { ...audio(0.03, [1, 4, 5, 6], [filter('Spotify Fade Up', 'move_audio_value_filter'), filter('Limiter', 'limiter_filter')]), kind: 'wasapi_process_output_capture' }
+        });
+        state.inputs['Ext Capture (B)'].muted = true;
+        state.inputs['Ext Capture (B)'].filters[0].filterEnabled = false;
+        state.audioScene.push({ id: 90, name: 'App Audio: firefox.exe (Game)' }, { id: 91, name: 'App Audio: Spotify.exe (Music)' });
+        state.persistent['gamePicker.channels'] = {
+            channels: [
+                { id: 'game', label: 'Game', tracks: null, copyFrom: 'Local Game (A)' },
+                { id: 'music', label: 'Music', tracks: null, copyFrom: 'BG Music' },
+                { id: 'ch-voice', label: 'Voice chat', tracks: [1, 2], copyFrom: null }
+            ],
+            mix: {}
+        };
+        // Applause sits in a scene that isn't on program
+        state.inactive = new Set(['Applause']);
+    }
     const lit = solidPng(16, 9, [70, 140, 220]);
     const black = solidPng(16, 9, [0, 0, 0]);
     // Realtek's dark UI: near-black with one line of light text, so a mean
@@ -205,8 +249,34 @@ export async function startFakeObs({
             state.audioScene = state.audioScene.filter(i => i.id !== sceneItemId);
             return {};
         },
-        GetInputAudioTracks: ({ inputName }) => ({ inputAudioTracks: { ...input(inputName).tracks } }),
-        SetInputAudioTracks: ({ inputName, inputAudioTracks }) => { Object.assign(input(inputName).tracks, inputAudioTracks); return {}; },
+        GetInputAudioTracks: ({ inputName }) => {
+            if (!input(inputName).tracks) throw new Error('The specified input does not support audio.');
+            return { inputAudioTracks: { ...input(inputName).tracks } };
+        },
+        SetInputAudioTracks: ({ inputName, inputAudioTracks }) => {
+            Object.assign(input(inputName).tracks, inputAudioTracks);
+            broadcast('InputAudioTracksChanged', { inputName, inputAudioTracks: { ...input(inputName).tracks } });
+            return {};
+        },
+        GetInputAudioMonitorType: ({ inputName }) => {
+            if (!input(inputName).tracks) throw new Error('The specified input does not support audio.');
+            return { monitorType: input(inputName).monitor };
+        },
+        GetSourceActive: ({ sourceName }) => {
+            input(sourceName);
+            const active = !state.inactive?.has(sourceName);
+            return { videoActive: active, videoShowing: active };
+        },
+        GetProfileParameter: ({ parameterCategory, parameterName }) => {
+            const v = state.profile[`${parameterCategory}.${parameterName}`];
+            return { parameterValue: v ?? null, defaultParameterValue: null };
+        },
+        GetStreamStatus: () => ({ outputActive: state.outputs.stream }),
+        GetRecordStatus: () => ({ outputActive: state.outputs.record }),
+        GetReplayBufferStatus: () => {
+            if (state.outputs.replay === null) throw new Error('Replay buffer is not available.');
+            return { outputActive: state.outputs.replay };
+        },
         GetInputVolume: ({ inputName }) => {
             const v = input(inputName).volume;
             return { inputVolumeMul: v, inputVolumeDb: 20 * Math.log10(v) };
@@ -223,7 +293,11 @@ export async function startFakeObs({
             state.persistent[slotName] = JSON.parse(JSON.stringify(slotValue));
             return {};
         },
-        SetInputAudioMonitorType: ({ inputName, monitorType }) => { input(inputName).monitor = monitorType; return {}; },
+        SetInputAudioMonitorType: ({ inputName, monitorType }) => {
+            input(inputName).monitor = monitorType;
+            broadcast('InputAudioMonitorTypeChanged', { inputName, monitorType });
+            return {};
+        },
         GetSourceFilterList: ({ sourceName }) => ({ filters: input(sourceName).filters.map(f => ({ ...f })) }),
         CreateSourceFilter: ({ sourceName, filterName, filterKind, filterSettings }) => {
             input(sourceName).filters.push({ filterName, filterKind, filterSettings: { ...filterSettings }, filterEnabled: true });
@@ -276,6 +350,7 @@ export async function startFakeObs({
                         { inputName: 'Local Game (A)', inputLevelsMul: [[0.05, 0.18, 0.2], [0.05, 0.16, 0.2]] },
                         { inputName: 'Ext Capture (B)', inputLevelsMul: [[0, 0, 0], [0, 0, 0]] },
                         { inputName: 'BG Music', inputLevelsMul: [[0.01, 0.04, 0.5], [0.01, 0.04, 0.5]] },
+                        ...(routing ? [{ inputName: 'Mic', inputLevelsMul: [[0.02, 0.12, 0.3], [0.02, 0.12, 0.3]] }] : []),
                         ...Object.keys(state.inputs).filter(n => n.startsWith('App Audio: ')).map(inputName =>
                             ({ inputName, inputLevelsMul: [[0, state.appPeak, 0], [0, state.appPeak, 0]] }))
                     ] } } })), 50);
@@ -300,6 +375,12 @@ export async function startFakeObs({
         windowBlackExes,
         /** Un-minimise a window: the window capture lists it again. */
         restore: exe => minimised.delete(exe),
+        /** Start or stop an output, with OBS's event. */
+        setOutput: (id, active) => {
+            state.outputs[id] = active;
+            const ev = { stream: 'StreamStateChanged', record: 'RecordStateChanged', replay: 'ReplayBufferStateChanged' }[id];
+            broadcast(ev, { outputActive: active });
+        },
         /** Change an input the way the source properties do, with OBS's event. */
         setFromProperties: (inputName, settings) => handlers.SetInputSettings({ inputName, inputSettings: settings }),
         close: () => new Promise(r => { for (const c of wss.clients) c.terminate(); wss.close(r); })

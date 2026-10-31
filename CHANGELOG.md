@@ -4,6 +4,15 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.14.0 - 2026-10-31
+
+- New Audio Routing dock, an OBS Custom Browser Dock that draws the audio
+  as a flow chart: sources with their filters, Game Switcher channels,
+  tracks 1-6 and the outputs that take them. Drag to connect, move or
+  unplug a source's tracks, with undo and a confirm before changing a
+  track a running output uses. Add it in OBS under Docks > Custom
+  Browser Docks at `audiorouting/?password=...`. ([#131])
+
 ## v2.13.2 - 2026-10-31
 
 - The Game Switcher now copies a music app's volume fade filters along
@@ -285,3 +294,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#124]: https://github.com/alexmj212/stream-animations/pull/124
 [#126]: https://github.com/alexmj212/stream-animations/pull/126
 [#129]: https://github.com/alexmj212/stream-animations/pull/129
+[#131]: https://github.com/alexmj212/stream-animations/pull/131

@@ -1483,6 +1483,22 @@ export const config = {
     storageKey: 'gamePicker:v1'
   },
 
+  // Audio Routing dock (AJ, 2026-10-31): a flow chart of every OBS input
+  // with sound, the Game Switcher's channels, tracks 1-6 and the outputs
+  // that take them; drag to connect. Its own dock, not a Game Switcher tab
+  // (AJ: "make this visual editor a different dock"). Reads the Game
+  // Switcher's channels (config.gamePicker.audio.dataSlot) but not its setup
+  audioRouting: {
+    // OBS events come in bursts (a scene switch sends several), so one
+    // re-read of everything this long after the last
+    refreshDebounceMs: 150,
+    // Output settings and the program scene's sources have no event of
+    // their own: re-read when the pointer arrives, at most this often
+    pointerRefreshMs: 4000,
+    undoMax: 20,
+    storageKey: 'audioRouting:v1'
+  },
+
   // Shared configuration across all scenes
   shared: {
     // Timing patterns (millisecond-based, consistent across scenes)

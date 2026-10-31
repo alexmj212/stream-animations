@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audio Routing</title>
+    <style>
+      :root {
+        --bg: #1e1f29;
+        --panel: #272935;
+        --sunk: #22232e;
+        --line: #3a3d4d;
+        --text: #e8e8f0;
+        --dim: #9a9cb0;
+        --accent: #b00bee;
+        --ok: #4fd18b;
+        --bad: #ff6b6b;
+        --green: #3ecf6e;
+        --yellow: #e8d13a;
+        --red: #ff4d4d;
+        --monitor: #f0a640;
+        --t1: #5aa9ff; --t2: #3ecf6e; --t3: #e8d13a; --t4: #ff8a4c; --t5: #ff6fae; --t6: #a68bff;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.35 system-ui, "Segoe UI", sans-serif;
+        overflow: hidden;
+      }
+      body.busy { cursor: progress; }
+      button, input { font: inherit; color: inherit; }
+      button {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+      button:hover { border-color: var(--accent); }
+      button:disabled { opacity: 0.35; cursor: default; border-color: var(--line); }
+      input[type=password] { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; min-width: 0; }
+      #app { height: 100%; display: flex; flex-direction: column; }
+
+      /* ---- header ---- */
+      #head { padding: 6px 8px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+      .bar { display: flex; align-items: center; gap: 8px; min-width: 0; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; }
+      .dot.ok { background: var(--ok); }
+      .dot.bad { background: var(--bad); }
+      #title { font-weight: 600; }
+      #status { font-size: 11px; color: var(--dim); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #status.bad { color: var(--bad); }
+      #head label { font-size: 11px; color: var(--dim); display: flex; gap: 3px; align-items: center; white-space: nowrap; }
+      #note { color: var(--yellow); font-size: 12px; }
+      #note:empty { display: none; }
+      #auth { display: flex; flex-wrap: wrap; gap: 6px; }
+      #auth[hidden] { display: none; }
+      #auth input { flex: 1; }
+      #auth small { flex-basis: 100%; color: var(--dim); }
+      #confirm { display: flex; gap: 6px; align-items: center; background: #3a1f28; border: 1px solid var(--bad); border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+      #confirm[hidden] { display: none; }
+      #confirm span { flex: 1; }
+      #confirmYes { border-color: var(--bad); }
+      #liveBadge { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: #fff; background: var(--red); border-radius: 3px; padding: 1px 5px; }
+      #liveBadge[hidden] { display: none; }
+
+      /* ---- chart: four columns with wires drawn behind ---- */
+      #chart { flex: 1; min-height: 0; overflow: auto; position: relative; }
+      #grid {
+        position: relative; min-width: 560px; padding: 8px 10px 16px;
+        display: grid; grid-template-columns: minmax(170px, 1.3fr) minmax(104px, 0.8fr) minmax(112px, 0.8fr);
+        column-gap: 72px; align-items: start;
+      }
+      #wires { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
+      .col { display: flex; flex-direction: column; gap: 5px; position: relative; z-index: 1; min-width: 0; pointer-events: none; }
+      .col > * { pointer-events: auto; }
+      .col.sticky { position: sticky; top: 8px; }
+      .col h2 { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); margin: 0 0 1px; white-space: nowrap; }
+      .group { font-size: 10px; color: var(--dim); margin: 6px 0 0; }
+      .group:first-of-type { margin-top: 0; }
+
+      .node {
+        position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 5px;
+        padding: 4px 8px; min-height: 30px; display: flex; flex-direction: column; justify-content: center; min-width: 0;
+      }
+      .node .name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 5px; align-items: center; }
+      .node .name span { overflow: hidden; text-overflow: ellipsis; }
+      .node .sub { font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .node.off { opacity: 0.55; }
+      .node.muted .name::after { content: "muted"; font-size: 9px; color: var(--bad); border: 1px solid var(--bad); border-radius: 3px; padding: 0 3px; }
+      .node.drop-ok { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+      .node.drop-hot { background: #3a2a48; }
+      .sig { width: 7px; height: 7px; border-radius: 50%; background: var(--line); flex: none; }
+      .node[data-act=live] .sig { background: var(--green); box-shadow: 0 0 4px var(--green); }
+      .node[data-act=red] .sig { background: var(--red); box-shadow: 0 0 4px var(--red); }
+      .node.muted .sig { background: var(--line); box-shadow: none; }
+
+      /* filter chain: one icon a filter, in order */
+      .fx { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 2px; }
+      .fx svg { width: 14px; height: 14px; color: #c9b4e0; flex: none; }
+      .fx svg.off { opacity: 0.3; }
+
+      /* ports: drag from one to make a connection */
+      .port {
+        position: absolute; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%;
+        background: var(--bg); border: 2px solid var(--dim); cursor: crosshair; touch-action: none;
+      }
+      .port:hover { border-color: var(--accent); background: var(--accent); }
+      .port.out { right: -7px; }
+      .port.in { left: -7px; }
+      .node.track { border-left: 4px solid var(--tc); }
+      .node.track .port { border-color: var(--tc); }
+      .node.track.unused .name { color: var(--dim); }
+      .badges { display: flex; gap: 3px; flex-wrap: wrap; }
+      .badge { font-size: 9px; font-weight: 600; border-radius: 3px; padding: 0 4px; background: var(--sunk); color: var(--dim); border: 1px solid var(--line); }
+      .badge.run { color: #fff; background: #5a2330; border-color: var(--red); }
+      .node.output .name .state { font-size: 9px; font-weight: 700; color: var(--dim); }
+      .node.output.running { border-color: var(--red); }
+      .node.output.running .state { color: var(--red); }
+      .node.monitor { border-left: 4px solid var(--monitor); }
+      .node.chan { border-left: 4px solid var(--accent); }
+      .member { display: flex; flex-direction: column; padding: 2px 0 2px 6px; border-left: 1px solid var(--line); margin-top: 3px; }
+      .member .name { font-weight: 400; font-size: 12px; }
+      .member.off { opacity: 0.55; }
+      .member.muted .name::after { content: "muted"; font-size: 9px; color: var(--bad); border: 1px solid var(--bad); border-radius: 3px; padding: 0 3px; }
+      .member[data-act=live] .sig { background: var(--green); box-shadow: 0 0 4px var(--green); }
+      .member[data-act=red] .sig { background: var(--red); box-shadow: 0 0 4px var(--red); }
+      .member.muted .sig { background: var(--line); box-shadow: none; }
+
+      /* wires: colour of the track they land on */
+      #wires path { fill: none; stroke-linecap: round; }
+      #wires .w { stroke-width: 2; opacity: 0.55; }
+      #wires .w.live { opacity: 1; stroke-width: 2.5; }
+      #wires .w.dashed { stroke-dasharray: 5 4; }
+      #wires .w.dim { opacity: 0.22; }
+      #wires .w.out { stroke-width: 3; opacity: 0.7; }
+      #wires .w.sel { opacity: 1; stroke-width: 3.5; filter: drop-shadow(0 0 3px #fff8); }
+      #wires.focus .w:not(.hl) { opacity: 0.07; }
+      #wires .w.hl { opacity: 1; stroke-width: 2.5; }
+      #wires .w.ghost { opacity: 0.12; }
+      #wires .hit { stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: grab; }
+      #wires .drag { stroke: #fff; stroke-width: 2; stroke-dasharray: 4 4; opacity: 0.9; }
+      #unplug {
+        position: absolute; z-index: 3; width: 20px; height: 20px; padding: 0; margin: -10px 0 0 -10px; border-radius: 50%;
+        line-height: 16px; font-size: 13px; background: var(--bad); border-color: #fff; color: #fff;
+      }
+      #unplug[hidden] { display: none; }
+      #help { font-size: 11px; color: var(--dim); padding: 0 10px 8px; }
+    </style>
+  </head>
+  <body>
+    <!-- Filter icons, one symbol a kind (routing.js audioFilters) -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-denoise" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 9c1.2-3 2.3 3 3.5 0s2.3 3 3.5 0 2.3 3 3.5 0 2.3 3 3.5 0"/><path d="M3 14 13 3"/></symbol>
+        <symbol id="i-gate" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 2v12M13 2v12M3 5h10M3 11h10M8 5v6"/></symbol>
+        <symbol id="i-compressor" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v5M5.5 3.5 8 6l2.5-2.5M8 15v-5M5.5 12.5 8 10l2.5 2.5M2 8h12"/></symbol>
+        <symbol id="i-upward" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14h12M8 12V3M5 6l3-3 3 3"/></symbol>
+        <symbol id="i-expander" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6V1M5.5 3.5 8 1l2.5 2.5M8 10v5M5.5 12.5 8 15l2.5-2.5M2 8h12"/></symbol>
+        <symbol id="i-limiter" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3.5h14" stroke-width="2"/><path d="M1 14c1.5-6 3-8.5 4.5-8.5h5C12 5.5 13.5 8 15 14"/></symbol>
+        <symbol id="i-gain" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 8l3.5-3.5"/></symbol>
+        <symbol id="i-eq" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 2v12M8 2v12M12 2v12"/><path d="M2.5 10h3M6.5 5h3M10.5 8h3" stroke-width="2.2"/></symbol>
+        <symbol id="i-vst" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 1v4M10.5 1v4M3 5h10v2.5a5 5 0 0 1-10 0zM8 12.5V15"/></symbol>
+        <symbol id="i-delay" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></symbol>
+        <symbol id="i-invert" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5"/><path d="M2.5 13.5l11-11"/></symbol>
+        <symbol id="i-automation" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 13h3.5l7-10H15"/><circle cx="4.5" cy="13" r="1.2" fill="currentColor"/><circle cx="11.5" cy="3" r="1.2" fill="currentColor"/></symbol>
+        <symbol id="i-other" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 10V6l3 2.5L11 6v4"/></symbol>
+      </defs>
+    </svg>
+
+    <div id="app">
+      <header id="head">
+        <div class="bar">
+          <span id="dot" class="dot"></span>
+          <span id="title">Audio Routing</span>
+          <span id="liveBadge" hidden>LIVE</span>
+          <span id="status">Starting…</span>
+          <label title="Leave out sources that aren't in the program scene right now"><input type="checkbox" id="onProgram"> On program only</label>
+          <button id="undo" disabled title="Nothing to undo">Undo</button>
+        </div>
+        <div id="note"></div>
+        <form id="auth" hidden>
+          <input type="password" id="password" placeholder="obs-websocket password" autocomplete="off">
+          <button type="submit">Connect</button>
+          <small>Kept in memory only. Add ?password= to the dock URL to skip this.</small>
+        </form>
+        <div id="confirm" hidden>
+          <span id="confirmText"></span>
+          <button id="confirmYes" type="button">Change it</button>
+          <button id="confirmNo" type="button">Cancel</button>
+        </div>
+      </header>
+      <div id="chart">
+        <div id="grid">
+          <svg id="wires"></svg>
+          <div class="col" id="colSources"><h2>Sources</h2></div>
+          <div class="col sticky" id="colTracks"><h2>Tracks</h2></div>
+          <div class="col sticky" id="colOutputs"><h2>Outputs</h2></div>
+          <button id="unplug" type="button" hidden title="Disconnect">×</button>
+        </div>
+        <div id="help">Drag from a dot to a track (or Monitor) to connect. Drag a wire away, or click it and press ×, to disconnect. Changes go to OBS straight away; Undo puts them back.</div>
+      </div>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
