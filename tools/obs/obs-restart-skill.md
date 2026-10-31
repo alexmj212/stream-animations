@@ -35,8 +35,13 @@ broken.
 
 ## Steps
 
-1. In the stream-animations checkout on Defiant, run `git pull`. It needs
-   Node 22 or newer (`node --version`).
+1. In the stream-animations checkout on Defiant (the WSL one; Windows has no
+   Node), run `git pull`. It needs Node 22 or newer (`node --version`). From
+   WSL the script reaches Windows through interop (`tasklist.exe`,
+   `powershell.exe`, `/mnt/c/...`) and tries the websocket at 127.0.0.1, then
+   at the Windows host's WSL address. If neither connects, pass the address
+   OBS's Tools > WebSocket Server Settings > Show Connect Info gives:
+   `--url=ws://<ip>:4455`. The output's `url` says which one worked.
    Set `OBS_WS_PASSWORD` in the shell; never write it to a file.
 2. Run `npm run obs:restart -- --dry-run`. It must say `"ok": true`. If it
    aborts as live, stop and report. It also aborts when it can't read the

@@ -10,6 +10,9 @@
  * Mix It Up and the docks reconnect on their own; checking them is a manual
  * step in the obs-restart skill (tools/obs/obs-restart-skill.md).
  *
+ * Runs from native Windows or from WSL (Defiant's Node lives in WSL; see
+ * tools/obs/host.js).
+ *
  * Usage (from the repo on Defiant):
  *   set OBS_WS_PASSWORD=...            (never stored in the repo)
  *   npm run obs:restart -- --dry-run   checks only
@@ -17,12 +20,13 @@
  * Options: --url=ws://127.0.0.1:4455 --obs-dir="C:\Program Files\obs-studio"
  *          --shots=<dir> (default: the claude folder on the Desktop)
  */
-import { execFile, spawn } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { copyFile, readdir, readFile, stat, writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, posix, win32 } from 'node:path';
 import { ObsSocket, EVENTS } from '../../src/shared/obs.js';
 import { restartObs } from './restart-flow.js';
+import { isWsl, wslHostIps, wsCandidates, localPath } from './host.js';
 
 if (typeof globalThis.WebSocket !== 'function') {
     console.error(`obs:restart needs Node 22 or newer (global WebSocket); this is ${process.version}.`);
@@ -35,25 +39,51 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
     return [k, v.length ? v.join('=') : true];
 }));
 
-const url = args.url || 'ws://127.0.0.1:4455';
+const read = p => readFile(p, 'utf8').catch(() => '');
+const wsl = isWsl({ platform: process.platform, env: process.env, procVersion: await read('/proc/version') });
+// Windows tools: under WSL they are reached through interop by their .exe name.
+const exe = name => (wsl ? `${name}.exe` : name);
+const winEnv = async name => {
+    if (!wsl) return process.env[name] || '';
+    const { stdout } = await run('cmd.exe', ['/c', `echo %${name}%`], { cwd: '/mnt/c' });
+    return stdout.trim();
+};
+const P = wsl ? posix : win32;
+
+const hostIps = wsl
+    ? wslHostIps((await run('ip', ['route', 'show', 'default']).catch(() => ({ stdout: '' }))).stdout,
+        await read('/etc/resolv.conf'))
+    : [];
+const urls = wsCandidates(args.url, hostIps);
 const password = process.env.OBS_WS_PASSWORD || '';
 const obsDir = args['obs-dir'] || 'C:\\Program Files\\obs-studio';
-const appData = process.env.APPDATA || '';
-const sceneFile = join(appData, 'obs-studio', 'basic', 'scenes', 'Archive_1.json');
-const logDir = join(appData, 'obs-studio', 'logs');
-const shotDir = args.shots || join(process.env.USERPROFILE || '', 'OneDrive', 'Desktop', 'claude');
+const appData = localPath(await winEnv('APPDATA'), wsl);
+const sceneFile = P.join(appData, 'obs-studio', 'basic', 'scenes', 'Archive_1.json');
+const logDir = P.join(appData, 'obs-studio', 'logs');
+const shotDir = args.shots || P.join(localPath(await winEnv('USERPROFILE'), wsl), 'OneDrive', 'Desktop', 'claude');
 
 const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
 
+let goodUrl = null;
 async function connect() {
-    const obs = new ObsSocket({ url, password, events: EVENTS.GENERAL });
-    await obs.connect();
-    obs.close = async () => obs.ws?.close();
-    return obs;
+    let last;
+    for (const url of goodUrl ? [goodUrl] : urls) {
+        const obs = new ObsSocket({ url, password, events: EVENTS.GENERAL });
+        try {
+            await obs.connect();
+        } catch (e) {
+            last = new Error(`${url}: ${e.message}`);
+            continue;
+        }
+        goodUrl = url;
+        obs.close = async () => obs.ws?.close();
+        return obs;
+    }
+    throw last;
 }
 
 async function isRunning() {
-    const { stdout } = await run('tasklist', ['/FI', 'IMAGENAME eq obs64.exe', '/NH']);
+    const { stdout } = await run(exe('tasklist'), ['/FI', 'IMAGENAME eq obs64.exe', '/NH']);
     return /obs64\.exe/i.test(stdout);
 }
 
@@ -61,11 +91,12 @@ async function logLines(sinceMs) {
     const files = await readdir(logDir);
     let newest = null;
     for (const f of files.filter(f => f.endsWith('.txt'))) {
-        const s = await stat(join(logDir, f));
-        if (!newest || s.mtimeMs > newest.mtimeMs) newest = { f, mtimeMs: s.mtimeMs, birth: s.birthtimeMs };
+        const s = await stat(P.join(logDir, f));
+        if (!newest || s.mtimeMs > newest.mtimeMs) newest = { f, mtimeMs: s.mtimeMs };
     }
-    if (!newest || newest.birth < sinceMs - 5000) return ['(no OBS log created since the relaunch)'];
-    return (await readFile(join(logDir, newest.f), 'utf8')).split(/\r?\n/);
+    // OBS names a log after its start time; birthtime isn't reliable on WSL's /mnt/c.
+    if (!newest || newest.mtimeMs < sinceMs) return ['(no OBS log written since the relaunch)'];
+    return (await readFile(P.join(logDir, newest.f), 'utf8')).split(/\r?\n/);
 }
 
 const summary = await restartObs({
@@ -77,16 +108,20 @@ const summary = await restartObs({
     },
     // taskkill without /F sends WM_CLOSE: the same as closing the window,
     // so OBS saves the scene collection and Aitum's config on the way out.
-    closeObs: async () => { await run('taskkill', ['/IM', 'obs64.exe']); },
+    closeObs: async () => { await run(exe('taskkill'), ['/IM', 'obs64.exe']); },
     isRunning,
+    // Start-Process gives OBS its own folder as working directory (it needs
+    // it) and returns at once, from Windows or from WSL alike.
     launchObs: async () => {
-        const cwd = join(obsDir, 'bin', '64bit'); // OBS needs its own folder as cwd
-        spawn(join(cwd, 'obs64.exe'), [], { cwd, detached: true, stdio: 'ignore' }).unref();
+        const dir = win32.join(obsDir, 'bin', '64bit').replace(/'/g, "''");
+        await run(exe('powershell'), ['-NoProfile', '-Command',
+            `Start-Process -FilePath '${dir}\\obs64.exe' -WorkingDirectory '${dir}'`],
+        wsl ? { cwd: '/mnt/c' } : {});
     },
     logLines,
     saveShot: async (name, dataUrl) => {
         await mkdir(shotDir, { recursive: true });
-        const path = join(shotDir, `${name}-${stamp()}.png`);
+        const path = P.join(shotDir, `${name}-${stamp()}.png`);
         await writeFile(path, Buffer.from(dataUrl.split(',')[1], 'base64'));
         return path;
     },
@@ -94,5 +129,7 @@ const summary = await restartObs({
     log: msg => console.error(msg)
 }, { dryRun: !!args['dry-run'], cameraCheck: !!args.camera });
 
+summary.runFrom = wsl ? 'wsl' : process.platform;
+summary.url = goodUrl || urls;
 console.log(JSON.stringify(summary, null, 2));
 process.exit(summary.ok ? 0 : 1);
