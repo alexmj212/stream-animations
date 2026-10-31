@@ -54,8 +54,9 @@ out the door." Run the most efficient workflow with the fewest approval stops.
 ## Work together
 
 AJ (2026-10-28): all threads coordinate with each other. The permanent role
-threads are code review, design review, release management and QA
-(`docs/roles/README.md`); everything else is a work thread.
+threads are code review, design review, release management and QA, and the
+domain expert threads (2026-10-31) advise on each part of the stream
+(`docs/roles/README.md`); everything else is an issue (work) thread.
 
 - **Before you start**, check whether another thread owns the files or the
   area you are about to change. Agree on who owns which paths, and keep off the
@@ -70,6 +71,32 @@ threads are code review, design review, release management and QA
   owns it. Don't edit another role's charter yourself.
 - Message only when there's something to act on. Status updates belong in
   your own thread.
+
+### Experts facilitate, issue threads own (binding)
+
+AJ (2026-10-31): permanent **expert threads**, one per part of the stream,
+"are referred to when issue threads are needing assistance, they should
+facilitate the issue threads not take them over". This is how the project
+is configured, and the flow "cannot be subverted unless there is an extreme
+circumstance". Roster and details: `docs/roles/README.md`.
+
+- **The issue thread owns its ask** from start to finish: the investigation,
+  the branch, the PR and the reply to AJ. Nobody else does its work.
+- **Experts advise.** They answer from history, name the rules and the
+  skill to use, review a risky approach in their domain, and build a skill
+  when an ask repeats. They never push to an issue thread's branch, open a
+  competing PR, re-run an investigation the issue thread already did, or
+  reply to AJ about the issue.
+- **Ask the expert early**: before changing something in its domain, send
+  the expert the plan in one message and act on its answer. Ask again when
+  stuck. When done, send it one line on what you learned.
+- **The coordinator starts one issue thread per ask** and names the experts
+  it should consult. It doesn't hand an issue to an expert.
+- **Extreme circumstance** only: AJ is live and something on stream is
+  broken, or an action is causing harm right now (for example alerts posting
+  to Twitch chat). Then the nearest able thread may act directly, says so
+  in its own thread, and hands back to the issue thread and the expert
+  straight after. AJ can also override the flow in words.
 
 ## Where things are documented
 
