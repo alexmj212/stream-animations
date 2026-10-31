@@ -82,9 +82,11 @@ Each cites its source; send the relevant ones with every recipe.
 1. **Never while AJ is live**, and never a deploy then either (AJ,
    2026-10-28). The only exception is the extreme circumstance in
    `CLAUDE.md`.
-2. **Only the Defiant thread touches AJ's PC**, through the coordinator
-   (AJ, 2026-10-31). Issue threads send it a recipe; this expert reviews any
-   recipe that changes OBS before it runs.
+2. **Changes to OBS on AJ's PC go through the Defiant thread**, via the
+   coordinator (AJ's project instructions, 2026-10-31; `docs/roles/README.md`
+   on #137: "the hands on AJ's PC"). Read-only folder access granted to
+   other threads doesn't change this. Issue threads send it a recipe; this
+   expert reviews any recipe that changes OBS before it runs.
 3. **Back up first**: copy `Archive_1.json` (and the MIU `.db3` or Aitum
    config when touched) to `*.bak-<yyyymmdd-hhmmss>` and name the backup in
    the thread.
