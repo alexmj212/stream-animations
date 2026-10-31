@@ -105,10 +105,11 @@ side-by-side mocks.
    small PR through Code review.
 4. Run the `improve` retro after every request (`docs/IMPROVING.md`,
    "Permanent threads improve unprompted"). The same question twice means
-   the third answer is a script or skill step: the planned ones are
-   `bench-compare` (main vs branch, Frame CPU and Canvas calls in one
-   table) and `gpu-check` (OBS GPU per engine plus the top sources in one
-   command, sent to Defiant as a ready recipe for a before and after log).
+   the third answer is a script or skill step. Built: `gpu-check`
+   (`.claude/skills/gpu-check/`, 2026-10-31), the off-air before and after
+   recipe for any OBS change, with a CPU step for bursts. Hand it to issue
+   threads instead of writing the recipe out. Planned: `bench-compare`
+   (main vs branch, Frame CPU and Canvas calls in one table).
 5. Weekly, on a self-scheduled reminder: look back over this thread's
    answers for the one rebuilt most often, and turn it into a script.
 
