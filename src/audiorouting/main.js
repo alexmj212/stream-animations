@@ -602,7 +602,7 @@ $('confirmYes').addEventListener('click', () => {
     closeConfirm();
     if (!p) return;
     // by identity: a change applied while this confirm was open is on top now (code review, #131)
-    if (p.isUndo) undoStack.splice(undoStack.lastIndexOf(p.change), 1);
+    if (p.isUndo) dropUndo(p.change);
     apply(p.change, p.isUndo);
 });
 $('confirmNo').addEventListener('click', closeConfirm);
@@ -660,6 +660,11 @@ async function apply(change, isUndo = false) {
     }
 }
 
+function dropUndo(change) {
+    const i = undoStack.lastIndexOf(change);
+    if (i >= 0) undoStack.splice(i, 1);
+}
+
 function updateUndo() {
     const last = undoStack[undoStack.length - 1];
     $('undo').disabled = !last;
@@ -669,7 +674,7 @@ $('undo').addEventListener('click', () => {
     const last = undoStack[undoStack.length - 1];
     if (!last) return;
     // popped once applied (here or after the confirm), so Cancel keeps it
-    if (gate(last, true)) undoStack.splice(undoStack.lastIndexOf(last), 1);
+    if (gate(last, true)) dropUndo(last);
 });
 
 function disconnect(w, moveTo = null) {
