@@ -170,6 +170,9 @@ export async function restartObs(io, opts = {}) {
         }
     }
     step('relaunched', { ms: now() - launchedAt });
+    // The websocket answers before OBS has finished loading; requests sent
+    // too early fail with "OBS is not ready" (MIU's log, 2026-10-31).
+    await io.sleep(5000);
 
     // 5. Outputs that don't start themselves (docs/roles/obs.md, "Outputs").
     const outputs = {};
