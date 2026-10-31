@@ -103,15 +103,39 @@ Each cites its source; send the relevant ones with every recipe.
    `RemoveInput` reports success but leaves an input still in a scene
    (remove the scene items first, then verify). Aitum rewrites its config
    on exit, so edit it with OBS closed.
-8. **Verify, then restore what you stopped**: re-read the changed settings,
-   take a screenshot or meter reading, and after any restart start the
-   Replay Buffer and Vertical Backtrack again.
+8. **Verify, then restore what you stopped**: re-read the changed settings
+   and take a screenshot or meter reading. An OBS restart needs AJ's OK
+   and follows the restart checklist below.
 9. **Check how a thing is used before proposing a change** (AJ,
    2026-10-29): read the MIU timings, the scene layouts and the existing
    filter intent first; only ask AJ what context can't settle.
 10. **Vault**: a change to OBS, MIU or Stream Deck wiring updates the
     matching note in `F:\exogenesis\06 Setup\` through the Defiant thread
     (`CLAUDE.md`, "AJ's streaming vault").
+
+## Restart checklist
+
+Every OBS restart, in this order (2026-10-31, camera transparency consult).
+Steps 2, 3, 5 and the log half of 6 are one command on Defiant: `npm run obs:restart`
+(`tools/obs/restart.js`, #147-#149; `--dry-run` checks only, `--camera`
+adds step 5). It stops the Replay Buffer and virtual camera first so OBS
+shows no exit prompt, and from WSL it reaches OBS through Windows Python
+(`tools/obs/obs-bridge.py`), because WSL can't reach port 4455 directly.
+
+1. AJ's OK in words, and not live (`GetStreamStatus`, `GetRecordStatus`).
+2. Back up `Archive_1.json`. Close OBS cleanly, never kill it, so the
+   collection and Aitum's config are saved; wait for `obs64.exe` to exit.
+3. After launch: `StartReplayBuffer`, then Aitum's `start_backtrack`
+   vendor call; verify both are on (neither starts itself).
+4. By hand (`tools/obs/obs-restart-skill.md`): Mix It Up reconnected to the
+   websocket (its status or log; never fire a command to test), and the
+   Game Switcher and Audio Routing docks show connected.
+5. Run the camera sequence once: a Full Camera scene, then Full 16:9 for
+   12 s (background removal on, room hidden), then back.
+6. Read the new log for errors (scripted); screenshot the vertical canvas
+   (by hand, per the skill).
+
+The stinger loads fresh on launch, so it needs no reload after a restart.
 
 ## How issue threads use this expert
 
@@ -152,3 +176,5 @@ for each, and the rollback (restore the named backup).
 | Date | Learning | Evidence | Applies to | Status |
 |---|---|---|---|---|
 | 2026-10-31 | The charter's setup map is a start point, not truth: OBS changes outside the repo, so every change starts with a read-only status check | AJ, 2026-10-31 ("agnostic of past investigations or faulty setups") | every consult | active |
+| 2026-10-31 | NVIDIA Background Removal can stay enabled yet pass frames through untouched after a GPU driver reset (log: D3D11 `887A0005`, then `error -1999` mapping the source texture). Toggling the filter or changing its mode doesn't recover it; only an OBS restart does (`npm run obs:restart`). Check the log (and Windows event nvlddmkm 153) before blaming the filter, the SDK or Move | Fix camera transparency in Full view thread, #147-#149 | camera, NVIDIA filters | active |
+| 2026-10-31 | A consult relay names the sender's session, not its thread. Map it with `list_threads` and send only finished text; a stray message once went to the wrong thread | This thread, vault and camera consults | every consult | active |
