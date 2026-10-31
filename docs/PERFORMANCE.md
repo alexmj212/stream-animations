@@ -56,10 +56,19 @@ encoders and the canvases before the pages. Target (not met as of
   engine every 5 s to `tools/gpu-results/obs-gpu-<date>.csv`, with the
   browser pages' 3D share and the whole machine beside it. Task Manager's one
   number is roughly the busiest engine, so compare engines, not totals.
+  `obs_3D` includes the browser pages; `browser_3D` is their part. A
+  counter read takes several seconds, so rows come every 8 s or more.
 - `npm run gpu:summary -- <csv> [--from=HH:MM --to=HH:MM]` gives median, p95
   and max per engine for a stretch, to compare before and after a change.
 - To find what costs what, stop one thing for 30 s while off-air, read the
   drop, and put it back.
+- Measured 2026-10-31 (Defiant, round 2): OBS's floor at 60 fps with an
+  empty program is about 12% 3D (main canvas, preview and the vertical
+  canvas). Scenes add to it: Just Chatting 40% 3D, Starting 36%, Ending 33%,
+  Vtuber 30%, Full 16:9 28%, BRB 24%, Snapshot 19%. The vtuber page costs
+  about 13% and Discoball about 9% while shown. NVIDIA Background Removal
+  costs about 19% CUDA while the cam shows; its quality setting makes no
+  difference, but processing every 2nd frame halves it.
 - A browser source that draws continuously (WebGL, video, a loop) should have
   "Shutdown source when not visible" on, or pause itself when hidden;
   otherwise it costs GPU in every scene.
