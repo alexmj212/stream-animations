@@ -25,7 +25,7 @@ circumstance"). The rules are in `CLAUDE.md`, "Experts facilitate, issue
 threads own". Each expert writes its own charter here when its thread
 starts, with the same Learnings table.
 
-| Expert | Consulted on | Skills it keeps for issue threads | Charter |
+| Expert | Consulted on | Skills to build for issue threads (planned; none exist yet except Defiant's `obs-ops`) | Charter |
 |---|---|---|---|
 | Audio | Mic chain, music levels and fades, alert and gag sound levels, no clipping and no limiters (`docs/AUDIO.md`, `npm run audio`) | `mic-diagnose`, `audio-change-proof` | `audio.md` |
 | OBS and stream setup | Scenes, sources, filters, Move automations, MIU wiring, OBS quirks on Defiant, backups and safe-change rules | The recipes the Defiant thread runs; `obs-ops` with Defiant | `obs.md` |
