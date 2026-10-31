@@ -116,7 +116,7 @@ Each cites its source; send the relevant ones with every recipe.
 ## Restart checklist
 
 Every OBS restart, in this order (2026-10-31, camera transparency consult).
-Steps 2, 3, 5 and 6 are one command on Defiant: `npm run obs:restart`
+Steps 2, 3, 5 and the log half of 6 are one command on Defiant: `npm run obs:restart`
 (`tools/obs/restart.js`, #147-#149; `--dry-run` checks only, `--camera`
 adds step 5). It stops the Replay Buffer and virtual camera first so OBS
 shows no exit prompt, and from WSL it reaches OBS through Windows Python
@@ -132,7 +132,8 @@ shows no exit prompt, and from WSL it reaches OBS through Windows Python
    Game Switcher and Audio Routing docks show connected.
 5. Run the camera sequence once: a Full Camera scene, then Full 16:9 for
    12 s (background removal on, room hidden), then back.
-6. Screenshot the vertical canvas; read the new log for errors.
+6. Read the new log for errors (scripted); screenshot the vertical canvas
+   (by hand, per the skill).
 
 The stinger loads fresh on launch, so it needs no reload after a restart.
 
