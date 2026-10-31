@@ -51,3 +51,6 @@ How an issue thread uses an expert:
 
 An expert never pushes to an issue thread's branch, opens a competing PR,
 repeats an investigation, or answers AJ about the issue.
+
+Every role and expert thread improves itself unprompted (AJ, 2026-10-31):
+see `docs/IMPROVING.md`, "Permanent threads improve unprompted".

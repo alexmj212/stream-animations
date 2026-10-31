@@ -97,6 +97,10 @@ circumstance". Roster and details: `docs/roles/README.md`.
   to Twitch chat). Then the nearest able thread may act directly, says so
   in its own thread, and hands back to the issue thread and the expert
   straight after. AJ can also override the flow in words.
+- **Permanent threads improve themselves unprompted** (AJ, 2026-10-31):
+  every role and expert thread reduces its own mistakes, adapts its charter
+  and turns repeated asks into skills without being asked. How:
+  `docs/IMPROVING.md`, "Permanent threads improve unprompted".
 
 ## Where things are documented
 
