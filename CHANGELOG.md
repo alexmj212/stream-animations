@@ -6,10 +6,11 @@ minor for new scenes, features or a visible style change, patch for fixes.
 
 ## v2.13.2 - 2026-10-31
 
-- Music fades on Starting and Ending work again once Music runs through
-  the Game Switcher. The dock now copies a music app's volume fade
-  filters along with its fader and Limiter. Reload the dock to pick it
-  up. ([#129])
+- The Game Switcher now copies a music app's volume fade filters along
+  with its fader and Limiter, so the Starting and Ending music fades can
+  drive Music once it runs through the dock. The fade scenes' Move
+  Actions also need to point at the app's input. Reload the dock to pick
+  it up. ([#129])
 
 ## v2.13.1 - 2026-10-30
 
