@@ -155,6 +155,7 @@ tools/loopcut.sh --help     # frame-exact loop cuts from OBS recordings
 - `repeat-routines`: one-command scripts for routines agents keep redoing
 - `docs-check`: catch doc drift after a source change (a commit hook prompts it)
 - `improve`: the end-of-task retro that turns lessons into durable changes
+- `gpu-check`: the off-air recipe for measuring what an OBS change costs (Performance expert)
 - `motion-create` and `motion-verify`: building and checking motion (with `docs/VALIDATION.md`)
 
 ## Conventions
