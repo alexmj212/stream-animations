@@ -43,7 +43,7 @@ they change.
 | Fact | Source |
 |---|---|
 | Page budgets: 60 fps (floor 55), p99 frame under 20 ms, under 1% dropped, under 300 MB over 8 h | `docs/PERFORMANCE.md`, `config.performance.thresholds` |
-| Harness budget: update+draw p95 ≤ 4 ms per scenario, over at least 200 drawn frames | `tools/motion/scenes.js`, `tools/motion/analyze.js` |
+| Harness budget: update+draw p95 ≤ 4 ms for most scenarios, over at least 200 drawn frames. Some have their own (epcot 20 ms, spheal 8 ms): read `workP95Ms` in `scenes.js` before quoting a number | `tools/motion/scenes.js`, `tools/motion/analyze.js` |
 | On stream the background is the epcot ball as a pre-recorded mp4 loop, not the live page; the bar background is rarely used | QA charter Learnings (2026-10-28) |
 | OBS idle target: under 10% on every GPU engine when not live (not met as of 2026-10-30). The 60 fps canvas floor alone is about 12% 3D, so the scenes on top matter more than any single page | `docs/PERFORMANCE.md`, "OBS GPU" |
 | Task Manager's single GPU number is roughly the busiest engine: compare engines, not totals | `docs/PERFORMANCE.md` |
@@ -53,7 +53,7 @@ they change.
 ## How to answer an issue thread
 
 One reply per question: the rule that applies, the exact command or recipe,
-the number to beat, and what to send back. No re-investigation of what the
+the number to beat (that scenario's own `workP95Ms`), and what to send back. No re-investigation of what the
 thread already found.
 
 **A change to a page** (a scene, gag, dock or banner):
@@ -125,9 +125,9 @@ side-by-side mocks.
 
 | Date | Learning | Evidence | Applies to | Status |
 |---|---|---|---|---|
+| 2026-05-25 | Known leads not yet taken: `save()` dominates the background's Canvas time, white-bar cache keys rarely hit, culling margins are wide, color strings rebuilt per draw. Low value while the bar background is rarely on stream | `tools/benchmark-results/REPORT.md` | background scene | active |
 | 2026-07-01 | Cache text and complex shapes in offscreen canvases (10 to 20x for the shade text), and use `hsla()` instead of `globalAlpha` | `docs/PERFORMANCE.md` [07-01] | any page | active |
-| 2026-10-29 | Rotated `drawImage` costs about 3.5x a plain one in Chromium's software raster, in OBS too. Stamp pre-turned sprites, baked only as large as the visible pixels | Spheal march, `docs/PERFORMANCE.md` | sprite-heavy pages | active |
 | 2026-10-28 | Harness page work leaks into `workMs`: reading pixels each frame pushed background p95 from 0.4 to 3-9 ms. Measure extra stats in an untimed pass, and compare a changed harness against `main`'s CPU numbers | QA Learnings, issue #43 | harness changes | active |
 | 2026-10-28 | A CPU check on fewer than 200 drawn frames is one slow frame from failing; shortening a scene can break it. Add a `-cpu` scenario, never a higher budget | QA Learnings, #63, #65 | scene length changes | active |
+| 2026-10-29 | Rotated `drawImage` costs about 3.5x a plain one in Chromium's software raster, in OBS too. Stamp pre-turned sprites, baked only as large as the visible pixels | Spheal march, `docs/PERFORMANCE.md` | sprite-heavy pages | active |
 | 2026-10-30 | OBS's own GPU (encoders, canvases, NVIDIA filters) outweighed every browser page combined. Look at outputs and canvases before tuning pages | `docs/PERFORMANCE.md`, "OBS GPU" | OBS cost questions | active |
-| 2026-05-25 | Known leads not yet taken: `save()` dominates the background's Canvas time, white-bar cache keys rarely hit, culling margins are wide, color strings rebuilt per draw. Low value while the bar background is rarely on stream | `tools/benchmark-results/REPORT.md` | background scene | active |
