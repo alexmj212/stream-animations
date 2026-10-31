@@ -40,11 +40,12 @@ Off-air GPU check for "[issue thread title]": [the change in one line].
 1. Confirm AJ isn't streaming or recording (GetStreamStatus, GetRecordStatus). If live, stop and say so.
 2. [If OBS will change: back up the scene collection as Archive_1.json.bak-<timestamp>.]
 3. Put [scene] on program. Start the logger. From WSL (Defiant's usual shell), in the repo clone:
+   mkdir -p /mnt/c/Users/Alex/OneDrive/Desktop/claude/gpu   (the logger only makes a folder when -Out is omitted)
    cd /mnt/c && powershell.exe -ExecutionPolicy Bypass -File "$(wslpath -w ~/[repo path]/tools/gpu/obs-gpu-log.ps1)" -IntervalSec 5 -Minutes [N] -Out 'C:\Users\Alex\OneDrive\Desktop\claude\gpu\[name].csv'
    (From Windows PowerShell instead: powershell -ExecutionPolicy Bypass -File tools\gpu\obs-gpu-log.ps1 ... with the same -Out.)
 4. Wait 2 minutes (before). Note the local time. Make the change: [exact change]. Note the time.
 5. Wait 2 minutes (after). [Repeat 4-5 for each variant.]
-6. [CPU burst only] While doing [the action, e.g. 5 transitions 10 s apart], log OBS CPU every second. This is Windows PowerShell; from WSL, save it as a .ps1 under C:\ and run it with powershell.exe -ExecutionPolicy Bypass -File:
+6. [CPU burst only] While doing [the action, e.g. 5 transitions 10 s apart], log OBS CPU every second in a second shell, while the step 3 logger keeps running. This is Windows PowerShell; from WSL, save it as a .ps1 under C:\ and run it with powershell.exe -ExecutionPolicy Bypass -File:
    Get-Counter '\Process(obs64)\% Processor Time' -SampleInterval 1 -MaxSamples [S] |
      ForEach-Object { $_.CounterSamples | ForEach-Object { '{0:HH:mm:ss},{1:N1}' -f $_.Timestamp, ($_.CookedValue / $env:NUMBER_OF_PROCESSORS) } } |
      Set-Content 'C:\Users\Alex\OneDrive\Desktop\claude\gpu\[name]-cpu.csv'
