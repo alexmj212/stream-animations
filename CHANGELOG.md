@@ -4,6 +4,15 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.13.1 - 2026-10-30
+
+- Game Switcher dock fixes from the first run in AJ's OBS. The top line
+  shows the window title first, with the app and capture method below it.
+  Setup skips divider scenes, and its audio-scene guess picks the scene
+  with more audio sources when two are nested equally often. Reload the
+  dock to pick it up. ([#124])
+- The Game Switcher's list is called Apps instead of Windows. ([#126])
+
 ## v2.13.0 - 2026-10-30
 
 - The Game Switcher dock works with any OBS setup, in any dock shape. A
@@ -265,3 +274,5 @@ release (`npm run motion:export -- stinger` renders your own).
 [#116]: https://github.com/alexmj212/stream-animations/pull/116
 [#118]: https://github.com/alexmj212/stream-animations/pull/118
 [#120]: https://github.com/alexmj212/stream-animations/pull/120
+[#124]: https://github.com/alexmj212/stream-animations/pull/124
+[#126]: https://github.com/alexmj212/stream-animations/pull/126
