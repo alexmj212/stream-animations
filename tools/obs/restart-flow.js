@@ -24,18 +24,63 @@ export async function liveStatus(obs) {
     const stream = await obs.call('GetStreamStatus');
     const record = await obs.call('GetRecordStatus');
     const detail = { stream: !!stream.outputActive, record: !!record.outputActive };
+    // Fail closed: if the vertical canvas can't be read, count it as live.
+    let verticalUnknown = false;
     try {
         const v = await obs.call('CallVendorRequest', {
             vendorName: AITUM_VENDOR, requestType: 'status', requestData: {}
         });
         const d = v.responseData || {};
-        detail.verticalStream = !!d.streaming;
-        detail.verticalRecord = !!d.recording;
+        detail.verticalRaw = d;
+        if (typeof d.streaming !== 'boolean' || typeof d.recording !== 'boolean') {
+            verticalUnknown = true;
+            detail.vertical = 'unknown (status has no boolean streaming/recording)';
+        } else {
+            detail.verticalStream = d.streaming;
+            detail.verticalRecord = d.recording;
+        }
     } catch (e) {
+        verticalUnknown = true;
         detail.vertical = `unknown (${e.message})`;
     }
-    const live = detail.stream || detail.record || !!detail.verticalStream || !!detail.verticalRecord;
+    const live = detail.stream || detail.record || verticalUnknown ||
+        !!detail.verticalStream || !!detail.verticalRecord;
     return { live, detail };
+}
+
+/**
+ * Stop the outputs that keep OBS "active" without being live (Replay Buffer,
+ * which also stops the Vertical Backtrack, and the Virtual Camera). With them
+ * running, a clean close stops at OBS's "outputs are active, exit anyway?"
+ * dialog (code review on #147).
+ * @returns {Promise<boolean>} true once none is active
+ */
+export async function stopIdleOutputs(obs, sleep, timeoutMs = 15000) {
+    const checks = [
+        ['GetReplayBufferStatus', 'StopReplayBuffer'],
+        ['GetVirtualCamStatus', 'StopVirtualCam']
+    ];
+    for (const [get, stop] of checks) {
+        if ((await obs.call(get)).outputActive) await obs.call(stop);
+    }
+    for (let waited = 0; waited <= timeoutMs; waited += 500) {
+        let active = false;
+        for (const [get] of checks) active = active || !!(await obs.call(get)).outputActive;
+        if (!active) return true;
+        await sleep(500);
+    }
+    return false;
+}
+
+/**
+ * Keep the OBS log lines worth reporting: those after startup finished
+ * (startup probes are noisy) that look like a problem.
+ * @param {string[]} lines
+ * @returns {string[]}
+ */
+export function logProblems(lines) {
+    const start = lines.findIndex(l => l.includes('==== Startup complete'));
+    return lines.slice(start + 1).filter(l => LOG_PROBLEM.test(l));
 }
 
 /**
@@ -73,7 +118,7 @@ export async function restartObs(io, opts = {}) {
     const before = await liveStatus(obs);
     step('preflight', before.detail);
     if (before.live) {
-        summary.abort = 'OBS is live (stream or recording); not restarting';
+        summary.abort = 'OBS is live, or the vertical canvas status is unknown; not restarting';
         await obs.close?.();
         return summary;
     }
@@ -90,7 +135,13 @@ export async function restartObs(io, opts = {}) {
     summary.backup = await io.backup();
     step('backup', { path: summary.backup });
 
-    // 3. Close cleanly and wait for the process to exit.
+    // 3. Stop the idle outputs, close cleanly and wait for the process to exit.
+    if (!(await stopIdleOutputs(obs, io.sleep))) {
+        summary.abort = 'Replay Buffer or Virtual Camera would not stop; not closing OBS';
+        await obs.close?.();
+        return summary;
+    }
+    step('outputsStopped', {});
     await obs.close?.();
     const closedAt = now();
     await io.closeObs();
@@ -163,7 +214,7 @@ export async function restartObs(io, opts = {}) {
     if (startScene) await obs.call('SetCurrentProgramScene', { sceneName: startScene });
 
     // 7. Problems in the new log.
-    summary.logProblems = (await io.logLines(launchedAt)).filter(l => LOG_PROBLEM.test(l));
+    summary.logProblems = logProblems(await io.logLines(launchedAt));
     step('log', { problems: summary.logProblems.length });
 
     await obs.close?.();

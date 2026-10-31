@@ -24,6 +24,11 @@ import { join } from 'node:path';
 import { ObsSocket, EVENTS } from '../../src/shared/obs.js';
 import { restartObs } from './restart-flow.js';
 
+if (typeof globalThis.WebSocket !== 'function') {
+    console.error(`obs:restart needs Node 22 or newer (global WebSocket); this is ${process.version}.`);
+    process.exit(2);
+}
+
 const run = promisify(execFile);
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
     const [k, ...v] = a.replace(/^--/, '').split('=');
