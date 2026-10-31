@@ -17,7 +17,8 @@
  *   - a hook that shows black falls back to window capture and remembers it,
  *   - a pinned source's button shows only that source,
  *   - an app's sound goes to a channel as an app capture with the tracks,
- *     volume and filters of the source it copies (no fade filters), and off,
+ *     volume and filters of the source it copies (its volume fades too, not
+ *     Move filters that drive other sources), and off,
  *   - a channel meter that goes red stays flagged until clicked,
  *   - a channel can be made, take several apps and move them with one
  *     fader (capped at the setup's max) and mute, kept in OBS,
@@ -249,8 +250,9 @@ try {
     await (await (await rowOf('firefox.exe')).$('select.audio')).select('music');
     await settled();
     const firstMusic = obs.state.inputs['App Audio: firefox.exe (Music)'];
-    check('then the app goes in off the VOD track, with the Limiter', JSON.stringify(firstMusic?.tracks) === JSON.stringify(obs.state.inputs['BG Music'].tracks)
-        && firstMusic?.filters.map(f => f.filterKind).join() === 'limiter_filter', JSON.stringify(firstMusic?.tracks));
+    // BG Music's fades come along, so the fade scenes can drive the app (audio verification, 2026-10-31)
+    check('then the app goes in off the VOD track, with the fades and the Limiter', JSON.stringify(firstMusic?.tracks) === JSON.stringify(obs.state.inputs['BG Music'].tracks)
+        && firstMusic?.filters.map(f => f.filterName).join() === 'Fade Down,Fade Up,Limiter', firstMusic?.filters.map(f => f.filterName).join());
     // An app moved to a channel that still needs its tracks stays where it was
     await page.$$eval('#channels .chan', rows => rows[0].querySelector('.name').click());
     await page.click('#newToggle');
@@ -312,8 +314,8 @@ try {
     check('with BG Music’s tracks (off the VOD track 2), volume and no monitoring', !!music
         && JSON.stringify(music.tracks) === JSON.stringify(inp('BG Music').tracks) && music.tracks['2'] === false
         && music.volume === inp('BG Music').volume && music.monitor === 'OBS_MONITORING_TYPE_NONE');
-    check('and BG Music’s filters, without its fade (Move) filters', !!music
-        && music.filters.map(f => f.filterKind).join() === 'limiter_filter', music?.filters.map(f => f.filterKind).join());
+    check('and BG Music’s filters with its volume fades, without the Move filter that drives other sources', !!music
+        && music.filters.map(f => f.filterName).join() === 'Fade Down,Fade Up,Limiter', music?.filters.map(f => f.filterName).join());
     check('the Music channel counts it', await until(() => page.$$eval('#channels .apps', els => els.map(e => e.textContent.split(' · ')[0]).join() === 'empty,1 app')));
     check('and its light shows sound arriving', await until(() => page.$$eval('#channels .chan', els => els[1].dataset.act === 'live' && els[0].dataset.act === 'idle')));
     const flagged = () => page.$$eval('#channels .chan.clipped', els => els.length);

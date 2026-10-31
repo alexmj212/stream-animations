@@ -1462,8 +1462,13 @@ export const config = {
     // fader) of any audio source already in OBS
     audio: {
       prefix: 'App Audio: ',
-      // Move filters animate their own source (a music fade, say): not copied
-      skipFilterKinds: ['move_audio_value_filter', 'audio_move_filter', 'move_value_filter'],
+      // Move filters that drive other sources' settings or positions aren't
+      // copied. A Move Audio Value fade (move_audio_value_filter) only moves
+      // its own source's volume, so it is copied: an app in Music keeps the
+      // music fades the fade scenes trigger, and gets them back under the
+      // same name when the dock remakes its input (audio verification
+      // thread, 2026-10-31: Starting/Ending music stayed at 3% without them)
+      skipFilterKinds: ['audio_move_filter', 'move_value_filter'],
       // Channels and every channel's fader and mute live in obs-websocket
       // persistent data (per OBS profile), so they follow OBS, not this browser
       dataSlot: 'gamePicker.channels',
