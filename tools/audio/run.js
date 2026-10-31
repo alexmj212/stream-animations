@@ -10,6 +10,7 @@
  *       [--start=s] [--duration=s] [--match-level] [--out=dir]
  *   npm run audio -- verify --collection=Archive_1.json --source=Mic --raw=raw.flac --obs=obs.flac
  *   npm run audio -- meter <files...> [--gain-db=n]
+ *   npm run audio -- music <track1> <track2|silent> [...pairs] [--gain-db=n]
  *   npm run audio -- assets   (CI: every sound file a page plays, at its configured gain)
  *   npm run audio -- report [--baseline=b.json] [--curves=c.json] [--render=results.json] [--status=status.html] --out=page.html
  */
@@ -343,6 +344,39 @@ function meter(args) {
     if (args.out) fs.writeFileSync(args.out, JSON.stringify(rows, round, 1));
 }
 
+/**
+ * Music level in past streams. Track 2 (VOD) is track 1 without the music,
+ * so track 1 minus track 2 is the music alone (they are encoded from the
+ * mix in one recording, so they line up to the sample; `--lag` if not). Pass `silent` for a track 2
+ * excerpt that is digital silence (Starting/Ending, where only music
+ * plays). `--gain-db` previews a fader change, such as a fade to 25%.
+ */
+function music(args) {
+    const files = args._.slice(1);
+    const gainDb = args['gain-db'] !== undefined ? Number(args['gain-db']) : 0;
+    const g = dbToMul(gainDb);
+    const rows = [];
+    for (let i = 0; i + 1 < files.length; i += 2) {
+        const a = decode(files[i], { fs: FS }).channels;
+        const b = files[i + 1] === 'silent' ? a.map((c) => new Float32Array(c.length)) : decode(files[i + 1], { fs: FS }).channels;
+        const n = Math.min(a[0].length, b[0].length);
+        const lag = Number(args.lag || 0);
+        const m = a.map((c, ch) => {
+            const o = new Float32Array(n);
+            for (let k = 0; k < n; k++) { const j = k + lag; o[k] = g * (c[k] - (j >= 0 && j < n ? b[ch][j] : 0)); }
+            return o;
+        });
+        const rest = loudness(b.map((c) => c.subarray(0, n)), FS).integrated;
+        const l = loudness(m, FS), pk = peaks(m), mp = meterPeaks(m, FS);
+        const row = { file: path.basename(files[i]), lag, musicLufs: l.integrated, restLufs: rest, samplePeakDbfs: pk.samplePeak, truePeakDbtp: pk.truePeak, redPct: mp.redPct, p999Dbfs: mp.p999Dbfs };
+        rows.push(row);
+        const gap = Number.isFinite(rest) ? `, ${num1(rest - l.integrated)} LU under the rest of the mix (${num1(rest)} LUFS)` : ', nothing else playing';
+        const zone = pk.samplePeak > audioConfig.checks.meterRedDbfs ? 'red' : pk.samplePeak > -20 ? 'yellow' : 'green';
+        console.log(`${row.file}${gainDb ? ` at ${gainDb >= 0 ? '+' : ''}${gainDb} dB` : ''}: music ${num1(l.integrated)} LUFS, peak ${num1(pk.samplePeak)} dBFS (${zone}), true ${num1(pk.truePeak)} dBTP${gap}${lag ? `; lag ${lag}` : ''}`);
+    }
+    if (args.out) fs.writeFileSync(args.out, JSON.stringify(rows, round, 1));
+}
+
 const num1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : String(v));
 
 /**
@@ -430,9 +464,9 @@ function report(args) {
 
 const args = parseArgs(process.argv.slice(2));
 const cmd = args._[0];
-const commands = { baseline, curves, render, verify, report, meter, assets };
+const commands = { baseline, curves, render, verify, report, meter, music, assets };
 if (!commands[cmd]) {
-    console.log('usage: npm run audio -- <baseline|curves|render|verify|meter|assets|report> ... (see docs/AUDIO.md)');
+    console.log('usage: npm run audio -- <baseline|curves|render|verify|meter|music|assets|report> ... (see docs/AUDIO.md)');
     process.exitCode = 1;
 } else {
     commands[cmd](args);
