@@ -6,7 +6,7 @@
     "changes": {
         "Mic": {
             "filters": [
-                { "name": "Noise Suppression 2_ported", "id": "nvidia_audiofx_filter", "settings": { "intensity": 0.75, "method": "denoiser" } },
+                { "name": "Noise Suppression (NVIDIA)", "id": "noise_suppress_filter_v2", "settings": { "intensity": 0.75, "method": "denoiser" } },
                 { "name": "Noise Gate", "id": "noise_gate_filter", "settings": { "open_threshold": -32, "close_threshold": -40, "attack_time": 8, "hold_time": 200, "release_time": 200 } },
                 { "name": "3-Band Equalizer", "id": "basic_eq_filter", "settings": { "low": 3, "mid": 1, "high": 3 } },
                 { "name": "Compressor", "id": "compressor_filter", "settings": { "ratio": 3, "threshold": -20, "attack_time": 8, "release_time": 100, "output_gain": 5 } }
