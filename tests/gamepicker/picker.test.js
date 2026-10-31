@@ -108,9 +108,10 @@ describe('app audio names', () => {
         expect(parseAppAudioName('App Audio: firefox.exe', prefix)).toBeNull();
         expect(parseAppAudioName('App Audio: firefox.exe ()', prefix)).toBeNull();
     });
-    it('copies filters but not Move filters', () => {
-        const filters = [{ filterKind: 'move_audio_value_filter' }, { filterKind: 'audio_move_filter' }, { filterKind: 'limiter_filter' }];
-        expect(copyableFilters(filters, config.gamePicker.audio.skipFilterKinds)).toEqual([{ filterKind: 'limiter_filter' }]);
+    it('copies filters and volume fades, but not Move filters that drive other sources', () => {
+        const filters = [{ filterKind: 'move_audio_value_filter' }, { filterKind: 'audio_move_filter' }, { filterKind: 'move_value_filter' }, { filterKind: 'limiter_filter' }];
+        expect(copyableFilters(filters, config.gamePicker.audio.skipFilterKinds))
+            .toEqual([{ filterKind: 'move_audio_value_filter' }, { filterKind: 'limiter_filter' }]);
     });
 });
 
