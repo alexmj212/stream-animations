@@ -4,6 +4,14 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.13.2 - 2026-10-31
+
+- The Game Switcher now copies a music app's volume fade filters along
+  with its fader and Limiter, so the Starting and Ending music fades can
+  drive Music once it runs through the dock. The fade scenes' Move
+  Actions also need to point at the app's input. Reload the dock to pick
+  it up. ([#129])
+
 ## v2.13.1 - 2026-10-30
 
 - Game Switcher dock fixes from the first run in AJ's OBS. The top line
@@ -276,3 +284,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#120]: https://github.com/alexmj212/stream-animations/pull/120
 [#124]: https://github.com/alexmj212/stream-animations/pull/124
 [#126]: https://github.com/alexmj212/stream-animations/pull/126
+[#129]: https://github.com/alexmj212/stream-animations/pull/129
