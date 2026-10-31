@@ -359,7 +359,8 @@ function meter(args) {
  * 6 dB of it is reported "at floor", meaning the mix-wide number can't be
  * trusted. Where track 2 is silent there is no floor, so the music measured
  * in those gaps is reported too.
- * ffmpeg's encoder is no better than OBS's, so the estimate errs high.
+ * The recordings are CoreAudio AAC at 160 kb/s (profile Exogenesis);
+ * ffmpeg's encoder is noisier, so the estimate errs high.
  */
 function music(args) {
     const files = args._.slice(1);

@@ -155,7 +155,10 @@ on its own, so their coding noise doesn't cancel. It leaves a floor about
 20 to 30 LU under the rest of the mix (code review, #128). The command
 estimates that floor per excerpt by re-encoding both tracks. It also measures
 the music where track 2 is silent, which has no floor, and that's the number
-to trust while AJ talks. The floor here assumes OBS's default 160 kb/s.
+to trust while AJ talks. The recordings use CoreAudio AAC at 160 kb/s on every
+track (profile Exogenesis, checked 2026-10-31). The command re-encodes with
+ffmpeg's AAC at the same bitrate, which is noisier than CoreAudio, so its
+floor errs high.
 
 | Moment | Music | Peak | How it was measured |
 |---|---|---|---|
