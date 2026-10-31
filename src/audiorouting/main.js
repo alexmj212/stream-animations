@@ -14,7 +14,7 @@ import { createDebug } from '../shared/debug.js';
 import { peakDb, activity, channelList, parseAppAudioName, tracksObject } from '../gamepicker/picker.js';
 import {
     TRACKS, carriesSound, audioFilters, tracksOn, OUTPUT_PARAMS, outputsFrom, outputsOfTrack,
-    changeTracks, channelTracks, touchesRunning, sortSources, wirePath
+    changeTracks, channelTracks, touchesRunning, addsToVod, sortSources, wirePath
 } from './routing.js';
 
 const cfg = config.audioRouting;
@@ -558,14 +558,23 @@ function describe(what, add, remove) {
     return `${what} off ${nm(remove)}`;
 }
 
-/** Ask once while a running output would hear it; otherwise apply. */
+/**
+ * Ask once while a running output would hear it, or before anything joins
+ * the Twitch VOD track (QA, #131: music on the VOD can get the VOD muted,
+ * which is why a streamer keeps music off it); otherwise apply.
+ */
 function request(action) {
     const change = planChange(action);
     if (!change.inputs.length && !change.channel) return;
     const hit = touchesRunning(change.tracks, model.outputs, model.running);
-    if (hit.length) {
+    const vod = addsToVod(action.add, model.outputs);
+    if (hit.length || vod) {
         pending = change;
-        $('confirmText').textContent = `${hit.join(' and ')} ${hit.length > 1 ? 'are' : 'is'} running: ${change.label}?`;
+        const why = [
+            hit.length ? `${hit.join(' and ')} ${hit.length > 1 ? 'are' : 'is'} running.` : '',
+            vod ? 'That track is the Twitch VOD: music on it can get the VOD muted.' : ''
+        ].filter(Boolean).join(' ');
+        $('confirmText').textContent = `${change.label}? ${why}`;
         $('confirm').hidden = false;
         return;
     }

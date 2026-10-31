@@ -207,6 +207,17 @@ export function touchesRunning(tracks, outputs, running) {
 }
 
 /**
+ * Whether a drag puts something on the Twitch VOD track (the profile's own
+ * VOD track index, whatever it is).
+ * @param {number|undefined} track - the track added, if any
+ * @param {Array<{id: string, tracks: number[]}>} outputs
+ * @returns {boolean}
+ */
+export function addsToVod(track, outputs) {
+    return !!track && outputs.some(o => o.id === 'vod' && o.tracks.includes(track));
+}
+
+/**
  * Sort the chart's sources: by group, then name, with App Audio inputs
  * (shown under their channel) last.
  * @param {Array<{name: string, kind: string}>} sources

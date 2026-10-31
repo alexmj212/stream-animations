@@ -187,7 +187,8 @@ output says which tracks it takes and shows LIVE or REC while it runs.
   Monitor wire to stop.
 - A channel moves every app in it and saves the tracks the Game Switcher
   gives its next app.
-- While a stream or recording runs, a change to a track it takes asks for
+- Anything joining the Twitch VOD track asks first (music there can get
+  the VOD muted). While a stream or recording runs, a change to a track it takes asks for
   one confirm first.
 - Hover a box to bring its wires forward. "On program only" hides sources
   that aren't on air right now. Output settings are read-only here.

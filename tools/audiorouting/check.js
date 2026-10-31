@@ -17,6 +17,7 @@
  *   - a click on a wire and × disconnects; Undo puts it back,
  *   - a channel dragged to a track moves every app in it and the saved
  *     channel tracks; dropping on Monitor turns monitoring on,
+ *   - anything joining the Twitch VOD track asks first (music can mute it),
  *   - while the stream runs, a change to a streamed track waits for one
  *     confirm, and Cancel leaves OBS as it was,
  *   - nothing else in OBS is changed (only the tracks and monitoring asked for),
@@ -121,6 +122,10 @@ try {
         return null;
     }, id);
     await dragTo(await wireMid('t:BG Music:3'), await center('#colTracks .node[data-id="2"]'));
+    // track 2 is the Twitch VOD in this profile: music there can mute the VOD (QA, #131)
+    check('putting anything on the VOD track asks first, saying why', await until(() => page.$eval('#confirm', el => !el.hidden && /VOD muted/.test(el.textContent))));
+    check('and changes nothing until confirmed', tracksOf('BG Music') === '1,3,4,5,6');
+    await page.click('#confirmYes');
     check('dragging a wire to another track moves it', await until(() => tracksOf('BG Music') === '1,2,4,5,6'), tracksOf('BG Music'));
     await until(() => page.evaluate(() => window.__audioRouting.wires.some(w => w.id === 't:BG Music:2')));
     const m = await wireMid('t:BG Music:2');

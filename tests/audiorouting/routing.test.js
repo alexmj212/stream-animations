@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     carriesSound, sourceGroup, audioFilters, tracksFromMask, tracksOn, outputsFrom, outputsOfTrack,
-    changeTracks, channelTracks, touchesRunning, sortSources, wirePath, OUTPUT_PARAMS
+    changeTracks, channelTracks, touchesRunning, addsToVod, sortSources, wirePath, OUTPUT_PARAMS
 } from '../../src/audiorouting/routing.js';
 
 const p = obj => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, { parameterValue: v, defaultParameterValue: null }]));
@@ -135,6 +135,16 @@ describe('touchesRunning', () => {
         expect(touchesRunning([1], outputs, { stream: true, record: true })).toEqual(['Stream', 'Recording']);
         expect(touchesRunning([2], outputs, { stream: true })).toEqual([]);
         expect(touchesRunning([], outputs, { stream: true })).toEqual([]);
+    });
+});
+
+describe('addsToVod', () => {
+    it('is true only for the profile\'s VOD track', () => {
+        const outputs = [{ id: 'stream', tracks: [1] }, { id: 'vod', tracks: [4] }];
+        expect(addsToVod(4, outputs)).toBe(true);
+        expect(addsToVod(2, outputs)).toBe(false);
+        expect(addsToVod(undefined, outputs)).toBe(false);
+        expect(addsToVod(4, [{ id: 'stream', tracks: [4] }])).toBe(false);
     });
 });
 
