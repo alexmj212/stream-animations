@@ -71,6 +71,11 @@ domain expert threads (2026-10-31) advise on each part of the stream
   owns it. Don't edit another role's charter yourself.
 - Message only when there's something to act on. Status updates belong in
   your own thread.
+- **Find the thread before you message it** (2026-11-02, the same misroute
+  logged in four charters): a relay names the sender's session, not its
+  thread. Match that session id in `list_threads` and use that thread id,
+  never a title that looks right or an id from memory, and send the finished
+  text in one call, never a placeholder.
 
 ### Experts facilitate, issue threads own (binding)
 
