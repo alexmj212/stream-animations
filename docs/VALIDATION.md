@@ -221,7 +221,19 @@ npm run motion:export -- stinger --format=mov   # ProRes 4444 instead of VP9 Web
 It prints the OBS settings, including the Transition Point measured from the
 frames where the screen is fully covered (the middle of that window, about
 50% of the duration). Requires `ffmpeg` on PATH, or set `FFMPEG`. Output goes
-to `exports/` (gitignored).
+to `exports/` (gitignored). WebM and MP4 are converted and tagged as BT.709
+limited range, so OBS can't read the colours with the wrong matrix; check a
+decode with `scale=in_color_matrix=bt709` against the PNG frames.
+
+For the vertical canvas add `--width=1080 --height=1920`. A video plays one
+fixed layout, so pick the seed (`--seed=N`) with design review.
+
+Which way to make a video (2026-10-31, stinger video thread): a 2D canvas
+scene of a second or two renders here in seconds (74 frames for a 1200 ms
+stinger) with real alpha, so export it. Recording in OBS over green and
+chroma-keying is for long, heavy loops that render too slowly frame by
+frame (the 3D discoball took 69 minutes). A key can't recover the
+stinger's half-transparent curtains, soft shadows or anti-aliased edges.
 
 ## Scenarios
 
