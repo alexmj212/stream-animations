@@ -31,8 +31,8 @@ it's proven.
 
 Not this thread's: OBS scenes, Move automations and Defiant changes in
 general (OBS and stream setup expert), alert pages and MIU commands
-themselves (Alerts and integrations), CPU/GPU cost (Performance). Only the
-Defiant thread touches AJ's PC, reached through the coordinator.
+themselves (Alerts and integrations), CPU/GPU cost (Performance). Changes on
+AJ's PC go through the Defiant thread, reached through the coordinator.
 
 ## Rules every audio change follows
 
@@ -151,3 +151,4 @@ capture, render, A/B clips, AJ listens, apply, read back).
 | 2026-10-30 | Generalising the Game Switcher dropped two audio rails (the -12 dB fader cap and music off VOD track 2) while every test passed. When a PR rewrites audio config, check each removed line for a ceiling or a track keep-out and ask for a test that pins it | QA Learnings, #120 | config rewrites | active |
 | 2026-10-31 | Moving a source to a copy (BG Music to the Spotify app capture) lost its volume fades, so the music stayed at the talking level. When a change replaces or copies a source, list every filter and automation that points at the old one | `docs/DECISIONS.md` 2026-10-31; #128, #129 | source moves | active |
 | 2026-10-31 | A filter kind OBS no longer registers stays in the JSON, hidden and inert, and a gate closing looked like proof it worked. Read every change back in OBS (rule 7) | `docs/AUDIO.md`, "Applying a change in OBS"; #135 | OBS changes | active |
+| 2026-11-02 | I sent a placeholder message to the wrong thread (the vault thread instead of the Spotify issue thread) because I reused a thread id from memory. Before `message_thread`, look up the relay's session id in `list_threads` and use that thread id, and only send the final text, never a stub | This thread, Spotify monitoring plan check; same as Code review's 2026-10-29 row | messaging threads | active |
