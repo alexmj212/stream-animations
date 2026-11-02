@@ -316,6 +316,27 @@ try {
         && music.volume === inp('BG Music').volume && music.monitor === 'OBS_MONITORING_TYPE_NONE');
     check('and BG Music’s filters with its volume fades, without the Move filter that drives other sources', !!music
         && music.filters.map(f => f.filterName).join() === 'Fade Down,Fade Up,Limiter', music?.filters.map(f => f.filterName).join());
+    // Hear (AJ, 2026-11-02): a channel whose apps play to a cable nobody
+    // listens to is heard through OBS's monitor, at the stream's level. It
+    // reaches the app already there, is saved, and survives a remake
+    const setHear = async (on) => {
+        await page.$$eval('#channels .chan', rows => rows[1].querySelector('.name').click());
+        await until(() => page.$eval('#newChannel', f => !f.hidden));
+        if (await page.$eval('#channelMonitor', i => i.checked) !== on) await page.click('#channelMonitor');
+        await page.click('#newChannel button[type=submit]');
+        await settled();
+    };
+    await setHear(true);
+    const savedMusic = () => obs.state.persistent['gamePicker.channels']?.channels?.find(c => c.label === 'Music');
+    check('ticking Hear monitors the app already in the channel and saves it', inp('App Audio: firefox.exe (Music)')?.monitor === 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'
+        && savedMusic()?.monitor === true, `${inp('App Audio: firefox.exe (Music)')?.monitor} ${JSON.stringify(savedMusic())}`);
+    await route('firefox.exe', 'off');
+    await route('firefox.exe', 'ch-music');
+    check('and a remade input is still monitored', inp('App Audio: firefox.exe (Music)')?.monitor === 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT',
+        inp('App Audio: firefox.exe (Music)')?.monitor);
+    await setHear(false);
+    check('unticking turns its monitoring off again', inp('App Audio: firefox.exe (Music)')?.monitor === 'OBS_MONITORING_TYPE_NONE'
+        && savedMusic()?.monitor === false, inp('App Audio: firefox.exe (Music)')?.monitor);
     check('the Music channel counts it', await until(() => page.$$eval('#channels .apps', els => els.map(e => e.textContent.split(' · ')[0]).join() === 'empty,1 app')));
     check('and its light shows sound arriving', await until(() => page.$$eval('#channels .chan', els => els[1].dataset.act === 'live' && els[0].dataset.act === 'idle')));
     const flagged = () => page.$$eval('#channels .chan.clipped', els => els.length);

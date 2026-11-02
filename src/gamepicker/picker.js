@@ -410,8 +410,8 @@ export function pushRecent(recents, exe, max) {
  * it"). The ids match the older dock's built-ins, so saved faders carry over.
  */
 export const DEFAULT_CHANNELS = Object.freeze([
-    Object.freeze({ id: 'game', label: 'Game', tracks: null, copyFrom: null }),
-    Object.freeze({ id: 'music', label: 'Music', tracks: null, copyFrom: null })
+    Object.freeze({ id: 'game', label: 'Game', tracks: null, copyFrom: null, monitor: false }),
+    Object.freeze({ id: 'music', label: 'Music', tracks: null, copyFrom: null, monitor: false })
 ]);
 
 /**
@@ -431,9 +431,9 @@ export function cleanTracks(tracks) {
  * it; OBS has no audio bus, so the dock keeps each member's volume, mute,
  * tracks and filters in step. Nothing saved yet means the offered Game and
  * Music; none needs extra Windows audio devices.
- * @param {*} saved - persistent data: {channels: [{id, label, tracks, copyFrom}], mix: {id: {volumeMul, muted}}};
+ * @param {*} saved - persistent data: {channels: [{id, label, tracks, copyFrom, monitor}], mix: {id: {volumeMul, muted}}};
  *   an older dock's {custom: [{id, label}]} is read as Game, Music and those
- * @returns {Array<{id: string, label: string, tracks: number[]|null, copyFrom: string|null, volumeMul: number|null, muted: boolean}>}
+ * @returns {Array<{id: string, label: string, tracks: number[]|null, copyFrom: string|null, monitor: boolean, volumeMul: number|null, muted: boolean}>}
  */
 export function channelList(saved) {
     const s = saved && typeof saved === 'object' ? saved : {};
@@ -448,6 +448,7 @@ export function channelList(saved) {
             id: c.id, label: c.label,
             tracks: cleanTracks(c.tracks),
             copyFrom: typeof c.copyFrom === 'string' && c.copyFrom ? c.copyFrom : null,
+            monitor: c.monitor === true,
             volumeMul: Number.isFinite(mix[c.id]?.volumeMul) ? mix[c.id].volumeMul : null,
             muted: mix[c.id]?.muted === true
         });
@@ -460,10 +461,10 @@ export function channelList(saved) {
  * end input names ("App Audio: firefox.exe (Browser)"), so no brackets.
  * @param {string} name
  * @param {Array<{id: string, label: string}>} existing
- * @param {{tracks?: number[]|null, copyFrom?: string|null}} [opts]
- * @returns {{channel?: {id: string, label: string, tracks: number[]|null, copyFrom: string|null}, error?: string}}
+ * @param {{tracks?: number[]|null, copyFrom?: string|null, monitor?: boolean}} [opts]
+ * @returns {{channel?: {id: string, label: string, tracks: number[]|null, copyFrom: string|null, monitor: boolean}, error?: string}}
  */
-export function newChannel(name, existing, { tracks = null, copyFrom = null } = {}) {
+export function newChannel(name, existing, { tracks = null, copyFrom = null, monitor = false } = {}) {
     const label = String(name || '').replace(/[()]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
     if (!label) return { error: 'Give the channel a name.' };
     if (existing.some(c => c.label.toLowerCase() === label.toLowerCase())) return { error: `There's already a ${label} channel.` };
@@ -471,7 +472,22 @@ export function newChannel(name, existing, { tracks = null, copyFrom = null } = 
     const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'channel';
     let id = `ch-${slug}`;
     for (let n = 2; existing.some(c => c.id === id); n++) id = `ch-${slug}-${n}`;
-    return { channel: { id, label, tracks: cleanTracks(tracks), copyFrom: copyFrom || null } };
+    return { channel: { id, label, tracks: cleanTracks(tracks), copyFrom: copyFrom || null, monitor: monitor === true } };
+}
+
+/**
+ * The OBS monitoring a channel's apps get. Off by default: an app normally
+ * still plays to the speakers, so monitoring would double it. A channel
+ * with Hear ticked is for apps the streamer points at a device they don't
+ * listen to (a virtual cable): OBS's monitor then plays them after the
+ * fader, filters and fades, so the streamer hears the level viewers get
+ * (AJ, 2026-11-02: Spotify played full scale in the headphones while the
+ * stream had it at 3%). Saved with the channel, so a remade input keeps it.
+ * @param {{monitor?: boolean}} channel
+ * @returns {string} obs-websocket monitor type
+ */
+export function monitorTypeFor(channel) {
+    return channel?.monitor === true ? 'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT' : 'OBS_MONITORING_TYPE_NONE';
 }
 
 /**

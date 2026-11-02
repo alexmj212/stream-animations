@@ -15,7 +15,7 @@ import {
     buildWindowList, chooseMethod, captureSettings, visibilityChanges,
     litFraction, peakDb, meterZone, pushRecent, parseWindowValue,
     mergeWindowLists, sameWindow, windowCaptureTarget, captureFailed, appAudioName, parseAppAudioName,
-    copyableFilters, channelList, newChannel, faderMul, readSetup, guessSetup, isDividerScene, isAudioKind, tracksObject, activity, cleanTracks
+    copyableFilters, channelList, newChannel, faderMul, readSetup, guessSetup, isDividerScene, isAudioKind, tracksObject, activity, cleanTracks, monitorTypeFor
 } from './picker.js';
 
 const cfg = config.gamePicker;
@@ -289,7 +289,7 @@ async function readCopyMul() {
 
 async function saveChannels() {
     saved = {
-        channels: channels.map(({ id, label, tracks, copyFrom }) => ({ id, label, tracks, copyFrom })),
+        channels: channels.map(({ id, label, tracks, copyFrom, monitor }) => ({ id, label, tracks, copyFrom, monitor })),
         mix: Object.fromEntries(channels.filter(c => c.volumeMul !== null || c.muted)
             .map(c => [c.id, { volumeMul: c.volumeMul, muted: c.muted }]))
     };
@@ -454,6 +454,7 @@ async function showNewForm(open, channel = null) {
     $('channelName').readOnly = !!editing;
     $('channelName').value = editing ? channel.label : '';
     $('newChannel').querySelector('button[type=submit]').textContent = editing ? 'Save' : 'Add';
+    $('channelMonitor').checked = editing ? channel.monitor === true : false;
     if (!open) return;
     await fillChannelForm();
     if (editing) {
@@ -475,8 +476,12 @@ async function showNewForm(open, channel = null) {
     }
 }
 
-/** Change a channel's tracks and copied source, then remember it. */
-async function updateChannel(id, { tracks, copyFrom }) {
+/**
+ * Change a channel's tracks, copied source and monitoring, then remember
+ * it. Monitoring reaches the apps already in it straight away; tracks and
+ * filters only reach apps that join from then on.
+ */
+async function updateChannel(id, { tracks, copyFrom, monitor }) {
     if (busy || !obs?.ready) return;
     const c = channels.find(x => x.id === id);
     const clean = cleanTracks(tracks);
@@ -488,11 +493,14 @@ async function updateChannel(id, { tracks, copyFrom }) {
     busy = true;
     document.body.classList.add('busy');
     try {
-        Object.assign(c, { tracks: clean, copyFrom: copyFrom || null });
+        Object.assign(c, { tracks: clean, copyFrom: copyFrom || null, monitor: monitor === true });
         await readCopyMul();
         await saveChannels();
+        for (const r of members(c.id)) {
+            await obs.call('SetInputAudioMonitorType', { inputName: r.inputName, monitorType: monitorTypeFor(c) });
+        }
         showNewForm(false);
-        note(`${c.label} plays on ${tracksText(clean)} for apps added from now on.`);
+        note(`${c.label} plays on ${tracksText(clean)} for apps added from now on.${c.monitor ? ' You hear it through OBS\'s monitor.' : ''}`);
     } catch (err) {
         note(`Couldn't change ${c.label}: ${err.message}`);
     } finally {
@@ -537,8 +545,9 @@ $('newChannel').addEventListener('submit', (e) => {
     e.preventDefault();
     const tracks = [...document.querySelectorAll('#channelTracks input:checked')].map(i => Number(i.value));
     const copyFrom = $('channelCopy').value || null;
-    if (editing) updateChannel(editing, { tracks, copyFrom });
-    else addChannel($('channelName').value, { tracks, copyFrom });
+    const monitor = $('channelMonitor').checked;
+    if (editing) updateChannel(editing, { tracks, copyFrom, monitor });
+    else addChannel($('channelName').value, { tracks, copyFrom, monitor });
 });
 
 /**
@@ -603,15 +612,15 @@ async function removeRoute(route) {
  * Give an app's input its channel's tracks and filters: the channel's own
  * tracks, else those of the source it copies, else those of an app already
  * in it, else OBS's defaults; filters from the copied source, else from an
- * app already in it. Copying a member keeps a channel whole when its
+ * app already in it; monitoring from the channel's Hear box. Copying a member keeps a channel whole when its
  * settings weren't saved (an older dock's Game and Music, or one adopted
  * from an input name): the next app matches the ones there instead of
  * landing on every track with no limiter (Code review, #120). Volume and
  * mute come from the channel (applyMix).
  */
 async function setUpInput(inputName, c) {
-    // The app still plays to its own device, so monitoring would double it
-    await obs.call('SetInputAudioMonitorType', { inputName, monitorType: 'OBS_MONITORING_TYPE_NONE' });
+    // Off unless the channel has Hear ticked: see monitorTypeFor
+    await obs.call('SetInputAudioMonitorType', { inputName, monitorType: monitorTypeFor(c) });
     let inputAudioTracks = c.tracks ? tracksObject(c.tracks) : null;
     const like = c.copyFrom || members(c.id).find(r => r.inputName !== inputName)?.inputName;
     if (like) {

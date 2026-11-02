@@ -4,7 +4,7 @@ import {
     parseWindowValue, buildWindowList, chooseMethod, captureSettings,
     visibilityChanges, litFraction, windowValue, windowCaptureTarget, peakDb, meterZone, pushRecent,
     captureFailed, appAudioName, parseAppAudioName, copyableFilters,
-    channelList, newChannel, faderMul, readSetup, guessSetup, isDividerScene, isAudioKind, tracksObject, cleanTracks, activity, DEFAULT_CHANNELS
+    channelList, newChannel, monitorTypeFor, faderMul, readSetup, guessSetup, isDividerScene, isAudioKind, tracksObject, cleanTracks, activity, DEFAULT_CHANNELS
 } from '../../src/gamepicker/picker.js';
 import { authString, ObsSocket } from '../../src/shared/obs.js';
 import { config } from '../../src/config/config.js';
@@ -331,24 +331,37 @@ describe('channels', () => {
             channels: [{ id: 'ch-browser', label: 'Browser', tracks: [2, 1, 9], copyFrom: 'Desktop Audio' }, { id: 'bad' }, { id: 'ch-b2', label: 'Browser' }],
             mix: { 'ch-browser': { volumeMul: 0.1, muted: true } }
         });
-        expect(list).toEqual([{ id: 'ch-browser', label: 'Browser', tracks: [1, 2], copyFrom: 'Desktop Audio', volumeMul: 0.1, muted: true }]);
+        expect(list).toEqual([{ id: 'ch-browser', label: 'Browser', tracks: [1, 2], copyFrom: 'Desktop Audio', monitor: false, volumeMul: 0.1, muted: true }]);
     });
     it('reads an older dock\'s channels as Game, Music and its own, keeping faders', () => {
         const list = channelList({ custom: [{ id: 'ch-x', label: 'X', like: 'game' }], mix: { music: { volumeMul: 0.03 } } });
         expect(list.map(c => c.id)).toEqual(['game', 'music', 'ch-x']);
         expect(list[1].volumeMul).toBe(0.03);
-        expect(list[2]).toEqual({ id: 'ch-x', label: 'X', tracks: null, copyFrom: null, volumeMul: null, muted: false });
+        expect(list[2]).toEqual({ id: 'ch-x', label: 'X', tracks: null, copyFrom: null, monitor: false, volumeMul: null, muted: false });
     });
     it('makes a new channel with a safe label and a unique id', () => {
         const existing = channelList(null);
         expect(newChannel('  Chat (apps) ', existing, { tracks: [3, 1], copyFrom: 'Mic' }).channel)
-            .toEqual({ id: 'ch-chat-apps', label: 'Chat apps', tracks: [1, 3], copyFrom: 'Mic' });
+            .toEqual({ id: 'ch-chat-apps', label: 'Chat apps', tracks: [1, 3], copyFrom: 'Mic', monitor: false });
         expect(newChannel('music', existing).error).toMatch(/already/);
         expect(newChannel('', existing).error).toMatch(/name/);
         expect(newChannel('X', existing, { tracks: [] }).error).toMatch(/track/);
         const made = newChannel('Browser', existing).channel;
-        expect(made).toEqual({ id: 'ch-browser', label: 'Browser', tracks: null, copyFrom: null });
+        expect(made).toEqual({ id: 'ch-browser', label: 'Browser', tracks: null, copyFrom: null, monitor: false });
         expect(parseAppAudioName(appAudioName('App Audio: ', 'firefox.exe', made.label), 'App Audio: ').label).toBe('Browser');
+    });
+    it('monitors a channel\'s apps only when Hear is ticked, and keeps it saved (AJ, 2026-11-02)', () => {
+        // Off by default: an app still playing to the speakers would be heard twice
+        expect(channelList(null).every(c => c.monitor === false)).toBe(true);
+        expect(monitorTypeFor(channelList(null)[1])).toBe('OBS_MONITORING_TYPE_NONE');
+        expect(monitorTypeFor(null)).toBe('OBS_MONITORING_TYPE_NONE');
+        // Only a real true counts, so a stray value can't double the sound
+        expect(channelList({ channels: [{ id: 'm', label: 'M', monitor: 'yes' }] })[0].monitor).toBe(false);
+        // Saved Hear survives a reload, so a remade input (Spotify closed and reopened) is still heard
+        const music = channelList({ channels: [{ id: 'music', label: 'Music', tracks: [1, 4], copyFrom: 'BG Music', monitor: true }] })[0];
+        expect(music.monitor).toBe(true);
+        expect(monitorTypeFor(music)).toBe('OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT');
+        expect(newChannel('Cable', [], { monitor: true }).channel.monitor).toBe(true);
     });
     it('turns tracks into OBS\'s track object', () => {
         expect(tracksObject([1, 4])).toEqual({ 1: true, 2: false, 3: false, 4: true, 5: false, 6: false });
