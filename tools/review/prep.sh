@@ -19,7 +19,7 @@ remote=${REVIEW_REMOTE:-origin}
 
 if [[ ${1:-} == "--squash" ]]; then
     pr=${2:?pr number}; merged=${3:?merged sha}
-    git fetch -q "$remote" main "pull/$pr/head:refs/review/$pr"
+    git fetch -q --force "$remote" main "pull/$pr/head:refs/review/$pr"
     parent=$(git rev-parse "$merged^1")
     expect=$(git merge-tree --write-tree "$parent" "refs/review/$pr") || {
         echo "squash check: reviewed head conflicts with $parent"; exit 1; }
@@ -70,13 +70,14 @@ while IFS= read -r file; do
     added=$(git diff -U0 "$base" "$head" -- "$file" | sed -n 's/^+\(|.*\)$/\1/p')
     [[ -n $added ]] || continue
     while IFS= read -r row; do
-        cells=$(awk -F'|' '{print NF}' <<<"$row")
+        # An escaped pipe (\|) sits inside a cell, so drop it before counting.
+        cells=$(sed 's/\\|//g' <<<"$row" | awk -F'|' '{print NF}')
         # The nearest header above this row in the PR's version of the file.
         header=$(git show "$head:$file" | awk -v row="$row" '
             /^\|/ { if (!intable) { hdr = $0; intable = 1 } }
             !/^\|/ { intable = 0 }
             $0 == row { print hdr; exit }')
-        want=$(awk -F'|' '{print NF}' <<<"$header")
+        want=$(sed 's/\\|//g' <<<"$header" | awk -F'|' '{print NF}')
         if [[ $cells != "$want" ]]; then
             echo "table: $file row has $((cells - 2)) cells, header has $((want - 2)): ${row:0:80}"
             bad=1
