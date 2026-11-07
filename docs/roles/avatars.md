@@ -55,6 +55,17 @@ numbers to it).
   Pages, and sign-in must stay off Pages (one origin shared by every Pages
   site; code review, 2026-10-30).
 - The model is AJ's commission; hosting it publicly is fine (AJ, 2026-10-30).
+- Render loop (`src/main.ts`, checked 2026-10-31): one `setAnimationLoop`, no
+  fps cap, dt clamped to 0.05 s. Ragdoll physics clamps dt to 1/30 per frame
+  and steps at a fixed rate, so **any fps cap must stay at 30 or above** or
+  physics slows down. No lip sync exists (marked inert in `Avatar.ts`); the
+  pose mirror runs only with `?remote`, which Pages lacks. The avatar casts
+  its own shadow and moves every frame, so `shadowMap.autoUpdate = false`
+  freezes its self-shadow; throttle instead. Shadow map size and type are
+  saved panel settings (the seed), so changing them is a visual change:
+  before/after frames for design review, and update the seed.
+- OBS's own "Use custom frame rate" on the browser source caps a page with
+  no code; try it (OBS expert, Defiant off-air) before adding a cap in code.
 - Deep docs: `README.md` and `docs/codebase/` in the repo
   (`ARCHITECTURE.md`, `MODULE-MAP.md`, `domains/`).
 
@@ -125,3 +136,5 @@ numbers to it).
 | 2026-10-28 | A control UI behind a debug flag still reaches viewers if the OBS URL carries the flag. Read each avatar source's URL, not only the code | OBS loaded the vtuber with `?debug` (Rotom Learnings) | Audits, URL changes | active |
 | 2026-10-30 | Moving a page behind the Pages loader drops OBS's Custom CSS, so a page that painted its own background shows a box. Prove alpha with an `omitBackground` corner pixel | vtuber #4 at 4b5bffe, fixed in 905a68e (QA Learnings) | Any avatar load change | active |
 | 2026-10-30 | vtuber Pages deploys from the default branch; `pages.yml` must match on both branches | vtuber #5, #6 | vtuber workflow edits | active |
+| 2026-10-31 | Before advising on a vtuber perf change, read the render loop for dt clamps and fixed-step physics: the ragdoll's 1/30 clamp sets a 30 fps floor that a GPU thread would not see from the GPU numbers | Consult for "Reduce browser source GPU usage"; `Ragdoll.ts` `update()` | vtuber fps or render changes | active |
+| 2026-11-07 | Weekly audit: no newer OBS export than 2026-10-31, so the Domain table stands. discoball #3, #4 changed only how the WebM export picks its loop length; still no CI and no Pages | discoball 08ca6b1, 897fc33 | Domain table | active |
