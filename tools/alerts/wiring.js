@@ -63,41 +63,68 @@ export function passesNoChatFlag(args) {
 }
 
 /**
- * Commands that post to chat, and every call to them.
+ * Commands that post to chat, and every call to them. A call is safe only
+ * when its target's chat actions all sit inside a conditional (the `|1`
+ * guard) and the call passes `|1`; `|1` does nothing for a target that
+ * posts unconditionally (code review on #163). A command that makes an
+ * unsafe call posts too, so callers are followed to any depth.
  * @param {Array<Object>} commands - parsed MIU command objects
  * @returns {{posters: Array<Object>, calls: Array<Object>}} report rows
  */
 export function chatReport(commands) {
     const byId = new Map(commands.map(c => [c.ID, c]));
-    const posters = commands
-        .map(c => ({
-            command: c,
-            chats: walkActions(c.Actions).filter(({ action }) => miuType(action) === 'Chat'),
-        }))
-        .filter(p => p.chats.length)
-        .map(p => ({
-            name: p.command.Name,
-            id: p.command.ID,
-            enabled: p.command.IsEnabled !== false,
-            guarded: p.chats.every(({ path }) => path.includes('Conditional')),
-            texts: p.chats.map(({ action }) => action.ChatText),
-        }));
-    const posterIds = new Set(posters.map(p => p.id));
-    const calls = [];
+    const posters = new Map();
     for (const c of commands) {
-        for (const { action } of walkActions(c.Actions)) {
-            if (miuType(action) !== 'Command' || !posterIds.has(action.CommandID)) continue;
-            calls.push({
-                caller: c.Name,
-                callerEnabled: c.IsEnabled !== false,
-                target: byId.get(action.CommandID)?.Name,
-                args: action.Arguments ?? '',
-                noChatFlag: passesNoChatFlag(action.Arguments),
-                actionEnabled: action.Enabled !== false,
-            });
+        const chats = walkActions(c.Actions).filter(({ action }) => miuType(action) === 'Chat');
+        if (!chats.length) continue;
+        posters.set(c.ID, {
+            name: c.Name,
+            id: c.ID,
+            enabled: c.IsEnabled !== false,
+            guarded: chats.every(({ path }) => path.includes('Conditional')),
+            texts: chats.map(({ action }) => action.ChatText),
+            via: null,
+        });
+    }
+    const callsTo = target => {
+        const out = [];
+        for (const c of commands) {
+            for (const { action } of walkActions(c.Actions)) {
+                if (miuType(action) !== 'Command' || action.CommandID !== target.id) continue;
+                const noChatFlag = passesNoChatFlag(action.Arguments);
+                out.push({
+                    caller: c.Name,
+                    callerId: c.ID,
+                    callerEnabled: c.IsEnabled !== false,
+                    target: target.name,
+                    args: action.Arguments ?? '',
+                    noChatFlag,
+                    targetGuarded: target.guarded,
+                    safe: target.guarded && noChatFlag,
+                    actionEnabled: action.Enabled !== false,
+                });
+            }
+        }
+        return out;
+    };
+    // Follow unsafe calls upward until no new poster appears.
+    const calls = [];
+    const queue = [...posters.values()];
+    while (queue.length) {
+        const target = queue.shift();
+        for (const call of callsTo(target)) {
+            calls.push(call);
+            if (call.safe || posters.has(call.callerId)) continue;
+            const caller = byId.get(call.callerId);
+            const viaPoster = {
+                name: caller.Name, id: caller.ID, enabled: caller.IsEnabled !== false,
+                guarded: false, texts: [], via: target.name,
+            };
+            posters.set(caller.ID, viaPoster);
+            queue.push(viaPoster);
         }
     }
-    return { posters, calls };
+    return { posters: [...posters.values()], calls };
 }
 
 /**
@@ -219,7 +246,7 @@ function parseArgs(argv) {
 
 async function main() {
     const { mode, term, opts } = parseArgs(process.argv.slice(2));
-    if (!['find', 'chat'].includes(mode) || (mode === 'find' && !term) || (!opts.miu && !opts.obs)) {
+    if (!['find', 'chat'].includes(mode) || (mode === 'find' && !term) || (!opts.miu && !opts.obs) || (mode === 'chat' && !opts.miu)) {
         console.error('Usage: npm run alerts:wiring -- find <term> --miu=<db3|dir|json> [--obs=<Archive_1.json>]');
         console.error('       npm run alerts:wiring -- chat --miu=<db3|dir|json>');
         process.exit(2);
@@ -231,12 +258,18 @@ async function main() {
         const { posters, calls } = chatReport(commands);
         console.log('\nCommands with a Chat action:');
         for (const p of posters) {
-            console.log(`  ${p.name}${p.enabled ? '' : ' [disabled]'}: ${p.guarded ? 'inside a conditional' : 'ALWAYS posts'}; text ${p.texts.join(' / ')}`);
+            const how = p.via ? `posts through ${p.via}` : p.guarded ? 'inside a conditional (|1 skips it)' : 'ALWAYS posts';
+            console.log(`  ${p.name}${p.enabled ? '' : ' [disabled]'}: ${how}${p.texts.length ? `; text ${p.texts.join(' / ')}` : ''}`);
         }
-        console.log('\nCalls to them (no |1 = posts to chat when fired):');
-        for (const c of calls.sort((a, b) => Number(a.noChatFlag) - Number(b.noChatFlag))) {
+        console.log('\nCalls to them. "ok" means this call stays off chat; firing its caller');
+        console.log('can still post if the caller is listed above:');
+        const posterIds = new Set(posters.map(p => p.id));
+        const label = c => c.safe
+            ? (posterIds.has(c.callerId) ? 'ok, caller posts' : 'ok            ')
+            : c.targetGuarded ? 'POSTS (no |1) ' : 'POSTS (always)';
+        for (const c of calls.sort((a, b) => Number(a.safe) - Number(b.safe))) {
             const off = !c.callerEnabled || !c.actionEnabled ? ' [disabled]' : '';
-            console.log(`  ${c.noChatFlag ? 'ok   ' : 'POSTS'} ${c.caller} -> ${c.target}${off}: ${c.args}`);
+            console.log(`  ${label(c)} ${c.caller} -> ${c.target}${off}: ${c.args}`);
         }
         return;
     }

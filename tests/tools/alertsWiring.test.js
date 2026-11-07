@@ -56,9 +56,23 @@ describe('alerts wiring', () => {
 
     it('flags calls to chat-posting commands without |1', () => {
         const { posters, calls } = chatReport(commands);
-        expect(posters.map(p => [p.name, p.guarded])).toEqual([['Sidescreen Alert', true], ['Shoutout', false]]);
-        const flagged = calls.filter(c => !c.noChatFlag).map(c => c.caller);
+        expect(posters.map(p => [p.name, p.guarded, p.via])).toEqual([
+            ['Sidescreen Alert', true, null], ['Shoutout', false, null], ['Twitch Channel Resubscribed', false, 'Sidescreen Alert'],
+        ]);
+        const flagged = calls.filter(c => !c.safe).map(c => c.caller);
         expect(flagged).toEqual(['Twitch Channel Resubscribed']);
+    });
+
+    it('treats |1 as safe only when the target guards its chat', () => {
+        const always = { ID: 'al', Name: 'Always', IsEnabled: true, Actions: [{ $type: T('Chat'), ChatText: 'hi' }] };
+        const caller = { ID: 'ca', Name: 'Caller', IsEnabled: true, Actions: [{ $type: T('Command'), CommandID: 'al', Arguments: '$user|1' }] };
+        const grand = { ID: 'gr', Name: 'Grand', IsEnabled: true, Actions: [{ $type: T('Command'), CommandID: 'ca', Arguments: '' }] };
+        const { posters, calls } = chatReport([always, caller, grand, sidescreen, shoutout]);
+        const byCaller = Object.fromEntries(calls.map(c => [`${c.caller}->${c.target}`, c.safe]));
+        expect(byCaller['Caller->Always']).toBe(false);
+        expect(byCaller['Grand->Caller']).toBe(false);
+        expect(byCaller['Shoutout->Sidescreen Alert']).toBe(true);
+        expect(posters.find(p => p.name === 'Grand').via).toBe('Caller');
     });
 
     it('finds MIU actions by any field', () => {
@@ -103,7 +117,7 @@ describe('alerts wiring', () => {
             db.close();
             const out = execFileSync(process.execPath, ['tools/alerts/wiring.js', 'chat', `--miu=${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
             expect(out).toContain('MIU: 4 commands');
-            expect(out).toMatch(/POSTS Twitch Channel Resubscribed -> Sidescreen Alert/);
+            expect(out).toMatch(/POSTS \(no \|1\) +Twitch Channel Resubscribed -> Sidescreen Alert/);
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }

@@ -105,7 +105,9 @@ its own PR:
 - `alert-test-safe`: the test ladder in Safety rule 1 as one checklist. Its
   chat check shipped as a script (2026-11-07 audit):
   `npm run alerts:wiring -- chat --miu=<db3>` lists every command with a
-  Chat action and every call to it, flagging calls without `|1`.
+  Chat action and every call to it, to any depth. A call is safe only when
+  it passes `|1` and its target keeps its chat inside a conditional (`|1`
+  does nothing for Shoutout or Couch Color; code review on #163).
 - `miu-command-edit`: how to read, back up, edit and verify an MIU command
   through Defiant, with the steps-file template.
 
