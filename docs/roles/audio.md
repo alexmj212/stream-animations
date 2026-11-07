@@ -124,6 +124,24 @@ before relying on any value here.
    don't do the issue's work.
 3. If the plan would change OBS, name the read-back the Defiant recipe must
    include (rule 7).
+4. Before answering a routing or monitoring plan, check it against these
+   questions (from the 2026-11-02 Spotify review, where the plan's premise
+   didn't match the live setup):
+   - **Live state first.** Does the plan's picture match OBS now? Ask for a
+     Defiant read of the sources involved (mute, tracks, monitor type, the
+     Monitoring Device, the Windows output of the app) before trusting
+     memory or the saved collection.
+   - **What reads it.** Before a source is muted, moved or replaced, list
+     everything that points at it: Move filters and actions, Audio Move,
+     the music waveform, fades.
+   - **What AJ hears, not only the stream.** A route change can break AJ's
+     monitor (wrong device, monitoring forced off) while the stream sounds
+     fine.
+   - **Windows clicks.** Per-app Windows output has no public API
+     (DECISIONS 2026-10-30), so that step is AJ's.
+   - **Proof without a render.** When no level changes: read back, then the
+     track-1 peak at the same moments before and after (doubling shows as
+     about +6 dB), and no music on track 2.
 
 **When an issue thread reports a learning**: update `docs/AUDIO.md` or this
 charter through a small PR of this thread's own, add a Learnings row, and
@@ -151,4 +169,5 @@ capture, render, A/B clips, AJ listens, apply, read back).
 | 2026-10-30 | Generalising the Game Switcher dropped two audio rails (the -12 dB fader cap and music off VOD track 2) while every test passed. When a PR rewrites audio config, check each removed line for a ceiling or a track keep-out and ask for a test that pins it | QA Learnings, #120 | config rewrites | active |
 | 2026-10-31 | Moving a source to a copy (BG Music to the Spotify app capture) lost its volume fades, so the music stayed at the talking level. When a change replaces or copies a source, list every filter and automation that points at the old one | `docs/DECISIONS.md` 2026-10-31; #128, #129 | source moves | active |
 | 2026-10-31 | A filter kind OBS no longer registers stays in the JSON, hidden and inert, and a gate closing looked like proof it worked. Read every change back in OBS (rule 7) | `docs/AUDIO.md`, "Applying a change in OBS"; #135 | OBS changes | active |
-| 2026-11-02 | I sent a placeholder message to the wrong thread (the vault thread instead of the Spotify issue thread) because I reused a thread id from memory. Before `message_thread`, look up the relay's session id in `list_threads` and use that thread id, and only send the final text, never a stub | This thread, Spotify monitoring plan check; same as Code review's 2026-10-29 row | messaging threads | active |
+| 2026-11-02 | I sent a placeholder message to the wrong thread (the vault thread instead of the Spotify issue thread) because I reused a thread id from memory. Before `message_thread`, look up the relay's session id in `list_threads` and use that thread id, and only send the final text, never a stub | This thread, Spotify monitoring plan check; same as Code review's 2026-10-29 row | messaging threads | superseded by 2026-11-02: CLAUDE.md "Find the thread before you message it" (#157) |
+| 2026-11-02 | A dock remake set every app capture's monitoring to NONE, and Spotify was moved to headphones. That left AJ unable to hear the music at stream level, and Defiant's read showed nothing capturing Spotify at all. An issue thread's plan was built on memory that no longer matched. Start every routing review from a live read (routine step 4) | Defiant read for "Hear Spotify music at stream volume" | routing and monitoring plans | active |
