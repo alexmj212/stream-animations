@@ -75,6 +75,21 @@ describe('alerts wiring', () => {
         expect(posters.find(p => p.name === 'Grand').via).toBe('Caller');
     });
 
+    it('drops the guard of a guarded poster that calls an always-poster', () => {
+        const always = { ID: 'al', Name: 'Always', IsEnabled: true, Actions: [{ $type: T('Chat'), ChatText: 'hi' }] };
+        const mixed = {
+            ID: 'mx', Name: 'Mixed', IsEnabled: true,
+            Actions: [
+                { $type: T('Conditional'), Actions: [{ $type: T('Chat'), ChatText: '$argdelimited1text' }] },
+                { $type: T('Command'), CommandID: 'al', Arguments: '' },
+            ],
+        };
+        const caller = { ID: 'ca', Name: 'Caller', IsEnabled: true, Actions: [{ $type: T('Command'), CommandID: 'mx', Arguments: 'x|1' }] };
+        const { posters, calls } = chatReport([always, mixed, caller]);
+        expect(posters.find(p => p.name === 'Mixed')).toMatchObject({ guarded: false, via: 'Always' });
+        expect(calls.find(c => c.caller === 'Caller').safe).toBe(false);
+    });
+
     it('finds MIU actions by any field', () => {
         const rows = findInMiu(commands, 'stinger');
         expect(rows).toHaveLength(1);

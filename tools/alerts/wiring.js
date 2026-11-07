@@ -107,23 +107,32 @@ export function chatReport(commands) {
         }
         return out;
     };
-    // Follow unsafe calls upward until no new poster appears.
-    const calls = [];
-    const queue = [...posters.values()];
-    while (queue.length) {
-        const target = queue.shift();
-        for (const call of callsTo(target)) {
-            calls.push(call);
-            if (call.safe || posters.has(call.callerId)) continue;
-            const caller = byId.get(call.callerId);
-            const viaPoster = {
-                name: caller.Name, id: caller.ID, enabled: caller.IsEnabled !== false,
-                guarded: false, texts: [], via: target.name,
-            };
-            posters.set(caller.ID, viaPoster);
-            queue.push(viaPoster);
+    // Follow unsafe calls upward until nothing changes: a caller of an
+    // unsafe call becomes a poster, or loses its guard if it already was one
+    // (its own chat may be guarded, but the call it makes is not).
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const target of [...posters.values()]) {
+            for (const call of callsTo(target)) {
+                if (call.safe) continue;
+                const known = posters.get(call.callerId);
+                if (known && !known.guarded) continue;
+                if (known) {
+                    known.guarded = false;
+                    known.via = target.name;
+                } else {
+                    const caller = byId.get(call.callerId);
+                    posters.set(caller.ID, {
+                        name: caller.Name, id: caller.ID, enabled: caller.IsEnabled !== false,
+                        guarded: false, texts: [], via: target.name,
+                    });
+                }
+                changed = true;
+            }
         }
     }
+    const calls = [...posters.values()].flatMap(callsTo);
     return { posters: [...posters.values()], calls };
 }
 
