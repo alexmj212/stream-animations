@@ -163,15 +163,23 @@ if (loop) {
 let outFile = framesDir;
 if (format !== 'png') {
   const args = ['-y', '-loglevel', 'error', '-framerate', String(fps), '-i', resolve(framesDir, 'f%05d.png')];
+  // Convert and tag as BT.709 limited range. Untagged YUV leaves the matrix
+  // to the player, and OBS can read it as the other one, shifting the
+  // gradient's colours (design review, stinger video, 2026-10-31). The
+  // format filter makes this scale do the YUV conversion for every frame:
+  // fully covered frames are RGB PNGs, not RGBA, and without it ffmpeg's own
+  // scaler converted those with the BT.601 matrix, a colour jump at the cut
+  const bt709 = pixFmt => ['-vf', `scale=out_color_matrix=bt709:out_range=tv,format=${pixFmt}`,
+    '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
   if (format === 'mp4') {
     outFile = resolve(outDir, `${base}.mp4`);
-    args.push('-c:v', 'libx264', '-preset', 'slow', '-crf', '14', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', outFile);
+    args.push(...bt709('yuv420p'), '-c:v', 'libx264', '-preset', 'slow', '-crf', '14', '-movflags', '+faststart', outFile);
   } else if (format === 'mov') {
     outFile = resolve(outDir, `${base}.mov`);
     args.push('-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-alpha_bits', '16', outFile);
   } else {
     outFile = resolve(outDir, `${base}.webm`);
-    args.push('-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '18', '-row-mt', '1', '-auto-alt-ref', '0', outFile);
+    args.push(...bt709('yuva420p'), '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '18', '-row-mt', '1', '-auto-alt-ref', '0', outFile);
   }
   const r = spawnSync(ffmpeg, args, { stdio: 'inherit' });
   if (r.error || r.status !== 0) {
