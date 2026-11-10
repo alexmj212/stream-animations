@@ -101,7 +101,7 @@ describe('placeLabels', () => {
 });
 
 describe('RadarLoader', () => {
-    const cfg = { frames: 2, indexUrl: 'https://radar.test/index.json', indexTtlMs: 300000, refreshMs: 600000, timeoutMs: 10000, colorScheme: 2, alpha: 0.85 };
+    const cfg = { frames: 2, indexUrl: 'https://radar.test/index.json', indexTtlMs: 300000, refreshMs: 600000, timeoutMs: 10000, retryAfterMs: 60000, colorScheme: 2, alpha: 0.85 };
     const towns = [{ name: 'A', lat: 40, lon: -100 }, { name: 'B', lat: 41, lon: -98 }];
     const noop = () => {};
 

@@ -198,6 +198,7 @@ export class NwsSource {
         this.now = now;
         this.debug = debug;
         this.cache = new Map();         // url -> { t, data }; bounded by the fixed city list
+        this.failed = new Map();        // url -> t of the last failure, for the hold-off
         this.inflight = new Map();      // regionIndex -> Promise
         this.source = 'nws';
     }
@@ -209,10 +210,14 @@ export class NwsSource {
 
     async load(url, ttl) {
         if (this.fresh(url, ttl)) return;
+        // While NWS is down, don't ask again every page (QA, #169)
+        if (this.now() - (this.failed.get(url) ?? -Infinity) < this.cfg.retryAfterMs) return;
         try {
             const data = await getJson(this.fetch, url, this.cfg.timeoutMs);
             this.cache.set(url, { t: this.now(), data });
+            this.failed.delete(url);
         } catch (e) {
+            this.failed.set(url, this.now());
             // Keep the last good copy; the page shows its age
             this.debug?.mark('fetchFail', { url, message: String(e) });
         }

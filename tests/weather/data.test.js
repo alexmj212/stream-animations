@@ -104,7 +104,7 @@ describe('forecastToPages', () => {
 });
 
 describe('NwsSource', () => {
-    const cfg = { forecastTtlMs: 1800000, observationTtlMs: 600000, staleAfterMs: 3 * 3600000, timeoutMs: 1000 };
+    const cfg = { forecastTtlMs: 1800000, observationTtlMs: 600000, staleAfterMs: 3 * 3600000, timeoutMs: 1000, retryAfterMs: 60000 };
     const forecast = fixture('forecast-LOT.json');
     const obs = fixture('obs-KSEA.json');
 
@@ -147,6 +147,20 @@ describe('NwsSource', () => {
         await src.ensure(0);
         expect(src.get(0).towns.every((t) => t.now === null)).toBe(true);
         expect(src.get(0).home.periods).toHaveLength(3);
+    });
+
+    it('holds off a failed URL instead of asking every page', async () => {
+        let calls = 0;
+        let t = 0;
+        const src = new NwsSource({ cfg, fetch: async () => { calls++; return { ok: false, status: 503 }; }, now: () => t });
+        await src.ensure(0);
+        const first = calls;
+        t = 30000;
+        await src.ensure(0);
+        expect(calls).toBe(first);
+        t = 61000;
+        await src.ensure(0);
+        expect(calls).toBe(2 * first);
     });
 
     it('keeps the page up when a fetch fails', async () => {

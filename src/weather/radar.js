@@ -162,6 +162,7 @@ export class RadarLoader {
         this.scratch = makeCanvas(TILE, TILE);
         this.ready = null;              // { key, times: number[], t }
         this.building = null;           // { key, promise } while a build runs
+        this.indexFailedAt = -Infinity;
         this.token = 0;
         this.index = null;              // { t, data } RainViewer frame list
     }
@@ -189,7 +190,15 @@ export class RadarLoader {
 
     async radarIndex() {
         if (this.index && this.now() - this.index.t < this.cfg.indexTtlMs) return this.index.data;
-        const data = await this.timed(this.cfg.indexUrl, { cache: 'no-cache' }, (r) => r.json());
+        // While RainViewer is down, don't ask again every visit (QA, #169)
+        if (this.now() - this.indexFailedAt < this.cfg.retryAfterMs) throw new Error('radar index holding off after a failure');
+        let data;
+        try {
+            data = await this.timed(this.cfg.indexUrl, { cache: 'no-cache' }, (r) => r.json());
+        } catch (e) {
+            this.indexFailedAt = this.now();
+            throw e;
+        }
         this.index = { t: this.now(), data };
         return data;
     }

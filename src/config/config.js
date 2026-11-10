@@ -1541,7 +1541,8 @@ export const config = {
       refreshMs: 600000,    // a region's built loop is reused for 10 min
       colorScheme: 2,       // RainViewer's universal blue; recoloured to the broadcast ramp
       alpha: 0.85,          // radar over the map: the coastlines still show through
-      timeoutMs: 10000      // a hung tile gives up, so a build always finishes
+      timeoutMs: 10000,     // a hung tile gives up, so a build always finishes
+      retryAfterMs: 60000   // after a failed frame list, wait before asking again
     },
     // Live NWS data (AJ, 2026-11-10: "real weather data ... for real places")
     data: {
@@ -1549,6 +1550,7 @@ export const config = {
       observationTtlMs: 600000, // airport stations report hourly; 10 min catches specials
       staleAfterMs: 10800000,   // an observation over 3 h old shows as missing, not current
       timeoutMs: 10000,         // a slow NWS answer gives up and keeps the last copy
+      retryAfterMs: 60000,      // after a failure, leave that URL alone this long (no hammering a down NWS)
       lookAheadPages: 3,        // fetch a region three pages before it airs
       startWaitMs: 8000         // first paint waits this long for live data at most
     }
