@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: #071450;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" width="1920" height="1080"></canvas>
+
+    <script type="module">
+      import { WeatherChannel } from "./WeatherChannel.js";
+      import { REGIONS } from "./regions.js";
+      import { config } from "../config/config.js";
+      import { seedFromURL } from "../shared/motion.js";
+      import { createDebug } from "../shared/debug.js";
+      const debug = createDebug('weather');
+
+      // AJ (2026-11-10): an unironic early-90s cable weather channel that
+      // cuts through forecast pages forever. Full screen and opaque, so it
+      // is a scene of its own (BRB, a break). Forecasts are generated, for
+      // made-up towns, and hold steady through each day.
+      //   ?seed=N        another set of forecasts (default 0: same for all)
+      //   ?region=N|name region to open on (index or name, e.g. piedmont)
+      //   ?page=name     hold one page: current, local, extended, regional, almanac
+      //   ?pagems=N      ms per page (default config.weather.pageMs)
+      //   ?at=ISO        pretend it's this time (mocks: ?at=2027-01-15T08:00Z)
+      //   ?fps=N         frame cap (default config.weather.fps)
+      //   ?station=TEXT  the station ident (default EXO)
+      const urlParams = new URLSearchParams(window.location.search);
+      const cfg = { ...config.weather };
+      const num = (k) => (urlParams.has(k) ? Number(urlParams.get(k)) : NaN);
+      if (num('pagems') >= 2000) cfg.pageMs = num('pagems');
+      if (num('fps') >= 1) cfg.fps = Math.min(120, num('fps'));
+      if (urlParams.get('station')) cfg.station = urlParams.get('station').slice(0, 5).toUpperCase();
+      const page = cfg.pages.includes(urlParams.get('page')) ? urlParams.get('page') : null;
+      const regionParam = (urlParams.get('region') || '').toUpperCase().replace(/[-_+]/g, ' ');
+      let region = REGIONS.findIndex((r) => r.name === regionParam);
+      if (region < 0) region = Math.max(0, Math.floor(Number(regionParam)) || 0) % REGIONS.length;
+      const atMs = Date.parse(urlParams.get('at') || '');
+      const startWall = Date.now();
+      const now = Number.isFinite(atMs) ? () => atMs + (Date.now() - startWall) : () => Date.now();
+
+      const canvas = document.getElementById("canvas");
+      let tv = null;
+      let startMs = null;
+      let lastDrawn = -Infinity;
+      let prepTimer = null;
+      const frameGap = 1000 / cfg.fps;
+
+      function frame(timestamp) {
+        requestAnimationFrame(frame);
+        if (startMs === null) startMs = timestamp;
+        // Cap to cfg.fps; the half-tick slack keeps 30 on a 60 Hz clock
+        if (timestamp - lastDrawn < frameGap - 4) return;
+        lastDrawn = timestamp;
+        debug.frame(timestamp);
+        const { cut } = tv.update(timestamp - startMs);
+        if (cut) {
+          // Build the next page well away from the cut, so a cut is one blit
+          clearTimeout(prepTimer);
+          prepTimer = setTimeout(() => tv.prepareNext(), cfg.prepareDelayMs);
+        }
+      }
+
+      // Text is baked into cached canvases: wait for fonts first
+      document.fonts.ready.then(() => {
+        tv = new WeatherChannel(canvas, { cfg, seed: seedFromURL() ?? 0, now, region, page, debug });
+        debug.mark('start', { region: REGIONS[region].name, page });
+        requestAnimationFrame(frame);
+      });
+    </script>
+  </body>
+</html>
