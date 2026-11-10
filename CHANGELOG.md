@@ -4,6 +4,15 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.16.0 - 2026-11-10
+
+- The weather page is now a 4:3 picture with a CRT look (scanlines,
+  rounded tube, glow), real National Weather Service forecasts and
+  observations for 42 US cities in six regions, and a radar page with
+  RainViewer's last hour on a drawn map. `?data=demo` keeps the old
+  made-up towns with no network. Region names in `?region=` changed to
+  `northeast`, `midwest` and so on. ([#169])
+
 ## v2.15.0 - 2026-11-10
 
 - New 90s weather page: an early-90s cable weather channel on its own full
@@ -304,3 +313,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#129]: https://github.com/alexmj212/stream-animations/pull/129
 [#131]: https://github.com/alexmj212/stream-animations/pull/131
 [#164]: https://github.com/alexmj212/stream-animations/pull/164
+[#169]: https://github.com/alexmj212/stream-animations/pull/169
