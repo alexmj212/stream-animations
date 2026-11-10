@@ -737,6 +737,33 @@ export const SCENARIOS = [
     }
   },
   {
+    // The 90s weather page (AJ, 2026-11-10): runs as long as a break, so it
+    // keeps the default 4 ms budget (Performance expert, 2026-11-10).
+    // pagems=3000 puts two cuts in the capture (the spike to watch; max is
+    // in the report) and fps=60 draws every stepped frame for the CPU count.
+    // at= pins the clock so the frames are the same every run
+    name: 'weather',
+    url: '/src/weather/index.html?pagems=3000&fps=60&at=2026-11-10T19:00:00Z',
+    start: 'load',
+    captureMs: 8000,
+    keyframes: [0.2, 0.5, 0.9],
+    keyframeSpanMs: 8000,
+    markers: [{ at: 3000, label: 'cut' }, { at: 6000, label: 'cut' }],
+    checks: {
+      // AJ's own look, but the viewer rules hold (Rotom, design review on
+      // #164): hard cuts with no flash, text inside title-safe except the
+      // crawl (it runs to the frame edge), nothing readable below y 994 (the
+      // crawl clears it by a few px), nothing under 32px
+      design: {
+        rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        safeExclude: ['crawl'],
+        minPx: 32
+      },
+      workP95Ms: 4
+    }
+  },
+  {
     // AJ's Spheal march gag (2026-10-29): not held to the bible, but it
     // must end clear once the giant has rolled off, stop its song once
     // (the end event), and stay inside the frame budget at the peak crowd
