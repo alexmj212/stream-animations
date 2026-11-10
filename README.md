@@ -134,7 +134,9 @@ forecasts generated, steady through each day.
 - `station` - The ident on the logo, up to 5 letters (default `EXO`)
 
 In OBS, set the browser source to 1920x1080, a custom frame rate of 30, and
-"Shutdown source when not visible".
+"Shutdown source when not visible". Give it a scene of its own without the
+goal bar, music display, remote, jail or chat (they would cover the logo,
+title and panel); alerts can still play over it.
 
 ### Game picker (OBS dock)
 Not a scene: a Custom Browser Dock inside OBS that points a game scene's
