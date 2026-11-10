@@ -37,6 +37,14 @@ const SCENE_DEFS = [
     trigger: null
   },
   {
+    // 90s weather page: short pages so the sample covers several cuts
+    name: 'weather',
+    url: '/src/weather/index.html?pagems=3000',
+    warmupMs: 2000,
+    sampleMs: 10000,
+    trigger: null
+  },
+  {
     name: 'sidebar',
     url: '/src/sidebar/index.html?perf=true&color=%23ff6600',
     warmupMs: 1000,

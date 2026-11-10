@@ -143,6 +143,19 @@ describe('evaluateDesignRules', () => {
         expect(r).toMatchObject({ pass: true, warn: true });
     });
 
+    it('leaves safeExclude ids out of SAFE-1 only (the weather crawl, #164)', () => {
+        const crawl = textFrames(500, still(404, 950, 1516, 40), { id: 'crawl' });
+        const opts = { rules: ['SAFE-1', 'SAFE-3'], fail: ['SAFE-1', 'SAFE-3'] };
+        expect(evaluateDesignRules(opts, crawl, design, 1920, 1080)[0].pass).toBe(false);
+        const [safe1, safe3] = evaluateDesignRules({ ...opts, safeExclude: ['crawl'] },
+            [...crawl.map((f, i) => ({ ...f, samples: [...f.samples, ...frames[i].samples.map(s => ({ ...s, box: { x: 200, y: 200, width: 300, height: 50 } }))] }))],
+            design, 1920, 1080);
+        expect(safe1.pass).toBe(true);
+        expect(safe3.pass).toBe(true);
+        const low = textFrames(500, still(404, 960, 1516, 40), { id: 'crawl' });
+        expect(evaluateDesignRules({ ...opts, safeExclude: ['crawl'] }, low, design, 1920, 1080)[1].pass).toBe(false);
+    });
+
     it('fails a rule listed in fail', () => {
         const [r] = evaluateDesignRules({ rules: ['SAFE-1'], fail: ['SAFE-1'] }, frames, design, 1920, 1080);
         expect(r.pass).toBe(false);

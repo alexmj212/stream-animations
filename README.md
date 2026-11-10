@@ -114,6 +114,30 @@ browser source shown by a Mix It Up command; each show plays it once.
 - `mute` - `1` plays without the song
 - `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 2.5 s)
 
+### 90s weather
+An earnest early-90s cable weather channel, on its own full screen: the
+"EXO WEATHER" ident, a gold header with the page title and a live clock, a
+beveled blue panel and a bulletin crawl. It cuts through current
+conditions, the local forecast, a 5-day extended forecast, regional
+observations and an almanac (real sunrise, sunset and moon phases), then
+moves to the next of six regions, forever. The towns are made up and the
+forecasts generated, steady through each day.
+
+**URL**: `weather/index.html` (`seed`, `region`, `page`, `pagems`, `at`, `fps`, `station`)
+
+- `seed` - Another set of forecasts (default 0, the same for everyone)
+- `region` - Region to open on, by index or name (`northern-lakes`, `atlantic-coast`, `piedmont`, `high-plains`, `desert-southwest`, `pacific-northwest`)
+- `page` - Hold one page: `current`, `local`, `extended`, `regional` or `almanac`
+- `pagems` - Milliseconds per page (default 10000, at least 2000)
+- `at` - Pretend it is this time, e.g. `2027-01-15T14:00:00Z` (mocks)
+- `fps` - Frame cap (default 30)
+- `station` - The ident on the logo, up to 5 letters (default `EXO`)
+
+In OBS, set the browser source to 1920x1080, a custom frame rate of 30, and
+"Shutdown source when not visible". Give it a scene of its own without the
+goal bar, music display, remote, jail or chat (they would cover the logo,
+title and panel); alerts can still play over it.
+
 ### Game picker (OBS dock)
 Not a scene: a Custom Browser Dock inside OBS that points a game scene's
 capture at a window in one click, and can put each app's sound on stream.
