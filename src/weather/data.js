@@ -262,6 +262,13 @@ export class NwsSource {
         }
         if (!fc && towns.every((t) => !t.now)) return null;
         const pages = fc ? forecastToPages(fc.properties) : { periods: [], days: [] };
+        // A home station with no sky at all borrows the forecast's words for
+        // the current period ("Mostly Sunny"), so the big page never shows --
+        const first = fc?.properties?.periods?.[0];
+        const home = towns[0].now;
+        if (home && home.label === '--' && first) {
+            towns[0].now = { ...home, label: first.shortForecast.toUpperCase(), icon: iconFromNws(first.icon, first.shortForecast) };
+        }
         const times = towns.map((t) => t.now?.time).filter(Boolean);
         return {
             source: 'nws',

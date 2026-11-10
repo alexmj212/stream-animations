@@ -120,6 +120,17 @@ describe('NwsSource', () => {
         expect(calls).toHaveLength(1 + REGIONS[0].towns.length);
     });
 
+    it('gives a home station with no sky the forecast\'s words', async () => {
+        const blank = { properties: { ...obs.properties, textDescription: '', icon: null, cloudLayers: [], timestamp: '2026-11-10T18:25:00+00:00' } };
+        const fetch = async (url) => ({ ok: true, json: async () => (url.includes('/forecast') ? forecast : blank) });
+        const src = new NwsSource({ cfg, fetch, now: () => Date.parse('2026-11-10T19:00:00Z') });
+        await src.ensure(0);
+        const d = src.get(0);
+        expect(d.home.now.label).toBe('SUNNY');
+        expect(d.home.now.icon).toBe('sun');
+        expect(d.towns[1].now.label).toBe('--');
+    });
+
     it('drops observations too old to call current', async () => {
         const { src } = source(Date.parse('2026-11-10T23:00:00Z'));
         await src.ensure(0);

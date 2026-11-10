@@ -459,7 +459,8 @@ export class WeatherChannel {
                 shadowText(c, 'NOT AVAILABLE', cols.wx, y, 36, PALE, { glow: false });
                 return;
             }
-            c.drawImage(weatherIcon(now.icon, 64), cols.icon, y - 50);
+            // No sky reported: no icon to guess with, just the dashes
+            if (now.label !== '--') c.drawImage(weatherIcon(now.icon, 64), cols.icon, y - 50);
             shadowText(c, skyShort(now.label), cols.wx, y, 36, YELLOW, { maxW: 480, glow: false });
             shadowText(c, now.temp === null ? '--' : `${now.temp}°`, cols.temp, y, 40, '#ffffff', { align: 'right', glow: false });
             shadowText(c, now.wind === null ? '--' : now.wind < 3 ? 'CALM' : `${now.windDir} ${now.wind}`, cols.wind, y, 36, '#ffffff', { maxW: 176, glow: false });
