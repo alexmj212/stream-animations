@@ -19,10 +19,12 @@ latest="v$(node -p "require('./package.json').version")"
 # Release commits on main, oldest first. Recent ones only: everything before
 # v2.4.0 was tagged by hand.
 # First-parent and the (#N) suffix keep it to squash merges, never a release
-# branch's own commits.
+# branch's own commits. A title may say more after the version
+# ("chore(release): v2.15.0, weather page (#166)" went untagged until
+# 2026-11-10, when this learned to accept it).
 git fetch -q --tags origin 2>/dev/null || true
 git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
-  sed -nE 's/^([0-9a-f]{40}) chore\(release\): (v[0-9]+\.[0-9]+\.[0-9]+) \(#[0-9]+\)$/\1 \2/p' |
+  sed -nE 's/^([0-9a-f]{40}) chore\(release\): (v[0-9]+\.[0-9]+\.[0-9]+)([,;:] .*)? \(#[0-9]+\)$/\1 \2/p' |
   while read -r sha version; do
     if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
       continue
