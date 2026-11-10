@@ -35,6 +35,11 @@ change (Design review), harness checks and test health (QA).
    the diff stat and any added table row whose cell count is off. After a
    merge, `tools/review/prep.sh --squash <pr> <merged-sha>` confirms the
    squash is the reviewed head.
+   **Run the checks yourself** (no CI gate since 2026-11-10, AJ: "CI
+   takes over 15 minutes, disable it entirely"): `npm test -- --run` on
+   every PR; `npm run motion -- <scene>` for each scene the PR touches;
+   `npm run audio -- assets` when it adds or changes a sound. Say in the
+   review what you ran.
 3. **Cross-PR drift.** For every other open PR, check whether this PR's docs,
    config or behavior make it stale, and the reverse. `git merge-tree` only
    catches same-line conflicts; docs that describe another PR's behavior are
@@ -97,7 +102,7 @@ owning thread when work touches yours; send review findings straight to it.
 | 2026-10-28 | Show a new check can fail by running it against main's version of the file (`git show origin/main:<file> > <file>`). The MIU check failed 193 frames at the old text height, and textOverPanel failed 139/139 with main's sidebar | PR #17, #23 reviews | harness checks | active |
 | 2026-10-28 | When a look change claims the old look survives behind a flag, prove it: `npm run motion -- <scenes> --out=x --params=<flag>` on the PR, a plain run on main, then `cmp` the keyframes | PR #16, `?scheme=mono`: 46/46 identical | flagged look changes | active |
 | 2026-10-28 | Don't trust "main is merged in": check with `git merge-base --is-ancestor origin/main <head>` and review on a local merge with main either way | PR #48 at 8557a69 said it had main but lacked #47/#49 | re-reviews | active |
-| 2026-10-28 | Read the PR's CI before posting Ready. A local motion pass can miss a budget failure on CI. Then judge a flaky CPU check by its sample: rerun the scene alone on main and on the PR, and fix a small sample with more frames, never with a higher budget | #48 followers p95 4.6ms on CI; ~70-frame capture, fixed by followers-cpu (#51) | CPU checks | active |
+| 2026-10-28 | Read the PR's CI before posting Ready (since 2026-11-10 there is no CI: run the motion checks locally, routine step 2). A local motion pass can miss a budget failure on a slower machine. Then judge a flaky CPU check by its sample: rerun the scene alone on main and on the PR, and fix a small sample with more frames, never with a higher budget | #48 followers p95 4.6ms on CI; ~70-frame capture, fixed by followers-cpu (#51) | CPU checks | active |
 | 2026-10-28 | Read `max` workMs as well as p95. A spike once per event is a real hitch that p95 hides. A moving band caches its gradient and moves it with `translate`, never building a new one every frame | #51 followers-cpu max 33-53ms, fixed in #52 to ~5ms | scene rendering | active |
 | 2026-10-29 | On any PR that adds or changes a sound, or the gain a page plays it at, check that the description states its level from `npm run audio -- meter <file> --gain-db=<gain>` and that `npm run audio -- assets` passes: 0 clipped samples, true peak at or below -9 dBTP | AJ, 2026-10-29: "no audio clipping ever"; the Spheal song shipped at +1.3 dBTP (#106, #107) | sound changes | active |
 | 2026-10-29 | `workP95Ms` only times the scene's JS, not raster. For a scene that draws hundreds of sprites, sample rAF intervals headless across its peak (`requestAnimationFrame` timestamps via Playwright) and compare them with a quiet window. The Spheal peak halved the frame rate while the work p95 read 1.8 ms; OBS measured ~34 fps | #97 review, fixed in #102 | heavy-draw scenes | active |
