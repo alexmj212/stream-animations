@@ -59,3 +59,11 @@ git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
       echo "Published $version at $sha"
     fi
   done
+
+# package.json's version must end up tagged. If no release commit matched it
+# (a title the pattern above missed, as #166 did), fail so the miss is red,
+# not a quiet green (code review on #171, 2026-11-10).
+if [ "${DRY_RUN:-}" != 1 ] && ! git ls-remote --exit-code --tags origin "refs/tags/$latest" >/dev/null; then
+  echo "package.json is $latest but no tag $latest exists after publishing: is its release commit titled 'chore(release): $latest (#N)'?" >&2
+  exit 1
+fi
