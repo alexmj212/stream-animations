@@ -86,8 +86,9 @@ things i don't need to see it, just get it out the door").
 
 ## Merging
 
-Once code review says Ready and CI is green (plus design review and QA
-sign-off on visual changes), release management merges, in
+Once code review says Ready (plus design review and QA sign-off on visual
+changes; there is no CI gate since 2026-11-10, so run the checks your change
+touches locally), release management merges, in
 the order it sets when PRs overlap. No approval from AJ is needed for code.
 
 ## Never

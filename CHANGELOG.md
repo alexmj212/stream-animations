@@ -4,6 +4,14 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.15.0 - 2026-11-10
+
+- New 90s weather page: an early-90s cable weather channel on its own full
+  screen that cycles current conditions, local forecast, 5-day extended,
+  regional observations and an almanac for six made-up regions, forever,
+  with a live clock and a bulletin crawl. Load `weather/` as a 1920x1080
+  Browser Source at 30 fps in a scene of its own. ([#164])
+
 ## v2.14.0 - 2026-10-31
 
 - New Audio Routing dock, an OBS Custom Browser Dock that draws the audio
@@ -294,4 +302,5 @@ release (`npm run motion:export -- stinger` renders your own).
 [#124]: https://github.com/alexmj212/stream-animations/pull/124
 [#126]: https://github.com/alexmj212/stream-animations/pull/126
 [#129]: https://github.com/alexmj212/stream-animations/pull/129
+[#164]: https://github.com/alexmj212/stream-animations/pull/164
 [#131]: https://github.com/alexmj212/stream-animations/pull/131

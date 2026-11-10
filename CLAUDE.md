@@ -33,8 +33,8 @@ AJ (2026-10-28): "for code related things i don't need to see it, just get it
 out the door." Run the most efficient workflow with the fewest approval stops.
 
 - **Code, docs, tooling, tests, performance, process**: don't ask AJ. A PR
-  ships once code review says Ready and CI is green (plus design review and
-  QA sign-off when it changes visuals); release management merges
+  ships once code review says Ready (plus design review and QA sign-off
+  when it changes visuals); release management merges
   it, in order when PRs overlap. Fix review and QA findings yourself and keep
   going.
 - **Design decisions only** go to AJ: a change in how a scene looks or moves
@@ -43,6 +43,11 @@ out the door." Run the most efficient workflow with the fewest approval stops.
   recommendation. Design review decides which questions need AJ.
 - Still never: skip or disable a test, or raise a performance budget, to get
   a PR green.
+- **No CI gate** (AJ, 2026-11-10: "CI takes over 15 minutes, disable it
+  entirely"): the `verify` workflow runs only by hand. Run the checks your
+  change touches locally (`npm test -- --run`, `npm run motion`,
+  `npm run audio -- assets`) and say so in the PR. Merges and Pages deploys
+  need no not-live check either (AJ, 2026-11-10: "Never worry about that").
 - **Measure it yourself** (AJ, 2026-10-28): add whatever signals you need to
   the scene code to test and verify without asking AJ. Use the shared debug
   convention, so every thread reads the same signals: `createDebug(scene)`
@@ -142,7 +147,7 @@ frontmatter, no metrics in notes, and append-only `Decisions` and
 ```bash
 npm install
 npm run dev                 # Vite dev server; open /src/<scene>/index.html
-npm test -- --run           # vitest, single run (CI runs this)
+npm test -- --run           # vitest, single run (pages.yml runs this before each deploy)
 npm run build               # every scene to a single-file HTML
 npm run motion              # motion harness: renders and checks every scene (docs/VALIDATION.md)
 npm run motion:export -- stinger  # transparent video of a scene for OBS
