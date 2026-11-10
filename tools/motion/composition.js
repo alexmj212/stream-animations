@@ -58,10 +58,11 @@ export const ELEMENTS = [
     { id: 'camBR', label: 'Cam BR', box: [1450, 657, 1906, 1055], kind: 'P', face: true },
     { id: 'camMR', label: 'Cam MR', box: [1450, 357, 1906, 755], kind: 'P', face: true },
     // The 90s weather page (src/weather, #164): a full scene of its own, so
-    // its text is listed like a widget's to catch overlays landing on it
-    { id: 'weatherHeader', label: 'Weather header (logo, title, clock)', box: [96, 88, 1824, 216], kind: 'P', read: true },
-    { id: 'weatherPanel', label: 'Weather panel', box: [96, 228, 1824, 912], kind: 'P', read: true },
-    { id: 'weatherCrawl', label: 'Weather crawl', box: [96, 932, 1920, 994], kind: 'P', read: true }
+    // its text is listed like a widget's to catch overlays landing on it.
+    // A 4:3 picture at x 240-1680 since AJ's rework notes (2026-11-10)
+    { id: 'weatherHeader', label: 'Weather header (logo, title, clock)', box: [312, 88, 1608, 216], kind: 'P', read: true },
+    { id: 'weatherPanel', label: 'Weather panel', box: [312, 224, 1608, 904], kind: 'P', read: true },
+    { id: 'weatherCrawl', label: 'Weather crawl', box: [240, 932, 1680, 994], kind: 'P', read: true }
 ];
 
 /**

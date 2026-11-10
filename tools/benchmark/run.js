@@ -39,7 +39,7 @@ const SCENE_DEFS = [
   {
     // 90s weather page: short pages so the sample covers several cuts
     name: 'weather',
-    url: '/src/weather/index.html?pagems=3000',
+    url: '/src/weather/index.html?data=demo&pagems=3000',
     warmupMs: 2000,
     sampleMs: 10000,
     trigger: null

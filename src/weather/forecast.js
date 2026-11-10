@@ -7,9 +7,8 @@ import { createRandom } from '../shared/motion.js';
 const DAY_MS = 86400000;
 export const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 export const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-const WIND_ABBR = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+export const WIND_ABBR = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const WIND_WORD = ['NORTH', 'NORTHEAST', 'EAST', 'SOUTHEAST', 'SOUTH', 'SOUTHWEST', 'WEST', 'NORTHWEST'];
-const ZONE_LETTER = { '-5': 'E', '-6': 'C', '-7': 'M', '-8': 'P' };
 
 /**
  * Mix integers into one 32-bit seed.
@@ -35,45 +34,44 @@ function gauss(random) {
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-/**
- * Whether US daylight saving time is in force: from 2:00 local on the second
- * Sunday of March to 2:00 local on the first Sunday of November.
- * @param {number} utcMs
- * @param {number} tz - Standard UTC offset in hours (negative west)
- * @returns {boolean}
- */
-export function isUSDaylightTime(utcMs, tz) {
-    const y = new Date(utcMs + tz * 3600000).getUTCFullYear();
-    const mar8 = new Date(Date.UTC(y, 2, 8)).getUTCDay();
-    const nov1 = new Date(Date.UTC(y, 10, 1)).getUTCDay();
-    const start = Date.UTC(y, 2, 8 + ((7 - mar8) % 7), 2) - tz * 3600000;
-    const end = Date.UTC(y, 10, 1 + ((7 - nov1) % 7), 1) - tz * 3600000;
-    return utcMs >= start && utcMs < end;
-}
+const formatters = new Map();
 
 /**
- * Wall-clock parts in a region's own time zone.
+ * Wall-clock parts in a region's own time zone (IANA name, via Intl), with
+ * its short zone name (CST, EDT, MST).
  * @param {number} utcMs
- * @param {{tz: number, dst: boolean}} region
+ * @param {{timeZone: string}} region
  * @returns {{offsetH: number, zone: string, year: number, month: number, date: number, dow: number, hour: number, minute: number, second: number, doy: number, dayNumber: number}}
  */
 export function localParts(utcMs, region) {
-    const daylight = region.dst && isUSDaylightTime(utcMs, region.tz);
-    const offsetH = region.tz + (daylight ? 1 : 0);
-    const local = utcMs + offsetH * 3600000;
-    const d = new Date(local);
-    const year = d.getUTCFullYear();
-    const dayNumber = Math.floor(local / DAY_MS);
+    let f = formatters.get(region.timeZone);
+    if (!f) {
+        f = new Intl.DateTimeFormat('en-US', {
+            timeZone: region.timeZone, hourCycle: 'h23', timeZoneName: 'short',
+            year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric'
+        });
+        formatters.set(region.timeZone, f);
+    }
+    const p = {};
+    for (const { type, value } of f.formatToParts(utcMs)) p[type] = value;
+    const year = +p.year;
+    const month = +p.month - 1;
+    const date = +p.day;
+    const hour = +p.hour;
+    const minute = +p.minute;
+    const second = +p.second;
+    const localMs = Date.UTC(year, month, date, hour, minute, second);
+    const dayNumber = Math.floor(localMs / DAY_MS);
     return {
-        offsetH,
-        zone: `${ZONE_LETTER[region.tz] ?? ''}${daylight ? 'DT' : 'ST'}`,
+        offsetH: Math.round((localMs - Math.floor(utcMs / 1000) * 1000) / 60000) / 60,
+        zone: p.timeZoneName,
         year,
-        month: d.getUTCMonth(),
-        date: d.getUTCDate(),
-        dow: d.getUTCDay(),
-        hour: d.getUTCHours(),
-        minute: d.getUTCMinutes(),
-        second: d.getUTCSeconds(),
+        month,
+        date,
+        dow: new Date(Date.UTC(year, month, date)).getUTCDay(),
+        hour,
+        minute,
+        second,
         doy: dayNumber - Math.floor(Date.UTC(year, 0, 1) / DAY_MS) + 1,
         dayNumber
     };
