@@ -30,7 +30,7 @@
       import { WeatherChannel } from "./WeatherChannel.js";
       import { REGIONS } from "./regions.js";
       import { config } from "../config/config.js";
-      import { seedFromURL } from "../shared/motion.js";
+      import { seedFromURL, registerProbe } from "../shared/motion.js";
       import { createDebug } from "../shared/debug.js";
       const debug = createDebug('weather');
 
@@ -84,6 +84,7 @@
       // Text is baked into cached canvases: wait for fonts first
       document.fonts.ready.then(() => {
         tv = new WeatherChannel(canvas, { cfg, seed: seedFromURL() ?? 0, now, region, page, debug });
+        registerProbe('weather', () => tv.probeSamples());
         debug.mark('start', { region: REGIONS[region].name, page });
         requestAnimationFrame(frame);
       });

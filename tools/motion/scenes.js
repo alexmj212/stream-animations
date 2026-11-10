@@ -750,8 +750,16 @@ export const SCENARIOS = [
     keyframeSpanMs: 8000,
     markers: [{ at: 3000, label: 'cut' }, { at: 6000, label: 'cut' }],
     checks: {
-      // Hard cuts between pages, no flashes (Rotom, 2026-11-10)
-      design: { rules: ['FLASH-1', 'FLASH-2'], fail: ['FLASH-1', 'FLASH-2'] },
+      // AJ's own look, but the viewer rules hold (Rotom, design review on
+      // #164): hard cuts with no flash, text inside title-safe except the
+      // crawl (it runs to the frame edge), nothing readable below y 994 (the
+      // crawl clears it by a few px), nothing under 32px
+      design: {
+        rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        safeExclude: ['crawl'],
+        minPx: 32
+      },
       workP95Ms: 4
     }
   },

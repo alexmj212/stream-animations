@@ -1499,7 +1499,6 @@ export const config = {
     storageKey: 'audioRouting:v1'
   },
 
-  // Shared configuration across all scenes
   // 90s weather page (src/weather): AJ's ask (2026-11-10), "an unironic
   // 90s weather channel scene, that just endlessly rotates through weather
   // forecasts". AJ's own look like spheal, outside the bible's palette and
@@ -1521,6 +1520,7 @@ export const config = {
     station: 'EXO'          // the ident on the logo and in the crawl
   },
 
+  // Shared configuration across all scenes
   shared: {
     // Timing patterns (millisecond-based, consistent across scenes)
     // 1000ms - smooth transition matching easeInOutCubic feel

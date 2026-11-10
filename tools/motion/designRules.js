@@ -307,7 +307,7 @@ export function checkFlashes(frames, { maxPerSecond = 3, fullFieldPerSecond = 1,
  * rest report as warnings (issue #43: warn-only until each scene's audit
  * issue lands, then promoted, never weakened to get green).
  *
- * @param {Object} opts - {rules: string[], fail?: string[], holdMs?: [from, to], minPx?: number}
+ * @param {Object} opts - {rules: string[], fail?: string[], holdMs?: [from, to], minPx?: number, safeExclude?: string[]}
  * @param {Array} frames
  * @param {Object} design - config.design
  * @param {number} width - capture width
@@ -323,7 +323,10 @@ export function evaluateDesignRules(opts, frames, design, width, height, frameMs
     const [from, to] = opts.holdMs ?? [-Infinity, Infinity];
     const held = texts.filter(s => s.t >= from && s.t <= to);
     const all = [];
-    if (want.has('SAFE-1')) all.push(checkTitleSafe(held, design, width, height));
+    // safeExclude: probe ids an exemption lets past title-safe (the weather
+    // crawl runs to the frame edge, DESIGN.md); SAFE-3 and TYPE-1 still see them
+    const exempt = new Set(opts.safeExclude ?? []);
+    if (want.has('SAFE-1')) all.push(checkTitleSafe(held.filter(s => !exempt.has(s.id)), design, width, height));
     if (want.has('SAFE-3')) all.push(checkPlayerChrome(held, design, height));
     if (want.has('KEEP-1')) all.push(checkKeepOut(held, design, width, height));
     if (want.has('TYPE-1')) all.push(checkTypeFloor(held, opts.minPx ?? design.type.minPx));

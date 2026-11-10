@@ -22,7 +22,7 @@ const FONT = 'Arial, "Liberation Sans", Helvetica, sans-serif';
 const PAGE_Y = 80;                  // page canvases cover y 80-920
 const PAGE_H = 840;
 const PANEL = { x: 96, y: 228, w: 1728, h: 684 };
-const CRAWL = { y: 932, h: 88, labelRight: 400, baseline: 986 };   // text clear of y 994 (SAFE-3)
+const CRAWL = { y: 932, h: 88, labelRight: 400, baseline: 982 };   // ink and shadow end by y 992, above y 994 (SAFE-3)
 const CLOCK = { x: 1240, y: 84, w: 600, h: 124 };
 const INK = '#0b1240';
 const GOLD = '#ffcc33';
@@ -41,6 +41,10 @@ function font(px, italic = false) {
     return `${italic ? 'italic ' : ''}bold ${px}px ${FONT}`;
 }
 
+// While set, shadowText notes each line's ink box here, for the motion
+// harness's SAFE and TYPE checks (registerProbe; nothing reads it on stream)
+let textLog = null;
+
 /** Text with the hard black drop shadow every 90s character generator had. */
 function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false, shadow = 0, maxW = Infinity } = {}) {
     ctx.font = font(px, italic);
@@ -56,6 +60,16 @@ function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false
     ctx.fillText(text, x + s, y + s);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
+    if (textLog) {
+        const m = ctx.measureText(text);
+        const left = x - (align === 'center' ? m.width / 2 : align === 'right' ? m.width : 0);
+        // The ink box, shadow included
+        textLog.push({
+            box: { x: left, y: y - m.actualBoundingBoxAscent, width: m.width + s, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent + s },
+            fontPx: size,
+            words: text.split(/\s+/).filter(Boolean).length
+        });
+    }
 }
 
 function wrap(ctx, text, maxW) {
@@ -107,6 +121,7 @@ export class WeatherChannel {
         this.ahead = null;          // {index, canvas} built before its cut
         this.strip = makeCanvas(16, CRAWL.h);
         this.stripKey = null;
+        this.crawlOrigin = 0;           // travel (px) at which the current strip started
         this.lastClock = '';
         this.lastCrawlX = null;
         this.forecasts = new Map(); // `${region}:${day}` -> forecast
@@ -208,7 +223,9 @@ export class WeatherChannel {
         c.fillRect(96, CRAWL.y + 4, CRAWL.labelRight - 96, CRAWL.h - 7);
         c.fillStyle = INK;
         c.fillRect(CRAWL.labelRight, CRAWL.y + 4, 4, CRAWL.h - 7);
+        textLog = this.baseTexts = [];
         shadowText(c, 'BULLETIN', (96 + CRAWL.labelRight) / 2, CRAWL.baseline - 4, 40, '#ffffff', { align: 'center', italic: true, shadow: 3 });
+        textLog = null;
     }
 
     drawLogo(c, x, y, w, h) {
@@ -254,13 +271,16 @@ export class WeatherChannel {
         c.drawImage(this.base, 0, PAGE_Y, W, PAGE_H, 0, 0, W, PAGE_H);
         c.translate(0, -PAGE_Y);
         const data = this.forecastFor(regionIndex);
+        const texts = [];
+        textLog = texts;
         const home = data.region.towns[0].name;
         const subtitle = page === 'regional' ? data.region.name : home;
         shadowText(c, PAGE_TITLES[page], 344, 150, 64, YELLOW, { italic: true, maxW: 880 });
         shadowText(c, subtitle, 348, 198, 36, '#ffffff', { maxW: 860 });
         this[`page_${page}`](c, data);
+        textLog = null;
         c.setTransform(1, 0, 0, 1, 0, 0);
-        return { index, canvas: target, regionIndex, page };
+        return { index, canvas: target, regionIndex, page, texts };
     }
 
     hourOf(when) {
@@ -422,19 +442,28 @@ export class WeatherChannel {
     buildStrip() {
         const items = this.crawlText();
         const key = items.join('|');
-        if (key === this.stripKey) return;
+        if (key === this.stripKey) return false;
         this.stripKey = key;
         const px = 40;
         const gap = 90;
         const m = this.strip.getContext('2d');
         m.font = font(px);
         const widths = items.map((t) => m.measureText(t).width);
-        // Chrome's canvas limit is 32767 px; the crawl runs ~15000
-        const width = Math.min(32000, Math.ceil(widths.reduce((a, b) => a + b + gap, 0)));
+        // Chrome's canvas limit is 32767 px and the crawl runs ~15000: past
+        // 32000, drop whole bulletins from the end rather than cut one off
+        while (items.length > 1 && widths.reduce((a, b) => a + b + gap, 0) > 32000) {
+            items.pop();
+            widths.pop();
+        }
+        const width = Math.ceil(widths.reduce((a, b) => a + b + gap, 0));
         this.strip.width = width;           // resizing reallocates: once a day at most
         this.strip.height = CRAWL.h;
         const s = this.strip.getContext('2d');
         // A diamond, then the bulletin, for each item; the strip repeats
+        m.font = font(px);
+        const ink = m.measureText(items[0]);
+        // The line's ink rows in frame px, for the harness's SAFE-3 check
+        this.crawlInk = { top: CRAWL.baseline - ink.actualBoundingBoxAscent, bottom: CRAWL.baseline + ink.actualBoundingBoxDescent + 3, px };
         let x = 0;
         items.forEach((t, i) => {
             const dx = Math.round(x + gap / 2);
@@ -451,6 +480,7 @@ export class WeatherChannel {
             x += widths[i];
         });
         this.stripWidth = width;
+        return true;
     }
 
     drawCrawl(tMs) {
@@ -458,9 +488,13 @@ export class WeatherChannel {
         const top = CRAWL.y + 4;
         const h = CRAWL.h - 7;
         const travel = Math.floor((tMs * this.cfg.crawl.pxPerS) / 1000);
-        const offset = travel % this.stripWidth;
+        const offset = (travel - this.crawlOrigin) % this.stripWidth;
         if (offset === this.lastCrawlX) return false;
-        if (this.lastCrawlX !== null && offset < this.lastCrawlX) this.buildStrip();   // wrapped: pick up a new day
+        // Wrapped: pick up a new day's bulletins. A new strip has a new
+        // width, so restart its count here to keep the line moving smoothly
+        if (this.lastCrawlX !== null && offset < this.lastCrawlX && this.buildStrip()) {
+            this.crawlOrigin = travel - offset;
+        }
         this.lastCrawlX = offset;
         const c = this.ctx;
         c.drawImage(this.base, left, top, W - left, h, left, top, W - left, h);
@@ -490,8 +524,10 @@ export class WeatherChannel {
         const c = this.ctx;
         const r = CLOCK;
         c.drawImage(this.shown.canvas, r.x, r.y - PAGE_Y, r.w, r.h, r.x, r.y, r.w, r.h);
-        shadowText(c, time, 1824, 146, 52, '#ffffff', { align: 'right' });
-        shadowText(c, date, 1824, 196, 36, PALE, { align: 'right' });
+        textLog = this.clockTexts = [];
+        shadowText(c, time, 1818, 146, 52, '#ffffff', { align: 'right' });
+        shadowText(c, date, 1818, 196, 36, PALE, { align: 'right' });
+        textLog = null;
         return true;
     }
 
@@ -526,6 +562,27 @@ export class WeatherChannel {
         this.drawClock();
         this.drawCrawl(tMs);
         return { cut, index };
+    }
+
+    /**
+     * Text on screen now, for the motion harness (registerProbe): every line
+     * of the page, the clock and the crawl label, plus the crawl's lane.
+     * The crawl runs to the frame edge past title-safe by design (DESIGN.md);
+     * its id is `crawl` so a scenario can leave it out of SAFE-1.
+     * @returns {Array<Object>}
+     */
+    probeSamples() {
+        if (!this.shown) return [];
+        const out = [...this.baseTexts, ...this.shown.texts, ...(this.clockTexts ?? [])]
+            .map((t, i) => ({ id: `text${i}`, x: t.box.x, y: t.box.y, onscreen: true, ...t }));
+        if (this.crawlInk) {
+            const left = CRAWL.labelRight + 4;
+            out.push({
+                id: 'crawl', x: left, y: this.crawlInk.top, onscreen: true, fontPx: this.crawlInk.px, words: 0,
+                box: { x: left, y: this.crawlInk.top, width: W - left, height: this.crawlInk.bottom - this.crawlInk.top }
+            });
+        }
+        return out;
     }
 
     /** Build the next page into the spare canvas, away from any cut. */
