@@ -35,7 +35,7 @@ anything that changes how work ships. Ask them by messaging their threads.
 ```bash
 npm test -- --run      # what the Pages workflow runs
 npm run build          # every scene still builds to a single file
-npm run motion         # the motion harness, as CI runs it (docs/VALIDATION.md)
+npm run motion         # the motion harness (CI runs it only by hand since 2026-11-10; docs/VALIDATION.md)
 npm run audio -- assets  # any page that plays sound: no clipping, nothing in OBS's red (docs/AUDIO.md)
 ```
 
@@ -86,8 +86,9 @@ things i don't need to see it, just get it out the door").
 
 ## Merging
 
-Once code review says Ready and CI is green (plus design review and QA
-sign-off on visual changes), release management merges, in
+Once code review says Ready (plus design review and QA sign-off on visual
+changes; there is no CI gate since 2026-11-10, so run the checks your change
+touches locally), release management merges, in
 the order it sets when PRs overlap. No approval from AJ is needed for code.
 
 ## Never

@@ -2,8 +2,10 @@
 
 `npm run motion` is the source of truth for whether a scene moves correctly.
 It renders each scene frame by frame on a virtual clock, measures it, and
-writes a report you can look at. CI runs it on every PR
-(`.github/workflows/motion.yml`) and uploads the report as an artifact.
+writes a report you can look at. Run it locally before a PR that changes
+motion. Since 2026-11-10 CI runs it only by hand (AJ: "CI takes over 15
+minutes, disable it entirely"): start `.github/workflows/motion.yml` from
+the Actions tab and it uploads the report as an artifact.
 
 For what the scenes should *look* like (timing values, brightness, bar
 shapes, text pacing) see [MOTION.md](MOTION.md). This page covers how motion
@@ -178,7 +180,7 @@ fixes and `today`'s box before them, plus the pairs that can be up together.
 else as a labelled box, and `report.md` with each overlap and placement
 break. Design review gated pairs 1, 2, 5 and 6 as rule fixes, so
 `tests/tools/composition.test.js` holds them to `KNOWN_OVERLAPS`: a new
-overlap fails CI, and so does a known one that stops happening. The boxes are kept by hand
+overlap fails the unit tests (and so the Pages deploy), and so does a known one that stops happening. The boxes are kept by hand
 from OBS and MIU reads, and nothing checks them against the live stream, so
 the test holds the plan: when OBS or MIU moves a source, update its box
 there. `overlaps()` is stricter than the bible's COMP-7 on purpose: from

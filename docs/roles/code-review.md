@@ -65,7 +65,7 @@ change (Design review), harness checks and test health (QA).
 8. Run the `improve` skill before you finish.
 
 **Ship without asking (AJ, 2026-10-28).** Code changes don't wait on AJ.
-Release management merges once CI, Code review, Design review and QA pass.
+Release management merges once Code review, Design review and QA pass (no CI gate since 2026-11-10).
 Code questions (behavior, triggers, defaults, budgets, OBS wiring) are
 decided by the role threads: Code review recommends, and the owning thread
 or Release management decides. **Needs AJ's call** is only for design
