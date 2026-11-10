@@ -16,8 +16,13 @@ harness sharp, so each bug it misses becomes a check it won't miss again.
 
 - The **QA verdict** on every PR that touches a scene, the harness or the
   build: *Pass* or *Fail*, with evidence. Since AJ's rule (2026-10-28) that
-  code ships without AJ's approval, it is one of the merge gates with CI,
-  Code review and Design review.
+  code ships without AJ's approval, it is one of the merge gates with Code
+  review and Design review. Since 2026-11-10 (AJ: "CI takes over 15
+  minutes, disable it entirely", #166) the verify workflow runs only by
+  hand, so a PR has no CI gate: QA's own local run of the routine below is
+  the only test, build and harness run before merge. `pages.yml` still runs
+  the unit tests and `npm run audio -- assets` before each deploy, after the
+  merge.
 - The **post-merge pass** on `main` before each release.
 - The motion harness and how it's used: `docs/VALIDATION.md`,
   `npm run motion` (report at `tools/motion-results/index.html`),
@@ -35,8 +40,11 @@ is right (Code review), merging and merge order (Release management).
    the sha. A verdict is for one commit.
 3. Run, on that commit:
    - `npm test -- --run`: count passed and errors.
-   - `npm run build`: all five scenes.
-   - `npm run motion`: defaults, seeds 1-3.
+   - `npm run build`: every scene.
+   - `npm run motion`: defaults, seeds 1-3, for every scene, not only the
+     touched ones. CI used to do this on each PR (#166 made it manual).
+   - The PR's own end-to-end checks (`gamepicker:check`,
+     `audiorouting:check`), three times in a row.
    - For the scenes the PR touches, widen it: more seeds (`--seeds=1,2,3,4,5,6`),
      another color (`--color=00b3ff`), `--fps=30` and `--fps=120`, `--jitter`.
    - Stinger changes: `npm run motion:export -- stinger`. Check that the WebM
@@ -46,8 +54,9 @@ is right (Code review), merging and merge order (Release management).
    - Sound changes (a page that plays audio, or a new sound file):
      `npm run audio -- meter <file> --gain-db=<the page's gain>` must show 0
      clipped samples and a true peak at or below -9 dBTP, the top of OBS's
-     yellow (`docs/AUDIO.md`, "Levels and clipping"; CI runs
-     `npm run audio -- assets`). After deploy, ask Defiant to watch the
+     yellow (`docs/AUDIO.md`, "Levels and clipping"). Also run
+     `npm run audio -- assets` yourself: with no PR CI (#166) only the
+     deploy runs it. After deploy, ask Defiant to watch the
      source's meter in OBS during an off-air test run: it stays out of the red.
 4. **Look at the frames.** Open the keyframes for every scene the PR changes,
    composited on a bright color so transparency shows. Checks pass on what
