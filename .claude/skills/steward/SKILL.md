@@ -35,7 +35,7 @@ anything that changes how work ships. Ask them by messaging their threads.
 ```bash
 npm test -- --run      # what the Pages workflow runs
 npm run build          # every scene still builds to a single file
-npm run motion         # the motion harness, as CI runs it (docs/VALIDATION.md)
+npm run motion         # the motion harness (CI runs it only by hand since 2026-11-10; docs/VALIDATION.md)
 npm run audio -- assets  # any page that plays sound: no clipping, nothing in OBS's red (docs/AUDIO.md)
 ```
 

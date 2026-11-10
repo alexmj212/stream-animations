@@ -27,7 +27,7 @@ cycles look the same), stops redrawing when static, and has a perf floor at
   written analysis (2026-05-25: all four bar scenes pass).
 - `?perf=true` on any scene shows the live overlay in OBS.
 - `tests/integration/performance-regression.test.js` and friends guard the
-  math in CI.
+  math in the unit tests, which run before every Pages deploy.
 
 ## What has worked
 

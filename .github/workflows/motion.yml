@@ -2,8 +2,8 @@ name: Tests and motion checks
 
 # Off by default (AJ, 2026-11-10: "CI takes over 15 minutes, disable it
 # entirely"). Run it by hand from the Actions tab when a change needs the
-# full motion and audio checks. pages.yml still runs the unit tests before
-# every deploy.
+# full motion harness. pages.yml still runs the unit tests and the audio
+# level check before every deploy.
 on:
   workflow_dispatch:
 

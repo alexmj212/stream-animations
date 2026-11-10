@@ -302,5 +302,5 @@ release (`npm run motion:export -- stinger` renders your own).
 [#124]: https://github.com/alexmj212/stream-animations/pull/124
 [#126]: https://github.com/alexmj212/stream-animations/pull/126
 [#129]: https://github.com/alexmj212/stream-animations/pull/129
-[#164]: https://github.com/alexmj212/stream-animations/pull/164
 [#131]: https://github.com/alexmj212/stream-animations/pull/131
+[#164]: https://github.com/alexmj212/stream-animations/pull/164

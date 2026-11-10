@@ -147,7 +147,7 @@ frontmatter, no metrics in notes, and append-only `Decisions` and
 ```bash
 npm install
 npm run dev                 # Vite dev server; open /src/<scene>/index.html
-npm test -- --run           # vitest, single run (pages.yml runs this before each deploy)
+npm test -- --run           # vitest, single run (pages.yml runs this and the audio check before each deploy)
 npm run build               # every scene to a single-file HTML
 npm run motion              # motion harness: renders and checks every scene (docs/VALIDATION.md)
 npm run motion:export -- stinger  # transparent video of a scene for OBS
