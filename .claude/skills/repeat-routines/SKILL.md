@@ -15,8 +15,11 @@ tool calls costs ten re-reads. Run the script, read its answer, move on.
 | Verify motion for the changed scenes | `npm run motion` (report: `tools/motion-results/index.html`; see `docs/VALIDATION.md`) |
 | Export a scene as transparent video for OBS | `npm run motion:export -- <scene>` |
 | Benchmark frame time and Canvas cost | `npm run bench` (one scene: `node tools/benchmark/run.js <scene>`) |
+| Measure what an OBS change costs (GPU per engine, OBS CPU), off-air on Defiant | the `gpu-check` skill's recipe, then `npm run gpu:summary -- <csv>` |
+| Find what in Mix It Up and OBS touches a source, URL or transition, or which MIU calls post to Twitch chat (read-only, from a staged db3 and `Archive_1.json`) | `npm run alerts:wiring -- find <term> --miu=<db3> --obs=<Archive_1.json>`; `npm run alerts:wiring -- chat --miu=<db3>` |
 | Cut a seamless loop from an OBS recording | `tools/loopcut.sh <recording.mkv>` (`--help` for options) |
 | Render scene text in Jost in the cloud container (else Arial; 2026-10-28) | `tools/fonts/install-jost.sh` |
+| Prepare a PR for review (worktree, full sha, merge with main, diff stat, table rows), or check a squash merge | `tools/review/prep.sh <pr>` / `tools/review/prep.sh --squash <pr> <merged-sha>` |
 | Check a scene live | `npm run dev`, then `/src/<scene>/index.html?perf=true` |
 
 In the cloud container, headless Chrome is at `/opt/pw-browsers/chromium`;

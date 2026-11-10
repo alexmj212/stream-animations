@@ -52,6 +52,29 @@ into a script or skill step. This is how Pixelbot's `repeat-routines` skill was
 born: an audit found about 1,000 tool calls spent redoing the same few
 routines.
 
+## Permanent threads improve unprompted
+
+AJ (2026-10-31): "the permanent threads should be self-improving, they should
+adapt themselves over time and seek to reduce mistakes they make, as well as
+optimize all of their requests and work unprompted." This applies to every
+role and expert thread (`docs/roles/README.md`). Nobody has to ask.
+
+- **After every request**, run the `improve` retro on it: what took more
+  turns, tool calls or messages than it should have, and what went wrong.
+  Make the one durable change before going idle.
+- **Mistakes log.** Every mistake (a wrong claim, a check that missed, a
+  correction from AJ or another thread) becomes a Learnings row with the
+  check, skill step or script that stops it recurring. A repeat of a logged
+  mistake means the fix didn't work: replace it.
+- **Optimize requests.** When an issue thread asks the same kind of question
+  twice, answer the third time with a skill or script instead of prose, and
+  add it to the charter. Shorten the messages and recipes the thread sends
+  (one message, exact steps, nothing to re-investigate).
+- **Adapt the charter.** Edit your own scope, routine and Learnings as the
+  work changes; retire rows and process that no longer earn their keep.
+- **Audit without being asked**: the weekly audit above runs on the
+  thread's own schedule (a `send_later` reminder), not when AJ asks.
+
 ## Across roles
 
 A learning that changes how another role works goes to that role's thread as a

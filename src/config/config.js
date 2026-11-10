@@ -1499,6 +1499,27 @@ export const config = {
     storageKey: 'audioRouting:v1'
   },
 
+  // 90s weather page (src/weather): AJ's ask (2026-11-10), "an unironic
+  // 90s weather channel scene, that just endlessly rotates through weather
+  // forecasts". AJ's own look like spheal, outside the bible's palette and
+  // type; the viewer rules (SAFE-1/3, FLASH, 32px text) still hold
+  weather: {
+    // 30 is plenty for a crawl and a clock (Performance expert, 2026-11-10);
+    // set the OBS source's custom frame rate to match
+    fps: 30,
+    pageMs: 10000,          // each page holds 10 s; a region's five pages take 50 s
+    // The pages in order, then the next region
+    pages: ['current', 'local', 'extended', 'regional', 'almanac'],
+    // The next page is drawn this long after a cut, so the cut itself is
+    // one blit (Performance expert, 2026-11-10)
+    prepareDelayMs: 1500,
+    crawl: {
+      pxPerS: 150           // a calm read: a 40px line crosses 1500px in 10 s
+    },
+    maxTableRows: 7,        // regional table: Rotom caps it near 8 rows at 44px
+    station: 'EXO'          // the ident on the logo and in the crawl
+  },
+
   // Shared configuration across all scenes
   shared: {
     // Timing patterns (millisecond-based, consistent across scenes)
