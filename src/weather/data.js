@@ -267,7 +267,10 @@ export class NwsSource {
         const first = fc?.properties?.periods?.[0];
         const home = towns[0].now;
         if (home && home.label === '--' && first) {
-            towns[0].now = { ...home, label: first.shortForecast.toUpperCase(), icon: iconFromNws(first.icon, first.shortForecast) };
+            // The icon from the words, not the period's icon code: NWS pairs
+            // "Sunny" with its few-clouds icon (Rotom, #169)
+            const sky = `/icons/land/${first.isDaytime === false ? 'night' : 'day'}/sky`;
+            towns[0].now = { ...home, label: first.shortForecast.toUpperCase(), icon: iconFromNws(sky, first.shortForecast) };
         }
         const times = towns.map((t) => t.now?.time).filter(Boolean);
         return {

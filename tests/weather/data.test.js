@@ -16,6 +16,17 @@ describe('iconFromNws', () => {
         expect(iconFromNws('https://api.weather.gov/icons/land/day/fzra?size=medium')).toBe('mix');
     });
 
+    it('gives each sky word its matching art', () => {
+        const day = '/icons/land/day/sky';
+        const words = {
+            Sunny: 'sun', 'Mostly Sunny': 'mostlysun', 'Partly Sunny': 'partly', 'Partly Cloudy': 'partly',
+            'Mostly Cloudy': 'mostlycloudy', Cloudy: 'cloudy', Clear: 'sun'
+        };
+        for (const [w, icon] of Object.entries(words)) expect(iconFromNws(day, w), w).toBe(icon);
+        expect(iconFromNws('/icons/land/night/sky', 'Clear')).toBe('moon');
+        expect(iconFromNws('/icons/land/night/sky', 'Mostly Clear')).toBe('moon');
+    });
+
     it('falls back to the text when there is no icon', () => {
         expect(iconFromNws(null, 'Thunderstorms')).toBe('storm');
         expect(iconFromNws(null, 'Fog')).toBe('fog');
