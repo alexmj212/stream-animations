@@ -40,7 +40,7 @@ is right (Code review), merging and merge order (Release management).
    the sha. A verdict is for one commit.
 3. Run, on that commit:
    - `npm test -- --run`: count passed and errors.
-   - `npm run build`: all five scenes.
+   - `npm run build`: every scene.
    - `npm run motion`: defaults, seeds 1-3, for every scene, not only the
      touched ones. CI used to do this on each PR (#166 made it manual).
    - The PR's own end-to-end checks (`gamepicker:check`,
