@@ -41,8 +41,9 @@ showing it, but the stream and recording clip at 0 dBFS.
    encoded (flat-topped waveform) is replaced, since no gain fixes that.
 5. Every sound file under `src/` is registered in `audioConfig.assets`
    (`tools/audio/config.js`) with the gain its page applies.
-   `npm run audio -- assets` checks them all and runs in CI, so a new sound,
-   or a gain change that pushes one into the red, fails the PR.
+   `npm run audio -- assets` checks them all and runs before every Pages
+   deploy (`pages.yml`), so a new sound, or a gain change that pushes one
+   into the red, never deploys. Run it locally before the PR.
 
 Past streams meet this: on 2026-10-25 the full mix (track 1) peaked between
 -12.4 and -7.3 dBFS and went into the red for 0.1% of one 100 s section;
@@ -84,7 +85,7 @@ mic once, so every render is measured over the same moments.
 | `npm run audio -- verify --collection=... --source=Mic --raw=raw.flac --obs=current.flac` | Null test: today's chain emulated over the raw mic minus what OBS recorded through it, skipping the first second (OBS's filters were already running). Passes at 40 dB of cancellation overall and 20 dB in the worst 400 ms window, so a gate that opens a block late fails |
 | `npm run audio -- meter <files...> [--gain-db=n]` | How a sound file reads on OBS's meter at a gain: loudness, true peak, time in the red, clipped samples, baked-in clipping, and the gain that keeps it in the yellow |
 | `npm run audio -- music <track1> <track2\|silent> [...pairs] [--gain-db=n] [--kbps=160]` | Music level in past streams: track 2 (VOD) is track 1 without the music, so track 1 minus track 2 is the music, down to an AAC coding-noise floor it estimates per excerpt. Gives its loudness, peak and meter zone, and how far it sits under the rest of the mix. Pass `silent` where track 2 is digital silence (Starting, Ending); `--gain-db` previews a fader change |
-| `npm run audio -- assets` | CI gate: every sound file under `src/` at its configured gain (rules above) |
+| `npm run audio -- assets` | Deploy gate (`pages.yml`): every sound file under `src/` at its configured gain (rules above) |
 | `npm run audio -- report --baseline=... --curves=... --render=... --out=page.html` | One page from whatever results exist, to publish for AJ |
 
 Output goes to `tools/audio-results/` (gitignored). `--match-level` sets each

@@ -63,14 +63,16 @@ stinger video files.
 2. **List open PRs** and the files each changes. Any overlap (including
    docs that describe another PR's behavior, not just the same file) gets a
    merge order and a "after rebase, update X" note for the later PR's thread.
-3. **Gate.** A PR is ready to merge when CI is green on its latest commit,
-   Code review has posted *Ready*, Design review has signed off on any visual
+3. **Gate.** A PR is ready to merge when Code review has posted *Ready* on
+   its latest commit, Design review has signed off on any visual
    change, QA has a passing harness run, and it merges cleanly with `main`.
 4. **Design decisions only go to AJ.** If Design review leaves a choice of
    look open, put it to AJ as one decision card with the frames or mocks
    attached, and hold that PR. Everything else merges without asking.
 5. **Merge** with squash, in the agreed order. After each merge, check the
-   next PR still merges cleanly and its CI re-ran; send drift to its owner.
+   next PR still merges cleanly; send drift to its owner. There is no CI
+   gate and no not-live check (AJ, 2026-11-10), so merge the moment the
+   reviews pass.
 6. **Release** when a coherent group of code changes is on `main`:
    one small `chore(release): vX.Y.Z` PR bumps `package.json` and adds the
    `CHANGELOG.md` entry. Once it merges, the `release` job in
@@ -132,4 +134,5 @@ dependencies straight to it.
 | 2026-10-29 | Telling Defiant that AJ's go isn't needed didn't work: its local safety check still held every tag push (v2.7.0 to v2.9.1) until AJ typed go, and AJ asked to stop. AJ asked for unattended releases, and CI is their home: it now smokes and tags after each deploy | AJ in this thread, 2026-10-29 | releases | active |
 | 2026-10-28 | A red frame-CPU check isn't a flake until you compare it: read the same scene's p95 in the latest green main run. #48 looked like noise but took followers from 0.3ms to 3.5-4.6ms; send it back to the author, never rerun for green | PR #48 CI, followers seed=3 | merging | active |
 | 2026-10-28 | OBS keeps a loaded browser page across deploys, and the stinger transition sits outside the scene sources that Refresh cache covers. v2.3.0's first OBS check ran the old stinger until Defiant reloaded it | Defiant, v2.3.0 verify | stinger releases | active |
-| 2026-10-31 | `merge_pull_request` needs the full 40-character `expectedHeadSha`; a short sha is refused. Read every queued PR's head in one call with `git ls-remote origin refs/pull/<n>/head`, compare it with the sha code review and QA passed, and batch PRs that are green under one not-live check, merged in their dependency order (#135 to #143 went in two batches). A head that moved past a Ready needs that role to re-confirm first | #135 to #143, 2026-10-31 | merging | active |
+| 2026-10-31 | `merge_pull_request` needs the full 40-character `expectedHeadSha`; a short sha is refused. Read every queued PR's head in one call with `git ls-remote origin refs/pull/<n>/head`, compare it with the sha code review and QA passed, and batch PRs that are Ready, merged in their dependency order (#135 to #143 went in two batches). A head that moved past a Ready needs that role to re-confirm first | #135 to #143, 2026-10-31 | merging | active |
+| 2026-11-10 | Merges wait on nothing but the reviews. AJ dropped both waits in one evening: "Never worry about that" (the not-live check; #158 to #163 had sat Ready for three days because Defiant was offline) and "CI takes over 15 minutes, disable it entirely" (#164 waited on verify while AJ wanted to see it). `motion.yml` now runs by hand only; `pages.yml` still runs the unit tests and the audio level check before each deploy | #158 to #164, 2026-11-10 | merging | active |

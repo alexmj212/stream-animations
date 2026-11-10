@@ -54,7 +54,10 @@ if git merge-tree --write-tree "$main" "$head" >/dev/null 2>&1; then
     echo "merge:        clean with main"
 else
     echo "merge:        CONFLICTS with main:"
-    git merge-tree --write-tree --name-only "$main" "$head" | tail -n +2 | sed 's/^/  /'
+    # merge-tree exits 1 on a conflict; under pipefail that would end the
+    # script here, before the diff stat and table check (seen on #169)
+    { git merge-tree --write-tree --name-only --no-messages "$main" "$head" || true; } | tail -n +2 | sed '/^$/d; s/^/  /'
+    conflicted=1
 fi
 base=$(git merge-base "$main" "$head")
 if [[ $base != "$main" ]]; then
@@ -84,8 +87,5 @@ while IFS= read -r file; do
         fi
     done <<<"$added"
 done < <(git diff --name-only "$base" "$head")
-if [[ $bad == 0 ]]; then
-    echo "tables:       every added row matches its header"
-else
-    exit 1
-fi
+[[ $bad == 0 ]] && echo "tables:       every added row matches its header"
+[[ $bad == 0 && -z ${conflicted:-} ]] || exit 1
