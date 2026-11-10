@@ -739,16 +739,18 @@ export const SCENARIOS = [
   {
     // The 90s weather page (AJ, 2026-11-10): runs as long as a break, so it
     // keeps the default 4 ms budget (Performance expert, 2026-11-10).
-    // pagems=3000 puts two cuts in the capture (the spike to watch; max is
-    // in the report) and fps=60 draws every stepped frame for the CPU count.
-    // at= pins the clock so the frames are the same every run
+    // pagems=3000 puts four cuts in the capture, through the radar loop
+    // (the spikes to watch; max is in the report), and fps=60 draws every
+    // stepped frame for the CPU count. at= pins the clock and data=demo
+    // keeps the run off the network (NWS and RainViewer), so the frames are
+    // the same every run
     name: 'weather',
-    url: '/src/weather/index.html?pagems=3000&fps=60&at=2026-11-10T19:00:00Z',
+    url: '/src/weather/index.html?data=demo&pagems=3000&fps=60&at=2026-11-10T19:00:00Z',
     start: 'load',
-    captureMs: 8000,
-    keyframes: [0.2, 0.5, 0.9],
-    keyframeSpanMs: 8000,
-    markers: [{ at: 3000, label: 'cut' }, { at: 6000, label: 'cut' }],
+    captureMs: 13000,
+    keyframes: [0.1, 0.35, 0.6, 0.8, 0.97],
+    keyframeSpanMs: 13000,
+    markers: [3000, 6000, 9000, 12000].map((at) => ({ at, label: at === 9000 ? 'radar' : 'cut' })),
     checks: {
       // AJ's own look, but the viewer rules hold (Rotom, design review on
       // #164): hard cuts with no flash, text inside title-safe except the

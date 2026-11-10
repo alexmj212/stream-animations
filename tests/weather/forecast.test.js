@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { REGIONS } from '../../src/weather/regions.js';
+import { DEMO_REGIONS as REGIONS } from '../../src/weather/regions.js';
 import {
-    isUSDaylightTime, localParts, normalsFor, condition, precipType, regionForecast,
+    localParts, normalsFor, condition, precipType, regionForecast,
     currentConditions, localForecastText, sunTimes, formatClock, nextMoonPhases,
     relativeHumidity, windChill, heatIndex, temperatureAt, regionBulletin, hashSeed
 } from '../../src/weather/forecast.js';
@@ -10,11 +10,11 @@ const CENTRAL = REGIONS[0];
 
 describe('time zones', () => {
     it('follows US daylight saving time (second Sunday of March to first Sunday of November)', () => {
-        // 2026: 8 March and 1 November, at 2:00 local
-        expect(isUSDaylightTime(Date.UTC(2026, 2, 8, 7, 59), -6)).toBe(false);
-        expect(isUSDaylightTime(Date.UTC(2026, 2, 8, 8, 1), -6)).toBe(true);
-        expect(isUSDaylightTime(Date.UTC(2026, 10, 1, 6, 59), -6)).toBe(true);
-        expect(isUSDaylightTime(Date.UTC(2026, 10, 1, 7, 1), -6)).toBe(false);
+        expect(localParts(Date.UTC(2026, 2, 8, 7, 59), CENTRAL).zone).toBe('CST');
+        expect(localParts(Date.UTC(2026, 2, 8, 8, 1), CENTRAL).zone).toBe('CDT');
+        expect(localParts(Date.UTC(2026, 10, 1, 6, 59), CENTRAL).zone).toBe('CDT');
+        expect(localParts(Date.UTC(2026, 10, 1, 7, 1), CENTRAL).zone).toBe('CST');
+        expect(localParts(Date.UTC(2026, 10, 1, 7, 1), CENTRAL).offsetH).toBe(-6);
     });
 
     it('gives local wall-clock parts and the zone name', () => {

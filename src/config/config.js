@@ -1508,8 +1508,9 @@ export const config = {
     // set the OBS source's custom frame rate to match
     fps: 30,
     pageMs: 10000,          // each page holds 10 s; a region's five pages take 50 s
-    // The pages in order, then the next region
-    pages: ['current', 'local', 'extended', 'regional', 'almanac'],
+    // The pages in order, then the next region. Radar added on AJ's rework
+    // notes (2026-11-10: "also a radar map screen")
+    pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac'],
     // The next page is drawn this long after a cut, so the cut itself is
     // one blit (Performance expert, 2026-11-10)
     prepareDelayMs: 1500,
@@ -1517,7 +1518,39 @@ export const config = {
       pxPerS: 150           // a calm read: a 40px line crosses 1500px in 10 s
     },
     maxTableRows: 7,        // regional table: Rotom caps it near 8 rows at 44px
-    station: 'EXO'          // the ident on the logo and in the crawl
+    station: 'EXO',         // the ident on the logo and in the crawl
+    // CRT look (AJ, 2026-11-10: "some filters to give it that crt
+    // aesthetic"). Drawn once into an overlay and re-blitted only over the
+    // regions that change, so it costs nothing per frame (Performance expert)
+    crt: {
+      cornerPx: 40,         // rounded tube corners at the 4:3 picture's edge
+      scanlinePx: 4,        // one dark line every 4 px: visible at 1080p, still there at 720p
+      scanlineAlpha: 0.16,  // dark enough to read as a tube, light enough for 36px text
+      vignetteAlpha: 0.45,  // edge falloff of the glass
+      sheenAlpha: 0.05,     // faint glare across the top
+      rimPx: 12             // inner shadow at the bezel
+    },
+    // Radar page: past radar frames from RainViewer (free, CORS open) over a
+    // map the page draws itself (AJ, 2026-11-10)
+    radar: {
+      frames: 6,            // RainViewer keeps ~2 h of 10-min frames; the last hour loops
+      frameMs: 500,         // per frame: a broadcast-paced loop
+      holdMs: 1500,         // the newest frame holds before the loop restarts
+      indexUrl: 'https://api.rainviewer.com/public/weather-maps.json',
+      indexTtlMs: 300000,   // the frame list updates every 10 min; 5 min keeps it fresh
+      refreshMs: 600000,    // a region's built loop is reused for 10 min
+      colorScheme: 2,       // RainViewer's universal blue; recoloured to the broadcast ramp
+      alpha: 0.85           // radar over the map: the coastlines still show through
+    },
+    // Live NWS data (AJ, 2026-11-10: "real weather data ... for real places")
+    data: {
+      forecastTtlMs: 1800000,   // NWS forecasts update about hourly; 30 min is fresh enough
+      observationTtlMs: 600000, // airport stations report hourly; 10 min catches specials
+      staleAfterMs: 10800000,   // an observation over 3 h old shows as missing, not current
+      timeoutMs: 10000,         // a slow NWS answer gives up and keeps the last copy
+      lookAheadPages: 3,        // fetch a region three pages before it airs
+      startWaitMs: 8000         // first paint waits this long for live data at most
+    }
   },
 
   // Shared configuration across all scenes
