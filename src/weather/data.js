@@ -88,9 +88,10 @@ export function shortLabel(text) {
 /**
  * One latest observation (station properties) in the page's units.
  * @param {Object} p - observation `properties`
+ * @param {boolean} [night=false] - For a station that sends no icon
  * @returns {Object|null}
  */
-export function observationToNow(p) {
+export function observationToNow(p, night = false) {
     if (!p) return null;
     const temp = c2f(val(p.temperature));
     const dew = c2f(val(p.dewpoint));
@@ -105,8 +106,14 @@ export function observationToNow(p) {
         .filter((l) => (l.amount === 'BKN' || l.amount === 'OVC') && val(l.base) !== null)
         .map((l) => val(l.base));
     const humidity = rh === null ? (temp !== null && dew !== null ? relativeHumidity(temp, dew) : null) : Math.round(rh);
-    const label = (p.textDescription || '').toUpperCase().trim();
-    const icon = iconFromNws(p.icon, p.textDescription || '');
+    // Some stations send neither words nor an icon: read the sky from the
+    // cloud layers (the most cover reported), as the old channels did
+    const cover = ['SKC', 'CLR', 'FEW', 'SCT', 'BKN', 'OVC'];
+    const most = (p.cloudLayers || []).reduce((m, l) => Math.max(m, cover.indexOf(l.amount)), -1);
+    const sky = p.icon || p.textDescription ? '' : ['CLEAR', 'CLEAR', night ? 'MOSTLY CLEAR' : 'MOSTLY SUNNY', 'PARTLY CLOUDY', 'MOSTLY CLOUDY', 'CLOUDY'][most] || '';
+    const words = p.textDescription || sky;
+    const label = words.toUpperCase().trim();
+    const icon = iconFromNws(p.icon || (sky && `/icons/land/${night ? 'night' : 'day'}/sky`), words);
     let chill = c2f(val(p.windChill));
     let heat = c2f(val(p.heatIndex));
     if (chill === null && temp !== null && wind !== null) chill = windChill(temp, wind);
@@ -242,10 +249,11 @@ export class NwsSource {
     get(i) {
         const region = this.regions[i];
         const cached = (url) => this.cache.get(url)?.data ?? null;
-        const towns = region.towns.map((t) => ({
-            name: t.name,
-            now: observationToNow(cached(`${API}/stations/${t.station}/observations/latest`)?.properties)
-        }));
+        const towns = region.towns.map((t) => {
+            const p = cached(`${API}/stations/${t.station}/observations/latest`)?.properties;
+            const hour = p?.timestamp ? localParts(Date.parse(p.timestamp), region).hour : 12;
+            return { name: t.name, now: observationToNow(p, hour < 6 || hour >= 18) };
+        });
         const fc = cached(`${API}/gridpoints/${region.towns[0].grid}/forecast`);
         // Drop observations too old to call current
         const maxAge = this.cfg.staleAfterMs;

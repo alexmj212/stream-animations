@@ -62,6 +62,15 @@ describe('observationToNow', () => {
         expect(now.label).toBe('--');
     });
 
+    it('reads the sky from the cloud layers when a station sends no words or icon', () => {
+        const day = observationToNow({ textDescription: '', icon: null, cloudLayers: [{ amount: 'FEW' }, { amount: 'SCT' }] });
+        expect(day.label).toBe('PARTLY CLOUDY');
+        expect(day.icon).toBe('partly');
+        const night = observationToNow({ textDescription: '', icon: null, cloudLayers: [{ amount: 'CLR' }] }, true);
+        expect(night.label).toBe('CLEAR');
+        expect(night.icon).toBe('moon');
+    });
+
     it('names the sky from the icon when a station sends no words', () => {
         const now = observationToNow({ textDescription: '', icon: 'https://api.weather.gov/icons/land/day/skc?size=medium' });
         expect(now.label).toBe('SUNNY');
