@@ -93,6 +93,37 @@ export function broadcastColors(px) {
     }
 }
 
+/**
+ * Where each town's label goes on a radar frame: right of its dot, else
+ * left, above or below, never over another label or any dot, and inside the
+ * frame. A label with no room is dropped (its dot still shows).
+ * @param {Array<{x: number, y: number}>} marks - Dots, frame px
+ * @param {number[]} widths - Each label's text width, px
+ * @param {number} w - Frame width
+ * @param {number} h - Usable frame height (above the legend strip)
+ * @param {number} [px=32] - Text size
+ * @returns {Array<{x: number, y: number, align: string}|null>} Text anchor (baseline) per mark
+ */
+export function placeLabels(marks, widths, w, h, px = 32) {
+    const pad = 4;
+    const boxes = marks.map((m) => ({ x: m.x - 10, y: m.y - 10, w: 20, h: 20 }));
+    const hits = (r) => boxes.some((b) => r.x < b.x + b.w && b.x < r.x + r.w && r.y < b.y + b.h && b.y < r.y + r.h);
+    return marks.map((m, i) => {
+        const tw = widths[i] + 2 * pad;
+        const th = px + 8;
+        const tries = [
+            { box: { x: m.x + 12, y: m.y - th / 2, w: tw, h: th }, x: m.x + 16, y: m.y + px * 0.38, align: 'left' },
+            { box: { x: m.x - 12 - tw, y: m.y - th / 2, w: tw, h: th }, x: m.x - 16, y: m.y + px * 0.38, align: 'right' },
+            { box: { x: m.x - tw / 2, y: m.y - 14 - th, w: tw, h: th }, x: m.x, y: m.y - 22, align: 'center' },
+            { box: { x: m.x - tw / 2, y: m.y + 14, w: tw, h: th }, x: m.x, y: m.y + 14 + px, align: 'center' }
+        ];
+        const fit = tries.find((t) => t.box.x >= 0 && t.box.x + t.box.w <= w && t.box.y >= 0 && t.box.y + t.box.h <= h && !hits(t.box));
+        if (!fit) return null;
+        boxes.push(fit.box);
+        return { x: fit.x, y: fit.y, align: fit.align };
+    });
+}
+
 const nextIdle = () => new Promise((resolve) => {
     if (typeof requestIdleCallback === 'function') requestIdleCallback(() => resolve(), { timeout: 100 });
     else setTimeout(resolve, 0);
@@ -129,16 +160,28 @@ export class RadarLoader {
         this.frames = Array.from({ length: cfg.frames }, () => makeCanvas(w, h));
         this.base = makeCanvas(w, h);
         this.scratch = makeCanvas(TILE, TILE);
-        this.ready = null;              // { key, times: number[] }
+        this.ready = null;              // { key, times: number[], t }
+        this.building = null;           // { key, promise } while a build runs
         this.token = 0;
         this.index = null;              // { t, data } RainViewer frame list
     }
 
+    /** fetch that gives up after cfg.timeoutMs, so a hung tile can't stall a build. */
+    async timed(url, opts, read) {
+        const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = ctl ? setTimeout(() => ctl.abort(), this.cfg.timeoutMs) : null;
+        try {
+            const r = await this.fetch(url, { ...opts, signal: ctl?.signal });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return await read(r);
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    }
+
     async bitmap(url) {
         try {
-            const r = await this.fetch(url, { mode: 'cors' });
-            if (!r.ok) return null;
-            return await createImageBitmap(await r.blob());
+            return await this.timed(url, { mode: 'cors' }, async (r) => createImageBitmap(await r.blob()));
         } catch {
             return null;
         }
@@ -146,9 +189,7 @@ export class RadarLoader {
 
     async radarIndex() {
         if (this.index && this.now() - this.index.t < this.cfg.indexTtlMs) return this.index.data;
-        const r = await this.fetch(this.cfg.indexUrl, { cache: 'no-cache' });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
+        const data = await this.timed(this.cfg.indexUrl, { cache: 'no-cache' }, (r) => r.json());
         this.index = { t: this.now(), data };
         return data;
     }
@@ -160,8 +201,19 @@ export class RadarLoader {
      * @param {(ctx: CanvasRenderingContext2D, label: Object) => void} drawLabels - Town markers, drawn on each frame
      * @param {(ctx: CanvasRenderingContext2D, utcMs: number) => void} drawStamp - Frame time and legend
      */
-    async prepare(key, towns, drawLabels, drawStamp) {
-        if (this.ready?.key === key && this.now() - this.ready.t < this.cfg.refreshMs) return;
+    prepare(key, towns, drawLabels, drawStamp) {
+        if (this.ready?.key === key && this.now() - this.ready.t < this.cfg.refreshMs) return Promise.resolve();
+        // Every cut asks again: a build still running for this key carries
+        // on, or a slow live build would restart forever (code review, #169)
+        if (this.building?.key === key) return this.building.promise;
+        const promise = this.build(key, towns, drawLabels, drawStamp).finally(() => {
+            if (this.building?.promise === promise) this.building = null;
+        });
+        this.building = { key, promise };
+        return promise;
+    }
+
+    async build(key, towns, drawLabels, drawStamp) {
         const token = ++this.token;
         this.ready = null;
         const t0 = performance.now();
@@ -227,6 +279,7 @@ export class RadarLoader {
 
     async buildLive(view, marks, drawLabels, drawStamp, token) {
         const index = await this.radarIndex();
+        if (token !== this.token) return [];
         const past = (index.radar?.past || []).slice(-this.cfg.frames);
         if (!past.length) throw new Error('no radar frames');
         const tiles = tilesFor(view);

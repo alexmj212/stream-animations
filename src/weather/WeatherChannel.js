@@ -1,7 +1,8 @@
 import { localParts, sunTimes, formatClock, nextMoonPhases, seasonTip, DAY_NAMES, MONTHS } from './forecast.js';
 import { weatherIcon } from './icons.js';
 import { buildCrtOverlay } from './crt.js';
-import { RadarLoader } from './radar.js';
+import { RadarLoader, placeLabels } from './radar.js';
+import { skyShort } from './data.js';
 
 // The 90s weather page (AJ, 2026-11-10): an earnest early-90s cable weather
 // channel on a 4:3 tube, cutting through forecast pages for one region after
@@ -25,12 +26,14 @@ const PAGE_Y = 80;                                    // page canvases cover y 8
 const PAGE_H = 832;
 const PANEL = { x: 312, y: 224, w: 1296, h: 680 };
 const RADAR = { x: PANEL.x + 6, y: PANEL.y + 6, w: PANEL.w - 12, h: PANEL.h - 12 };
-const CRAWL = { y: 920, h: 88, left: PIC.x, right: PIC.x + PIC.w, labelRight: 548, baseline: 976 };   // ink ends by ~990, above 994
+// The band spans the picture; its text stops at title-safe's right edge,
+// x 1608 (Rotom, #169)
+const CRAWL = { y: 920, h: 88, left: PIC.x, right: PIC.x + PIC.w, textRight: 1608, labelRight: 548, baseline: 976 };   // ink ends by ~990, above 994
 const CLOCK = { x: 1290, y: 84, w: 330, h: 122 };
 const INK = '#0b1240';
 const GOLD = '#ffcc33';
 const YELLOW = '#ffe14d';
-const PALE = '#a9c6ff';
+const PALE = '#c4d6ff';             // secondary text: over 3:1 on the panel (design review, #169)
 
 const PAGE_TITLES = {
     current: 'CURRENT CONDITIONS',
@@ -62,6 +65,10 @@ function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false
     while (size > 32 && ctx.measureText(text).width > maxW) {
         size -= 2;
         ctx.font = font(size, italic);
+    }
+    // Live text can run long: past the 32px floor, drop words from the end
+    while (text.includes(' ') && ctx.measureText(text).width > maxW) {
+        text = text.slice(0, text.lastIndexOf(' '));
     }
     ctx.textAlign = align;
     ctx.textBaseline = 'alphabetic';
@@ -326,11 +333,23 @@ export class WeatherChannel {
             return;
         }
         c.drawImage(weatherIcon(now.icon, 260), 340, 256);
-        shadowText(c, now.label, 470, 590, 40, YELLOW, { align: 'center', maxW: 300 });
         shadowText(c, now.temp === null ? '--' : `${now.temp}°`, 760, 470, 150, '#ffffff', { align: 'center', shadow: 7, maxW: 300 });
+        // Live sky text runs long ("THUNDERSTORM IN VICINITY"): up to two
+        // lines across the left column, then the feels-like line under it
+        const colX = 625;
+        const colW = 560;
+        c.font = font(40);
+        let px = 40;
+        let lines = wrap(c, now.label, colW);
+        if (lines.length > 2) {
+            px = 36;
+            c.font = font(px);
+            lines = wrap(c, now.label, colW).slice(0, 2);
+        }
+        lines.forEach((line, i) => shadowText(c, line, colX, 590 + i * 50, px, YELLOW, { align: 'center', maxW: colW }));
         const feels = now.chill !== null && now.temp !== null && now.chill < now.temp ? `WIND CHILL ${now.chill}°`
             : now.heat !== null && now.temp !== null && now.heat > now.temp ? `HEAT INDEX ${now.heat}°` : null;
-        if (feels) shadowText(c, feels, 760, 590, 36, PALE, { align: 'center', maxW: 290 });
+        if (feels) shadowText(c, feels, colX, 590 + lines.length * 50 + 24, 36, PALE, { align: 'center', maxW: colW, glow: false });
         c.fillStyle = 'rgba(11, 18, 64, 0.6)';
         c.fillRect(930, 262, 4, 560);
         c.fillStyle = 'rgba(156, 192, 255, 0.5)';
@@ -441,7 +460,7 @@ export class WeatherChannel {
                 return;
             }
             c.drawImage(weatherIcon(now.icon, 64), cols.icon, y - 50);
-            shadowText(c, now.label, cols.wx, y, 36, YELLOW, { maxW: 480, glow: false });
+            shadowText(c, skyShort(now.label), cols.wx, y, 36, YELLOW, { maxW: 480, glow: false });
             shadowText(c, now.temp === null ? '--' : `${now.temp}°`, cols.temp, y, 40, '#ffffff', { align: 'right', glow: false });
             shadowText(c, now.wind === null ? '--' : now.wind < 3 ? 'CALM' : `${now.windDir} ${now.wind}`, cols.wind, y, 36, '#ffffff', { maxW: 176, glow: false });
         });
@@ -501,18 +520,10 @@ export class WeatherChannel {
 
     /** Town markers on a radar frame (radar-canvas coordinates). */
     drawRadarLabels(ctx, marks) {
-        // Labels go right of the dot unless that hits the edge or a label
-        // already placed; then left, then they're dropped (a dot still shows)
-        ctx.font = font(32);
-        const placed = [];
-        const hits = (r) => placed.some((p) => r.x < p.x + p.w && p.x < r.x + r.w && r.y < p.y + p.h && p.y < r.y + r.h);
-        marks.forEach((m) => {
-            if (m.x < 30 || m.x > RADAR.w - 30 || m.y < 30 || m.y > RADAR.h - 30) return;
-            const w = ctx.measureText(m.name).width + 8;
-            const rightBox = { x: m.x + 12, y: m.y - 22, w, h: 40 };
-            const leftBox = { x: m.x - 12 - w, y: m.y - 22, w, h: 40 };
-            const right = rightBox.x + w < RADAR.w && !hits(rightBox) ? true
-                : leftBox.x > 0 && !hits(leftBox) ? false : null;
+        // Every dot first, so no label lands under a later town's dot
+        // (Rotom, #169); labels then go where placeLabels finds room
+        const inside = marks.filter((m) => m.x >= 30 && m.x <= RADAR.w - 30 && m.y >= 30 && m.y <= RADAR.h - 30);
+        inside.forEach((m) => {
             ctx.fillStyle = INK;
             ctx.beginPath();
             ctx.arc(m.x, m.y, 9, 0, Math.PI * 2);
@@ -521,9 +532,11 @@ export class WeatherChannel {
             ctx.beginPath();
             ctx.arc(m.x, m.y, 6, 0, Math.PI * 2);
             ctx.fill();
-            if (right === null) return;
-            placed.push(right ? rightBox : leftBox, { x: m.x - 10, y: m.y - 10, w: 20, h: 20 });
-            shadowText(ctx, m.name, m.x + (right ? 16 : -16), m.y + 12, 32, '#ffffff', { align: right ? 'left' : 'right', glow: false, shadow: 3 });
+        });
+        ctx.font = font(32);
+        const spots = placeLabels(inside, inside.map((m) => ctx.measureText(m.name).width), RADAR.w, RADAR.h - 76);
+        spots.forEach((spot, i) => {
+            if (spot) shadowText(ctx, inside[i].name, spot.x, spot.y, 32, '#ffffff', { align: spot.align, glow: false, shadow: 3 });
         });
     }
 
@@ -565,7 +578,9 @@ export class WeatherChannel {
             ...t, lat: region.lat + (0.6 + 0.5 * k) * Math.sin(k * 2.4), lon: region.lon + (0.9 + 0.75 * k) * Math.cos(k * 2.4)
         }));
         this.radar.prepare(region.name, towns, drawLabels, drawStamp).then(() => {
-            if (this.radar.ready?.key === region.name) {
+            // A repeat ask shares the running build and logs nothing: keep
+            // the texts the first one logged
+            if (this.radar.ready?.key === region.name && log.length) {
                 this.radarTexts = log.map((t) => ({ ...t, box: { ...t.box, x: t.box.x + RADAR.x, y: t.box.y + RADAR.y } }));
             }
         });
@@ -582,7 +597,7 @@ export class WeatherChannel {
             month = localParts(this.now(), region).month;
             const obs = d.towns.filter((t) => t.now && t.now.temp !== null);
             if (!obs.length) return;
-            const parts = obs.slice(0, 4).map((t) => `${t.name} ${t.now.temp}° ${t.now.label === '--' ? '' : t.now.label}`.trim());
+            const parts = obs.slice(0, 4).map((t) => `${t.name} ${t.now.temp}° ${t.now.label === '--' ? '' : skyShort(t.now.label)}`.trim());
             items.push(`${region.name}: ${parts.join('. ')}.`);
         });
         items.push(seasonTip(month));
@@ -637,7 +652,7 @@ export class WeatherChannel {
         const left = CRAWL.labelRight + 4;
         const top = CRAWL.y + 4;
         const h = CRAWL.h - 7;
-        const w = CRAWL.right - left;
+        const w = CRAWL.textRight - left;
         const travel = Math.floor((tMs * this.cfg.crawl.pxPerS) / 1000);
         const offset = (travel - this.crawlOrigin) % this.stripWidth;
         if (offset === this.lastCrawlX) return false;
@@ -653,7 +668,7 @@ export class WeatherChannel {
         c.beginPath();
         c.rect(left, top, w, h);
         c.clip();
-        for (let x = left - offset; x < CRAWL.right; x += this.stripWidth) {
+        for (let x = left - offset; x < CRAWL.textRight; x += this.stripWidth) {
             c.drawImage(this.strip, 0, 4, this.stripWidth, h, x, top, this.stripWidth, h);
         }
         c.restore();
@@ -784,7 +799,7 @@ export class WeatherChannel {
             const left = CRAWL.labelRight + 4;
             out.push({
                 id: 'crawl', x: left, y: this.crawlInk.top, onscreen: true, fontPx: this.crawlInk.px, words: 0,
-                box: { x: left, y: this.crawlInk.top, width: CRAWL.right - left, height: this.crawlInk.bottom - this.crawlInk.top }
+                box: { x: left, y: this.crawlInk.top, width: CRAWL.textRight - left, height: this.crawlInk.bottom - this.crawlInk.top }
             });
         }
         return out;

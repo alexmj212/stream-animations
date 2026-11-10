@@ -1540,7 +1540,8 @@ export const config = {
       indexTtlMs: 300000,   // the frame list updates every 10 min; 5 min keeps it fresh
       refreshMs: 600000,    // a region's built loop is reused for 10 min
       colorScheme: 2,       // RainViewer's universal blue; recoloured to the broadcast ramp
-      alpha: 0.85           // radar over the map: the coastlines still show through
+      alpha: 0.85,          // radar over the map: the coastlines still show through
+      timeoutMs: 10000      // a hung tile gives up, so a build always finishes
     },
     // Live NWS data (AJ, 2026-11-10: "real weather data ... for real places")
     data: {

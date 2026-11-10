@@ -51,6 +51,22 @@ export function iconFromNws(url, text = '') {
     return night ? 'moon' : 'sun';
 }
 
+/**
+ * A station's sky words cut for a table cell or the crawl:
+ * "THUNDERSTORM IN VICINITY" becomes "T-STORM NEARBY".
+ * @param {string} label
+ * @returns {string}
+ */
+export function skyShort(label) {
+    return (label || '')
+        .replace(/THUNDERSTORMS?/g, 'T-STORM')
+        .replace(/ IN VICINITY/g, ' NEARBY')
+        .replace(/FOG\/MIST/g, 'FOG')
+        .replace(/ AND /g, ' & ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 /** Sky words for an icon kind, when a station sends no text. */
 const ICON_WORDS = {
     sun: 'SUNNY', moon: 'CLEAR', mostlysun: 'MOSTLY SUNNY', partly: 'PARTLY CLOUDY', partlymoon: 'PARTLY CLOUDY',
@@ -211,9 +227,8 @@ export class NwsSource {
             ...region.towns.map((t) => this.load(`${API}/stations/${t.station}/observations/latest`, this.cfg.observationTtlMs))
         ];
         const run = Promise.all(jobs).then(() => {
-            this.inflight.delete(i);
             this.debug?.mark('fetchEnd', { region: region.name, ms: this.now() - t0, ok: !!this.get(i) });
-        });
+        }).finally(() => this.inflight.delete(i));
         this.inflight.set(i, run);
         return run;
     }

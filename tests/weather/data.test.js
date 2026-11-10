@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { iconFromNws, shortLabel, observationToNow, forecastToPages, NwsSource, DemoSource } from '../../src/weather/data.js';
+import { iconFromNws, shortLabel, skyShort, observationToNow, forecastToPages, NwsSource, DemoSource } from '../../src/weather/data.js';
 import { REGIONS, DEMO_REGIONS } from '../../src/weather/regions.js';
 
 const fixture = (name) => JSON.parse(readFileSync(resolve('tests/fixtures/weather', name), 'utf8'));
@@ -27,6 +27,14 @@ describe('shortLabel', () => {
         expect(shortLabel('Chance Showers And Thunderstorms then Sunny')).toBe('CHANCE T-STORMS');
         expect(shortLabel('Rain Likely')).toBe('RAIN');
         expect(shortLabel('Slight Chance Rain')).toBe('CHANCE RAIN');
+    });
+});
+
+describe('skyShort', () => {
+    it('cuts the longest NWS sky words for a table cell', () => {
+        expect(skyShort('THUNDERSTORM IN VICINITY')).toBe('T-STORM NEARBY');
+        expect(skyShort('LIGHT RAIN AND FOG/MIST')).toBe('LIGHT RAIN & FOG');
+        expect(skyShort('CLEAR')).toBe('CLEAR');
     });
 });
 
