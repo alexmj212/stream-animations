@@ -29,8 +29,12 @@ change (Design review), harness checks and test health (QA).
 1. Read this charter's Learnings.
 2. Follow `steward`'s "Reviewing a PR" steps on the PR's latest commit:
    signals, run it, look at it, code review, docs and improvement. Check out
-   the branch in a separate worktree (`git worktree add`) so reviews of
-   different PRs don't trample each other.
+   the branch in a separate worktree so reviews of different PRs don't
+   trample each other: `tools/review/prep.sh <pr>` fetches the head, checks
+   it out in its own worktree, and prints the full sha, the merge with main,
+   the diff stat and any added table row whose cell count is off. After a
+   merge, `tools/review/prep.sh --squash <pr> <merged-sha>` confirms the
+   squash is the reviewed head.
 3. **Cross-PR drift.** For every other open PR, check whether this PR's docs,
    config or behavior make it stale, and the reverse. `git merge-tree` only
    catches same-line conflicts; docs that describe another PR's behavior are
@@ -99,3 +103,4 @@ owning thread when work touches yours; send review findings straight to it.
 | 2026-10-29 | `workP95Ms` only times the scene's JS, not raster. For a scene that draws hundreds of sprites, sample rAF intervals headless across its peak (`requestAnimationFrame` timestamps via Playwright) and compare them with a quiet window. The Spheal peak halved the frame rate while the work p95 read 1.8 ms; OBS measured ~34 fps | #97 review, fixed in #102 | heavy-draw scenes | active |
 | 2026-10-29 | Route findings by the relay's session id: match it in `list_threads` before messaging a thread, never by a title that looks right. A #105 note went to the audio-review thread instead of the harness owner. Now a team rule: `CLAUDE.md`, "Find the thread before you message it" | #105 review | messaging authors | active |
 | 2026-10-31 | When a PR adds a confirm or guard in front of a risky write (a VOD track, a running output), list every code path that writes the same state and check each one goes through the guard: Undo, rollback, a monitoring change that implicitly puts a source on its tracks (Monitor Only → None), a drag versus a button. #131's VOD confirm covered drags but not Undo or a Monitor Only unplug, and both put music on the VOD with no tap. Stub the guard out and confirm each path's e2e step fails | #131 at 259f6c0, fixed in 766e1e1 | PRs that add confirms or write guards | active |
+| 2026-11-07 | Every review round repeated the same git calls by hand (fetch the head, note the full sha, merge-tree with main, diff stat, a squash check after merge), and table rows were counted by eye. `tools/review/prep.sh` does it in one command; its table check fails on a row with the wrong cell count (proved on a broken copy of `audio.md`) | Weekly self-audit, #157 and #158 reviews | every review | active |
