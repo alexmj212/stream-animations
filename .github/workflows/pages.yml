@@ -43,7 +43,7 @@ jobs:
       # 2026-11-11 the runners could not resolve the Ubuntu archive at all
       # (the v2.17.0 and v2.18.0 deploys hung), so apt gets 2 minutes, then
       # we fall back to the static ffmpeg 7.0.2 inside the imageio-ffmpeg
-      # 0.6.0 wheel from PyPI, pinned by sha256 because this job deploys.
+      # 0.6.0 wheel from PyPI, pinned by sha256 (it still gates the deploy).
       # man-db's trigger is skipped as it is slow on runners.
       - name: Audio levels
         timeout-minutes: 8
