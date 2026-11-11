@@ -65,7 +65,15 @@ git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
       if ! gh release create "$version" --target "$sha" --title "$version" \
         --notes-file "$notes" "$flag"; then
         echo "Could not publish $version at $sha. If that was a 403 and $sha's workflow files differ from main's, create tag $version on $sha by hand (docs/roles/release-management.md, Learnings 2026-11-11)." >&2
-        echo "$version" >> "$failed"
+        # Only the newest release has to exist. An older one that can't be
+        # published (v2.18.0, after v2.19.0 shipped) is a gap in the
+        # release list, not a failure: AJ (2026-11-11), "You've already
+        # published 2.19, is there a reason to publish an older version?"
+        if [ "$version" = "$latest" ]; then
+          echo "$version" >> "$failed"
+        else
+          echo "::warning::Skipped $version: an older release; the newer one carries on." >&2
+        fi
         continue
       fi
       echo "Published $version at $sha"
