@@ -43,6 +43,7 @@
     "audiorouting:check": "node tools/audiorouting/check.js",
     "motion": "node tools/motion/run.js",
     "weather:shots": "node tools/weather/shots.mjs",
+    "weather:encode": "node tools/weather/encode-check.mjs",
     "motion:export": "node tools/motion/export.js",
     "audio": "node tools/audio/run.js",
     "alerts:wiring": "node tools/alerts/wiring.js",
