@@ -4,6 +4,21 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.19.0 - 2026-11-11
+
+- Exo-Cast gets the classic look. It uses the Star4000 typefaces (a fan
+  rebuild of the WeatherStar 4000 type by Nick Smith, credited in
+  `fonts/star4000.css`), and each page paints on top to bottom with an
+  occasional stall. The radar map is pixel-drawn, the clock and the
+  opening region follow your local time zone (`?tz=` overrides it), and
+  the almanac shows sunrise and sunset icons. Each break now ends with a
+  station ID bumper. ([#181])
+- There are 12 new ads in eight 90s local-spot formats (car lot, coupon,
+  menu board, infomercial and more), with credited free-licence photos.
+  The same format never runs twice in a row. ([#181])
+- The full-picture noise is strong in this version. AJ asked for it to
+  go out and be tuned next. ([#181])
+
 ## v2.18.0 - 2026-11-11
 
 - Exo-Cast's ad breaks now read like real local ads. Each of the nine
@@ -340,3 +355,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#173]: https://github.com/alexmj212/stream-animations/pull/173
 [#175]: https://github.com/alexmj212/stream-animations/pull/175
 [#176]: https://github.com/alexmj212/stream-animations/pull/176
+[#181]: https://github.com/alexmj212/stream-animations/pull/181

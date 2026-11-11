@@ -23,6 +23,10 @@ latest="v$(node -p "require('./package.json').version")"
 # ("chore(release): v2.15.0, weather page (#166)" went untagged until
 # 2026-11-10, when this learned to accept it).
 git fetch -q --tags origin 2>/dev/null || true
+# A version that fails to publish doesn't stop later ones (v2.18.0's refused
+# tag would otherwise hold back every release after it, 2026-11-11). The
+# loop runs in a subshell, so failures are recorded in this file.
+failed="$(mktemp)"
 git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
   sed -nE 's/^([0-9a-f]{40}) chore\(release\): (v[0-9]+\.[0-9]+\.[0-9]+)([,;:] .*)? \(#[0-9]+\)$/\1 \2/p' |
   while read -r sha version; do
@@ -61,7 +65,8 @@ git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
       if ! gh release create "$version" --target "$sha" --title "$version" \
         --notes-file "$notes" "$flag"; then
         echo "Could not publish $version at $sha. If that was a 403 and $sha's workflow files differ from main's, create tag $version on $sha by hand (docs/roles/release-management.md, Learnings 2026-11-11)." >&2
-        exit 1
+        echo "$version" >> "$failed"
+        continue
       fi
       echo "Published $version at $sha"
     fi
@@ -72,5 +77,10 @@ git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
 # not a quiet green (code review on #171, 2026-11-10).
 if [ "${DRY_RUN:-}" != 1 ] && ! git ls-remote --exit-code --tags origin "refs/tags/$latest" >/dev/null; then
   echo "package.json is $latest but no tag $latest exists after publishing: is its release commit titled 'chore(release): $latest (#N)'?" >&2
+  exit 1
+fi
+
+if [ -s "$failed" ]; then
+  echo "Not published: $(tr '\n' ' ' < "$failed")" >&2
   exit 1
 fi
