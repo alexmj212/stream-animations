@@ -6,6 +6,7 @@ import { skyShort } from './data.js';
 import { ADS, pickAd } from './ads.js';
 import { drawAd } from './adLayouts.js';
 import { jokeAt } from './jokes.js';
+import { GLYPHS, PIXEL_FONT } from './pixelfont.js';
 
 // Exo-Cast, the 90s weather page (AJ, 2026-11-10; named 2026-11-11): an earnest early-90s cable weather
 // channel on a 4:3 tube, cutting through forecast pages for one region after
@@ -60,18 +61,14 @@ const JOKE = '#9fe8ff';             // jokes in the crawl: light cyan, so they r
 const VIDEO = { x: SAFE.left, y: 168, w: 1296, h: 729 };    // a 16:9 video ad inside title-safe
 const NEEDS_DATA = new Set(['current', 'local', 'extended', 'regional']);
 
-function face(px) {
-    return `${px}px ${px >= 90 ? FONT_LARGE : FONT}`;
-}
-
 /**
- * The canvas font for character-generator text asked for at px, at the size
- * it is drawn (TEXT_SCALE, on the pixel grid), so measureText matches what
- * shadowText draws. The real unit had no italic or bold: `italic` is kept
- * for callers but draws upright.
+ * The canvas font for measuring character-generator text asked for at px:
+ * its widths match what shadowText draws from the bitmap. The real unit had
+ * no italic or bold: `italic` is kept for callers but draws upright.
  */
 function font(px, italic = false) {
-    return face(pixelSize(px));
+    // Sized so measureText of Star4000 (monospaced) matches the bitmap's width
+    return `${(PIXEL_FONT.advance * cgScale(px)) / ADV_EM}px ${FONT}`;
 }
 
 // While set, a page's icons are listed here instead of drawn into it, so
@@ -88,48 +85,67 @@ function placeIcon(c, kind, size, x, y) {
 // harness's SAFE and TYPE checks (registerProbe; nothing reads it on stream)
 let textLog = null;
 
-// Character-generator text is drawn small, cut to hard on/off pixels and
-// blown up PIXEL times with no smoothing, so every glyph shows its pixels
-// (AJ, 2026-11-11: "The font needs to be bigger on most screens and have
-// that pixel look"). TEXT_SCALE makes every page's text bigger at once;
-// maxW still shrinks a line that won't fit.
-const PIXEL = 3;
+// Character-generator text is drawn from a fixed bitmap of the Star4000
+// face (pixelfont.js, baked by tools/weather/build_pixelfont.py), blown up a
+// whole number of times with no smoothing, so every glyph is the same hard
+// pixels wherever it lands (AJ, 2026-11-11: "bigger on most screens and
+// have that pixel look", then "The pixelation isn't good, its too random").
+// TEXT_SCALE makes every page's text bigger at once; maxW still shrinks a
+// line that won't fit, one pixel step at a time.
 const TEXT_SCALE = 1.35;
+const CAP_EM = 1421 / 2048;             // Star4000's cap height, in ems
+const ADV_EM = 973 / 2048;              // its (monospaced) advance
+const GLYPH_ROWS = PIXEL_FONT.above + PIXEL_FONT.cap + PIXEL_FONT.below;
+let glyphAtlas = null;
+const glyphIndex = new Map();
 let glyphMask = null;
 let glyphTint = null;
 
-/** The size actually drawn for a requested size: scaled, on the pixel grid, never under 33. */
-function pixelSize(px) {
-    return Math.max(11, Math.round((px * TEXT_SCALE) / PIXEL)) * PIXEL;
+/** Every glyph once, white on clear, side by side. */
+function buildAtlas() {
+    const keys = Object.keys(GLYPHS);
+    glyphAtlas = makeCanvas(keys.length * PIXEL_FONT.cols, GLYPH_ROWS);
+    const a = glyphAtlas.getContext('2d');
+    a.fillStyle = '#ffffff';
+    keys.forEach((ch, k) => {
+        glyphIndex.set(ch, k);
+        GLYPHS[ch].forEach((row, y) => {
+            for (let x = 0; x < PIXEL_FONT.cols; x++) {
+                if (row & (1 << (PIXEL_FONT.cols - 1 - x))) a.fillRect(k * PIXEL_FONT.cols + x, y, 1, 1);
+            }
+        });
+    });
 }
 
-/** Width in frame px of a line of character-generator text. */
+/** How many frame px per font pixel for text asked for at px (2 or more). */
+function cgScale(px) {
+    return Math.max(2, Math.round((px * TEXT_SCALE * CAP_EM) / PIXEL_FONT.cap));
+}
+
+/** Width in frame px of a line at scale S. */
+function widthAt(text, S) {
+    return (text.length * PIXEL_FONT.advance + 1) * S;
+}
+
+/** Width in frame px of a line of character-generator text asked for at px. */
 function pixelWidth(ctx, text, px) {
-    return widthAt(ctx, text, pixelSize(px));
+    return widthAt(text, cgScale(px));
 }
 
-/** Width in frame px at an already-drawn size (a multiple of PIXEL). */
-function widthAt(ctx, text, size) {
-    ctx.font = face(size / PIXEL);
-    return (Math.ceil(ctx.measureText(text).width) + 2) * PIXEL;
-}
-
-/**
- * Draw `text` as hard pixels: rendered at 1/PIXEL size, alpha cut at half,
- * tinted, scaled up unsmoothed. `left` and `baseline` in frame px.
- */
-function pixelBlit(ctx, mask, w, h, ascent, left, baseline, color) {
+/** Tint a glyph mask and draw it S times bigger, unsmoothed, at frame px. */
+function pixelBlit(ctx, w, left, baseline, color, S) {
     glyphTint.width = w;
-    glyphTint.height = h;
+    glyphTint.height = GLYPH_ROWS;
     const t = glyphTint.getContext('2d');
-    t.drawImage(mask, 0, 0);
+    t.drawImage(glyphMask, 0, 0);
     t.globalCompositeOperation = 'source-in';
     t.fillStyle = color;
-    t.fillRect(0, 0, w, h);
+    t.fillRect(0, 0, w, GLYPH_ROWS);
     t.globalCompositeOperation = 'source-over';
     const smooth = ctx.imageSmoothingEnabled;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(glyphTint, 0, 0, w, h, Math.round(left), Math.round(baseline - ascent * PIXEL), w * PIXEL, h * PIXEL);
+    const top = baseline - (PIXEL_FONT.above + PIXEL_FONT.cap) * S;
+    ctx.drawImage(glyphTint, 0, 0, w, GLYPH_ROWS, Math.round(left), Math.round(top), w * S, GLYPH_ROWS * S);
     ctx.imageSmoothingEnabled = smooth;
 }
 
@@ -140,50 +156,43 @@ function pixelBlit(ctx, mask, w, h, ascent, left, baseline, color) {
  * called while building a cached canvas, or for the clock once a second.
  */
 function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false, shadow = 0, maxW = Infinity, glow = true } = {}) {
-    let size = pixelSize(px);
-    while (size > 33 && widthAt(ctx, text, size) > maxW) size -= PIXEL;
-    const sp = size / PIXEL;
-    ctx.font = face(sp);
+    let S = cgScale(px);
+    while (S > 2 && widthAt(text, S) > maxW) S--;
     // Live text can run long: past the floor, drop words from the end
-    while (text.includes(' ') && ctx.measureText(text).width * PIXEL > maxW) {
+    while (text.includes(' ') && widthAt(text, S) > maxW) {
         text = text.slice(0, text.lastIndexOf(' '));
     }
+    if (!glyphAtlas) buildAtlas();
     glyphMask ??= makeCanvas(8, 8);
     glyphTint ??= makeCanvas(8, 8);
-    const m = ctx.measureText(text);
-    const ascent = Math.ceil(m.actualBoundingBoxAscent) + 1;
-    const w = Math.ceil(m.width) + 2;
-    const h = ascent + Math.ceil(m.actualBoundingBoxDescent) + 2;
+    const w = text.length * PIXEL_FONT.advance + 1;
     glyphMask.width = w;
-    glyphMask.height = h;
-    const g = glyphMask.getContext('2d', { willReadFrequently: true });
-    g.font = face(sp);
-    g.textBaseline = 'alphabetic';
-    g.fillStyle = '#ffffff';
-    g.fillText(text, 1, ascent);
-    const img = g.getImageData(0, 0, w, h);
-    const d = img.data;
-    for (let k = 3; k < d.length; k += 4) d[k] = d[k] >= 112 ? 255 : 0;
-    g.putImageData(img, 0, 0);
-    const width = w * PIXEL;
-    const left = x - (align === 'center' ? width / 2 : align === 'right' ? width : 0) - PIXEL;
-    const s = shadow ? Math.max(PIXEL, Math.round(shadow / PIXEL) * PIXEL) : Math.max(PIXEL, Math.round(size / 16 / PIXEL) * PIXEL);
-    pixelBlit(ctx, glyphMask, w, h, ascent, left + s, y + s, 'rgba(0, 0, 20, 0.85)');
-    if (size >= 48) {
-        pixelBlit(ctx, glyphMask, w, h, ascent, left - 2, y, 'rgba(255, 40, 80, 0.28)');
-        pixelBlit(ctx, glyphMask, w, h, ascent, left + 2, y, 'rgba(40, 160, 255, 0.28)');
+    glyphMask.height = GLYPH_ROWS;
+    const g = glyphMask.getContext('2d');
+    for (let i = 0; i < text.length; i++) {
+        const k = glyphIndex.get(text[i]);
+        if (k !== undefined) g.drawImage(glyphAtlas, k * PIXEL_FONT.cols, 0, PIXEL_FONT.cols, GLYPH_ROWS, i * PIXEL_FONT.advance, 0, PIXEL_FONT.cols, GLYPH_ROWS);
+    }
+    const width = w * S;
+    const left = x - (align === 'center' ? width / 2 : align === 'right' ? width : 0);
+    const size = Math.round((S * PIXEL_FONT.cap) / CAP_EM);     // the font size this matches
+    const s = Math.max(S, Math.round((shadow || size / 16) / S) * S);
+    pixelBlit(ctx, w, left + s, y + s, 'rgba(0, 0, 20, 0.85)', S);
+    if (S >= 3) {
+        pixelBlit(ctx, w, left - S, y, 'rgba(255, 40, 80, 0.28)', S);
+        pixelBlit(ctx, w, left + S, y, 'rgba(40, 160, 255, 0.28)', S);
     }
     if (glow) {
         ctx.shadowColor = color;
         ctx.shadowBlur = Math.min(10, size / 6);
     }
-    pixelBlit(ctx, glyphMask, w, h, ascent, left, y, color);
+    pixelBlit(ctx, w, left, y, color, S);
     ctx.shadowBlur = 0;
     ctx.shadowColor = 'transparent';
     if (textLog) {
-        // The ink box, shadow included
+        // The ink box, shadow included: cap height plus descenders
         textLog.push({
-            box: { x: left + PIXEL, y: y - m.actualBoundingBoxAscent * PIXEL, width: m.width * PIXEL + s, height: (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) * PIXEL + s },
+            box: { x: left, y: y - PIXEL_FONT.cap * S, width: width + s, height: (PIXEL_FONT.cap + PIXEL_FONT.below) * S + s },
             fontPx: size,
             words: text.split(/\s+/).filter(Boolean).length
         });
@@ -439,10 +448,15 @@ export class WeatherChannel {
         c.fill();
         c.fillStyle = 'rgba(255, 255, 255, 0.35)';
         c.fillRect(x + 8, y + 6, w - 16, 4);
-        shadowText(c, this.cfg.station, x + w / 2, y + 60, 56, '#ffffff', { align: 'center', italic: true, shadow: 4, maxW: w - 16 });
+        shadowText(c, this.cfg.station, x + w / 2, y + 56, 40, '#ffffff', { align: 'center', shadow: 4, maxW: w - 16 });
         c.fillStyle = INK;
         c.fillRect(x + 10, y + 68, w - 20, 30);
-        shadowText(c, this.cfg.brandSub, x + w / 2, y + 95, 28, YELLOW, { align: 'center', shadow: 1, glow: false, maxW: w - 24 });
+        // The bar's word is part of the logo art, smaller than the 32px text
+        // floor allows for type: the smooth face, not the bitmap
+        c.font = `26px ${FONT}`;
+        c.textAlign = 'center';
+        c.fillStyle = YELLOW;
+        c.fillText(this.cfg.brandSub, x + w / 2, y + 93, w - 24);
     }
 
     // --- Pages -----------------------------------------------------------
@@ -919,27 +933,46 @@ export class WeatherChannel {
         const s = canvas.getContext('2d');
         s.font = font(px);
         const ink = s.measureText(items[0].text);   // at the drawn size
-        let x = 0;
-        items.forEach((t, i) => {
-            const dx = Math.round(x + gap / 2);
-            const dy = CRAWL.baseline - CRAWL.y - 13;
-            s.fillStyle = GOLD;
-            s.beginPath();
-            s.moveTo(dx, dy - 10);
-            s.lineTo(dx + 10, dy);
-            s.lineTo(dx, dy + 10);
-            s.lineTo(dx - 10, dy);
-            s.fill();
-            x += gap;
-            const color = t.kind === 'intro' ? YELLOW : t.kind === 'joke' ? JOKE : '#ffffff';
-            shadowText(s, t.text, Math.round(x), CRAWL.baseline - CRAWL.y, px, color, { shadow: 3 });
-            x += widths[i];
-        });
+        // Interlace (AJ, 2026-11-11): the odd field was caught a sixtieth of
+        // a second earlier, so the moving line combs: odd rows sit
+        // interlacePx behind. The crawl's speed never changes, so the strip
+        // can carry the comb.
+        const comb = this.cfg.interlacePx ?? 0;
+        const drawItems = (shift) => {
+            let x = shift;
+            items.forEach((t, i) => {
+                const dx = Math.round(x + gap / 2);
+                const dy = CRAWL.baseline - CRAWL.y - 13;
+                s.fillStyle = GOLD;
+                s.beginPath();
+                s.moveTo(dx, dy - 10);
+                s.lineTo(dx + 10, dy);
+                s.lineTo(dx, dy + 10);
+                s.lineTo(dx - 10, dy);
+                s.fill();
+                x += gap;
+                const color = t.kind === 'intro' ? YELLOW : t.kind === 'joke' ? JOKE : '#ffffff';
+                shadowText(s, t.text, Math.round(x), CRAWL.baseline - CRAWL.y, px, color, { shadow: 3 });
+                x += widths[i];
+            });
+        };
+        if (!comb) {
+            drawItems(0);
+        } else {
+            for (const field of [0, 1]) {
+                s.save();
+                s.beginPath();
+                for (let y = field; y < CRAWL.h; y += 2) s.rect(0, y, width, 1);
+                s.clip();
+                drawItems(field ? comb : 0);
+                s.restore();
+            }
+        }
         return {
             canvas, width, dataKey,
             jokes: items.filter((t) => t.kind === 'joke').length,
             // The line's ink rows in frame px, for the harness's SAFE-3 check
-            ink: { top: CRAWL.baseline - ink.actualBoundingBoxAscent, bottom: CRAWL.baseline + ink.actualBoundingBoxDescent + 3, px: pixelSize(px) }
+            ink: { top: CRAWL.baseline - PIXEL_FONT.cap * cgScale(px), bottom: CRAWL.baseline + PIXEL_FONT.below * cgScale(px) + 3, px: Math.round((cgScale(px) * PIXEL_FONT.cap) / CAP_EM) }
         };
     }
 

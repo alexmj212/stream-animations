@@ -30,6 +30,7 @@
     <script type="module">
       import { WeatherChannel } from "./WeatherChannel.js";
       import { homeRegion } from "./forecast.js";
+      import { startNoise } from "./noise.js";
       import { NwsSource, DemoSource } from "./data.js";
       import { config } from "../config/config.js";
       import { seedFromURL, registerProbe } from "../shared/motion.js";
@@ -48,6 +49,7 @@
       //   ?region=N|name region to open on (index or name, e.g. midwest);
       //                  default the one nearest the computer's time zone
       //   ?tz=Zone       pretend the computer is in this zone (mocks: ?tz=America/Denver)
+      //   ?noise=0       no compression noise layer
       //   ?page=name     hold one page: current, local, extended, radar, regional, almanac, ad
       //   ?pages=a,b     run only these pages, in this order (mocks: ?pages=almanac,ad)
       //   ?ads=0         no ad breaks
@@ -113,6 +115,7 @@
       Promise.all([document.fonts.ready, firstData, ...faces]).then(() => {
         tv = new WeatherChannel(canvas, { cfg, data, now, region, page, debug });
         registerProbe('weather', () => tv.probeSamples());
+        if (cfg.noise?.alpha > 0 && urlParams.get('noise') !== '0') startNoise(document.body, cfg.noise);
         debug.mark('start', { region: data.regions[region].name, page, source: data.source });
         requestAnimationFrame(frame);
       });

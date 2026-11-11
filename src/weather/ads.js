@@ -165,6 +165,30 @@ export const ADS = [
     }
 ];
 
+// Stock photos, one per ad (AJ, 2026-11-11: "I find free stock photos").
+// CC0 or Public Domain Mark only, credits in photos/CREDITS.md. Each URL is
+// a literal so Vite inlines the file; the ad draws its clip art until (or
+// unless) the photo loads. Focus is where the subject sits, 0-1, for the
+// cover crop.
+const PHOTOS = {
+    car: [new URL('./photos/car.jpg', import.meta.url).href, [0.5, 0.58]],
+    perfume: [new URL('./photos/perfume.jpg', import.meta.url).href, [0.7, 0.55]],
+    pup: [new URL('./photos/pup.jpg', import.meta.url).href, [0.5, 0.5]],
+    pizza: [new URL('./photos/pizza.jpg', import.meta.url).href, [0.5, 0.5]],
+    bear: [new URL('./photos/bear.jpg', import.meta.url).href, [0.52, 0.45]],
+    banana: [new URL('./photos/banana.jpg', import.meta.url).href, [0.5, 0.5]],
+    paw: [new URL('./photos/paw.jpg', import.meta.url).href, [0.4, 0.5]],
+    roller: [new URL('./photos/roller.jpg', import.meta.url).href, [0.5, 0.35]],
+    tape: [new URL('./photos/tape.jpg', import.meta.url).href, [0.5, 0.5]],
+    flannel: [new URL('./photos/flannel.jpg', import.meta.url).href, [0.5, 0.5]],
+    crystal: [new URL('./photos/crystal.jpg', import.meta.url).href, [0.5, 0.3]],
+    form: [new URL('./photos/form.jpg', import.meta.url).href, [0.6, 0.4]]
+};
+for (const ad of ADS) {
+    const p = PHOTOS[ad.art];
+    if (p) [ad.photo, ad.photoFocus] = p;
+}
+
 /**
  * Which ad a break shows: text ads and video ads take turns through both
  * lists, so every ad comes round.

@@ -1547,6 +1547,13 @@ export const config = {
     crawl: {
       pxPerS: 150           // a calm read: a 40px line crosses 1500px in 10 s
     },
+    // Interlacing and compression noise (AJ, 2026-11-11: "We also need some
+    // interlacing and compression noise on the screens"). The crawl's odd
+    // rows trail by interlacePx (150 px/s over a 60th of a second); noise is
+    // a CSS layer of 8 px macroblocks that jumps every noiseStepMs, so the
+    // canvas never redraws for it.
+    interlacePx: 3,
+    noise: { alpha: 0.1, blockPx: 8, stepMs: 120, seed: 7 },
     maxTableRows: 7,        // regional table: Rotom caps it near 8 rows at 44px
     station: 'EXO',         // the ident on the logo and in the crawl
     brandSub: 'CAST',       // the logo's bar: EXO over CAST, "EXO-CAST" in the crawl (AJ, 2026-11-11: "the page should be called Exo-Cast")
