@@ -482,6 +482,15 @@ export class WeatherChannel {
         let video = null;
         if (page === 'ad') {
             video = this.page_ad(c, index);
+        } else if (page === 'id') {
+            // Its own page since AJ (2026-11-11: "the station id page is
+            // like less than 5, I think it should be 15 for all pages"):
+            // build the bumper's parts now, while the page is built ahead,
+            // not on its first frame (QA, #181). update() draws it.
+            if (!this.bumper) {
+                textLog = null;     // the bumper logs its own texts as it types
+                this.bumper = this.buildBumper();
+            }
         } else {
             const subtitle = page === 'regional' || page === 'radar' ? region.name : region.towns[0].name;
             shadowText(c, PAGE_TITLES[page], 504, 148, 56, YELLOW, { italic: true, maxW: 740 });
@@ -693,14 +702,6 @@ export class WeatherChannel {
      * @returns {HTMLVideoElement|null}
      */
     page_ad(c, index) {
-        // The break ends on the ID bumper: build its parts now, while the
-        // page is built ahead, not on the bumper's first frame (QA, #181)
-        if (!this.bumper) {
-            const log = textLog;
-            textLog = null;     // the logo's text isn't on this page
-            this.bumper = this.buildBumper();
-            textLog = log;
-        }
         const videos = this.cfg.ads?.videos ?? [];
         const breakNo = Math.floor(index / this.pages.length);
         let pick = pickAd(breakNo, ADS.length, videos.length);
@@ -1032,8 +1033,8 @@ export class WeatherChannel {
     // --- Clock -----------------------------------------------------------
 
     drawClock(force = false) {
-        // A break has no clock: it's a commercial
-        if (this.shown.page === 'ad') {
+        // A break has no clock: it's a commercial, and so is the station ID
+        if (this.shown.page === 'ad' || this.shown.page === 'id') {
             this.clockTexts = [];
             return false;
         }
@@ -1093,10 +1094,11 @@ export class WeatherChannel {
             this.ahead = null;
             if (!this.stripKey) this.buildStrip();
             const c = this.ctx;
-            const sweep = this.cfg.sweepMs > 0 && this.shown.page !== 'ad' && this.drawnOnce;
+            const sweep = this.cfg.sweepMs > 0 && this.shown.page !== 'ad' && this.shown.page !== 'id' && this.drawnOnce;
             this.lastCrawlX = null;
             this.lastRadarFrame = -1;
             this.lastIconFrame = 0;
+            this.lastBumper = null;
             if (sweep) {
                 // The old page stays up while the new one paints over it
                 // Jank: every third sweep catches partway down for a beat,
@@ -1126,20 +1128,11 @@ export class WeatherChannel {
             this.drawCrawl(tMs);
             return { cut, index };
         }
-        const id = this.cfg.id;
-        // Short test pages (?pagems) skip it, so mocks of the ads stay ads
-        if (this.shown.page === 'ad' && id?.ms > 0 && this.cfg.pageMs >= id.ms * 2) {
-            const e = tMs - this.shown.at - (this.cfg.pageMs - id.ms);
-            if (e >= 0) {
-                if (!this.shown.bumped) {
-                    this.shown.bumped = true;
-                    this.shown.video?.pause();
-                    this.shown.video = null;
-                }
-                this.drawBumper(e);
-                this.drawCrawl(tMs);
-                return { cut, index };
-            }
+        if (this.shown.page === 'id') {
+            this.shown.bumped = true;
+            this.drawBumper(tMs - this.shown.at);
+            this.drawCrawl(tMs);
+            return { cut, index };
         }
         this.drawClock();
         if (this.shown.page === 'radar') this.drawRadarFrame(tMs);

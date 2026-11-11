@@ -45,8 +45,8 @@ if (args.sweep) {
 }
 if (args.id) {
     // The station ID bumper: the last seconds of a full-length break
-    await shoot('id-typing', 'pages=ad&pagems=10000', 7300);
-    await shoot('id', 'pages=ad&pagems=10000', 9700);
+    await shoot('id-typing', 'pages=id&pagems=15000', 1500);
+    await shoot('id', 'pages=id&pagems=15000', 4000);
 }
 if (args.ads) {
     // Break n shows ad n: run the pages "ad" alone, one page per break
