@@ -1509,8 +1509,30 @@ export const config = {
     fps: 30,
     pageMs: 10000,          // each page holds 10 s; a region's five pages take 50 s
     // The pages in order, then the next region. Radar added on AJ's rework
-    // notes (2026-11-10: "also a radar map screen")
-    pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac'],
+    // notes (2026-11-10: "also a radar map screen"); the joke ad is the break
+    // between regions (AJ, 2026-11-11: "interstitial ads between regions")
+    pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac', 'ad'],
+    // Icons flip between their two frames this often (AJ, 2026-11-11: "two
+    // frames of animation"): about the pace of the old character generators
+    iconFrameMs: 600,
+    // Ads (AJ, 2026-11-11): the text ads live in src/weather/ads.js. Video
+    // ads are URLs here (mp4/webm, CORS open), played muted in the break
+    // and taking turns with the text ads
+    ads: {
+      videos: []
+    },
+    // Background music (AJ, 2026-11-11: "j fusion jazz"): an original loop
+    // synthesised in src/weather/music.js, rendered once at load. The loop
+    // is normalised to a 0 dBFS peak and this gain sets its level, with no
+    // limiter: the true peak stays under the -20 dBFS music zone (Audio
+    // expert, 2026-11-11). At -21 dB that is -21 dBTP and about -36 LUFS:
+    // the loop's natural 14 dB peak-to-loudness keeps it under the break
+    // screen's Spotify (-26 to -28 LUFS); raise it in OBS if AJ wants more.
+    // npm run audio -- assets checks it
+    music: {
+      enabled: true,
+      gainDb: -21
+    },
     // The next page is drawn this long after a cut, so the cut itself is
     // one blit (Performance expert, 2026-11-10)
     prepareDelayMs: 1500,
@@ -1519,6 +1541,7 @@ export const config = {
     },
     maxTableRows: 7,        // regional table: Rotom caps it near 8 rows at 44px
     station: 'EXO',         // the ident on the logo and in the crawl
+    brandSub: 'CAST',       // the logo's bar: EXO over CAST, "EXO-CAST" in the crawl (AJ, 2026-11-11: "the page should be called Exo-Cast")
     // CRT look (AJ, 2026-11-10: "some filters to give it that crt
     // aesthetic"). Drawn once into an overlay and re-blitted only over the
     // regions that change, so it costs nothing per frame (Performance expert)
