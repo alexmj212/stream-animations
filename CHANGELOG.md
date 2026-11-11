@@ -4,6 +4,12 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.19.1 - 2026-11-11
+
+- Exo-Cast's compression noise is lighter and slower, so it no longer
+  swamps the picture or Twitch's bitrate, and the ™ sign now draws in
+  the Star4000 type. ([#183])
+
 ## v2.19.0 - 2026-11-11
 
 - Exo-Cast gets the classic look. It uses the Star4000 typefaces (a fan
@@ -356,3 +362,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#175]: https://github.com/alexmj212/stream-animations/pull/175
 [#176]: https://github.com/alexmj212/stream-animations/pull/176
 [#181]: https://github.com/alexmj212/stream-animations/pull/181
+[#183]: https://github.com/alexmj212/stream-animations/pull/183
