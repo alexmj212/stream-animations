@@ -28,30 +28,32 @@ export function worldPx(lat, lon, zoom) {
 }
 
 /**
- * The closest view (zoom 3-7) that shows every town with a margin, centred
- * on them.
+ * The closest view that shows every town with a margin, centred on them.
+ * The zoom is fractional (3-7), so a tall region like the West Coast fills
+ * the panel instead of dropping a whole level (AJ, 2026-11-11: "fix the west
+ * coast map, it's crazy zoomed out"); radar tiles come from the next whole
+ * level up and are drawn scaled down to it (tilesFor).
  * @param {Array<{lat: number, lon: number}>} towns
  * @param {number} w - View width, px
  * @param {number} h - View height, px
- * @param {number} [margin=0.2] - Share of the view kept clear round the towns
+ * @param {number} [margin=0.12] - Share of the view kept clear round the towns
+ * @param {number} [bottomPx=0] - Strip along the bottom kept clear too (the
+ *   legend and time), so no town sits under it
  * @returns {{zoom: number, x0: number, y0: number, w: number, h: number}}
  */
-export function viewFor(towns, w, h, margin = 0.2) {
-    let zoom = 3;
-    for (let z = 7; z >= 3; z--) {
-        const pts = towns.map((t) => worldPx(t.lat, t.lon, z));
-        const xs = pts.map((p) => p.x);
-        const ys = pts.map((p) => p.y);
-        if (Math.max(...xs) - Math.min(...xs) <= w * (1 - 2 * margin) &&
-            Math.max(...ys) - Math.min(...ys) <= h * (1 - 2 * margin)) {
-            zoom = z;
-            break;
-        }
-    }
+export function viewFor(towns, w, h, margin = 0.12, bottomPx = 0) {
+    const full = h;
+    h -= bottomPx;
+    const at0 = towns.map((t) => worldPx(t.lat, t.lon, 0));
+    const spanX = Math.max(...at0.map((p) => p.x)) - Math.min(...at0.map((p) => p.x));
+    const spanY = Math.max(...at0.map((p) => p.y)) - Math.min(...at0.map((p) => p.y));
+    const fit = Math.min((w * (1 - 2 * margin)) / Math.max(spanX, 1e-6), (h * (1 - 2 * margin)) / Math.max(spanY, 1e-6));
+    // Snapped to an eighth of a level, so the same towns give the same view
+    const zoom = Math.min(7, Math.max(3, Math.floor(Math.log2(fit) * 8) / 8));
     const pts = towns.map((t) => worldPx(t.lat, t.lon, zoom));
     const cx = (Math.min(...pts.map((p) => p.x)) + Math.max(...pts.map((p) => p.x))) / 2;
     const cy = (Math.min(...pts.map((p) => p.y)) + Math.max(...pts.map((p) => p.y))) / 2;
-    return { zoom, x0: Math.round(cx - w / 2), y0: Math.round(cy - h / 2), w, h };
+    return { zoom, x0: Math.round(cx - w / 2), y0: Math.round(cy - h / 2), w, h: full };
 }
 
 /**
@@ -60,13 +62,19 @@ export function viewFor(towns, w, h, margin = 0.2) {
  * @returns {Array<{z: number, x: number, y: number, dx: number, dy: number}>}
  */
 export function tilesFor(view) {
-    const z = view.zoom - 1;
+    const whole = Math.ceil(view.zoom - 1e-9);
+    const z = whole - 1;
     const n = 2 ** z;
+    // At a fractional zoom the tiles are drawn at size px, a little under 512
+    const k = 2 ** (view.zoom - whole);
+    const size = TILE * k;
+    const x0 = view.x0 / k;
+    const y0 = view.y0 / k;
     const out = [];
-    for (let ty = Math.floor(view.y0 / TILE); ty <= Math.floor((view.y0 + view.h - 1) / TILE); ty++) {
+    for (let ty = Math.floor(y0 / TILE); ty <= Math.floor((y0 + view.h / k - 1) / TILE); ty++) {
         if (ty < 0 || ty >= n) continue;
-        for (let tx = Math.floor(view.x0 / TILE); tx <= Math.floor((view.x0 + view.w - 1) / TILE); tx++) {
-            out.push({ z, x: ((tx % n) + n) % n, y: ty, dx: tx * TILE - view.x0, dy: ty * TILE - view.y0 });
+        for (let tx = Math.floor(x0 / TILE); tx <= Math.floor((x0 + view.w / k - 1) / TILE); tx++) {
+            out.push({ z, x: ((tx % n) + n) % n, y: ty, dx: tx * size - view.x0, dy: ty * size - view.y0, size });
         }
     }
     return out;
@@ -227,7 +235,7 @@ export class RadarLoader {
         this.ready = null;
         const t0 = performance.now();
         this.debug?.mark('radarStart', { key });
-        const view = viewFor(towns, this.w, this.h);
+        const view = viewFor(towns, this.w, this.h, 0.12, this.cfg.legendPx ?? 0);
         // Off the caller's frame: prepare is called from a page cut
         await nextIdle();
         if (token !== this.token) return;
@@ -337,7 +345,7 @@ export class RadarLoader {
                     broadcastColors(img.data);
                     sc.putImageData(img, 0, 0);
                     c.globalAlpha = this.cfg.alpha;
-                    c.drawImage(this.scratch, t.dx, t.dy);
+                    c.drawImage(this.scratch, t.dx, t.dy, t.size, t.size);
                     c.globalAlpha = 1;
                 }
                 await nextIdle();

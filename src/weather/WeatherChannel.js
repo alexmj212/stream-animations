@@ -158,7 +158,7 @@ function pixelBlit(ctx, w, left, baseline, color, S) {
 
 /**
  * Text the way a 90s character generator drew it: chunky pixels, a hard
- * black drop shadow, the face with a little phosphor glow, and on big type
+ * black drop shadow, no glow (AJ, 2026-11-11), and on big type
  * a faint red and blue fringe (never on small numbers, Rotom). Only ever
  * called while building a cached canvas, or for the clock once a second.
  */
@@ -189,13 +189,8 @@ function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false
         pixelBlit(ctx, w, left - S, y, 'rgba(255, 40, 80, 0.28)', S);
         pixelBlit(ctx, w, left + S, y, 'rgba(40, 160, 255, 0.28)', S);
     }
-    if (glow) {
-        ctx.shadowColor = color;
-        ctx.shadowBlur = Math.min(10, size / 6);
-    }
+    // No glow: AJ (2026-11-11) "Remove all text bloom"
     pixelBlit(ctx, w, left, y, color, S);
-    ctx.shadowBlur = 0;
-    ctx.shadowColor = 'transparent';
     if (textLog) {
         // The ink box, shadow included: cap height plus descenders
         textLog.push({
