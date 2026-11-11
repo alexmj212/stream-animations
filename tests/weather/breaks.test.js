@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ADS, pickAd } from '../../src/weather/ads.js';
 import { JOKES, jokeAt } from '../../src/weather/jokes.js';
-import { score, renderMusicSync, BPM } from '../../src/weather/music.js';
 
 describe('pickAd', () => {
     it('takes turns through the text ads when there are no videos', () => {
@@ -25,10 +24,17 @@ describe('pickAd', () => {
         expect(pickAd(-1, ADS.length, 0)).toEqual({ kind: 'text', index: ADS.length - 1 });
     });
 
-    it('gives every ad a name, a pitch, fine print and a picture', () => {
+    it('gives every ad a name, a pitch, prices, a deal, a number, fine print and a picture', () => {
         for (const ad of ADS) {
             expect(ad.name.length).toBeGreaterThan(0);
-            expect(ad.lines.length).toBeGreaterThan(0);
+            expect(ad.tagline.length).toBeGreaterThan(0);
+            // AJ (2026-11-11): "The ads need like prices or services advertised"
+            expect(ad.items.length).toBeGreaterThanOrEqual(3);
+            for (const [what, price] of ad.items) expect(what && price).toBeTruthy();
+            expect(ad.deal.length).toBeGreaterThanOrEqual(1);
+            expect(ad.deal.length).toBeLessThanOrEqual(2);
+            // Fictional numbers only: 555-0100 to 555-0199
+            for (const n of ad.call.match(/\d{3}-\d{4}/g) ?? []) expect(n).toMatch(/^555-01\d\d$/);
             expect(ad.fine.length).toBeGreaterThan(0);
             expect(['mattress', 'perfume', 'car', 'tape', 'pizza', 'tooth', 'form', 'tag', 'mug']).toContain(ad.art);
         }
@@ -44,26 +50,5 @@ describe('jokes', () => {
             expect(j).toBe(j.toUpperCase());
             expect(j.length).toBeLessThanOrEqual(110);
         }
-    });
-});
-
-describe('music', () => {
-    it('is 32 bars, every note inside the loop', () => {
-        const { events, seconds } = score();
-        expect(seconds).toBeCloseTo((32 * 4 * 60) / BPM, 6);
-        expect(events.every((e) => e.t >= 0 && e.t < seconds)).toBe(true);
-        expect(events.some((e) => e.v === 'lead')).toBe(true);
-    });
-
-    it('renders the same loop every time, peaking at 0 dBFS', () => {
-        const sr = 8000;
-        const a = renderMusicSync(sr);
-        const b = renderMusicSync(sr);
-        expect(a.channels).toHaveLength(2);
-        expect(a.channels[0].length).toBe(Math.round(a.seconds * sr));
-        let peak = 0;
-        for (const c of a.channels) for (const v of c) peak = Math.max(peak, Math.abs(v));
-        expect(peak).toBeCloseTo(1, 6);
-        expect(a.channels[1]).toEqual(b.channels[1]);
     });
 });

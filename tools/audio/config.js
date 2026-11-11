@@ -71,16 +71,6 @@ export const audioConfig = {
             role: 'music',
             // The page multiplies ?volume (default 1) by this gain.
             gainDb: () => config.spheal?.song?.gainDb ?? 0
-        },
-        {
-            // Exo-Cast's background music (AJ, 2026-11-11): no file, the
-            // page synthesises it, so the check renders the same loop at
-            // OBS's rate. Any change to the synth or the gain is checked
-            // like a sound file (Audio expert, 2026-11-11)
-            file: 'src/weather/music.js',
-            role: 'music',
-            render: async (sr) => (await import('../../src/weather/music.js')).renderMusicSync(sr),
-            gainDb: () => config.weather?.music?.gainDb ?? 0
         }
     ]
 };

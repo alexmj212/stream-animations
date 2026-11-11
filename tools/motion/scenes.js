@@ -772,7 +772,7 @@ export const SCENARIOS = [
     // first joke reaches the strip by about 9 s at 150 px/s
     name: 'weather-break',
     scene: 'weather',
-    url: '/src/weather/index.html?data=demo&pages=almanac,ad&pagems=3000&fps=60&music=0&at=2026-11-10T19:00:00Z',
+    url: '/src/weather/index.html?data=demo&pages=almanac,ad&pagems=3000&fps=60&at=2026-11-10T19:00:00Z',
     start: 'load',
     captureMs: 10000,
     keyframes: [0.15, 0.45, 0.75, 0.95],

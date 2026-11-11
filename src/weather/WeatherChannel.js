@@ -3,7 +3,7 @@ import { weatherIcon } from './icons.js';
 import { buildCrtOverlay } from './crt.js';
 import { RadarLoader, placeLabels } from './radar.js';
 import { skyShort } from './data.js';
-import { ADS, pickAd, drawAdArt } from './ads.js';
+import { ADS, pickAd, drawAdArt, drawStarburst } from './ads.js';
 import { jokeAt } from './jokes.js';
 
 // Exo-Cast, the 90s weather page (AJ, 2026-11-10; named 2026-11-11): an earnest early-90s cable weather
@@ -594,37 +594,62 @@ export class WeatherChannel {
         c.strokeStyle = AD_INK;
         c.lineWidth = 4;
         c.strokeRect(SAFE.left - 20, 104, SAFE.right - SAFE.left + 40, 796);
-        plainText(c, 'PAID ADVERTISEMENT', 960, 150, 32, { align: 'center', italic: true });
-        // Headline: as big as fits, on up to two lines
-        let px = 84;
-        let head;
-        for (; px >= 48; px -= 4) {
+        plainText(c, 'PAID ADVERTISEMENT', 960, 146, 32, { align: 'center', italic: true });
+        // Headline: one line if it fits at 56px or more, else two
+        let px = 76;
+        let head = [ad.name];
+        c.font = `bold ${px}px ${SERIF}`;
+        while (px > 56 && c.measureText(ad.name).width > 1240) c.font = `bold ${(px -= 4)}px ${SERIF}`;
+        if (c.measureText(ad.name).width > 1240) {
+            px = 60;
             c.font = `bold ${px}px ${SERIF}`;
-            head = wrap(c, ad.name, 1240);
-            if (head.length <= 2) break;
+            head = wrap(c, ad.name, 1240).slice(0, 2);
         }
-        const lh = Math.round(px * 1.1);
-        let y = 180 + px;
-        head.slice(0, 2).forEach((line) => {
+        let y = 168 + px;
+        head.forEach((line) => {
             plainText(c, line, 960, y, px, { align: 'center', bold: true, maxW: 1240 });
-            y += lh;
+            y += Math.round(px * 1.08);
         });
+        y -= Math.round(px * 1.08) - 26;
         c.fillStyle = AD_INK;
-        c.fillRect(SAFE.left + 40, y - lh + 30, SAFE.right - SAFE.left - 80, 3);
-        // Clip art on the left, the pitch on the right
-        const top = y - lh + 60;
-        const bottom = 800;
-        const art = Math.min(380, bottom - top);
-        drawAdArt(c, ad.art, 540, (top + bottom) / 2, art);
-        c.font = `${48}px ${SERIF}`;
-        const body = ad.lines.flatMap((l) => wrap(c, l, 820));
-        const bodyLh = 62;
-        let by = Math.round((top + bottom) / 2 - ((body.length - 1) * bodyLh) / 2 + 16);
-        body.forEach((line) => {
-            plainText(c, line, 1170, by, 48, { align: 'center', maxW: 860 });
-            by += bodyLh;
+        c.fillRect(SAFE.left + 40, y, SAFE.right - SAFE.left - 80, 3);
+        // The pitch, italic, up to two lines
+        c.font = `italic 40px ${SERIF}`;
+        wrap(c, ad.tagline, 1180).slice(0, 2).forEach((line, i) => {
+            plainText(c, line, 960, y + 56 + i * 48, 40, { align: 'center', italic: true, maxW: 1200 });
         });
-        plainText(c, ad.fine, 960, 868, 32, { align: 'center', italic: true, maxW: 1240 });
+        const top = y + 56 + Math.min(2, wrap(c, ad.tagline, 1180).length) * 48 - 16;
+        const bottom = 772;
+        // Left: the clip art, with the deal in a starburst over its corner
+        const art = Math.min(300, bottom - top - 20);
+        drawAdArt(c, ad.art, 470, top + art / 2 + 6, art);
+        const sx = 556;
+        const sy = bottom - 100;
+        drawStarburst(c, sx, sy, 124);
+        const dealPx = ad.deal.length > 1 ? 36 : 44;
+        ad.deal.forEach((line, i) => {
+            const ly = sy + (i - (ad.deal.length - 1) / 2) * (dealPx + 2) + dealPx * 0.35;
+            plainText(c, line, sx, ly, dealPx, { align: 'center', bold: true, maxW: 180, color: '#ffffff' });
+        });
+        // Right: the price list with dot leaders
+        const lx = 724;
+        const rx = SAFE.right - 28;
+        const rowH = 60;
+        let ry = Math.round((top + bottom) / 2 - ((ad.items.length - 1) * rowH) / 2 + 14);
+        for (const [item, price] of ad.items) {
+            c.font = `bold 40px ${SERIF}`;
+            const pw = c.measureText(price).width;
+            plainText(c, price, rx, ry, 40, { align: 'right', bold: true });
+            c.font = `40px ${SERIF}`;
+            const room = rx - pw - 24 - lx;
+            plainText(c, item, lx, ry, 40, { maxW: room });
+            const iw = Math.min(room, c.measureText(item).width);
+            c.fillStyle = AD_INK;
+            for (let dx = lx + iw + 14; dx < rx - pw - 12; dx += 14) c.fillRect(dx, ry - 6, 4, 4);
+            ry += rowH;
+        }
+        plainText(c, ad.call, 960, 836, 44, { align: 'center', bold: true, maxW: 1240 });
+        plainText(c, ad.fine, 960, 882, 32, { align: 'center', italic: true, maxW: 1240 });
         return null;
     }
 

@@ -435,7 +435,7 @@ const num1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : String(v));
  * stay out of OBS's red zone. Music and sound effects past the OBS guide's
  * green zone only warn.
  */
-async function assets() {
+function assets() {
     const found = walk('src').filter((f) => /\.(ogg|mp3|wav|m4a|opus|flac|aac|webm|mp4)$/i.test(f));
     const known = new Set(audioConfig.assets.map((a) => a.file));
     let failed = false;
@@ -452,10 +452,7 @@ async function assets() {
             continue;
         }
         const gainDb = a.gainDb();
-        // A rendered asset (music synthesised in the page) is checked as the
-        // page plays it: one whole cycle, then its first second again, so
-        // the loop's seam is in the check too (Audio expert, 2026-11-11)
-        const { channels } = a.render ? withSeam(await a.render(FS), FS) : decode(a.file, { fs: FS });
+        const { channels } = decode(a.file, { fs: FS });
         const g = Math.pow(10, gainDb / 20);
         const x = channels.map((c) => c.map((v) => v * g));
         const pk = peaks(x);
@@ -476,18 +473,6 @@ async function assets() {
         if (problems.length) failed = true;
     }
     process.exitCode = failed ? 1 : 0;
-}
-
-/** A rendered loop's channels with its first second appended after the end. */
-function withSeam({ channels }, fs) {
-    return {
-        channels: channels.map((c) => {
-            const out = new Float32Array(c.length + fs);
-            out.set(c);
-            out.set(c.subarray(0, fs), c.length);
-            return out;
-        })
-    };
 }
 
 function walk(dir) {

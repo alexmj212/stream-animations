@@ -125,10 +125,10 @@ moves to the next of six US regions, forever. Weather is live from the
 National Weather Service (api.weather.gov) for real cities, and the radar is
 the last hour from RainViewer over a map the page draws itself. The icons
 flip between two frames, a joke ad for a made-up local business fills the
-break between regions, the crawl runs a joke after each region, and an
-original J-fusion loop plays underneath (synthesised in the page, no files).
+break between regions, and the crawl runs a joke after each region. It is
+silent: play your own music over it.
 
-**URL**: `weather/index.html` (`data`, `seed`, `region`, `page`, `pages`, `ads`, `music`, `pagems`, `at`, `fps`, `station`)
+**URL**: `weather/index.html` (`data`, `seed`, `region`, `page`, `pages`, `ads`, `pagems`, `at`, `fps`, `station`)
 
 - `data` - `nws` (live, default) or `demo` (generated forecasts for made-up towns and a made-up radar, no network: the motion harness and mocks)
 - `seed` - Demo only: another set of forecasts (default 0)
@@ -136,7 +136,6 @@ original J-fusion loop plays underneath (synthesised in the page, no files).
 - `page` - Hold one page: `current`, `local`, `extended`, `radar`, `regional`, `almanac` or `ad`
 - `pages` - Run only these pages, in this order, e.g. `almanac,ad` (mocks)
 - `ads` - `0` leaves out the ad breaks
-- `music` - `0` turns the background music off (it plays at `config.weather.music.gainDb`; a desktop browser starts it on the first click or key)
 - `pagems` - Milliseconds per page (default 10000, at least 2000)
 - `at` - Pretend it is this time, e.g. `2027-01-15T14:00:00Z` (mocks)
 - `fps` - Frame cap (default 30)

@@ -2,80 +2,116 @@
 // interstitial ads between regions, the ads should be jokes or not serious,
 // they can be videos or just text and an image with default text
 // formatting", then "for like fake business, not necessarily weather
-// themed" and "in the style of SNL or the onion"). A cheap local spot: plain Times on a flat colour, one clip-art
-// picture, fine print. Every business here is made up.
+// themed", "in the style of SNL or the onion", and "the ads need like
+// prices or services advertised"). A cheap local spot: plain Times on a flat
+// colour, clip art, a price list, a starburst deal, a phone number and fine
+// print. Every business here is made up, and every number is a fictional
+// 555-01xx.
 // Video ads are URLs in config.weather.ads.videos, played muted over the card.
 
 /**
  * @typedef {Object} Ad
  * @property {string} name - Business name, the headline
- * @property {string[]} lines - Body, one line each
+ * @property {string} tagline - The pitch, one or two lines
+ * @property {Array<[string, string]>} items - What's for sale: [service, price]
+ * @property {string[]} deal - The starburst, one or two short lines
+ * @property {string} call - Phone and where, the bottom line (555-01xx numbers are fictional by design)
  * @property {string} fine - Fine print
  * @property {string} art - Picture: mattress, perfume, car, tape, pizza, tooth, form, tag, mug
  * @property {string} bg - Card colour
  */
 
+// AJ (2026-11-11): "The ads need like prices or services advertised, these
+// are just one liners". Each spot now sells something: a price list, a
+// starburst deal and a phone number, with the joke in the details.
 /** @type {Ad[]} */
 export const ADS = [
     {
         name: "GARY'S DISCOUNT MATTRESS BARN",
-        lines: ['Gary has been asleep since 1987.', "Come see what he's lying on."],
+        tagline: "Gary has been asleep since 1987. Come see what he's lying on.",
+        items: [['Twin, gently slept on', '$49'], ['Queen, "barely" used', '$89'], ['Box spring with a secret', '$15'], ["King (Gary's)", 'NOT FOR SALE']],
+        deal: ['NO MONEY', 'DOWN!'],
+        call: 'CALL 555-0187 · ROUTE 9, NEXT TO THE OTHER BARN',
         fine: 'Barn may contain Gary. Do not wake Gary.',
         art: 'mattress',
         bg: '#f4eecb'
     },
     {
         name: 'CONFUSION',
-        lines: ['The new fragrance', 'for the man who walked into', 'a room and forgot why.'],
+        tagline: 'The new fragrance for the man who walked into a room and forgot why.',
+        items: [['Eau de Confusion, 1 oz.', '$29.99'], ['Gift set with your keys (lost)', '$44.99'], ['Travel size (also lost)', '$9.99'], ['Body spray, for... someone', '$12.99']],
+        deal: ['NOW', '$29.99'],
+        call: 'AT FINER DEPARTMENT STORES, PROBABLY',
         fine: 'Do not spray near memories.',
         art: 'perfume',
         bg: '#efe2f2'
     },
     {
         name: "BIG SAL'S PRE-LOVED AUTOS",
-        lines: ['Every car driven by a grandmother.', 'Several grandmothers.', 'At once.'],
-        fine: 'Sal is legally not allowed to say "mint condition."',
+        tagline: 'Every car driven by a grandmother. Several grandmothers. At once.',
+        items: [["'89 sedan, one door", '$1,200'], ['Minivan, smells like soup', '$2,400'], ['Convertible (roof stolen)', '$900'], ['Air freshener with any car', 'FREE']],
+        deal: ['$0', 'DOWN*'],
+        call: "CALL 555-0123 · SAL'S LOT, HIGHWAY 61",
+        fine: '*Sal is legally not allowed to say "mint condition."',
         art: 'car',
         bg: '#dfe9f7'
     },
     {
         name: 'REWIND CITY VIDEO',
-        lines: ['Area video store still open,', 'owner "fine with it."'],
+        tagline: 'Area video store still open, owner "fine with it."',
+        items: [['New releases (from 1994)', '$3.99'], ["Kids' tapes, mostly rewound", '99¢'], ['Board games, back room', '$1.50'], ['Late fee forgiveness', '$40.00']],
+        deal: ['2 FOR', '$5!'],
+        call: 'OPEN TIL 9, OR WHEN DOUG LEAVES · 555-0142',
         fine: 'Late fees are emotional, not financial.',
         art: 'tape',
         bg: '#e9e4f6'
     },
     {
         name: 'MOM & POP PIZZA PALACE',
-        lines: ['Mom and Pop are no longer speaking.', 'The pizza is still very good.'],
+        tagline: 'Mom and Pop are no longer speaking. The pizza is still very good.',
+        items: [["Large cheese (Mom's)", '$8.99'], ["Large pepperoni (Pop's)", '$9.99'], ['Half and half, eaten in silence', '$10.99'], ['Garlic knots of tension', '$3.49']],
+        deal: ['2 LARGE', '$15.99'],
+        call: 'CALL 555-0164 · WE DELIVER. SEPARATELY.',
         fine: 'Please do not ask about Pop.',
         art: 'pizza',
         bg: '#f6e0d2'
     },
     {
         name: 'CRESTVIEW FAMILY DENTAL',
-        lines: ['Nine out of ten dentists recommend us.', 'The tenth one works here.', "He's fine."],
+        tagline: 'Nine out of ten dentists recommend us. The tenth one works here.',
+        items: [['Cleaning and x-rays', '$59'], ['Whitening (some teeth)', '$99'], ['Root canal, cheerful', '$249'], ['Lollipop on the way out', 'FREE']],
+        deal: ['CHECKUP', '$29'],
+        call: 'CALL 555-0110 · NOW ACCEPTING MOST TEETH',
         fine: 'Smiling is mandatory for the duration of your visit.',
         art: 'tooth',
         bg: '#e4efe0'
     },
     {
         name: "TONY'S TAXIDERMY & TAX PREP",
-        lines: ['We stuff deer.', 'We also stuff returns.'],
+        tagline: 'We stuff deer. We also stuff returns.',
+        items: [['Short form 1040', '$35'], ['Mounted bass, any mood', '$60'], ['Itemized deductions', '$85'], ['Squirrel, any pose', '$40']],
+        deal: ['COMBO', '$89'],
+        call: 'CALL 555-0199 · ASK FOR TONY. EITHER TONY.',
         fine: 'Not a licensed accountant. Barely a licensed taxidermist.',
         art: 'form',
         bg: '#f7f0c6'
     },
     {
         name: 'HUGE GARAGE SALE THIS SATURDAY',
-        lines: ['Local man selling everything,', 'including feelings.'],
+        tagline: 'Local man selling everything, including feelings.',
+        items: [['Exercise bike, never used', '25¢'], ['Box of cables (all of them)', '$1'], ["Ex-wife's bread maker", '50¢'], ['Feelings, assorted', 'MAKE OFFER']],
+        deal: ['SAT', '7 AM'],
+        call: '1440 ELM STREET · PARK ON THE LAWN, IT IS FINE',
         fine: 'Feelings sold as is. Cash only. Do not haggle with Dennis.',
         art: 'tag',
         bg: '#f3e6cf'
     },
     {
         name: 'THE BEAN SCENE',
-        lines: ['Coffee so strong', 'it has opinions about you.'],
+        tagline: 'Coffee so strong it has opinions about you.',
+        items: [['House blend, judgmental', '$1.25'], ['Espresso, disappointed in you', '$1.75'], ["Decaf (we'll allow it)", '$3.50'], ['Muffin of the day', '$1.99']],
+        deal: ['REFILLS', '$2'],
+        call: 'CORNER OF MAIN & 3RD · OPEN 6 AM',
         fine: 'Decaf available on request and judgement.',
         art: 'mug',
         bg: '#eadfd2'
@@ -245,5 +281,28 @@ export function drawAdArt(c, art, cx, cy, size) {
         c.strokeStyle = '#9a9a9a';
         c.stroke();
     }
+    c.restore();
+}
+
+/**
+ * A starburst price flash, the local-ad staple: a red-orange star with a
+ * dark outline, centred on (cx, cy), radius r. The text goes on top.
+ * @param {CanvasRenderingContext2D} c
+ */
+export function drawStarburst(c, cx, cy, r) {
+    c.save();
+    c.beginPath();
+    const points = 18;
+    for (let i = 0; i < points * 2; i++) {
+        const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const rr = i % 2 ? r * 0.8 : r;
+        c.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+    }
+    c.closePath();
+    c.fillStyle = '#e8401a';
+    c.fill();
+    c.lineWidth = 4;
+    c.strokeStyle = OUTLINE;
+    c.stroke();
     c.restore();
 }
