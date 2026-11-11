@@ -1589,7 +1589,8 @@ export const config = {
       colorScheme: 2,       // RainViewer's universal blue; recoloured to the broadcast ramp
       alpha: 0.85,          // radar over the map: the coastlines still show through
       timeoutMs: 10000,     // a hung tile gives up, so a build always finishes
-      retryAfterMs: 60000   // after a failed frame list, wait before asking again
+      retryAfterMs: 60000,  // after a failed frame list, wait before asking again
+      legendPx: 56          // the legend and time strip along the map's bottom: towns fit above it (AJ, 2026-11-11, crop review)
     },
     // Live NWS data (AJ, 2026-11-10: "real weather data ... for real places")
     data: {

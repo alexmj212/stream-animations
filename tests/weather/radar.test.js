@@ -17,10 +17,10 @@ describe('viewFor', () => {
             expect(v.zoom).toBeGreaterThanOrEqual(3);
             for (const t of region.towns) {
                 const p = worldPx(t.lat, t.lon, v.zoom);
-                expect(p.x - v.x0).toBeGreaterThan(1284 * 0.15);
-                expect(p.x - v.x0).toBeLessThan(1284 * 0.85);
-                expect(p.y - v.y0).toBeGreaterThan(668 * 0.15);
-                expect(p.y - v.y0).toBeLessThan(668 * 0.85);
+                expect(p.x - v.x0).toBeGreaterThan(1284 * 0.1);
+                expect(p.x - v.x0).toBeLessThan(1284 * 0.9);
+                expect(p.y - v.y0).toBeGreaterThan(668 * 0.1);
+                expect(p.y - v.y0).toBeLessThan(668 * 0.9);
             }
         }
     });
@@ -31,9 +31,33 @@ describe('viewFor', () => {
         expect(tight.zoom).toBe(7);
         expect(wide.zoom).toBeLessThan(tight.zoom);
     });
+
+    it('fills the panel with each region, not a whole zoom level out', () => {
+        // AJ, 2026-11-11: the West Coast was "crazy zoomed out" at zoom 4.
+        // The towns should span most of the panel one way or the other
+        for (const region of REGIONS) {
+            const v = viewFor(region.towns, 1284, 668);
+            const pts = region.towns.map((t) => worldPx(t.lat, t.lon, v.zoom));
+            const fx = (Math.max(...pts.map((p) => p.x)) - Math.min(...pts.map((p) => p.x))) / 1284;
+            const fy = (Math.max(...pts.map((p) => p.y)) - Math.min(...pts.map((p) => p.y))) / 668;
+            expect(Math.max(fx, fy)).toBeGreaterThan(0.6);
+        }
+    });
 });
 
 describe('tilesFor', () => {
+    it('draws the next whole level scaled down at a fractional zoom', () => {
+        const view = { zoom: 4.5, x0: 700, y0: 1400, w: 1284, h: 668 };
+        const tiles = tilesFor(view);
+        const k = 2 ** -0.5;
+        expect(tiles.every((t) => t.z === 4 && Math.abs(t.size - 512 * k) < 1e-9)).toBe(true);
+        // Covers the view edge to edge
+        expect(Math.min(...tiles.map((t) => t.dx))).toBeLessThanOrEqual(0);
+        expect(Math.max(...tiles.map((t) => t.dx + t.size))).toBeGreaterThanOrEqual(1284);
+        expect(Math.min(...tiles.map((t) => t.dy))).toBeLessThanOrEqual(0);
+        expect(Math.max(...tiles.map((t) => t.dy + t.size))).toBeGreaterThanOrEqual(668);
+    });
+
     it('covers the whole view with 512px tiles at zoom - 1', () => {
         const view = { zoom: 6, x0: 4000, y0: 6000, w: 1284, h: 668 };
         const tiles = tilesFor(view);
