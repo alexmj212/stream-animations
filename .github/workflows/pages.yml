@@ -40,17 +40,32 @@ jobs:
       # AJ (2026-10-29): "no audio clipping ever". With motion.yml manual
       # since 2026-11-10, this is the one place the rule is enforced
       # (docs/AUDIO.md, "Levels and clipping"). About 4 s.
-      # The check takes seconds; the ffmpeg install is what can hang (it sat
-      # for 10+ min on the v2.17.0 deploy, 2026-11-11). Skip man-db's slow
-      # trigger, bound apt's lock wait, and cap the step.
+      # The check takes seconds; getting ffmpeg is what can stall. On
+      # 2026-11-11 the runners could not resolve the Ubuntu archive at all
+      # (the v2.17.0 and v2.18.0 deploys hung), so apt gets 2 minutes, then
+      # we fall back to the static ffmpeg 7.0.2 inside the imageio-ffmpeg
+      # 0.6.0 wheel from PyPI, pinned by sha256 because this job deploys.
+      # man-db's trigger is skipped as it is slow on runners.
       - name: Audio levels
         timeout-minutes: 8
+        env:
+          FFMPEG_WHEEL: https://files.pythonhosted.org/packages/a0/2d/43c8522a2038e9d0e7dbdf3a61195ecc31ca576fb1527a528c877e87d973/imageio_ffmpeg-0.6.0-py3-none-manylinux2014_x86_64.whl
+          FFMPEG_WHEEL_SHA256: c7e46fcec401dd990405049d2e2f475e2b397779df2519b544b8aab515195282
         run: |
           if ! command -v ffmpeg; then
             sudo rm -f /var/lib/man-db/auto-update
-            sudo apt-get -o DPkg::Lock::Timeout=60 update -q
-            sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install -y -q --no-install-recommends ffmpeg
+            timeout 120 sh -c 'sudo apt-get -o DPkg::Lock::Timeout=30 -o Acquire::Retries=1 update -q && sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=30 install -y -q --no-install-recommends ffmpeg' || echo "apt could not install ffmpeg"
           fi
+          if ! command -v ffmpeg; then
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/ffmpeg.whl" "$FFMPEG_WHEEL"
+            echo "$FFMPEG_WHEEL_SHA256  $RUNNER_TEMP/ffmpeg.whl" | sha256sum -c
+            mkdir -p "$RUNNER_TEMP/ffmpeg"
+            unzip -q -j "$RUNNER_TEMP/ffmpeg.whl" 'imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-*' -d "$RUNNER_TEMP/ffmpeg"
+            mv "$RUNNER_TEMP"/ffmpeg/ffmpeg-linux-x86_64-* "$RUNNER_TEMP/ffmpeg/ffmpeg"
+            chmod +x "$RUNNER_TEMP/ffmpeg/ffmpeg"
+            export PATH="$RUNNER_TEMP/ffmpeg:$PATH"
+          fi
+          ffmpeg -version | head -1
           npm run audio -- assets
 
       - run: npm run build
