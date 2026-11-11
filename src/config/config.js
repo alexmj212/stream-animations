@@ -1551,9 +1551,13 @@ export const config = {
     // interlacing and compression noise on the screens"). The crawl's odd
     // rows trail by interlacePx (150 px/s over a 60th of a second); noise is
     // a CSS layer of 8 px macroblocks that jumps every noiseStepMs, so the
-    // canvas never redraws for it.
+    // canvas never redraws for it. AJ (2026-11-11, on alpha 0.1 at 120 ms):
+    // "The noise is way too much", so it's a third as strong and moves
+    // every 400 ms (design review ENC-3: a picture that changes 8x a second
+    // starves Twitch's bitrate; `npm run weather:encode` measured text PSNR
+    // 41 dB with the old noise against 56 dB without).
     interlacePx: 3,
-    noise: { alpha: 0.1, blockPx: 8, stepMs: 120, seed: 7 },
+    noise: { alpha: 0.035, blockPx: 8, stepMs: 400, seed: 7 },
     maxTableRows: 7,        // regional table: Rotom caps it near 8 rows at 44px
     station: 'EXO',         // the ident on the logo and in the crawl
     brandSub: 'CAST',       // the logo's bar: EXO over CAST, "EXO-CAST" in the crawl (AJ, 2026-11-11: "the page should be called Exo-Cast")

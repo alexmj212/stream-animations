@@ -45,15 +45,18 @@ export function noiseTile(cfg, size = 256) {
  * @param {HTMLElement} host - Positioned element the layer goes in
  * @param {{alpha: number, blockPx: number, stepMs: number, seed: number}} cfg
  * @param {number} frameW - The canvas's width in frame px (1920)
+ * @param {number} cornerPx - The CRT tube's corner radius, frame px
  * @returns {() => void} Stops it
  */
-export function startNoise(host, cfg, frameW = 1920) {
+export function startNoise(host, cfg, frameW = 1920, cornerPx = 0) {
     const tile = 256;
     const url = noiseTile(cfg, tile).toDataURL();
     const unit = `calc(100vw * ${tile / frameW})`;
     const wrap = document.createElement('div');
-    // Over the 4:3 picture only (x 240-1680 of 1920), not the pillarbox bars
-    wrap.style.cssText = 'position:fixed;top:0;bottom:0;left:12.5vw;width:75vw;overflow:hidden;pointer-events:none';
+    // Over the 4:3 picture only (x 240-1680 of 1920), not the pillarbox bars,
+    // and inside the tube's rounded corners, which stay black (QA, 2026-11-11)
+    wrap.style.cssText = 'position:fixed;top:0;bottom:0;left:12.5vw;width:75vw;overflow:hidden;pointer-events:none;'
+        + `border-radius:calc(100vw * ${cornerPx / frameW})`;
     const layer = document.createElement('div');
     layer.style.cssText = `position:absolute;left:calc(-1 * ${unit});top:calc(-1 * ${unit});right:0;bottom:0;`
         + `background:url(${url});background-size:${unit} ${unit};image-rendering:pixelated;will-change:transform`;

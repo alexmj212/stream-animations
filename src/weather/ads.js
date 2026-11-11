@@ -81,7 +81,7 @@ export const ADS = [
         art: 'bear'
     },
     {
-        name: 'THE RE-PEELER™',
+        name: 'THE RE-PEELER(TM)',
         layout: 'infomercial',
         sub: "Peeled a banana too early? We've all been there.",
         lead: 'Only 3 easy payments of',
