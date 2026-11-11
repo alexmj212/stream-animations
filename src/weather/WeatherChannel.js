@@ -60,10 +60,18 @@ const JOKE = '#9fe8ff';             // jokes in the crawl: light cyan, so they r
 const VIDEO = { x: SAFE.left, y: 168, w: 1296, h: 729 };    // a 16:9 video ad inside title-safe
 const NEEDS_DATA = new Set(['current', 'local', 'extended', 'regional']);
 
-function font(px, italic = false) {
-    // The real unit had no italic or bold: `italic` is kept for callers but
-    // draws upright, as the character generator did
+function face(px) {
     return `${px}px ${px >= 90 ? FONT_LARGE : FONT}`;
+}
+
+/**
+ * The canvas font for character-generator text asked for at px, at the size
+ * it is drawn (TEXT_SCALE, on the pixel grid), so measureText matches what
+ * shadowText draws. The real unit had no italic or bold: `italic` is kept
+ * for callers but draws upright.
+ */
+function font(px, italic = false) {
+    return face(pixelSize(px));
 }
 
 // While set, a page's icons are listed here instead of drawn into it, so
@@ -80,48 +88,102 @@ function placeIcon(c, kind, size, x, y) {
 // harness's SAFE and TYPE checks (registerProbe; nothing reads it on stream)
 let textLog = null;
 
+// Character-generator text is drawn small, cut to hard on/off pixels and
+// blown up PIXEL times with no smoothing, so every glyph shows its pixels
+// (AJ, 2026-11-11: "The font needs to be bigger on most screens and have
+// that pixel look"). TEXT_SCALE makes every page's text bigger at once;
+// maxW still shrinks a line that won't fit.
+const PIXEL = 3;
+const TEXT_SCALE = 1.35;
+let glyphMask = null;
+let glyphTint = null;
+
+/** The size actually drawn for a requested size: scaled, on the pixel grid, never under 33. */
+function pixelSize(px) {
+    return Math.max(11, Math.round((px * TEXT_SCALE) / PIXEL)) * PIXEL;
+}
+
+/** Width in frame px of a line of character-generator text. */
+function pixelWidth(ctx, text, px) {
+    return widthAt(ctx, text, pixelSize(px));
+}
+
+/** Width in frame px at an already-drawn size (a multiple of PIXEL). */
+function widthAt(ctx, text, size) {
+    ctx.font = face(size / PIXEL);
+    return (Math.ceil(ctx.measureText(text).width) + 2) * PIXEL;
+}
+
 /**
- * Text the way a 90s character generator drew it: a hard black drop shadow,
- * then the face with a little phosphor glow, and on big type a faint red and
- * blue fringe (never on small numbers, Rotom). Only ever called while
- * building a cached canvas, or for the clock once a second.
+ * Draw `text` as hard pixels: rendered at 1/PIXEL size, alpha cut at half,
+ * tinted, scaled up unsmoothed. `left` and `baseline` in frame px.
+ */
+function pixelBlit(ctx, mask, w, h, ascent, left, baseline, color) {
+    glyphTint.width = w;
+    glyphTint.height = h;
+    const t = glyphTint.getContext('2d');
+    t.drawImage(mask, 0, 0);
+    t.globalCompositeOperation = 'source-in';
+    t.fillStyle = color;
+    t.fillRect(0, 0, w, h);
+    t.globalCompositeOperation = 'source-over';
+    const smooth = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(glyphTint, 0, 0, w, h, Math.round(left), Math.round(baseline - ascent * PIXEL), w * PIXEL, h * PIXEL);
+    ctx.imageSmoothingEnabled = smooth;
+}
+
+/**
+ * Text the way a 90s character generator drew it: chunky pixels, a hard
+ * black drop shadow, the face with a little phosphor glow, and on big type
+ * a faint red and blue fringe (never on small numbers, Rotom). Only ever
+ * called while building a cached canvas, or for the clock once a second.
  */
 function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false, shadow = 0, maxW = Infinity, glow = true } = {}) {
-    ctx.font = font(px, italic);
-    let size = px;
-    while (size > 32 && ctx.measureText(text).width > maxW) {
-        size -= 2;
-        ctx.font = font(size, italic);
-    }
-    // Live text can run long: past the 32px floor, drop words from the end
-    while (text.includes(' ') && ctx.measureText(text).width > maxW) {
+    let size = pixelSize(px);
+    while (size > 33 && widthAt(ctx, text, size) > maxW) size -= PIXEL;
+    const sp = size / PIXEL;
+    ctx.font = face(sp);
+    // Live text can run long: past the floor, drop words from the end
+    while (text.includes(' ') && ctx.measureText(text).width * PIXEL > maxW) {
         text = text.slice(0, text.lastIndexOf(' '));
     }
-    ctx.textAlign = align;
-    ctx.textBaseline = 'alphabetic';
-    const s = shadow || Math.max(3, Math.round(size / 16));
-    ctx.fillStyle = 'rgba(0, 0, 20, 0.85)';
-    ctx.fillText(text, x + s, y + s);
+    glyphMask ??= makeCanvas(8, 8);
+    glyphTint ??= makeCanvas(8, 8);
+    const m = ctx.measureText(text);
+    const ascent = Math.ceil(m.actualBoundingBoxAscent) + 1;
+    const w = Math.ceil(m.width) + 2;
+    const h = ascent + Math.ceil(m.actualBoundingBoxDescent) + 2;
+    glyphMask.width = w;
+    glyphMask.height = h;
+    const g = glyphMask.getContext('2d', { willReadFrequently: true });
+    g.font = face(sp);
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = '#ffffff';
+    g.fillText(text, 1, ascent);
+    const img = g.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let k = 3; k < d.length; k += 4) d[k] = d[k] >= 112 ? 255 : 0;
+    g.putImageData(img, 0, 0);
+    const width = w * PIXEL;
+    const left = x - (align === 'center' ? width / 2 : align === 'right' ? width : 0) - PIXEL;
+    const s = shadow ? Math.max(PIXEL, Math.round(shadow / PIXEL) * PIXEL) : Math.max(PIXEL, Math.round(size / 16 / PIXEL) * PIXEL);
+    pixelBlit(ctx, glyphMask, w, h, ascent, left + s, y + s, 'rgba(0, 0, 20, 0.85)');
     if (size >= 48) {
-        ctx.fillStyle = 'rgba(255, 40, 80, 0.28)';
-        ctx.fillText(text, x - 2, y);
-        ctx.fillStyle = 'rgba(40, 160, 255, 0.28)';
-        ctx.fillText(text, x + 2, y);
+        pixelBlit(ctx, glyphMask, w, h, ascent, left - 2, y, 'rgba(255, 40, 80, 0.28)');
+        pixelBlit(ctx, glyphMask, w, h, ascent, left + 2, y, 'rgba(40, 160, 255, 0.28)');
     }
     if (glow) {
         ctx.shadowColor = color;
         ctx.shadowBlur = Math.min(10, size / 6);
     }
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
+    pixelBlit(ctx, glyphMask, w, h, ascent, left, y, color);
     ctx.shadowBlur = 0;
     ctx.shadowColor = 'transparent';
     if (textLog) {
-        const m = ctx.measureText(text);
-        const left = x - (align === 'center' ? m.width / 2 : align === 'right' ? m.width : 0);
         // The ink box, shadow included
         textLog.push({
-            box: { x: left, y: y - m.actualBoundingBoxAscent, width: m.width + s, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent + s },
+            box: { x: left + PIXEL, y: y - m.actualBoundingBoxAscent * PIXEL, width: m.width * PIXEL + s, height: (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) * PIXEL + s },
             fontPx: size,
             words: text.split(/\s+/).filter(Boolean).length
         });
@@ -380,10 +442,7 @@ export class WeatherChannel {
         shadowText(c, this.cfg.station, x + w / 2, y + 60, 56, '#ffffff', { align: 'center', italic: true, shadow: 4, maxW: w - 16 });
         c.fillStyle = INK;
         c.fillRect(x + 10, y + 68, w - 20, 30);
-        c.font = font(30);
-        c.textAlign = 'center';
-        c.fillStyle = YELLOW;
-        c.fillText(this.cfg.brandSub, x + w / 2, y + 94);
+        shadowText(c, this.cfg.brandSub, x + w / 2, y + 95, 28, YELLOW, { align: 'center', shadow: 1, glow: false, maxW: w - 24 });
     }
 
     // --- Pages -----------------------------------------------------------
@@ -411,7 +470,7 @@ export class WeatherChannel {
             video = this.page_ad(c, index);
         } else {
             const subtitle = page === 'regional' || page === 'radar' ? region.name : region.towns[0].name;
-            shadowText(c, PAGE_TITLES[page], 504, 148, 56, YELLOW, { italic: true, maxW: 770 });
+            shadowText(c, PAGE_TITLES[page], 504, 148, 56, YELLOW, { italic: true, maxW: 740 });
             shadowText(c, subtitle, 506, 194, 36, '#ffffff', { maxW: 770 });
             if (NEEDS_DATA.has(page) && !data) this.page_unavailable(c);
             else this[`page_${page}`](c, { data, when, region });
@@ -844,8 +903,7 @@ export class WeatherChannel {
         const px = 36;
         const gap = 90;
         const m = canvas.getContext('2d');
-        m.font = font(px);
-        const widths = items.map((t) => m.measureText(t.text).width);
+        const widths = items.map((t) => pixelWidth(m, t.text, px));
         const total = () => widths.reduce((a, b) => a + b + gap, 0);
         // Chrome's canvas limit is 32767 px: past 32000, drop jokes from the
         // end first, then whole bulletins, rather than cut one off
@@ -860,7 +918,7 @@ export class WeatherChannel {
         canvas.height = CRAWL.h;
         const s = canvas.getContext('2d');
         s.font = font(px);
-        const ink = s.measureText(items[0].text);
+        const ink = s.measureText(items[0].text);   // at the drawn size
         let x = 0;
         items.forEach((t, i) => {
             const dx = Math.round(x + gap / 2);
@@ -881,7 +939,7 @@ export class WeatherChannel {
             canvas, width, dataKey,
             jokes: items.filter((t) => t.kind === 'joke').length,
             // The line's ink rows in frame px, for the harness's SAFE-3 check
-            ink: { top: CRAWL.baseline - ink.actualBoundingBoxAscent, bottom: CRAWL.baseline + ink.actualBoundingBoxDescent + 3, px }
+            ink: { top: CRAWL.baseline - ink.actualBoundingBoxAscent, bottom: CRAWL.baseline + ink.actualBoundingBoxDescent + 3, px: pixelSize(px) }
         };
     }
 
