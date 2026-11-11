@@ -1,37 +1,101 @@
-// Weather icons for the 90s weather page: chunky shapes with a dark outline,
-// drawn once per kind and size into their own offscreen canvas. Each one
-// keeps inside its 100x100 grid with a few px for the outline: a cloud of
-// width w at (cx, cy) spans x cx-0.62w..cx+0.6w and y cy-0.5w..cy+0.42w.
+// Weather icons for the 90s weather page. Since AJ's note of 2026-11-11
+// ("the icons for the weather need to use the weather star versions, and
+// they need that pixel look") the weather and moon icons are the WeatherStar
+// 4000's own (ws4000icons.js, baked from GIFs by
+// tools/weather/build_ws4000_icons.py): big ones on the pages, the small
+// regional-map set in table rows, blown up a whole number of times with no
+// smoothing, animated through their own frames the way the unit did. The
+// drawn icons below are the fallback until a strip has loaded, and the only
+// art for sunrise and sunset, which the WeatherStar never had; those are
+// drawn at half size and doubled, so they share the pixel look.
 //
-// Two frames per icon (AJ, 2026-11-11: "the icons need two frames of
-// animation"), flipped by the page like the old character generators: rays
-// turn half a step, clouds drift, rain and snow fall, the bolt strikes on one
-// frame only, fog slides, stars twinkle. Frame 1 moves at most 8 grid units,
-// so an icon never leaves its 100x100 box.
+// Drawn icons: chunky shapes with a dark outline on a 100x100 grid. Two
+// frames each (AJ, 2026-11-11: "the icons need two frames of animation"):
+// rays turn half a step, clouds drift, rain and snow fall, the bolt strikes
+// on one frame only, fog slides, stars twinkle.
+
+import { WS_ICONS, wsIconUrl } from './ws4000icons.js';
 
 const OUTLINE = '#0b1240';
 const cache = new Map();
+const strips = new Map();
 
 /**
- * An icon frame as an offscreen canvas, drawn on first use and kept.
+ * Start loading every WeatherStar strip; resolves when all are decoded (or
+ * failed, which leaves the drawn icon in its place).
+ * @returns {Promise<void>}
+ */
+export function loadWsIcons() {
+    const files = new Set(Object.values(WS_ICONS).flatMap((set) => Object.values(set).map((a) => a.file)));
+    return Promise.all([...files].map((file) => {
+        const img = new Image();
+        img.src = wsIconUrl(file);
+        strips.set(file, img);
+        return img.decode().catch(() => strips.delete(file));
+    })).then(() => undefined);
+}
+
+/** The WeatherStar art for a kind at a box size, and its whole-number scale. */
+function wsArt(kind, size) {
+    const art = (size <= 80 ? WS_ICONS.small[kind] : null) ?? WS_ICONS.big[kind];
+    const img = art && strips.get(art.file);
+    if (!img?.complete || !img.naturalWidth) return null;
+    const S = size <= 80 ? 1 : Math.max(1, Math.floor(size / 120));
+    return { art, img, S };
+}
+
+/**
+ * How an icon animates: its frame count and how long each frame holds.
+ * @param {string} kind
+ * @param {number} size
+ * @param {number} drawnMs - Frame time of a drawn (two-frame) icon
+ * @returns {{n: number, ms: number}}
+ */
+export function iconFrames(kind, size, drawnMs) {
+    const ws = wsArt(kind, size);
+    if (ws) return { n: ws.art.n, ms: ws.art.ms || 1000 };
+    return { n: DRAWN[kind]?.length > 1 ? 2 : 1, ms: drawnMs };
+}
+
+/**
+ * An icon frame as an offscreen canvas, made on first use and kept. A
+ * WeatherStar icon comes at its own aspect, a whole number of times its
+ * pixels, so the canvas can be narrower or wider than size: center it.
  * @param {string} kind - sun, mostlysun, partly, mostlycloudy, cloudy, rain,
  *   showers, storm, snow, flurries, mix, fog, moon, partlymoon, or
  *   moon-new, moon-first, moon-full, moon-last, sunrise, sunset
- * @param {number} size - Square side in px
- * @param {number} [frame=0] - 0 or 1
+ * @param {number} size - The box it's meant for, px
+ * @param {number} [frame=0] - Any whole number; wraps at the icon's frames
  * @returns {HTMLCanvasElement}
  */
 export function weatherIcon(kind, size, frame = 0) {
-    const key = `${kind}@${size}#${frame}`;
+    const ws = wsArt(kind, size);
+    const f = frame % (ws ? ws.art.n : 2);
+    const key = `${ws ? 'ws' : 'drawn'}:${kind}@${size}#${f}`;
     let c = cache.get(key);
     if (c) return c;
     c = document.createElement('canvas');
-    c.width = c.height = size;
     const ctx = c.getContext('2d');
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.scale(size / 100, size / 100);    // draw on a 100x100 grid
-    DRAW[kind]?.(ctx, frame ? 1 : 0);
+    if (ws) {
+        const { art, img, S } = ws;
+        c.width = art.w * S;
+        c.height = art.h * S;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, f * art.w, 0, art.w, art.h, 0, 0, c.width, c.height);
+    } else {
+        // Drawn at half size, then doubled with no smoothing: the pixel look
+        const half = Math.max(8, Math.round(size / 2));
+        const small = document.createElement('canvas');
+        small.width = small.height = half;
+        const g = small.getContext('2d');
+        g.lineJoin = 'round';
+        g.lineCap = 'round';
+        g.scale(half / 100, half / 100);    // draw on a 100x100 grid
+        DRAWN[kind]?.(g, f ? 1 : 0);
+        c.width = c.height = size;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(small, 0, 0, size, size);
+    }
     cache.set(key, c);
     return c;
 }
@@ -213,7 +277,7 @@ function phase(ctx, lit) {
 }
 
 // f is the frame, 0 or 1. Moving parts shift by d = f * a few grid units
-const DRAW = {
+const DRAWN = {
     sun: (c, f) => sun(c, 50, 50, 26, f),
     mostlysun: (c, f) => { sun(c, 40, 40, 24, f); cloud(c, 62 + 3 * f, 66, 42); },
     partly: (c, f) => { sun(c, 36, 36, 22, f); cloud(c, 58 - 2 * f, 60, 62); },
