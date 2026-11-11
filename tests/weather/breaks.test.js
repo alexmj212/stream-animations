@@ -61,3 +61,25 @@ describe('jokes', () => {
         }
     });
 });
+
+describe('pixel font coverage', () => {
+    // Code review, 2026-11-11: "THE RE-PEELER™" drew a blank cell, because
+    // the baked Star4000 bitmap has no ™. Every ad, joke and ID line has to
+    // be drawable in it.
+    it('has a glyph for every character the breaks can draw', async () => {
+        const { GLYPHS } = await import('../../src/weather/pixelfont.js');
+        const { config } = await import('../../src/config/config.js');
+        const strings = [];
+        const walk = (v) => {
+            if (typeof v === 'string') strings.push(v);
+            else if (Array.isArray(v)) v.forEach(walk);
+            else if (v && typeof v === 'object') Object.entries(v).forEach(([k, x]) => k !== 'photo' && k !== 'art' && k !== 'layout' && walk(x));
+        };
+        walk(ADS);
+        walk(JOKES);
+        walk(config.weather.id.lines);
+        const missing = new Set();
+        for (const s of strings) for (const ch of s) if (ch.trim() && !(ch in GLYPHS) && !(ch.toUpperCase() in GLYPHS)) missing.add(ch);
+        expect([...missing]).toEqual([]);
+    });
+});

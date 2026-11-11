@@ -115,7 +115,7 @@
       Promise.all([document.fonts.ready, firstData, ...faces]).then(() => {
         tv = new WeatherChannel(canvas, { cfg, data, now, region, page, debug });
         registerProbe('weather', () => tv.probeSamples());
-        if (cfg.noise?.alpha > 0 && urlParams.get('noise') !== '0') startNoise(document.body, cfg.noise);
+        if (cfg.noise?.alpha > 0 && urlParams.get('noise') !== '0') startNoise(document.body, cfg.noise, 1920, cfg.crt?.cornerPx ?? 0);
         debug.mark('start', { region: data.regions[region].name, page, source: data.source });
         requestAnimationFrame(frame);
       });
