@@ -136,7 +136,7 @@ silent: play your own music over it.
 - `page` - Hold one page: `current`, `local`, `extended`, `radar`, `regional`, `almanac` or `ad`
 - `pages` - Run only these pages, in this order, e.g. `almanac,ad` (mocks)
 - `ads` - `0` leaves out the ad breaks
-- `pagems` - Milliseconds per page (default 10000, at least 2000)
+- `pagems` - Milliseconds per page (default 15000, at least 2000)
 - `at` - Pretend it is this time, e.g. `2027-01-15T14:00:00Z` (mocks)
 - `fps` - Frame cap (default 30)
 - `station` - The ident on the logo, up to 5 letters (default `EXO`)
