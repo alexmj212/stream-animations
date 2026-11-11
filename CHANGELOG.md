@@ -7,8 +7,9 @@ minor for new scenes, features or a visible style change, patch for fixes.
 ## v2.19.1 - 2026-11-11
 
 - Exo-Cast's compression noise is lighter and slower, so it no longer
-  swamps the picture or Twitch's bitrate, and the ™ sign now draws in
-  the Star4000 type. ([#183])
+  swamps the picture or Twitch's bitrate. Ads write "(TM)" instead of a
+  ™ sign the Star4000 type doesn't have, and a test now checks every ad
+  character exists in the type. ([#183])
 
 ## v2.19.0 - 2026-11-11
 
