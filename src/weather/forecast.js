@@ -417,3 +417,33 @@ export function seasonTip(month) {
     if (month <= 7) return 'BEAT THE HEAT: DRINK PLENTY OF WATER AND CHECK ON YOUR NEIGHBORS.';
     return 'AUTUMN IS HERE: NOW IS A GOOD TIME TO HAVE YOUR FURNACE CHECKED.';
 }
+
+/**
+ * The region to open on for a viewer in `timeZone` (AJ, 2026-11-11: "start
+ * with the region that best reflects their local time"): the first region
+ * in that zone, else the one whose UTC offset is nearest right now.
+ * @param {Array<{timeZone: string}>} regions
+ * @param {string} timeZone - IANA zone, e.g. America/Chicago
+ * @param {number} utcMs
+ * @returns {number} Index into regions
+ */
+export function homeRegion(regions, timeZone, utcMs) {
+    const exact = regions.findIndex((r) => r.timeZone === timeZone);
+    if (exact >= 0) return exact;
+    let viewer;
+    try {
+        viewer = localParts(utcMs, { timeZone }).offsetH;
+    } catch {
+        return 0;
+    }
+    let best = 0;
+    let gap = Infinity;
+    regions.forEach((r, i) => {
+        const d = Math.abs(localParts(utcMs, r).offsetH - viewer);
+        if (d < gap) {
+            gap = d;
+            best = i;
+        }
+    });
+    return best;
+}
