@@ -2,20 +2,27 @@
 // drawn once per kind and size into their own offscreen canvas. Each one
 // keeps inside its 100x100 grid with a few px for the outline: a cloud of
 // width w at (cx, cy) spans x cx-0.62w..cx+0.6w and y cy-0.5w..cy+0.42w.
+//
+// Two frames per icon (AJ, 2026-11-11: "the icons need two frames of
+// animation"), flipped by the page like the old character generators: rays
+// turn half a step, clouds drift, rain and snow fall, the bolt strikes on one
+// frame only, fog slides, stars twinkle. Frame 1 moves at most 8 grid units,
+// so an icon never leaves its 100x100 box.
 
 const OUTLINE = '#0b1240';
 const cache = new Map();
 
 /**
- * An icon as an offscreen canvas, drawn on first use and kept.
+ * An icon frame as an offscreen canvas, drawn on first use and kept.
  * @param {string} kind - sun, mostlysun, partly, mostlycloudy, cloudy, rain,
  *   showers, storm, snow, flurries, mix, fog, moon, partlymoon, or
  *   moon-new, moon-first, moon-full, moon-last
  * @param {number} size - Square side in px
+ * @param {number} [frame=0] - 0 or 1
  * @returns {HTMLCanvasElement}
  */
-export function weatherIcon(kind, size) {
-    const key = `${kind}@${size}`;
+export function weatherIcon(kind, size, frame = 0) {
+    const key = `${kind}@${size}#${frame}`;
     let c = cache.get(key);
     if (c) return c;
     c = document.createElement('canvas');
@@ -24,17 +31,17 @@ export function weatherIcon(kind, size) {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.scale(size / 100, size / 100);    // draw on a 100x100 grid
-    DRAW[kind]?.(ctx);
+    DRAW[kind]?.(ctx, frame ? 1 : 0);
     cache.set(key, c);
     return c;
 }
 
-function sun(ctx, cx, cy, r) {
+function sun(ctx, cx, cy, r, f = 0) {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.beginPath();
     for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
+        const a = ((i + f / 2) / 12) * Math.PI * 2;      // frame 1: rays half a step on
         ctx.moveTo(Math.cos(a - 0.17) * r * 1.05, Math.sin(a - 0.17) * r * 1.05);
         ctx.lineTo(Math.cos(a) * r * 1.55, Math.sin(a) * r * 1.55);
         ctx.lineTo(Math.cos(a + 0.17) * r * 1.05, Math.sin(a + 0.17) * r * 1.05);
@@ -163,6 +170,23 @@ function bolt(ctx, x, y, s) {
     ctx.fill();
 }
 
+/** Two tiny stars that swap places between frames. */
+function stars(ctx, pts, f) {
+    const [x, y] = pts[f];
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        ctx.lineTo(x + Math.cos(a) * 7, y + Math.sin(a) * 7);
+        ctx.lineTo(x + Math.cos(a + Math.PI / 4) * 2.5, y + Math.sin(a + Math.PI / 4) * 2.5);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#fffbd6';
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fill();
+}
+
 function phase(ctx, lit) {
     // Almanac moons: dark disc, lit half or whole
     const cx = 50, cy = 50, r = 38;
@@ -188,33 +212,38 @@ function phase(ctx, lit) {
     ctx.stroke();
 }
 
+// f is the frame, 0 or 1. Moving parts shift by d = f * a few grid units
 const DRAW = {
-    sun: (c) => sun(c, 50, 50, 26),
-    mostlysun: (c) => { sun(c, 40, 40, 24); cloud(c, 62, 66, 42); },
-    partly: (c) => { sun(c, 36, 36, 22); cloud(c, 58, 60, 62); },
-    mostlycloudy: (c) => { sun(c, 30, 30, 18); cloud(c, 52, 58, 74); },
-    cloudy: (c) => { cloud(c, 38, 40, 58, true); cloud(c, 54, 60, 70); },
-    rain: (c) => { drops(c, [34, 52, 70], 66, 26); cloud(c, 50, 38, 72, true); },
-    showers: (c) => { sun(c, 28, 26, 18); drops(c, [48, 70], 64, 24); cloud(c, 58, 42, 62); },
-    storm: (c) => { drops(c, [30, 72], 66, 24); bolt(c, 46, 63, 1.0); cloud(c, 50, 38, 72, true); },
-    snow: (c) => { flakes(c, [[30, 80], [52, 88], [74, 80]], 8); cloud(c, 50, 38, 72, true); },
-    flurries: (c) => { sun(c, 28, 26, 18); flakes(c, [[48, 84], [72, 82]], 8); cloud(c, 58, 42, 62); },
-    mix: (c) => { drops(c, [32, 70], 66, 24); flakes(c, [[51, 84]], 8); cloud(c, 50, 38, 72, true); },
-    fog: (c) => {
+    sun: (c, f) => sun(c, 50, 50, 26, f),
+    mostlysun: (c, f) => { sun(c, 40, 40, 24, f); cloud(c, 62 + 3 * f, 66, 42); },
+    partly: (c, f) => { sun(c, 36, 36, 22, f); cloud(c, 58 - 2 * f, 60, 62); },
+    mostlycloudy: (c, f) => { sun(c, 30, 30, 18, f); cloud(c, 52 - 2 * f, 58, 74); },
+    cloudy: (c, f) => { cloud(c, 38 + 2 * f, 40, 58, true); cloud(c, 54 - 2 * f, 60, 70); },
+    rain: (c, f) => { drops(c, [34, 52, 70].map((x) => x - 2 * f), 66 + 4 * f, 26); cloud(c, 50, 38, 72, true); },
+    showers: (c, f) => { sun(c, 28, 26, 18, f); drops(c, [48, 70].map((x) => x - 2 * f), 64 + 4 * f, 24); cloud(c, 58, 42, 62); },
+    storm: (c, f) => {
+        drops(c, [30, 72].map((x) => x - 2 * f), 66 + 4 * f, 24);
+        if (!f) bolt(c, 46, 63, 1.0);           // the strike shows on frame 0 only
+        cloud(c, 50, 38, 72, true);
+    },
+    snow: (c, f) => { flakes(c, [[30, 80], [52, 88], [74, 80]].map(([x, y]) => [x + 3 * f, y - 6 + 6 * f]), 8); cloud(c, 50, 38, 72, true); },
+    flurries: (c, f) => { sun(c, 28, 26, 18, f); flakes(c, [[48, 84], [72, 82]].map(([x, y]) => [x - 3 * f, y - 6 + 6 * f]), 8); cloud(c, 58, 42, 62); },
+    mix: (c, f) => { drops(c, [32, 70].map((x) => x - 2 * f), 66 + 4 * f, 24); flakes(c, [[51, 78 + 6 * f]], 8); cloud(c, 50, 38, 72, true); },
+    fog: (c, f) => {
         cloud(c, 50, 38, 70, true);
-        for (const [y, x0, x1] of [[66, 12, 76], [78, 24, 88], [90, 14, 70]]) {
+        for (const [y, x0, x1, dir] of [[66, 12, 76, 1], [78, 24, 88, -1], [90, 14, 70, 1]]) {
             for (const [w, col] of [[9, OUTLINE], [5, '#d5dbe8']]) {
                 c.beginPath();
-                c.moveTo(x0, y);
-                c.lineTo(x1, y);
+                c.moveTo(x0 + 6 * f * dir, y);
+                c.lineTo(x1 + 6 * f * dir, y);
                 c.strokeStyle = col;
                 c.lineWidth = w;
                 c.stroke();
             }
         }
     },
-    moon: (c) => moon(c, 50, 50, 30),
-    partlymoon: (c) => { moon(c, 38, 36, 24); cloud(c, 58, 62, 60); },
+    moon: (c, f) => { moon(c, 50, 50, 30); stars(c, [[84, 22], [20, 80]], f); },
+    partlymoon: (c, f) => { moon(c, 38, 36, 24); stars(c, [[82, 18], [14, 70]], f); cloud(c, 58 - 2 * f, 62, 60); },
     'moon-new': (c) => phase(c, null),
     'moon-first': (c) => phase(c, 'right'),
     'moon-full': (c) => phase(c, 'full'),

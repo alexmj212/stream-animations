@@ -20,6 +20,7 @@ tool calls costs ten re-reads. Run the script, read its answer, move on.
 | Cut a seamless loop from an OBS recording | `tools/loopcut.sh <recording.mkv>` (`--help` for options) |
 | Render scene text in Jost in the cloud container (else Arial; 2026-10-28) | `tools/fonts/install-jost.sh` |
 | Prepare a PR for review (worktree, full sha, merge with main, diff stat, table rows), or check a squash merge | `tools/review/prep.sh <pr>` / `tools/review/prep.sh --squash <pr> <merged-sha>` |
+| Mock frames of the weather page (each page on demo data, every ad with `--ads`) | `npm run weather:shots -- --out=<dir> [--pages=current,ad] [--ads]` |
 | Check a scene live | `npm run dev`, then `/src/<scene>/index.html?perf=true` |
 
 In the cloud container, headless Chrome is at `/opt/pw-browsers/chromium`;

@@ -3,8 +3,10 @@ import { weatherIcon } from './icons.js';
 import { buildCrtOverlay } from './crt.js';
 import { RadarLoader, placeLabels } from './radar.js';
 import { skyShort } from './data.js';
+import { ADS, pickAd, drawAdArt } from './ads.js';
+import { jokeAt } from './jokes.js';
 
-// The 90s weather page (AJ, 2026-11-10): an earnest early-90s cable weather
+// Exo-Cast, the 90s weather page (AJ, 2026-11-10; named 2026-11-11): an earnest early-90s cable weather
 // channel on a 4:3 tube, cutting through forecast pages for one region after
 // another, forever. AJ's own look, outside the bible's palette and type rules
 // (like spheal); the viewer rules still hold: title-safe (here the inner 90%
@@ -16,6 +18,10 @@ import { skyShort } from './data.js';
 // offscreen canvases ahead of its cut, so a cut is a few blits. Per frame only
 // the crawl moves (whole pixels); the clock repaints once a second, the radar
 // a few times a second, each with the overlay re-blitted over just that box.
+// Icons flip between two frames (AJ, 2026-11-11) a couple of times a second:
+// pages are built without them, so a flip restores each icon's box from the
+// page canvas and draws the other frame. After a region's pages comes a joke
+// ad (ads.js), and the crawl runs a joke after each region (jokes.js).
 
 const W = 1920;
 const H = 1080;
@@ -43,10 +49,24 @@ const PAGE_TITLES = {
     regional: 'REGIONAL OBSERVATIONS',
     almanac: 'ALMANAC'
 };
+const SERIF = '"Times New Roman", Times, "Liberation Serif", serif';
+const AD_INK = '#111111';
+const JOKE = '#9fe8ff';             // jokes in the crawl: light cyan, so they read apart from the data
+const VIDEO = { x: SAFE.left, y: 168, w: 1296, h: 729 };    // a 16:9 video ad inside title-safe
 const NEEDS_DATA = new Set(['current', 'local', 'extended', 'regional']);
 
 function font(px, italic = false) {
     return `${italic ? 'italic ' : ''}bold ${px}px ${FONT}`;
+}
+
+// While set, a page's icons are listed here instead of drawn into it, so
+// the frame can flip them (placeIcon)
+let iconLog = null;
+
+/** An icon on a page: listed while a page builds, drawn straight otherwise. */
+function placeIcon(c, kind, size, x, y) {
+    if (iconLog) iconLog.push({ kind, size, x: Math.round(x), y: Math.round(y) });
+    else c.drawImage(weatherIcon(kind, size), x, y);
 }
 
 // While set, shadowText notes each line's ink box here, for the motion
@@ -95,6 +115,35 @@ function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false
         // The ink box, shadow included
         textLog.push({
             box: { x: left, y: y - m.actualBoundingBoxAscent, width: m.width + s, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent + s },
+            fontPx: size,
+            words: text.split(/\s+/).filter(Boolean).length
+        });
+    }
+    return size;
+}
+
+/**
+ * Plain text for the ads: a cheap local spot set in the default face, no
+ * shadow, no glow (AJ, 2026-11-11: "default text formatting"). Shrinks to
+ * fit down to the 32px floor, and logs its box like shadowText.
+ */
+function plainText(ctx, text, x, y, px, { align = 'left', italic = false, bold = false, maxW = Infinity, color = AD_INK } = {}) {
+    const face = (size) => `${italic ? 'italic ' : ''}${bold ? 'bold ' : ''}${size}px ${SERIF}`;
+    let size = px;
+    ctx.font = face(size);
+    while (size > 32 && ctx.measureText(text).width > maxW) {
+        size -= 2;
+        ctx.font = face(size);
+    }
+    ctx.textAlign = align;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    if (textLog) {
+        const m = ctx.measureText(text);
+        const left = x - (align === 'center' ? m.width / 2 : align === 'right' ? m.width : 0);
+        textLog.push({
+            box: { x: left, y: y - m.actualBoundingBoxAscent, width: m.width, height: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent },
             fontPx: size,
             words: text.split(/\s+/).filter(Boolean).length
         });
@@ -158,8 +207,15 @@ export class WeatherChannel {
         });
         this.shown = null;          // {index, canvas, regionIndex, page, texts, at}
         this.ahead = null;
+        // Two crawl strips: the one running and the next pass, built away
+        // from any cut with the next jokes (prepareStrip)
         this.strip = makeCanvas(16, CRAWL.h);
+        this.spareStrip = makeCanvas(16, CRAWL.h);
         this.stripKey = null;
+        this.nextStrip = null;
+        this.jokeCount = 0;         // jokes run so far: each pass starts on the next one
+        this.lastIconFrame = -1;
+        this.videos = new Map();    // video ad src -> <video>, made on first use
         this.crawlOrigin = 0;       // travel (px) at which the current strip started
         this.lastClock = '';
         this.lastCrawlX = null;
@@ -282,7 +338,7 @@ export class WeatherChannel {
         c.font = font(30);
         c.textAlign = 'center';
         c.fillStyle = YELLOW;
-        c.fillText('WEATHER', x + w / 2, y + 94);
+        c.fillText(this.cfg.brandSub, x + w / 2, y + 94);
     }
 
     // --- Pages -----------------------------------------------------------
@@ -302,15 +358,23 @@ export class WeatherChannel {
         const when = localParts(this.now(), region);
         const data = this.data.get(regionIndex);
         const texts = [];
+        const icons = [];
         textLog = texts;
-        const subtitle = page === 'regional' || page === 'radar' ? region.name : region.towns[0].name;
-        shadowText(c, PAGE_TITLES[page], 504, 148, 56, YELLOW, { italic: true, maxW: 770 });
-        shadowText(c, subtitle, 506, 194, 36, '#ffffff', { maxW: 770 });
-        if (NEEDS_DATA.has(page) && !data) this.page_unavailable(c);
-        else this[`page_${page}`](c, { data, when, region });
+        iconLog = icons;
+        let video = null;
+        if (page === 'ad') {
+            video = this.page_ad(c, index);
+        } else {
+            const subtitle = page === 'regional' || page === 'radar' ? region.name : region.towns[0].name;
+            shadowText(c, PAGE_TITLES[page], 504, 148, 56, YELLOW, { italic: true, maxW: 770 });
+            shadowText(c, subtitle, 506, 194, 36, '#ffffff', { maxW: 770 });
+            if (NEEDS_DATA.has(page) && !data) this.page_unavailable(c);
+            else this[`page_${page}`](c, { data, when, region });
+        }
         textLog = null;
+        iconLog = null;
         c.setTransform(1, 0, 0, 1, 0, 0);
-        return { index, canvas: target, regionIndex, page, texts };
+        return { index, canvas: target, regionIndex, page, texts, icons, video };
     }
 
     /** "As of 4:51 PM" from an observation time, in the region's zone. */
@@ -332,7 +396,7 @@ export class WeatherChannel {
             this.page_unavailable(c);
             return;
         }
-        c.drawImage(weatherIcon(now.icon, 260), 340, 256);
+        placeIcon(c, now.icon, 260, 340, 256);
         shadowText(c, now.temp === null ? '--' : `${now.temp}°`, 760, 470, 150, '#ffffff', { align: 'center', shadow: 7, maxW: 300 });
         // Live sky text runs long ("THUNDERSTORM IN VICINITY"): up to two
         // lines across the left column, then the feels-like line under it
@@ -430,7 +494,7 @@ export class WeatherChannel {
                 c.fillRect(Math.round(x0) - 2, 256, 3, 620);
             }
             shadowText(c, d.name, cx, 304, 52, YELLOW, { align: 'center', italic: true });
-            c.drawImage(weatherIcon(d.icon, 180), cx - 90, 326);
+            placeIcon(c, d.icon, 180, cx - 90, 326);
             c.font = font(36);
             const lines = wrap(c, d.label.replace(/\//g, '/ '), colW - 24).slice(0, 2);
             lines.forEach((l, li) => shadowText(c, l.replace(/\/ /g, '/'), cx, 558 + li * 44, 36, '#ffffff', { align: 'center', maxW: colW - 16, glow: false }));
@@ -460,7 +524,7 @@ export class WeatherChannel {
                 return;
             }
             // No sky reported: no icon to guess with, just the dashes
-            if (now.label !== '--') c.drawImage(weatherIcon(now.icon, 64), cols.icon, y - 50);
+            if (now.label !== '--') placeIcon(c, now.icon, 64, cols.icon, y - 50);
             shadowText(c, skyShort(now.label), cols.wx, y, 36, YELLOW, { maxW: 480, glow: false });
             shadowText(c, now.temp === null ? '--' : `${now.temp}°`, cols.temp, y, 40, '#ffffff', { align: 'right', glow: false });
             shadowText(c, now.wind === null ? '--' : now.wind < 3 ? 'CALM' : `${now.windDir} ${now.wind}`, cols.wind, y, 36, '#ffffff', { maxW: 176, glow: false });
@@ -499,6 +563,112 @@ export class WeatherChannel {
             shadowText(c, p.name, cx, 768, 36, '#ffffff', { align: 'center' });
             shadowText(c, `${MONTHS[local.getUTCMonth()]} ${local.getUTCDate()}`, cx, 826, 36, PALE, { align: 'center' });
         });
+    }
+
+    /**
+     * The break between regions: a joke ad for a made-up business (AJ,
+     * 2026-11-11), a plain local spot over the whole page area; the crawl
+     * keeps running under it. Text ads and any video ads in config take
+     * turns. Returns the <video> for a video ad, which update() draws.
+     * @returns {HTMLVideoElement|null}
+     */
+    page_ad(c, index) {
+        const videos = this.cfg.ads?.videos ?? [];
+        const breakNo = Math.floor(index / this.pages.length);
+        let pick = pickAd(breakNo, ADS.length, videos.length);
+        let video = pick.kind === 'video' ? this.videoFor(videos[pick.index]) : null;
+        // A video that failed to load gives its break to a text ad
+        if (video?.error) {
+            video = null;
+            pick = { kind: 'text', index: breakNo % ADS.length };
+        }
+        if (video) {
+            c.fillStyle = '#000000';
+            c.fillRect(PIC.x, PAGE_Y, PIC.w, PAGE_H);
+            plainText(c, 'PAID ADVERTISEMENT', 960, 144, 32, { align: 'center', color: '#d8d8d8' });
+            return video;
+        }
+        const ad = ADS[pick.index];
+        c.fillStyle = ad.bg;
+        c.fillRect(PIC.x, PAGE_Y, PIC.w, PAGE_H);
+        c.strokeStyle = AD_INK;
+        c.lineWidth = 4;
+        c.strokeRect(SAFE.left - 20, 104, SAFE.right - SAFE.left + 40, 796);
+        plainText(c, 'PAID ADVERTISEMENT', 960, 150, 32, { align: 'center', italic: true });
+        // Headline: as big as fits, on up to two lines
+        let px = 84;
+        let head;
+        for (; px >= 48; px -= 4) {
+            c.font = `bold ${px}px ${SERIF}`;
+            head = wrap(c, ad.name, 1240);
+            if (head.length <= 2) break;
+        }
+        const lh = Math.round(px * 1.1);
+        let y = 180 + px;
+        head.slice(0, 2).forEach((line) => {
+            plainText(c, line, 960, y, px, { align: 'center', bold: true, maxW: 1240 });
+            y += lh;
+        });
+        c.fillStyle = AD_INK;
+        c.fillRect(SAFE.left + 40, y - lh + 30, SAFE.right - SAFE.left - 80, 3);
+        // Clip art on the left, the pitch on the right
+        const top = y - lh + 60;
+        const bottom = 800;
+        const art = Math.min(380, bottom - top);
+        drawAdArt(c, ad.art, 540, (top + bottom) / 2, art);
+        c.font = `${48}px ${SERIF}`;
+        const body = ad.lines.flatMap((l) => wrap(c, l, 820));
+        const bodyLh = 62;
+        let by = Math.round((top + bottom) / 2 - ((body.length - 1) * bodyLh) / 2 + 16);
+        body.forEach((line) => {
+            plainText(c, line, 1170, by, 48, { align: 'center', maxW: 860 });
+            by += bodyLh;
+        });
+        plainText(c, ad.fine, 960, 868, 32, { align: 'center', italic: true, maxW: 1240 });
+        return null;
+    }
+
+    /** One muted <video> per video ad, made on first use and kept. */
+    videoFor(src) {
+        let v = this.videos.get(src);
+        if (!v) {
+            v = document.createElement('video');
+            v.muted = true;
+            v.playsInline = true;
+            v.loop = true;
+            v.preload = 'auto';
+            v.crossOrigin = 'anonymous';
+            v.src = src;
+            this.videos.set(src, v);
+        }
+        return v;
+    }
+
+    /** A video ad's current frame, letterboxed into its box. */
+    drawVideo(force = false) {
+        const v = this.shown.video;
+        if (!v || v.readyState < 2) return false;
+        if (!force && v.currentTime === this.lastVideoTime) return false;
+        this.lastVideoTime = v.currentTime;
+        const c = this.ctx;
+        const s = Math.min(VIDEO.w / v.videoWidth, VIDEO.h / v.videoHeight);
+        const w = Math.round(v.videoWidth * s);
+        const h = Math.round(v.videoHeight * s);
+        c.fillStyle = '#000000';
+        c.fillRect(VIDEO.x, VIDEO.y, VIDEO.w, VIDEO.h);
+        c.drawImage(v, VIDEO.x + (VIDEO.w - w) / 2, VIDEO.y + (VIDEO.h - h) / 2, w, h);
+        this.glass(VIDEO.x, VIDEO.y, VIDEO.w, VIDEO.h);
+        return true;
+    }
+
+    /** The page's icons at one of their two frames (over a clean page). */
+    drawIcons(frame) {
+        const c = this.ctx;
+        for (const ic of this.shown.icons) {
+            c.drawImage(this.shown.canvas, ic.x, ic.y - PAGE_Y, ic.size, ic.size, ic.x, ic.y, ic.size, ic.size);
+            c.drawImage(weatherIcon(ic.kind, ic.size, frame), ic.x, ic.y);
+            this.glass(ic.x, ic.y, ic.size, ic.size);
+        }
     }
 
     page_radar(c, { region }) {
@@ -589,8 +759,9 @@ export class WeatherChannel {
 
     // --- Crawl -----------------------------------------------------------
 
+    /** The crawl's bulletins from the data: [{text, kind: intro|region|tip}]. */
     crawlText() {
-        const items = [`YOU ARE WATCHING ${this.cfg.station} WEATHER: YOUR LOCAL CONDITIONS, AROUND THE CLOCK.`];
+        const items = [{ text: `YOU ARE WATCHING ${this.brand()}: YOUR LOCAL CONDITIONS, AROUND THE CLOCK.`, kind: 'intro' }];
         let month = new Date(this.now()).getUTCMonth();
         this.regions.forEach((region, i) => {
             const d = this.data.get(i);
@@ -599,37 +770,57 @@ export class WeatherChannel {
             const obs = d.towns.filter((t) => t.now && t.now.temp !== null);
             if (!obs.length) return;
             const parts = obs.slice(0, 4).map((t) => `${t.name} ${t.now.temp}° ${t.now.label === '--' ? '' : skyShort(t.now.label)}`.trim());
-            items.push(`${region.name}: ${parts.join('. ')}.`);
+            items.push({ text: `${region.name}: ${parts.join('. ')}.`, kind: 'region' });
         });
-        items.push(seasonTip(month));
-        items.push('STAY TUNED: YOUR LOCAL FORECAST IS COMING UP NEXT.');
+        items.push({ text: seasonTip(month), kind: 'tip' });
+        items.push({ text: 'STAY TUNED: YOUR LOCAL FORECAST IS COMING UP NEXT.', kind: 'tip' });
         return items;
     }
 
-    buildStrip() {
-        const items = this.crawlText();
-        const key = items.join('|');
-        if (key === this.stripKey) return false;
-        this.stripKey = key;
+    /** "EXO-CAST": the station ident and the logo's bar, as the crawl says it. */
+    brand() {
+        return `${this.cfg.station}-${this.cfg.brandSub}`;
+    }
+
+    /**
+     * One pass of the crawl: the bulletins with a joke after each region's
+     * conditions (AJ, 2026-11-11: "the ticker should include comedy and
+     * jokes"), drawn into `canvas`.
+     * @param {HTMLCanvasElement} canvas
+     * @param {number} jokeStart - First joke of this pass
+     * @returns {{canvas: HTMLCanvasElement, width: number, dataKey: string, jokes: number, ink: Object}}
+     */
+    makeStrip(canvas, jokeStart) {
+        const data = this.crawlText();
+        const dataKey = data.map((d) => d.text).join('|');
+        const items = [];
+        let j = jokeStart;
+        for (const d of data) {
+            items.push(d);
+            if (d.kind === 'region') items.push({ text: jokeAt(j++), kind: 'joke' });
+        }
+        // No data yet: still one joke after the intro
+        if (j === jokeStart) items.splice(1, 0, { text: jokeAt(j++), kind: 'joke' });
         const px = 36;
         const gap = 90;
-        const m = this.strip.getContext('2d');
+        const m = canvas.getContext('2d');
         m.font = font(px);
-        const widths = items.map((t) => m.measureText(t).width);
-        // Chrome's canvas limit is 32767 px: past 32000, drop whole
-        // bulletins from the end rather than cut one off
-        while (items.length > 1 && widths.reduce((a, b) => a + b + gap, 0) > 32000) {
-            items.pop();
-            widths.pop();
+        const widths = items.map((t) => m.measureText(t.text).width);
+        const total = () => widths.reduce((a, b) => a + b + gap, 0);
+        // Chrome's canvas limit is 32767 px: past 32000, drop jokes from the
+        // end first, then whole bulletins, rather than cut one off
+        while (items.length > 1 && total() > 32000) {
+            let k = items.map((t) => t.kind).lastIndexOf('joke');
+            if (k < 0) k = items.length - 1;
+            items.splice(k, 1);
+            widths.splice(k, 1);
         }
-        const width = Math.ceil(widths.reduce((a, b) => a + b + gap, 0));
-        this.strip.width = width;           // resizing reallocates: only when the text changes
-        this.strip.height = CRAWL.h;
-        const s = this.strip.getContext('2d');
+        const width = Math.ceil(total());
+        canvas.width = width;           // resizing reallocates: once a pass, away from cuts
+        canvas.height = CRAWL.h;
+        const s = canvas.getContext('2d');
         s.font = font(px);
-        const ink = s.measureText(items[0]);
-        // The line's ink rows in frame px, for the harness's SAFE-3 check
-        this.crawlInk = { top: CRAWL.baseline - ink.actualBoundingBoxAscent, bottom: CRAWL.baseline + ink.actualBoundingBoxDescent + 3, px };
+        const ink = s.measureText(items[0].text);
         let x = 0;
         items.forEach((t, i) => {
             const dx = Math.round(x + gap / 2);
@@ -642,11 +833,38 @@ export class WeatherChannel {
             s.lineTo(dx - 10, dy);
             s.fill();
             x += gap;
-            shadowText(s, t, Math.round(x), CRAWL.baseline - CRAWL.y, px, i === 0 ? YELLOW : '#ffffff', { shadow: 3 });
+            const color = t.kind === 'intro' ? YELLOW : t.kind === 'joke' ? JOKE : '#ffffff';
+            shadowText(s, t.text, Math.round(x), CRAWL.baseline - CRAWL.y, px, color, { shadow: 3 });
             x += widths[i];
         });
-        this.stripWidth = width;
-        return true;
+        return {
+            canvas, width, dataKey,
+            jokes: items.filter((t) => t.kind === 'joke').length,
+            // The line's ink rows in frame px, for the harness's SAFE-3 check
+            ink: { top: CRAWL.baseline - ink.actualBoundingBoxAscent, bottom: CRAWL.baseline + ink.actualBoundingBoxDescent + 3, px }
+        };
+    }
+
+    /** Put a built pass on the crawl; the next pass starts on the next joke. */
+    useStrip(st) {
+        this.spareStrip = this.strip === st.canvas ? this.spareStrip : this.strip;
+        this.strip = st.canvas;
+        this.stripWidth = st.width;
+        this.stripKey = st.dataKey;
+        this.crawlInk = st.ink;
+        this.jokeCount += st.jokes;
+        this.nextStrip = null;
+    }
+
+    /** The first pass, built straight away. */
+    buildStrip() {
+        this.useStrip(this.makeStrip(this.strip, this.jokeCount));
+    }
+
+    /** Build the next pass into the spare strip, away from any cut. */
+    prepareStrip() {
+        if (this.nextStrip && this.nextStrip.dataKey === this.crawlText().map((d) => d.text).join('|')) return;
+        this.nextStrip = this.makeStrip(this.spareStrip, this.jokeCount);
     }
 
     drawCrawl(tMs) {
@@ -657,9 +875,12 @@ export class WeatherChannel {
         const travel = Math.floor((tMs * this.cfg.crawl.pxPerS) / 1000);
         const offset = (travel - this.crawlOrigin) % this.stripWidth;
         if (offset === this.lastCrawlX) return false;
-        // Wrapped: pick up new bulletins. A new strip has a new width, so
-        // restart its count here to keep the line moving smoothly
-        if (this.lastCrawlX !== null && offset < this.lastCrawlX && this.buildStrip()) {
+        // Wrapped: the next pass, with the next jokes and any new bulletins.
+        // It has its own width, so restart the count here to keep the line
+        // moving smoothly
+        if (this.lastCrawlX !== null && offset < this.lastCrawlX) {
+            if (!this.nextStrip) this.prepareStrip();
+            this.useStrip(this.nextStrip);
             this.crawlOrigin = travel - offset;
         }
         this.lastCrawlX = offset;
@@ -680,6 +901,11 @@ export class WeatherChannel {
     // --- Clock -----------------------------------------------------------
 
     drawClock(force = false) {
+        // A break has no clock: it's a commercial
+        if (this.shown.page === 'ad') {
+            this.clockTexts = [];
+            return false;
+        }
         const region = this.regions[this.shown.regionIndex];
         const t = localParts(this.now(), region);
         const h12 = ((t.hour + 11) % 12) + 1;
@@ -730,6 +956,7 @@ export class WeatherChannel {
             const t0 = performance.now();
             const prebuilt = this.ahead?.index === index;
             const spare = this.pageCanvases.find((c) => c !== this.shown?.canvas);
+            this.shown?.video?.pause();
             this.shown = prebuilt ? this.ahead : this.buildPage(index, spare);
             this.shown.at = tMs;
             this.ahead = null;
@@ -737,11 +964,18 @@ export class WeatherChannel {
             const c = this.ctx;
             c.drawImage(this.base, 0, 0);
             c.drawImage(this.shown.canvas, 0, PAGE_Y);
+            for (const ic of this.shown.icons) c.drawImage(weatherIcon(ic.kind, ic.size, 0), ic.x, ic.y);
             c.drawImage(this.overlay, 0, 0);
             this.lastCrawlX = null;
             this.lastRadarFrame = -1;
+            this.lastIconFrame = 0;
             this.drawClock(true);
             if (this.shown.page === 'radar') this.drawRadarFrame(tMs, true);
+            if (this.shown.video) {
+                this.shown.video.currentTime = 0;
+                this.shown.video.play().catch(() => {});
+                this.lastVideoTime = -1;
+            }
             cut = true;
             this.lookAhead(index);
             // ?debug=events: each cut, and whether it was the one-blit kind
@@ -752,6 +986,14 @@ export class WeatherChannel {
         }
         this.drawClock();
         if (this.shown.page === 'radar') this.drawRadarFrame(tMs);
+        if (this.shown.video) this.drawVideo();
+        if (this.shown.icons.length) {
+            const f = Math.floor((tMs - this.shown.at) / this.cfg.iconFrameMs) % 2;
+            if (f !== this.lastIconFrame) {
+                this.lastIconFrame = f;
+                this.drawIcons(f);
+            }
+        }
         this.drawCrawl(tMs);
         return { cut, index };
     }
@@ -779,7 +1021,9 @@ export class WeatherChannel {
 
     /** Build the next page into the spare canvas, away from any cut. */
     prepareNext() {
-        if (!this.shown || this.ahead) return;
+        if (!this.shown) return;
+        this.prepareStrip();
+        if (this.ahead) return;
         const next = this.shown.index + 1;
         const spare = this.pageCanvases.find((c) => c !== this.shown.canvas);
         this.ahead = this.buildPage(next, spare);

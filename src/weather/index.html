@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Weather</title>
+    <title>Exo-Cast</title>
     <style>
       * {
         margin: 0;
@@ -29,20 +29,25 @@
     <script type="module">
       import { WeatherChannel } from "./WeatherChannel.js";
       import { NwsSource, DemoSource } from "./data.js";
+      import { renderMusic } from "./music.js";
       import { config } from "../config/config.js";
       import { seedFromURL, registerProbe } from "../shared/motion.js";
       import { createDebug } from "../shared/debug.js";
       const debug = createDebug('weather');
 
-      // AJ (2026-11-10): an unironic early-90s cable weather channel that
-      // cuts through forecast pages forever. Full screen and opaque, so it
+      // Exo-Cast (AJ, 2026-11-10, named 2026-11-11): an unironic early-90s
+      // cable weather channel that cuts through forecast pages forever, with
+      // a joke ad between regions, jokes in the crawl and J-fusion music. Full screen and opaque, so it
       // is a scene of its own (BRB, a break). A 4:3 picture with a CRT look,
       // live National Weather Service data for real cities and a radar loop.
       //   ?data=demo     generated forecasts for made-up towns, no network
       //                  (the motion harness and mocks); default live NWS
       //   ?seed=N        demo only: another set of forecasts (default 0)
       //   ?region=N|name region to open on (index or name, e.g. midwest)
-      //   ?page=name     hold one page: current, local, extended, radar, regional, almanac
+      //   ?page=name     hold one page: current, local, extended, radar, regional, almanac, ad
+      //   ?pages=a,b     run only these pages, in this order (mocks: ?pages=almanac,ad)
+      //   ?ads=0         no ad breaks
+      //   ?music=0       no background music
       //   ?pagems=N      ms per page (default config.weather.pageMs)
       //   ?at=ISO        pretend it's this time (mocks: ?at=2027-01-15T08:00Z)
       //   ?fps=N         frame cap (default config.weather.fps)
@@ -53,7 +58,10 @@
       if (num('pagems') >= 2000) cfg.pageMs = num('pagems');
       if (num('fps') >= 1) cfg.fps = Math.min(120, num('fps'));
       if (urlParams.get('station')) cfg.station = urlParams.get('station').slice(0, 5).toUpperCase();
-      const page = cfg.pages.includes(urlParams.get('page')) ? urlParams.get('page') : null;
+      if (urlParams.get('ads') === '0') cfg.pages = cfg.pages.filter((p) => p !== 'ad');
+      const only = (urlParams.get('pages') || '').split(',').filter((p) => config.weather.pages.includes(p));
+      if (only.length) cfg.pages = only;
+      const page = config.weather.pages.includes(urlParams.get('page')) ? urlParams.get('page') : null;
       const atMs = Date.parse(urlParams.get('at') || '');
       const startWall = Date.now();
       const now = Number.isFinite(atMs) ? () => atMs + (Date.now() - startWall) : () => Date.now();
@@ -86,6 +94,41 @@
         }
       }
 
+      // Background music (AJ, 2026-11-11: "j fusion jazz"): music.js
+      // synthesises the loop; it's rendered here once, a few notes at a time
+      // in idle time so no frame waits on it, then loops from one buffer
+      // through a gain node (config.weather.music.gainDb; no limiter). OBS
+      // plays it straight away; a desktop browser waits for a click or key.
+      function startMusic() {
+        if (!cfg.music?.enabled || urlParams.get('music') === '0' || !window.AudioContext) return;
+        const ac = new AudioContext();
+        const gen = renderMusic(ac.sampleRate, 4);
+        const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 500 }) : setTimeout(() => fn({ timeRemaining: () => 10 }), 50));
+        const t0 = performance.now();
+        const step = (deadline) => {
+          let r;
+          do r = gen.next(); while (!r.done && deadline.timeRemaining() > 8);
+          if (!r.done) return idle(step);
+          const { channels } = r.value;
+          const buffer = ac.createBuffer(channels.length, channels[0].length, ac.sampleRate);
+          channels.forEach((c, i) => buffer.copyToChannel(c, i));
+          const source = ac.createBufferSource();
+          source.buffer = buffer;
+          source.loop = true;
+          const gain = ac.createGain();
+          gain.gain.value = 10 ** (cfg.music.gainDb / 20);
+          source.connect(gain).connect(ac.destination);
+          source.start();
+          debug.mark('music', { seconds: +r.value.seconds.toFixed(1), renderMs: Math.round(performance.now() - t0), state: ac.state });
+          if (ac.state === 'suspended') {
+            const resume = () => ac.resume();
+            window.addEventListener('pointerdown', resume, { once: true });
+            window.addEventListener('keydown', resume, { once: true });
+          }
+        };
+        idle(step);
+      }
+
       // Text is baked into cached canvases: wait for fonts, and for the
       // first region's data (capped, so a slow NWS still shows the page)
       const firstData = Promise.race([
@@ -97,6 +140,7 @@
         registerProbe('weather', () => tv.probeSamples());
         debug.mark('start', { region: data.regions[region].name, page, source: data.source });
         requestAnimationFrame(frame);
+        startMusic();
       });
     </script>
   </body>

@@ -114,23 +114,29 @@ browser source shown by a Mix It Up command; each show plays it once.
 - `mute` - `1` plays without the song
 - `sprite` - `art` (PokeAPI's official artwork, default), `home` (the HOME render), `pixel` (the game sprite) or `drawn` (our own drawing, also used when PokeAPI can't be reached within 2.5 s)
 
-### 90s weather
+### Exo-Cast (90s weather)
 An earnest early-90s cable weather channel, on its own full screen: a 4:3
 picture with a CRT look (rounded tube, scanlines, vignette, glow), the
-"EXO WEATHER" ident, a gold header with the page title and a live clock, a
+"EXO CAST" ident, a gold header with the page title and a live clock, a
 beveled blue panel and a bulletin crawl. It cuts through current
 conditions, the local forecast, a 4-day extended forecast, a radar loop,
 regional observations and an almanac (sunrise, sunset and moon phases), then
 moves to the next of six US regions, forever. Weather is live from the
 National Weather Service (api.weather.gov) for real cities, and the radar is
-the last hour from RainViewer over a map the page draws itself.
+the last hour from RainViewer over a map the page draws itself. The icons
+flip between two frames, a joke ad for a made-up local business fills the
+break between regions, the crawl runs a joke after each region, and an
+original J-fusion loop plays underneath (synthesised in the page, no files).
 
-**URL**: `weather/index.html` (`data`, `seed`, `region`, `page`, `pagems`, `at`, `fps`, `station`)
+**URL**: `weather/index.html` (`data`, `seed`, `region`, `page`, `pages`, `ads`, `music`, `pagems`, `at`, `fps`, `station`)
 
 - `data` - `nws` (live, default) or `demo` (generated forecasts for made-up towns and a made-up radar, no network: the motion harness and mocks)
 - `seed` - Demo only: another set of forecasts (default 0)
 - `region` - Region to open on, by index or name (`northeast`, `southeast`, `midwest`, `south-central`, `rockies`, `west-coast`; demo: `northern-lakes`, `atlantic-coast`, `piedmont`, `high-plains`, `desert-southwest`, `pacific-northwest`)
-- `page` - Hold one page: `current`, `local`, `extended`, `radar`, `regional` or `almanac`
+- `page` - Hold one page: `current`, `local`, `extended`, `radar`, `regional`, `almanac` or `ad`
+- `pages` - Run only these pages, in this order, e.g. `almanac,ad` (mocks)
+- `ads` - `0` leaves out the ad breaks
+- `music` - `0` turns the background music off (it plays at `config.weather.music.gainDb`; a desktop browser starts it on the first click or key)
 - `pagems` - Milliseconds per page (default 10000, at least 2000)
 - `at` - Pretend it is this time, e.g. `2027-01-15T14:00:00Z` (mocks)
 - `fps` - Frame cap (default 30)

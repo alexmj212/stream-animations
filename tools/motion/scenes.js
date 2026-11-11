@@ -766,6 +766,29 @@ export const SCENARIOS = [
     }
   },
   {
+    // Exo-Cast's break (AJ, 2026-11-11): the cut from the almanac into a
+    // joke ad and back out to the next region, so FLASH sees the pale card
+    // come and go, and SAFE/TYPE check the ad's plain text. The crawl's
+    // first joke reaches the strip by about 9 s at 150 px/s
+    name: 'weather-break',
+    scene: 'weather',
+    url: '/src/weather/index.html?data=demo&pages=almanac,ad&pagems=3000&fps=60&music=0&at=2026-11-10T19:00:00Z',
+    start: 'load',
+    captureMs: 10000,
+    keyframes: [0.15, 0.45, 0.75, 0.95],
+    keyframeSpanMs: 10000,
+    markers: [3000, 6000, 9000].map((at, i) => ({ at, label: i % 2 ? 'cut' : 'ad' })),
+    checks: {
+      design: {
+        rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        safeExclude: ['crawl'],
+        minPx: 32
+      },
+      workP95Ms: 4
+    }
+  },
+  {
     // AJ's Spheal march gag (2026-10-29): not held to the bible, but it
     // must end clear once the giant has rolled off, stop its song once
     // (the end event), and stay inside the frame budget at the peak crowd
