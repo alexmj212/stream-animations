@@ -4,6 +4,19 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.18.0 - 2026-11-11
+
+- Exo-Cast's ad breaks now read like real local ads. Each of the nine
+  spots has a tagline, clip art with a starburst deal, a four-line price
+  list, a phone and address line (fictional 555 numbers) and fine
+  print. ([#175])
+- The weather page is silent again: the J-fusion music is gone, so the
+  v2.17.0 OBS audio settings for the weather source aren't needed
+  (they're harmless if already applied). ([#175])
+- Pages deploys can no longer hang for hours. The deploy job and its
+  audio level step now have timeouts, and the ffmpeg install skips the
+  step that stalled v2.17.0's deploy. ([#176])
+
 ## v2.17.0 - 2026-11-11
 
 - The weather page is now Exo-Cast. Its icons animate in two frames,
@@ -325,3 +338,5 @@ release (`npm run motion:export -- stinger` renders your own).
 [#164]: https://github.com/alexmj212/stream-animations/pull/164
 [#169]: https://github.com/alexmj212/stream-animations/pull/169
 [#173]: https://github.com/alexmj212/stream-animations/pull/173
+[#175]: https://github.com/alexmj212/stream-animations/pull/175
+[#176]: https://github.com/alexmj212/stream-animations/pull/176
