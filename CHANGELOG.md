@@ -4,6 +4,16 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.17.0 - 2026-11-11
+
+- The weather page is now Exo-Cast. Its icons animate in two frames,
+  each region closes with a parody ad for a made-up local business,
+  the crawl tells jokes, and an original J-fusion jazz loop plays at
+  -21 dB (`?music=0` turns it off, `?ads=0` drops the breaks). In OBS,
+  turn on "Control audio via OBS" for the weather source, set Audio
+  Monitoring to "Monitor and Output", and keep it off track 2 like the
+  other music (`docs/SCENES.md`). ([#173])
+
 ## v2.16.0 - 2026-11-10
 
 - The weather page is now a 4:3 picture with a CRT look (scanlines,
@@ -314,3 +324,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#131]: https://github.com/alexmj212/stream-animations/pull/131
 [#164]: https://github.com/alexmj212/stream-animations/pull/164
 [#169]: https://github.com/alexmj212/stream-animations/pull/169
+[#173]: https://github.com/alexmj212/stream-animations/pull/173
