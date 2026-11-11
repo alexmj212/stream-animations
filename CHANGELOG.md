@@ -4,6 +4,13 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.20.0 - 2026-11-11
+
+- Every Exo-Cast page now holds for 15 seconds (`?pagems=` still
+  overrides it), and the station ID is a page of its own after the ad,
+  so it plays in full instead of squeezing into the last seconds of the
+  ad. ([#185])
+
 ## v2.19.1 - 2026-11-11
 
 - Exo-Cast's compression noise is lighter and slower, so it no longer
@@ -364,3 +371,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#176]: https://github.com/alexmj212/stream-animations/pull/176
 [#181]: https://github.com/alexmj212/stream-animations/pull/181
 [#183]: https://github.com/alexmj212/stream-animations/pull/183
+[#185]: https://github.com/alexmj212/stream-animations/pull/185
