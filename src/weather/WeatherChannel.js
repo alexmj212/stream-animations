@@ -1,5 +1,5 @@
 import { localParts, sunTimes, formatClock, nextMoonPhases, seasonTip, DAY_NAMES, MONTHS } from './forecast.js';
-import { weatherIcon } from './icons.js';
+import { weatherIcon, iconFrames } from './icons.js';
 import { buildCrtOverlay } from './crt.js';
 import { RadarLoader, placeLabels } from './radar.js';
 import { skyShort } from './data.js';
@@ -75,10 +75,17 @@ function font(px, italic = false) {
 // the frame can flip them (placeIcon)
 let iconLog = null;
 
-/** An icon on a page: listed while a page builds, drawn straight otherwise. */
+/**
+ * An icon in a size x size box at (x, y), centred (WeatherStar icons keep
+ * their own aspect): listed while a page builds, drawn straight otherwise.
+ * The listed box is the art's own, so a frame change restores just that.
+ */
 function placeIcon(c, kind, size, x, y) {
-    if (iconLog) iconLog.push({ kind, size, x: Math.round(x), y: Math.round(y) });
-    else c.drawImage(weatherIcon(kind, size), x, y);
+    const art = weatherIcon(kind, size);
+    const left = Math.round(x + (size - art.width) / 2);
+    const top = Math.round(y + (size - art.height) / 2);
+    if (iconLog) iconLog.push({ kind, size, x: left, y: top, w: art.width, h: art.height, f: 0 });
+    else c.drawImage(art, left, top);
 }
 
 // While set, shadowText notes each line's ink box here, for the motion
@@ -328,7 +335,6 @@ export class WeatherChannel {
         this.stripKey = null;
         this.nextStrip = null;
         this.jokeCount = 0;         // jokes run so far: each pass starts on the next one
-        this.lastIconFrame = -1;
         this.videos = new Map();    // video ad src -> <video>, made on first use
         // Ad photos load at start, so the first break has them
         for (const ad of ADS) this.adPhoto(ad);
@@ -621,14 +627,15 @@ export class WeatherChannel {
                 c.fillRect(Math.round(x0) - 2, 256, 3, 620);
             }
             shadowText(c, d.name, cx, 304, 52, YELLOW, { align: 'center', italic: true });
-            placeIcon(c, d.icon, 180, cx - 90, 326);
+            // A 240 box takes the WeatherStar icon at 2x (AJ, 2026-11-11)
+            placeIcon(c, d.icon, 240, cx - 120, 322);
             c.font = font(36);
             const lines = wrap(c, d.label.replace(/\//g, '/ '), colW - 24).slice(0, 2);
-            lines.forEach((l, li) => shadowText(c, l.replace(/\/ /g, '/'), cx, 558 + li * 44, 36, '#ffffff', { align: 'center', maxW: colW - 16, glow: false }));
-            shadowText(c, 'HI', cx - 20, 730, 36, PALE, { align: 'right', glow: false });
-            shadowText(c, dash(d.hi), cx, 730, 52, '#ffffff');
-            shadowText(c, 'LO', cx - 20, 806, 36, PALE, { align: 'right', glow: false });
-            shadowText(c, dash(d.lo), cx, 806, 52, '#ffffff');
+            lines.forEach((l, li) => shadowText(c, l.replace(/\/ /g, '/'), cx, 604 + li * 44, 36, '#ffffff', { align: 'center', maxW: colW - 16, glow: false }));
+            shadowText(c, 'HI', cx - 20, 756, 36, PALE, { align: 'right', glow: false });
+            shadowText(c, dash(d.hi), cx, 756, 52, '#ffffff');
+            shadowText(c, 'LO', cx - 20, 826, 36, PALE, { align: 'right', glow: false });
+            shadowText(c, dash(d.lo), cx, 826, 52, '#ffffff');
         });
     }
 
@@ -687,7 +694,7 @@ export class WeatherChannel {
         shadowText(c, 'MOON PHASES', 350, 556, 40, YELLOW, { italic: true });
         nextMoonPhases(this.now()).forEach((p, i) => {
             const cx = 336 + 156 + i * 312;
-            c.drawImage(weatherIcon(`moon-${p.name.toLowerCase()}`, 130), cx - 65, 580);
+            placeIcon(c, `moon-${p.name.toLowerCase()}`, 130, cx - 65, 580);
             const local = new Date(p.utcMs + when.offsetH * 3600000);
             shadowText(c, p.name, cx, 768, 36, '#ffffff', { align: 'center' });
             shadowText(c, `${MONTHS[local.getUTCMonth()]} ${local.getUTCDate()}`, cx, 826, 36, PALE, { align: 'center' });
@@ -775,13 +782,20 @@ export class WeatherChannel {
         return true;
     }
 
-    /** The page's icons at one of their two frames (over a clean page). */
-    drawIcons(frame) {
+    /**
+     * Step each of the page's icons to its frame at e ms in, over a clean
+     * page; an icon whose frame hasn't changed isn't touched.
+     */
+    drawIcons(e) {
         const c = this.ctx;
         for (const ic of this.shown.icons) {
-            c.drawImage(this.shown.canvas, ic.x, ic.y - PAGE_Y, ic.size, ic.size, ic.x, ic.y, ic.size, ic.size);
-            c.drawImage(weatherIcon(ic.kind, ic.size, frame), ic.x, ic.y);
-            this.glass(ic.x, ic.y, ic.size, ic.size);
+            const { n, ms } = iconFrames(ic.kind, ic.size, this.cfg.iconFrameMs);
+            const f = n > 1 ? Math.floor(e / ms) % n : 0;
+            if (f === ic.f) continue;
+            ic.f = f;
+            c.drawImage(this.shown.canvas, ic.x, ic.y - PAGE_Y, ic.w, ic.h, ic.x, ic.y, ic.w, ic.h);
+            c.drawImage(weatherIcon(ic.kind, ic.size, f), ic.x, ic.y);
+            this.glass(ic.x, ic.y, ic.w, ic.h);
         }
     }
 
@@ -1097,7 +1111,6 @@ export class WeatherChannel {
             const sweep = this.cfg.sweepMs > 0 && this.shown.page !== 'ad' && this.shown.page !== 'id' && this.drawnOnce;
             this.lastCrawlX = null;
             this.lastRadarFrame = -1;
-            this.lastIconFrame = 0;
             this.lastBumper = null;
             if (sweep) {
                 // The old page stays up while the new one paints over it
@@ -1137,13 +1150,7 @@ export class WeatherChannel {
         this.drawClock();
         if (this.shown.page === 'radar') this.drawRadarFrame(tMs);
         if (this.shown.video) this.drawVideo();
-        if (this.shown.icons.length) {
-            const f = Math.floor((tMs - this.shown.at) / this.cfg.iconFrameMs) % 2;
-            if (f !== this.lastIconFrame) {
-                this.lastIconFrame = f;
-                this.drawIcons(f);
-            }
-        }
+        if (this.shown.icons.length) this.drawIcons(tMs - this.shown.at);
         this.drawCrawl(tMs);
         return { cut, index };
     }
@@ -1283,10 +1290,10 @@ export class WeatherChannel {
             const h = y - s.y;
             c.drawImage(this.shown.canvas, PIC.x, s.y - PAGE_Y, PIC.w, h, PIC.x, s.y, PIC.w, h);
             for (const ic of this.shown.icons) {
-                if (ic.y < y && ic.y + ic.size > s.y) {
+                if (ic.y < y && ic.y + ic.h > s.y) {
                     c.save();
                     c.beginPath();
-                    c.rect(ic.x, s.y, ic.size, h);
+                    c.rect(ic.x, s.y, ic.w, h);
                     c.clip();
                     c.drawImage(weatherIcon(ic.kind, ic.size, 0), ic.x, ic.y);
                     c.restore();
@@ -1302,7 +1309,6 @@ export class WeatherChannel {
         }
         if (k >= 1) {
             this.sweep = null;
-            this.lastIconFrame = 0;
             this.startPageMedia(tMs);
         }
     }

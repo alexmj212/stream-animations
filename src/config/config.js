@@ -1521,6 +1521,8 @@ export const config = {
     pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac', 'ad', 'id'],
     // Icons flip between their two frames this often (AJ, 2026-11-11: "two
     // frames of animation"): about the pace of the old character generators
+    // Since 2026-11-11 the WeatherStar icons run at their own GIF frame
+    // times; this paces only the drawn ones (sunrise, sunset, and fallbacks)
     iconFrameMs: 600,
     // A new page sweeps on top to bottom in 8 px steps, the way the
     // character generator painted a screen (AJ, 2026-11-11: "there needs to

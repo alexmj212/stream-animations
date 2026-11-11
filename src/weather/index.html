@@ -31,6 +31,7 @@
       import { WeatherChannel } from "./WeatherChannel.js";
       import { homeRegion } from "./forecast.js";
       import { startNoise } from "./noise.js";
+      import { loadWsIcons } from "./icons.js";
       import { NwsSource, DemoSource } from "./data.js";
       import { config } from "../config/config.js";
       import { seedFromURL, registerProbe } from "../shared/motion.js";
@@ -50,9 +51,9 @@
       //                  default the one nearest the computer's time zone
       //   ?tz=Zone       pretend the computer is in this zone (mocks: ?tz=America/Denver)
       //   ?noise=0       no compression noise layer
-      //   ?page=name     hold one page: current, local, extended, radar, regional, almanac, ad
+      //   ?page=name     hold one page: current, local, extended, radar, regional, almanac, ad, id
       //   ?pages=a,b     run only these pages, in this order (mocks: ?pages=almanac,ad)
-      //   ?ads=0         no ad breaks
+      //   ?ads=0         no ad breaks (the station ID page still runs)
       //   ?pagems=N      ms per page (default config.weather.pageMs)
       //   ?at=ISO        pretend it's this time (mocks: ?at=2027-01-15T08:00Z)
       //   ?fps=N         frame cap (default config.weather.fps)
@@ -112,7 +113,7 @@
       // Canvas text doesn't make the browser fetch a face: load each one
       const faces = ['Star4000', 'Star4000 Small', 'Star4000 Large', 'Star4000 Extended', 'Star4000 Radar']
         .map((f) => document.fonts.load(`40px "${f}"`).catch(() => null));
-      Promise.all([document.fonts.ready, firstData, ...faces]).then(() => {
+      Promise.all([document.fonts.ready, firstData, loadWsIcons(), ...faces]).then(() => {
         tv = new WeatherChannel(canvas, { cfg, data, now, region, page, debug });
         registerProbe('weather', () => tv.probeSamples());
         if (cfg.noise?.alpha > 0 && urlParams.get('noise') !== '0') startNoise(document.body, cfg.noise, 1920, cfg.crt?.cornerPx ?? 0);

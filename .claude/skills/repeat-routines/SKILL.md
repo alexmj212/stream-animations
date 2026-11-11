@@ -20,6 +20,7 @@ tool calls costs ten re-reads. Run the script, read its answer, move on.
 | Cut a seamless loop from an OBS recording | `tools/loopcut.sh <recording.mkv>` (`--help` for options) |
 | Render scene text in Jost in the cloud container (else Arial; 2026-10-28) | `tools/fonts/install-jost.sh` |
 | Prepare a PR for review (worktree, full sha, merge with main, diff stat, table rows), or check a squash merge | `tools/review/prep.sh <pr>` / `tools/review/prep.sh --squash <pr> <merged-sha>` |
+| Rebuild the WeatherStar icon strips from a ws4kp checkout | `python3 tools/weather/build_ws4000_icons.py <ws4kp>/server/images/icons` |
 | Mock frames of the weather page (each page on demo data, every ad with `--ads`) | `npm run weather:shots -- --out=<dir> [--pages=current,ad] [--ads]` |
 | What a Twitch encode (x264 veryfast CBR 720p60) does to the weather page's text, noise on vs off (PSNR + stills) | `npm run weather:encode -- [--seconds=20] [--kbps=6000] [--out=<dir>]` |
 | Check a scene live | `npm run dev`, then `/src/<scene>/index.html?perf=true` |
