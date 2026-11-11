@@ -5,24 +5,23 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Each job widens this only as far as it needs: the checks (which may run
+# a downloaded ffmpeg) never hold the Pages or OIDC token (code review on
+# #178, 2026-11-11).
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # Unit tests and the audio level gate, with a read-only token.
+  check:
     runs-on: ubuntu-latest
     # A hung step otherwise holds the deploy (and every later one, through
     # the concurrency group) for GitHub's 6 h default (v2.17.0, 2026-11-11).
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -44,7 +43,7 @@ jobs:
       # 2026-11-11 the runners could not resolve the Ubuntu archive at all
       # (the v2.17.0 and v2.18.0 deploys hung), so apt gets 2 minutes, then
       # we fall back to the static ffmpeg 7.0.2 inside the imageio-ffmpeg
-      # 0.6.0 wheel from PyPI, pinned by sha256 because this job deploys.
+      # 0.6.0 wheel from PyPI, pinned by sha256 (it still gates the deploy).
       # man-db's trigger is skipped as it is slow on runners.
       - name: Audio levels
         timeout-minutes: 8
@@ -67,6 +66,27 @@ jobs:
           fi
           ffmpeg -version | head -1
           npm run audio -- assets
+
+  deploy:
+    needs: check
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
 
       - run: npm run build
 
