@@ -4,6 +4,13 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.22.0 - 2026-11-11
+
+- Exo-Cast's ads now use transparent cut-out clip art, drawn whole and
+  about twice as big with a hard drop shadow instead of cropped photos in
+  ovals. Several ads are simpler (no starbursts or fine print), and the
+  coupon ads keep their picture clear of the text. ([#191])
+
 ## v2.21.1 - 2026-11-11
 
 - Exo-Cast's text has no glow any more (the drop shadow stays), and each
@@ -387,3 +394,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#185]: https://github.com/alexmj212/stream-animations/pull/185
 [#187]: https://github.com/alexmj212/stream-animations/pull/187
 [#189]: https://github.com/alexmj212/stream-animations/pull/189
+[#191]: https://github.com/alexmj212/stream-animations/pull/191
