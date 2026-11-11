@@ -32,6 +32,17 @@ describe('viewFor', () => {
         expect(wide.zoom).toBeLessThan(tight.zoom);
     });
 
+    it('keeps every town above a legend strip along the bottom', () => {
+        for (const region of REGIONS) {
+            const v = viewFor(region.towns, 1284, 668, 0.12, 56);
+            expect(v.h).toBe(668);
+            for (const t of region.towns) {
+                const p = worldPx(t.lat, t.lon, v.zoom);
+                expect(p.y - v.y0).toBeLessThan(668 - 56 - (668 - 56) * 0.1);
+            }
+        }
+    });
+
     it('fills the panel with each region, not a whole zoom level out', () => {
         // AJ, 2026-11-11: the West Coast was "crazy zoomed out" at zoom 4.
         // The towns should span most of the panel one way or the other

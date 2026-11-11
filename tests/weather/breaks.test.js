@@ -34,7 +34,7 @@ describe('pickAd', () => {
             // Fictional numbers only: 555-0100 to 555-0199
             for (const n of JSON.stringify(ad).match(/\d{3}-\d{4}/g) ?? []) expect(n).toMatch(/^555-01\d\d$/);
             // A 10 s hold: about 50 words at most (head-writer review, 2026-11-11)
-            const words = JSON.stringify(Object.entries(ad).filter(([k]) => !['layout', 'art', 'colors', 'pattern', 'board', 'photo', 'photoFocus', 'credit'].includes(k)))
+            const words = JSON.stringify(Object.entries(ad).filter(([k]) => !['layout', 'art', 'colors', 'pattern', 'board', 'photo', 'photoCutout', 'credit'].includes(k)))
                 .replace(/["[\],:]/g, ' ').split(/\s+/).filter((w) => /[A-Za-z0-9$]/.test(w));
             expect(words.length, ad.name).toBeLessThanOrEqual(62);
         }
