@@ -815,9 +815,14 @@ export class WeatherChannel {
     /** Town markers on a radar frame (radar-canvas coordinates). */
     drawRadarLabels(ctx, marks) {
         // Every dot first, so no label lands under a later town's dot
-        // (Rotom, #169); labels then go where placeLabels finds room
+        // (Rotom, #169); labels then go where placeLabels finds room. A town
+        // whose label has no room loses its dot too, so no stray unnamed
+        // mark (design review on #189: Sacramento between SF and Reno)
         const inside = marks.filter((m) => m.x >= 30 && m.x <= RADAR.w - 30 && m.y >= 30 && m.y <= RADAR.h - 30);
-        inside.forEach((m) => {
+        ctx.font = font(32);
+        const spots = placeLabels(inside, inside.map((m) => ctx.measureText(m.name).width), RADAR.w, RADAR.h - 76);
+        inside.forEach((m, i) => {
+            if (!spots[i]) return;
             ctx.fillStyle = INK;
             ctx.beginPath();
             ctx.arc(m.x, m.y, 9, 0, Math.PI * 2);
@@ -827,8 +832,6 @@ export class WeatherChannel {
             ctx.arc(m.x, m.y, 6, 0, Math.PI * 2);
             ctx.fill();
         });
-        ctx.font = font(32);
-        const spots = placeLabels(inside, inside.map((m) => ctx.measureText(m.name).width), RADAR.w, RADAR.h - 76);
         spots.forEach((spot, i) => {
             if (spot) shadowText(ctx, inside[i].name, spot.x, spot.y, 32, '#ffffff', { align: spot.align, shadow: 3 });
         });
