@@ -54,8 +54,15 @@ git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
       echo "would publish $version at $sha ($flag)"
       cat "$notes"
     else
-      gh release create "$version" --target "$sha" --title "$version" \
-        --notes-file "$notes" "$flag"
+      # A 403 here usually means $sha's .github/workflows differ from every
+      # current branch and tag: GitHub won't let this token create a tag on
+      # it (v2.18.0, 2026-11-11, after #178 and #179 changed pages.yml).
+      # Someone with their own credentials creates the tag; then this skips it.
+      if ! gh release create "$version" --target "$sha" --title "$version" \
+        --notes-file "$notes" "$flag"; then
+        echo "Could not publish $version at $sha. If that was a 403 and $sha's workflow files differ from main's, create tag $version on $sha by hand (docs/roles/release-management.md, Learnings 2026-11-11)." >&2
+        exit 1
+      fi
       echo "Published $version at $sha"
     fi
   done
