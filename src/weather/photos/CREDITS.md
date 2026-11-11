@@ -1,21 +1,23 @@
-# Ad photos
+# Ad pictures
 
-Free-licence stock photos for Exo-Cast's joke ads (AJ, 2026-11-11, picked
-"I find free stock photos"). CC0 or Public Domain Mark only, no real
-people or brands (design review, #181). Resized to 360 px for the
-single-file build. None of these licences require credit; it's given anyway.
+Transparent PNG clip art for Exo-Cast's joke ads (AJ, 2026-11-11: "if we can
+get some images with transparency, that'd be great"; they replaced the
+cropped stock photos). CC0 only, no real people or brands (design review, #181). All from
+Openclipart, which is 100% CC0 1.0; each detail page's metadata states
+`creativecommons.org/publicdomain/zero/1.0/`. No credit is required; it's given anyway.
+Every file was trimmed to its alpha bounds, scaled to 480 px or less on the longest side, and saved as an optimized PNG, then quantised to 96 colours for the single-file build (crystal.png kept whole, for its soft glow).
 
-| File | Photo | Creator | Licence | Source |
-|---|---|---|---|---|
-| banana.jpg | Free banana image | rawpixel (uncredited) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://www.rawpixel.com/image/5902531/free-banana-image-public-domain-fruit-cc0-photo |
-| bear.jpg | Kodiak brown bear | USFWSAlaska | [Public Domain Mark 1.0](https://creativecommons.org/publicdomain/mark/1.0/) | https://www.flickr.com/photos/54775250@N07/23772900186 |
-| car.jpg | Ford Country Squire | Mark Klotz | [Public Domain Mark 1.0](https://creativecommons.org/publicdomain/mark/1.0/) | https://www.flickr.com/photos/96821729@N00/22510246800 |
-| crystal.jpg | Crystal Ball on Stand | themet | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://www.rawpixel.com/image/7875449/crystal-ball-stand |
-| flannel.jpg | Plaid Shirt | Daria Nepriakhina | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://stocksnap.io/photo/plaid-shirt-381E9A13D0 |
-| form.jpg | Hunter's Trophy | Bildflut85 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://www.flickr.com/photos/144218922@N07/31556322113 |
-| paw.jpg | Fluffy Dreams | andymiccone | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://www.flickr.com/photos/129822560@N05/37109627672 |
-| perfume.jpg | Perfume. Free public domain CC0 | rawpixel (uncredited) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://www.rawpixel.com/image/6033978/perfume-free-public-domain-cc0-photo |
-| pizza.jpg | Pizza Slices on Plate | rawpixel (uncredited) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://www.rawpixel.com/image/5969069/pizza-slices-plate |
-| pup.jpg | Puppy X | cogdogblog | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://www.flickr.com/photos/37996646802@N01/916815136 |
-| roller.jpg | A paint roller with a red handle, covered in beige paint, is held up against a wall partially painted in a muted blue | Anup Neupane | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://wordpress.org/photos/photo/8756a21a02/ |
-| tape.jpg | VHS cassette | fluorinated | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.en/) | https://commons.wikimedia.org/w/index.php?curid=92346420 |
+| File | Title | Creator | Licence | Source URL | How |
+|---|---|---|---|---|---|
+| car.png | Station Wagon | algotruneman | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/335163 | Found transparent |
+| perfume.png | Cosmetic and beauty icons pack 1 (perfume bottle icon) | inkscapeforum_it | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/281189 | Found as SVG; I removed the pack's background rectangle, rendered it and cropped the perfume bottle icon |
+| pup.png | cute sitting puppy | Mahua_Sarkar | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/304286 | Found transparent (rendered from SVG at higher resolution) |
+| pizza.png | Melty Pizza | j4p4n | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/287866 | Found transparent |
+| bear.png | cute bear | hund | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/325104 | Found transparent |
+| banana.png | Banana | rdevries | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/196028 | Found transparent |
+| paw.png | Cute Fluffy Cat | Animystik | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/190561 | Found transparent |
+| roller.png | Paint Roller | cyberscooty | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/221830 | Found transparent |
+| tape.png | Video Tape | jhnri4 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/79555 | Found transparent |
+| flannel.png | Shirt 2 | Firkin | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/291723 | Found transparent (black line art); I filled the enclosed transparent areas with red (#b3261e) to make a red/black flannel |
+| crystal.png | Crystal Ball | j4p4n | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/280746 | Found transparent |
+| form.png | Hunting Trophy | j4p4n | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | https://openclipart.org/detail/324320 | Found transparent |

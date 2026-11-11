@@ -165,28 +165,30 @@ export const ADS = [
     }
 ];
 
-// Stock photos, one per ad (AJ, 2026-11-11: "I find free stock photos").
-// CC0 or Public Domain Mark only, credits in photos/CREDITS.md. Each URL is
-// a literal so Vite inlines the file; the ad draws its clip art until (or
-// unless) the photo loads. Focus is where the subject sits, 0-1, for the
-// cover crop.
+// Cut-out clip art, one per ad (AJ, 2026-11-11: "if we can get some images
+// with transparency, that'd be great"; the stock photos before them were
+// cropped "in weird way"). CC0 only, credits in photos/CREDITS.md. Each URL
+// is a literal so Vite inlines the file; the ad draws its own clip art until
+// (or unless) the picture loads. Pictures are drawn whole, never cropped.
 const PHOTOS = {
-    car: [new URL('./photos/car.jpg', import.meta.url).href, [0.5, 0.58]],
-    perfume: [new URL('./photos/perfume.jpg', import.meta.url).href, [0.7, 0.55]],
-    pup: [new URL('./photos/pup.jpg', import.meta.url).href, [0.5, 0.5]],
-    pizza: [new URL('./photos/pizza.jpg', import.meta.url).href, [0.5, 0.5]],
-    bear: [new URL('./photos/bear.jpg', import.meta.url).href, [0.52, 0.45]],
-    banana: [new URL('./photos/banana.jpg', import.meta.url).href, [0.5, 0.5]],
-    paw: [new URL('./photos/paw.jpg', import.meta.url).href, [0.4, 0.5]],
-    roller: [new URL('./photos/roller.jpg', import.meta.url).href, [0.5, 0.35]],
-    tape: [new URL('./photos/tape.jpg', import.meta.url).href, [0.5, 0.5]],
-    flannel: [new URL('./photos/flannel.jpg', import.meta.url).href, [0.5, 0.5]],
-    crystal: [new URL('./photos/crystal.jpg', import.meta.url).href, [0.5, 0.3]],
-    form: [new URL('./photos/form.jpg', import.meta.url).href, [0.6, 0.4]]
+    car: new URL('./photos/car.png', import.meta.url).href,
+    perfume: new URL('./photos/perfume.png', import.meta.url).href,
+    pup: new URL('./photos/pup.png', import.meta.url).href,
+    pizza: new URL('./photos/pizza.png', import.meta.url).href,
+    bear: new URL('./photos/bear.png', import.meta.url).href,
+    banana: new URL('./photos/banana.png', import.meta.url).href,
+    paw: new URL('./photos/paw.png', import.meta.url).href,
+    roller: new URL('./photos/roller.png', import.meta.url).href,
+    tape: new URL('./photos/tape.png', import.meta.url).href,
+    flannel: new URL('./photos/flannel.png', import.meta.url).href,
+    crystal: new URL('./photos/crystal.png', import.meta.url).href,
+    form: new URL('./photos/form.png', import.meta.url).href
 };
 for (const ad of ADS) {
-    const p = PHOTOS[ad.art];
-    if (p) [ad.photo, ad.photoFocus] = p;
+    if (PHOTOS[ad.art]) {
+        ad.photo = PHOTOS[ad.art];
+        ad.photoCutout = true;
+    }
 }
 
 /**

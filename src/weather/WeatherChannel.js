@@ -162,7 +162,7 @@ function pixelBlit(ctx, w, left, baseline, color, S) {
  * a faint red and blue fringe (never on small numbers, Rotom). Only ever
  * called while building a cached canvas, or for the clock once a second.
  */
-function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false, shadow = 0, maxW = Infinity, glow = true } = {}) {
+function shadowText(ctx, text, x, y, px, color, { align = 'left', italic = false, shadow = 0, maxW = Infinity } = {}) {
     let S = cgScale(px);
     while (S > 2 && widthAt(text, S) > maxW) S--;
     // Live text can run long: past the floor, drop words from the end
@@ -510,7 +510,7 @@ export class WeatherChannel {
         if (!utcMs) return;
         const t = localParts(utcMs, region);
         const label = `${this.data.source === 'demo' ? 'DEMO DATA: ' : ''}OBSERVED ${formatClock(t.hour * 60 + t.minute)} ${t.zone}`;
-        shadowText(c, label, 960, y, 32, PALE, { align: 'center', glow: false });
+        shadowText(c, label, 960, y, 32, PALE, { align: 'center' });
     }
 
     page_unavailable(c) {
@@ -541,7 +541,7 @@ export class WeatherChannel {
         lines.forEach((line, i) => shadowText(c, line, colX, 590 + i * 50, px, YELLOW, { align: 'center', maxW: colW }));
         const feels = now.chill !== null && now.temp !== null && now.chill < now.temp ? `WIND CHILL ${now.chill}°`
             : now.heat !== null && now.temp !== null && now.heat > now.temp ? `HEAT INDEX ${now.heat}°` : null;
-        if (feels) shadowText(c, feels, colX, 590 + lines.length * 50 + 24, 36, PALE, { align: 'center', maxW: colW, glow: false });
+        if (feels) shadowText(c, feels, colX, 590 + lines.length * 50 + 24, 36, PALE, { align: 'center', maxW: colW });
         c.fillStyle = 'rgba(11, 18, 64, 0.6)';
         c.fillRect(930, 262, 4, 560);
         c.fillStyle = 'rgba(156, 192, 255, 0.5)';
@@ -596,10 +596,10 @@ export class WeatherChannel {
                     const head = line.slice(0, cut);
                     c.font = font(px);
                     const hw = c.measureText(head).width;
-                    shadowText(c, head, 346, y, px, YELLOW, { glow: false });
-                    shadowText(c, line.slice(cut), 346 + hw, y, px, '#ffffff', { glow: false });
+                    shadowText(c, head, 346, y, px, YELLOW);
+                    shadowText(c, line.slice(cut), 346 + hw, y, px, '#ffffff');
                 } else {
-                    shadowText(c, line, 346, y, px, '#ffffff', { glow: false });
+                    shadowText(c, line, 346, y, px, '#ffffff');
                 }
                 y += lh;
             });
@@ -626,20 +626,20 @@ export class WeatherChannel {
             placeIcon(c, d.icon, 240, cx - 120, 322);
             c.font = font(36);
             const lines = wrap(c, d.label.replace(/\//g, '/ '), colW - 24).slice(0, 2);
-            lines.forEach((l, li) => shadowText(c, l.replace(/\/ /g, '/'), cx, 604 + li * 44, 36, '#ffffff', { align: 'center', maxW: colW - 16, glow: false }));
-            shadowText(c, 'HI', cx - 20, 756, 36, PALE, { align: 'right', glow: false });
+            lines.forEach((l, li) => shadowText(c, l.replace(/\/ /g, '/'), cx, 604 + li * 44, 36, '#ffffff', { align: 'center', maxW: colW - 16 }));
+            shadowText(c, 'HI', cx - 20, 756, 36, PALE, { align: 'right' });
             shadowText(c, dash(d.hi), cx, 756, 52, '#ffffff');
-            shadowText(c, 'LO', cx - 20, 826, 36, PALE, { align: 'right', glow: false });
+            shadowText(c, 'LO', cx - 20, 826, 36, PALE, { align: 'right' });
             shadowText(c, dash(d.lo), cx, 826, 52, '#ffffff');
         });
     }
 
     page_regional(c, { data, region }) {
         const cols = { town: 340, icon: 738, wx: 812, temp: 1400, wind: 1428 };
-        shadowText(c, 'CITY', cols.town, 290, 32, PALE, { glow: false });
-        shadowText(c, 'WEATHER', cols.wx, 290, 32, PALE, { glow: false });
-        shadowText(c, 'TEMP', cols.temp, 290, 32, PALE, { align: 'right', glow: false });
-        shadowText(c, 'WIND', cols.wind, 290, 32, PALE, { glow: false });
+        shadowText(c, 'CITY', cols.town, 290, 32, PALE);
+        shadowText(c, 'WEATHER', cols.wx, 290, 32, PALE);
+        shadowText(c, 'TEMP', cols.temp, 290, 32, PALE, { align: 'right' });
+        shadowText(c, 'WIND', cols.wind, 290, 32, PALE);
         data.towns.slice(0, this.cfg.maxTableRows).forEach((town, i) => {
             const y = 358 + i * 72;
             if (i % 2 === 0) {
@@ -647,16 +647,16 @@ export class WeatherChannel {
                 c.fillRect(318, y - 50, 1284, 72);
             }
             const now = town.now;
-            shadowText(c, town.name, cols.town, y, 40, '#ffffff', { maxW: 390, glow: false });
+            shadowText(c, town.name, cols.town, y, 40, '#ffffff', { maxW: 390 });
             if (!now) {
-                shadowText(c, 'NOT AVAILABLE', cols.wx, y, 36, PALE, { glow: false });
+                shadowText(c, 'NOT AVAILABLE', cols.wx, y, 36, PALE);
                 return;
             }
             // No sky reported: no icon to guess with, just the dashes
             if (now.label !== '--') placeIcon(c, now.icon, 64, cols.icon, y - 50);
-            shadowText(c, skyShort(now.label), cols.wx, y, 36, YELLOW, { maxW: 480, glow: false });
-            shadowText(c, now.temp === null ? '--' : `${now.temp}°`, cols.temp, y, 40, '#ffffff', { align: 'right', glow: false });
-            shadowText(c, now.wind === null ? '--' : now.wind < 3 ? 'CALM' : `${now.windDir} ${now.wind}`, cols.wind, y, 36, '#ffffff', { maxW: 176, glow: false });
+            shadowText(c, skyShort(now.label), cols.wx, y, 36, YELLOW, { maxW: 480 });
+            shadowText(c, now.temp === null ? '--' : `${now.temp}°`, cols.temp, y, 40, '#ffffff', { align: 'right' });
+            shadowText(c, now.wind === null ? '--' : now.wind < 3 ? 'CALM' : `${now.windDir} ${now.wind}`, cols.wind, y, 36, '#ffffff', { maxW: 176 });
         });
         this.asOf(c, data.asOf, region);
     }
@@ -830,7 +830,7 @@ export class WeatherChannel {
         ctx.font = font(32);
         const spots = placeLabels(inside, inside.map((m) => ctx.measureText(m.name).width), RADAR.w, RADAR.h - 76);
         spots.forEach((spot, i) => {
-            if (spot) shadowText(ctx, inside[i].name, spot.x, spot.y, 32, '#ffffff', { align: spot.align, glow: false, shadow: 3 });
+            if (spot) shadowText(ctx, inside[i].name, spot.x, spot.y, 32, '#ffffff', { align: spot.align, shadow: 3 });
         });
     }
 
@@ -840,13 +840,13 @@ export class WeatherChannel {
         ctx.fillStyle = 'rgba(6, 11, 48, 0.8)';
         ctx.fillRect(RADAR.w - 300, RADAR.h - 70, 300, 70);
         ctx.fillRect(0, RADAR.h - 70, 470, 70);
-        shadowText(ctx, `${formatClock(t.hour * 60 + t.minute)} ${t.zone}`, RADAR.w - 20, RADAR.h - 22, 36, YELLOW, { align: 'right', glow: false });
-        shadowText(ctx, 'LIGHT', 18, RADAR.h - 22, 32, '#ffffff', { glow: false });
+        shadowText(ctx, `${formatClock(t.hour * 60 + t.minute)} ${t.zone}`, RADAR.w - 20, RADAR.h - 22, 36, YELLOW, { align: 'right' });
+        shadowText(ctx, 'LIGHT', 18, RADAR.h - 22, 32, '#ffffff');
         ['#1ee63c', '#28b43c', '#f0dc28', '#f08c1e', '#e6281e'].forEach((col, i) => {
             ctx.fillStyle = col;
             ctx.fillRect(130 + i * 40, RADAR.h - 50, 36, 26);
         });
-        shadowText(ctx, 'HEAVY', 340, RADAR.h - 22, 32, '#ffffff', { glow: false });
+        shadowText(ctx, 'HEAVY', 340, RADAR.h - 22, 32, '#ffffff');
     }
 
     /** Start building a region's radar loop, unless it's already up to date. */
@@ -1060,7 +1060,7 @@ export class WeatherChannel {
         c.drawImage(this.shown.canvas, r.x, r.y - PAGE_Y, r.w, r.h, r.x, r.y, r.w, r.h);
         textLog = this.clockTexts = [];
         shadowText(c, time, 1602, 142, 44, '#ffffff', { align: 'right' });
-        shadowText(c, date, 1602, 192, 36, PALE, { align: 'right', glow: false });
+        shadowText(c, date, 1602, 192, 36, PALE, { align: 'right' });
         textLog = null;
         this.glass(r.x, r.y, r.w, r.h);
         return true;
@@ -1197,7 +1197,7 @@ export class WeatherChannel {
         let left = typed;
         for (const l of b.lines) {
             if (left <= 0) break;
-            shadowText(c, l.text.slice(0, left), l.x, l.y, l.px, l.color, { glow: l.px >= 48 });
+            shadowText(c, l.text.slice(0, left), l.x, l.y, l.px, l.color);
             left -= l.text.length;
         }
         textLog = null;
