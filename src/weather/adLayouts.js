@@ -266,7 +266,7 @@ const LAYOUTS = {
         c.strokeRect(300, 150, 1320, 740);
         c.lineWidth = 1.5;
         c.strokeRect(312, 162, 1296, 716);
-        picture(c, ad, { x: 660, y: 176, w: 600, h: 380 }, tools);
+        picture(c, ad, { x: 660, y: 170, w: 600, h: 350 }, tools);
         T(ad.name, 960, 620, 104, { align: 'center', italic: true, family: SERIF, color: '#c9a24a', spacing: 8, maxW: 1100 });
         T(ad.line, 960, 690, 40, { align: 'center', italic: true, family: SERIF, color: '#f3e9d2', maxW: 1160 });
         T(ad.price, 960, 760, 48, { align: 'center', family: SERIF, color: '#f3e9d2', maxW: 1000 });
