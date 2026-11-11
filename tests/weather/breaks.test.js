@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ADS, pickAd } from '../../src/weather/ads.js';
-import { AD_LAYOUTS } from '../../src/weather/adLayouts.js';
+import { AD_LAYOUTS, COUPON, PICTURE_SHADOW } from '../../src/weather/adLayouts.js';
 import { JOKES, jokeAt } from '../../src/weather/jokes.js';
 
 describe('pickAd', () => {
@@ -81,5 +81,17 @@ describe('pixel font coverage', () => {
         const missing = new Set();
         for (const s of strings) for (const ch of s) if (ch.trim() && !(ch in GLYPHS) && !(ch.toUpperCase() in GLYPHS)) missing.add(ch);
         expect([...missing]).toEqual([]);
+    });
+});
+
+describe('coupon layout', () => {
+    // Design review on #191: the bigger art ran into the text column. The
+    // picture, its shadow and 16 px must end before the widest deal line
+    it('keeps the picture clear of the text column', () => {
+        const pictureRight = COUPON.picture.x + COUPON.picture.w + PICTURE_SHADOW;
+        const textLeft = COUPON.text.cx - COUPON.text.maxW / 2;
+        expect(pictureRight + 16).toBeLessThanOrEqual(textLeft);
+        // and above the conditions line (its caps start ~26 px over the baseline)
+        expect(COUPON.picture.y + COUPON.picture.h + PICTURE_SHADOW + 8).toBeLessThanOrEqual(COUPON.conditionsY - 26);
     });
 });

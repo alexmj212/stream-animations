@@ -87,14 +87,14 @@ function picture(c, ad, box, tools) {
     if (ad.photoCutout) {
         c.save();
         c.shadowColor = 'hsla(0, 0%, 0%, 0.55)';
-        c.shadowOffsetX = 10;
-        c.shadowOffsetY = 10;
+        c.shadowOffsetX = PICTURE_SHADOW;
+        c.shadowOffsetY = PICTURE_SHADOW;
         c.drawImage(img, x, y, w, h);
         c.restore();
         return;
     }
     c.fillStyle = 'hsla(0, 0%, 0%, 0.45)';
-    c.fillRect(x - pad + 10, y - pad + 10, w + 2 * pad, h + 2 * pad);
+    c.fillRect(x - pad + PICTURE_SHADOW, y - pad + PICTURE_SHADOW, w + 2 * pad, h + 2 * pad);
     c.fillStyle = '#fbfaf5';
     c.fillRect(x - pad, y - pad, w + 2 * pad, h + 2 * pad);
     c.drawImage(img, x, y, w, h);
@@ -120,6 +120,20 @@ function vGradient(c, top, bottom, a, b) {
 }
 
 // --- Layouts -------------------------------------------------------------
+
+/** Drop shadow under a picture, px right and down (picture()). */
+export const PICTURE_SHADOW = 10;
+
+/**
+ * The coupon's picture box and its text column, kept apart: picture plus
+ * shadow plus 16 px before the text starts (design review on #191, where
+ * the bigger art ran into "TWO LARGES" and "All flannels are plaid").
+ */
+export const COUPON = {
+    picture: { x: 392, y: 344, w: 360, h: 290 },
+    text: { cx: 1110, maxW: 560 },
+    conditionsY: 704
+};
 
 const LAYOUTS = {
     /** A car-lot shouter: sunburst, outlined headline, slanted banner, starburst. */
@@ -197,11 +211,12 @@ const LAYOUTS = {
         T(ad.sub, 900, 302, 36, { align: 'center', italic: true, family: SERIF, maxW: 860 });
         c.fillStyle = '#222222';
         c.fillRect(440, 326, 880, 3);
-        picture(c, ad, { x: 400, y: 340, w: 420, h: 330 }, tools);
-        T(ad.deal, 1060, 500, 130, { align: 'center', family: IMPACT, color: k.name, maxW: 600 });
+        picture(c, ad, COUPON.picture, tools);
+        const { cx, maxW } = COUPON.text;
+        T(ad.deal, cx, 500, 130, { align: 'center', family: IMPACT, color: k.name, maxW });
         const two = ad.detail.length > 1;
-        ad.detail.forEach((line, i) => T(line, 1060, 566 + i * 42, two ? 36 : 40, { align: 'center', bold: true, family: ARIAL, maxW: 640 }));
-        if (ad.conditions) T(ad.conditions, 960, 676, 36, { align: 'center', italic: true, family: SERIF, maxW: 1100 });
+        ad.detail.forEach((line, i) => T(line, cx, 566 + i * 42, two ? 36 : 40, { align: 'center', bold: true, family: ARIAL, maxW }));
+        if (ad.conditions) T(ad.conditions, 960, COUPON.conditionsY, 36, { align: 'center', italic: true, family: SERIF, maxW: 1100 });
         stamp(c, T, 1430, 250, ad.stamp, k.stamp ?? '#c62828');
         T(ad.call, 960, 772, 44, { align: 'center', bold: true, family: ARIAL, maxW: 1100 });
         T(ad.fine, 960, 830, 32, { align: 'center', italic: true, family: SERIF, maxW: 1100 });
@@ -216,8 +231,6 @@ const LAYOUTS = {
             c.fillRect(PIC.x, PIC.y, PIC.w, PIC.h);
             c.fillStyle = '#1f3b2c';
             c.fillRect(PIC.x + 24, PIC.y + 70, PIC.w - 48, PIC.h - 94);
-            c.fillStyle = 'hsla(0, 0%, 100%, 0.05)';
-            for (let i = 0; i < 9; i++) c.fillRect(PIC.x + 60 + i * 150, PIC.y + 120 + (i % 3) * 200, 120, 40);
         } else {
             for (let y = PIC.y, i = 0; y < PIC.y + PIC.h; y += 52, i++) {
                 c.fillStyle = i % 2 ? '#5a371d' : '#6b4325';
