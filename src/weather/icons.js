@@ -16,7 +16,7 @@ const cache = new Map();
  * An icon frame as an offscreen canvas, drawn on first use and kept.
  * @param {string} kind - sun, mostlysun, partly, mostlycloudy, cloudy, rain,
  *   showers, storm, snow, flurries, mix, fog, moon, partlymoon, or
- *   moon-new, moon-first, moon-full, moon-last
+ *   moon-new, moon-first, moon-full, moon-last, sunrise, sunset
  * @param {number} size - Square side in px
  * @param {number} [frame=0] - 0 or 1
  * @returns {HTMLCanvasElement}
@@ -247,5 +247,43 @@ const DRAW = {
     'moon-new': (c) => phase(c, null),
     'moon-first': (c) => phase(c, 'right'),
     'moon-full': (c) => phase(c, 'full'),
-    'moon-last': (c) => phase(c, 'left')
+    'moon-last': (c) => phase(c, 'left'),
+    // Sunrise and sunset (AJ, 2026-11-11: "The sunrise and sunset need icons
+    // as well"): half a sun on the horizon with an arrow; frame 1 turns the
+    // rays and nudges the arrow the way the sun is going
+    sunrise: (c, f) => horizonSun(c, f, -1),
+    sunset: (c, f) => horizonSun(c, f, 1)
 };
+
+/** Half a sun on the horizon, an arrow under it: dir -1 up, 1 down. */
+function horizonSun(ctx, f, dir) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, 100, 60);
+    ctx.clip();
+    sun(ctx, 50, 60, 24, f);
+    ctx.restore();
+    ctx.beginPath();
+    ctx.moveTo(6, 60);
+    ctx.lineTo(94, 60);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 7;
+    ctx.stroke();
+    ctx.strokeStyle = '#ff9a1f';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    // The arrow, outline first
+    const y = 80 + dir * 2 * f;
+    const tip = y + dir * 12;
+    for (const [w, col] of [[9, OUTLINE], [4, '#ffffff']]) {
+        ctx.beginPath();
+        ctx.moveTo(50, y - dir * 10);
+        ctx.lineTo(50, tip);
+        ctx.moveTo(40, tip - dir * 9);
+        ctx.lineTo(50, tip);
+        ctx.lineTo(60, tip - dir * 9);
+        ctx.strokeStyle = col;
+        ctx.lineWidth = w;
+        ctx.stroke();
+    }
+}

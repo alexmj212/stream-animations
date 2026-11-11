@@ -253,36 +253,59 @@ export class RadarLoader {
      * @param {{zoom: number, x0: number, y0: number}} view
      */
     paintBase(view) {
-        const b = this.base.getContext('2d');
-        b.globalCompositeOperation = 'source-over';
-        b.fillStyle = '#071040';
-        b.fillRect(0, 0, this.w, this.h);
-        const trace = (polys) => {
-            b.beginPath();
+        // Paint at the old unit's resolution, then scale up with no smoothing
+        const px = Math.max(1, this.cfg.mapPixel ?? 1);
+        const lw = Math.ceil(this.w / px);
+        const lh = Math.ceil(this.h / px);
+        this.lowBase ??= makeCanvas(lw, lh);
+        const low = this.lowBase;
+        const l = low.getContext('2d', { willReadFrequently: true });
+        l.fillStyle = '#071040';
+        l.fillRect(0, 0, lw, lh);
+        const project = (r, i) => {
+            const p = worldPx(r[i + 1], r[i], view.zoom);
+            return [(p.x - view.x0) / px, (p.y - view.y0) / px];
+        };
+        const fill = (polys, color) => {
+            l.beginPath();
             for (const rings of polys) {
                 for (const r of rings) {
                     for (let i = 0; i < r.length; i += 2) {
-                        const p = worldPx(r[i + 1], r[i], view.zoom);
-                        if (i === 0) b.moveTo(p.x - view.x0, p.y - view.y0);
-                        else b.lineTo(p.x - view.x0, p.y - view.y0);
+                        const [x, y] = project(r, i);
+                        if (i === 0) l.moveTo(x, y);
+                        else l.lineTo(x, y);
                     }
-                    b.closePath();
+                    l.closePath();
+                }
+            }
+            l.fillStyle = color;
+            l.fill('evenodd');
+        };
+        fill(NEIGHBOURS, '#16297a');
+        fill(STATES, '#1f3aa0');
+        // Outlines: hard single pixels (Bresenham), no anti-aliasing
+        const img = l.getImageData(0, 0, lw, lh);
+        const outline = (polys, [r0, g0, b0]) => {
+            for (const rings of polys) {
+                for (const r of rings) {
+                    for (let i = 0; i < r.length; i += 2) {
+                        const j = (i + 2) % r.length;
+                        const [ax, ay] = project(r, i);
+                        const [bx, by] = project(r, j);
+                        if ((ax < 0 && bx < 0) || (ay < 0 && by < 0) || (ax >= lw && bx >= lw) || (ay >= lh && by >= lh)) continue;
+                        plotLine(img.data, lw, lh, Math.round(ax), Math.round(ay), Math.round(bx), Math.round(by), r0, g0, b0);
+                    }
                 }
             }
         };
-        b.lineJoin = 'round';
-        trace(NEIGHBOURS);
-        b.fillStyle = '#16297a';
-        b.fill('evenodd');
-        b.strokeStyle = '#3a56b8';
-        b.lineWidth = 2;
-        b.stroke();
-        trace(STATES);
-        b.fillStyle = '#1f3aa0';
-        b.fill('evenodd');
-        b.strokeStyle = '#7f9cf0';
-        b.lineWidth = 2;
-        b.stroke();
+        outline(NEIGHBOURS, [0x3a, 0x56, 0xb8]);
+        outline(STATES, [0x9f, 0xb8, 0xff]);
+        l.putImageData(img, 0, 0);
+        const b = this.base.getContext('2d');
+        b.globalCompositeOperation = 'source-over';
+        b.imageSmoothingEnabled = false;
+        b.drawImage(low, 0, 0, lw * px, lh * px);
+        b.imageSmoothingEnabled = true;
         return b;
     }
 
@@ -359,5 +382,37 @@ export class RadarLoader {
             if (token !== this.token) return [];
         }
         return times;
+    }
+}
+
+/**
+ * One hard pixel line into RGBA data (Bresenham), clipped to the image.
+ * @param {Uint8ClampedArray} d
+ */
+export function plotLine(d, w, h, x0, y0, x1, y1, r, g, b) {
+    const dx = Math.abs(x1 - x0);
+    const dy = -Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    // Long off-screen runs: a cap keeps a bad point from spinning
+    for (let n = 0; n < 20000; n++) {
+        if (x0 >= 0 && y0 >= 0 && x0 < w && y0 < h) {
+            const k = (y0 * w + x0) * 4;
+            d[k] = r;
+            d[k + 1] = g;
+            d[k + 2] = b;
+            d[k + 3] = 255;
+        }
+        if (x0 === x1 && y0 === y1) return;
+        const e2 = 2 * err;
+        if (e2 >= dy) {
+            err += dy;
+            x0 += sx;
+        }
+        if (e2 <= dx) {
+            err += dx;
+            y0 += sy;
+        }
     }
 }

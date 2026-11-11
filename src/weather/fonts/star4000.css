@@ -1,0 +1,16 @@
+/*
+ * The Star4000 faces: fan rebuilds of the WeatherStar 4000's character
+ * generator type by Nick Smith, from TWC Classics
+ * (https://twcclassics.com/downloads.html), the set the WeatherStar 4000+
+ * project (github.com/netbymatt/ws4kp) uses with credit. A free fan
+ * download with no formal licence; bundled for AJ's own stream only (AJ,
+ * 2026-11-11: "we need that pixel clunky font ... find the font the weather
+ * channel uses (weather star 4000)"). Subset to Latin, woff2; Vite inlines
+ * them into the single-file build. Which face went where on the real unit:
+ * STAR4000-README.txt.
+ */
+@font-face { font-family: "Star4000"; font-display: block; src: url("./star4000.woff2") format("woff2"); }
+@font-face { font-family: "Star4000 Small"; font-display: block; src: url("./star4000-small.woff2") format("woff2"); }
+@font-face { font-family: "Star4000 Large"; font-display: block; src: url("./star4000-large.woff2") format("woff2"); }
+@font-face { font-family: "Star4000 Extended"; font-display: block; src: url("./star4000-extended.woff2") format("woff2"); }
+@font-face { font-family: "Star4000 Radar"; font-display: block; src: url("./star4000-radar.woff2") format("woff2"); }

@@ -1,120 +1,167 @@
 // Joke ads for the break between regions (AJ, 2026-11-11: "there needs to be
-// interstitial ads between regions, the ads should be jokes or not serious,
-// they can be videos or just text and an image with default text
-// formatting", then "for like fake business, not necessarily weather
-// themed", "in the style of SNL or the onion", and "the ads need like
-// prices or services advertised"). A cheap local spot: plain Times on a flat
-// colour, clip art, a price list, a starburst deal, a phone number and fine
-// print. Every business here is made up, and every number is a fictional
-// 555-01xx.
-// Video ads are URLs in config.weather.ads.videos, played muted over the card.
+// interstitial ads between regions, the ads should be jokes or not serious",
+// "for like fake business", "in the style of SNL or the onion", "the ads need
+// like prices or services advertised"). Reworked the same day after a
+// head-writer review of the set ("variety, variation in all aspects") and
+// AJ's "ads that are themed to aspects of my channel ... pups or furries or
+// gay bears, or 90s decorating": each ad is a real 90s local-break format
+// (adLayouts.js), consecutive breaks never repeat a format or colour family,
+// and every card stays near 45 words for the 10 s hold. Every business is
+// made up and every number is a fictional 555-01xx. Stream-safe: playful,
+// never explicit. Video ads are URLs in config.weather.ads.videos.
 
 /**
  * @typedef {Object} Ad
  * @property {string} name - Business name, the headline
- * @property {string} tagline - The pitch, one or two lines
- * @property {Array<[string, string]>} items - What's for sale: [service, price]
- * @property {string[]} deal - The starburst, one or two short lines
- * @property {string} call - Phone and where, the bottom line (555-01xx numbers are fictional by design)
+ * @property {string} layout - shout, coupon, menu, luxe, spokes, bulletin, classified or infomercial (adLayouts.js)
+ * @property {string} art - Clip art key (drawAdArt)
+ * @property {Object} colors - Per-layout colours
  * @property {string} fine - Fine print
- * @property {string} art - Picture: mattress, perfume, car, tape, pizza, tooth, form, tag, mug
- * @property {string} bg - Card colour
+ * The other fields depend on the layout: see adLayouts.js.
  */
 
-// AJ (2026-11-11): "The ads need like prices or services advertised, these
-// are just one liners". Each spot now sells something: a price list, a
-// starburst deal and a phone number, with the joke in the details.
 /** @type {Ad[]} */
 export const ADS = [
     {
-        name: "GARY'S DISCOUNT MATTRESS BARN",
-        tagline: "Gary has been asleep since 1987. Come see what he's lying on.",
-        items: [['Twin, gently slept on', '$49'], ['Queen, "barely" used', '$89'], ['Box spring with a secret', '$15'], ["King (Gary's)", 'NOT FOR SALE']],
-        deal: ['NO MONEY', 'DOWN!'],
-        call: 'CALL 555-0187 · ROUTE 9, NEXT TO THE OTHER BARN',
-        fine: 'Barn may contain Gary. Do not wake Gary.',
-        art: 'mattress',
-        bg: '#f4eecb'
-    },
-    {
-        name: 'CONFUSION',
-        tagline: 'The new fragrance for the man who walked into a room and forgot why.',
-        items: [['Eau de Confusion, 1 oz.', '$29.99'], ['Gift set with your keys (lost)', '$44.99'], ['Travel size (also lost)', '$9.99'], ['Body spray, for... someone', '$12.99']],
-        deal: ['NOW', '$29.99'],
-        call: 'AT FINER DEPARTMENT STORES, PROBABLY',
-        fine: 'Do not spray near memories.',
-        art: 'perfume',
-        bg: '#efe2f2'
-    },
-    {
         name: "BIG SAL'S PRE-LOVED AUTOS",
-        tagline: 'Every car driven by a grandmother. Several grandmothers. At once.',
-        items: [["'89 sedan, one door", '$1,200'], ['Minivan, smells like soup', '$2,400'], ['Convertible (roof stolen)', '$900'], ['Air freshener with any car', 'FREE']],
+        layout: 'shout',
+        colors: { a: '#d32020', b: '#ff3b2f', head: '#ffe14d', burst: '#ffe14d', burstInk: '#1a1a1a' },
+        banner: 'EVERY CAR DRIVEN BY SEVERAL GRANDMOTHERS AT ONCE!',
+        rows: [["'89 SEDAN, ONE DOOR", '$1,200'], ['CONVERTIBLE (ROOF STOLEN)', '$900']],
         deal: ['$0', 'DOWN*'],
-        call: "CALL 555-0123 · SAL'S LOT, HIGHWAY 61",
+        call: '555-0123 · HIGHWAY 61',
         fine: '*Sal is legally not allowed to say "mint condition."',
-        art: 'car',
-        bg: '#dfe9f7'
+        art: 'car'
     },
     {
-        name: 'REWIND CITY VIDEO',
-        tagline: 'Area video store still open, owner "fine with it."',
-        items: [['New releases (from 1994)', '$3.99'], ["Kids' tapes, mostly rewound", '99¢'], ['Board games, back room', '$1.50'], ['Late fee forgiveness', '$40.00']],
-        deal: ['2 FOR', '$5!'],
-        call: 'OPEN TIL 9, OR WHEN DOUG LEAVES · 555-0142',
-        fine: 'Late fees are emotional, not financial.',
-        art: 'tape',
-        bg: '#e9e4f6'
+        name: 'Confusion',
+        layout: 'luxe',
+        line: 'For the man who walked into a room and forgot why.',
+        price: '$29.99 the ounce',
+        call: 'AT FINER DEPARTMENT STORES, PROBABLY',
+        fine: 'Side effects may include standing in doorways.',
+        art: 'perfume'
+    },
+    {
+        name: 'GOOD BOY GOODS',
+        layout: 'bulletin',
+        colors: { a: '#1a3fb0' },
+        title: 'COMMUNITY BULLETIN BOARD',
+        tag: 'ITEM 4 OF 31',
+        heading: 'PUP SUPPLY CO. · NOW OPEN',
+        rows: [['Squeaky toy, extra squeak', '$4'], ['Name tag, "GOOD BOY"', '$6'], ["Being told you're a good boy", 'FREE']],
+        call: 'WE DO NOT SAY "WALK" OUT LOUD',
+        fine: 'Please do not chew the merchandise. Okay, one.',
+        art: 'pup'
     },
     {
         name: 'MOM & POP PIZZA PALACE',
-        tagline: 'Mom and Pop are no longer speaking. The pizza is still very good.',
-        items: [["Large cheese (Mom's)", '$8.99'], ["Large pepperoni (Pop's)", '$9.99'], ['Half and half, eaten in silence', '$10.99'], ['Garlic knots of tension', '$3.49']],
-        deal: ['2 LARGE', '$15.99'],
-        call: 'CALL 555-0164 · WE DELIVER. SEPARATELY.',
+        layout: 'coupon',
+        pattern: 'checker',
+        colors: { p1: '#2e7d32', p2: '#f4efe0', coupon: '#fffaf0', name: '#b3261e' },
+        sub: 'Mom and Pop are no longer speaking. The pizza is still great.',
+        deal: '$15.99',
+        detail: ['TWO LARGES, ONE FROM EACH OF THEM'],
+        stamp: 'SAVE $4',
+        call: '555-0164 · WE DELIVER. SEPARATELY.',
         fine: 'Please do not ask about Pop.',
-        art: 'pizza',
-        bg: '#f6e0d2'
+        art: 'pizza'
     },
     {
-        name: 'CRESTVIEW FAMILY DENTAL',
-        tagline: 'Nine out of ten dentists recommend us. The tenth one works here.',
-        items: [['Cleaning and x-rays', '$59'], ['Whitening (some teeth)', '$99'], ['Root canal, cheerful', '$249'], ['Lollipop on the way out', 'FREE']],
-        deal: ['CHECKUP', '$29'],
-        call: 'CALL 555-0110 · NOW ACCEPTING MOST TEETH',
-        fine: 'Smiling is mandatory for the duration of your visit.',
-        art: 'tooth',
-        bg: '#e4efe0'
+        name: "BIG RON'S BEAR BAIL BONDS",
+        layout: 'spokes',
+        colors: { a: '#0d1b2a', b: '#1f3d63', portrait: '#c9d6e8' },
+        plate: 'BIG RON',
+        title: 'Bondsman. Bear. Hugger.',
+        question: 'HAVE YOU BEEN:',
+        checklist: [['Timed out', true], ['Banned for typing "first"', true], ['Actually innocent', false]],
+        fee: ['BAIL FROM $5', 'HUGS INCLUDED, NON-NEGOTIABLE'],
+        call: '555-0148 · OUT OF CHAT JAIL TONIGHT',
+        fine: 'Ron is not a licensed bondsman. Ron is a licensed hugger.',
+        art: 'bear'
+    },
+    {
+        name: 'THE RE-PEELER™',
+        layout: 'infomercial',
+        sub: "Peeled a banana too early? We've all been there.",
+        lead: 'Only 3 easy payments of',
+        price: '$19.99',
+        wait: ['BUT WAIT!', 'Second one FREE, for your other banana.'],
+        call: 'CALL 555-0150 NOW',
+        fine: 'Operators are standing by. One is sitting.',
+        art: 'banana'
+    },
+    {
+        name: 'THE FLUFF HUT',
+        layout: 'menu',
+        board: 'chalk',
+        colors: { head: '#ff9ec7', ink: '#f3eefa', burst: '#ff9ec7', burstInk: '#1a1a1a' },
+        tagline: 'Fursuit dry cleaning. We know what you did at the con.',
+        items: [['Head, full refresh', '$40'], ['Tail, re-floof', '$15'], ['Paws, de-crunch', '$20']],
+        deal: ['SAME DAY', 'FLOOF!'],
+        call: '555-0172 · DROP-OFF AROUND BACK',
+        fine: 'Not responsible for glitter. Nobody is.',
+        art: 'paw'
+    },
+    {
+        name: "SALLY'S 90s HOME MAKEOVER",
+        layout: 'shout',
+        colors: { a: '#1f4d33', b: '#2f6b45', head: '#f7c6d9', outline: '#2a0f1a', burst: '#9e6b7c', burstInk: '#ffffff' },
+        banner: 'WALLPAPER BORDERS! SPONGE PAINT! WHY NOT BOTH?',
+        rows: [['GEESE BORDER, BY THE FOOT', '$3'], ['SPONGE-PAINTED ACCENT WALL', '$99'], ['GLASS BLOCK, ANYWHERE', '$45']],
+        deal: ['NOW IN', 'MAUVE!'],
+        call: '555-0193 · SHOWROOM BEHIND THE VIDEO STORE',
+        fine: "Sally's own living room is beige.",
+        art: 'roller'
+    },
+    {
+        name: 'REWIND CITY VIDEO',
+        layout: 'classified',
+        bar: 'HELP WANTED',
+        body: "Must rewind. Must have opinions about movies. Must not be Doug's nephew again.",
+        wage: '$4.25/HR + ALL THE POPCORN THAT FELL',
+        contact: ['APPLY BEFORE 9, OR WHEN DOUG LEAVES', '555-0142'],
+        fine: 'Late fees are emotional, not financial.',
+        art: 'tape'
+    },
+    {
+        name: 'THE DEN',
+        layout: 'coupon',
+        pattern: 'plaid',
+        colors: { p1: '#8e1b1b', p2: '#1a1a1a', coupon: '#fbf6ea', name: '#5a2a12', stamp: '#8e1b1b' },
+        sub: 'Big & tall flannel outlet. Soft enough to hibernate in.',
+        deal: 'BOGO',
+        detail: ['BUY ONE FLANNEL,', 'GET ONE FLANNEL'],
+        conditions: 'All flannels are plaid. Ask anyway.',
+        stamp: 'WOOF!',
+        call: '555-0166 · NEXT TO THE CABIN',
+        fine: 'Beards welcome. Beards expected.',
+        art: 'flannel'
+    },
+    {
+        name: "MADAME ORLA'S PSYCHIC LINE",
+        layout: 'spokes',
+        colors: { a: '#06302e', b: '#0f5c57', portrait: '#123f3c' },
+        plate: 'MADAME ORLA',
+        title: 'Psychic since tomorrow',
+        question: 'LET ORLA SEE YOUR:',
+        checklist: [['Future', true], ['Love life', true], ['Lottery numbers (nice try)', false], ['Lost cat: under the porch', true]],
+        fee: ['$0.99 THE FIRST MINUTE', '$4.99 EVERY MINUTE AFTER'],
+        call: '555-0177 · SHE KNEW YOU WOULD',
+        fine: 'For entertainment only. Orla already knows that.',
+        art: 'crystal'
     },
     {
         name: "TONY'S TAXIDERMY & TAX PREP",
+        layout: 'menu',
+        board: 'wood',
+        colors: { head: '#ffd23f', ink: '#f3e6c8', burst: '#e8401a', burstInk: '#ffffff' },
         tagline: 'We stuff deer. We also stuff returns.',
-        items: [['Short form 1040', '$35'], ['Mounted bass, any mood', '$60'], ['Itemized deductions', '$85'], ['Squirrel, any pose', '$40']],
+        items: [['Short form 1040', '$35'], ['Mounted bass, any mood', '$60'], ['Your audit, stuffed and mounted', '$150']],
         deal: ['COMBO', '$89'],
-        call: 'CALL 555-0199 · ASK FOR TONY. EITHER TONY.',
+        call: '555-0199 · ASK FOR TONY. EITHER TONY.',
         fine: 'Not a licensed accountant. Barely a licensed taxidermist.',
-        art: 'form',
-        bg: '#f7f0c6'
-    },
-    {
-        name: 'HUGE GARAGE SALE THIS SATURDAY',
-        tagline: 'Local man selling everything, including feelings.',
-        items: [['Exercise bike, never used', '25¢'], ['Box of cables (all of them)', '$1'], ["Ex-wife's bread maker", '50¢'], ['Feelings, assorted', 'MAKE OFFER']],
-        deal: ['SAT', '7 AM'],
-        call: '1440 ELM STREET · PARK ON THE LAWN, IT IS FINE',
-        fine: 'Feelings sold as is. Cash only. Do not haggle with Dennis.',
-        art: 'tag',
-        bg: '#f3e6cf'
-    },
-    {
-        name: 'THE BEAN SCENE',
-        tagline: 'Coffee so strong it has opinions about you.',
-        items: [['House blend, judgmental', '$1.25'], ['Espresso, disappointed in you', '$1.75'], ["Decaf (we'll allow it)", '$3.50'], ['Muffin of the day', '$1.99']],
-        deal: ['REFILLS', '$2'],
-        call: 'CORNER OF MAIN & 3RD · OPEN 6 AM',
-        fine: 'Decaf available on request and judgement.',
-        art: 'mug',
-        bg: '#eadfd2'
+        art: 'form'
     }
 ];
 
@@ -164,17 +211,7 @@ export function drawAdArt(c, art, cx, cy, size) {
         c.stroke();
     };
     const disc = (fill, x, y, r) => shape(fill, () => c.arc(x, y, r, 0, Math.PI * 2));
-    if (art === 'mattress') {
-        shape('#8a5a33', () => c.rect(10, 70, 6, 14));
-        shape('#8a5a33', () => c.rect(84, 70, 6, 14));
-        shape('#f7f7ff', () => c.roundRect(6, 46, 88, 26, 8));
-        c.beginPath();
-        for (let x = 20; x < 90; x += 14) { c.moveTo(x, 52); c.lineTo(x, 66); }
-        c.strokeStyle = '#9db0d8';
-        c.stroke();
-        c.strokeStyle = OUTLINE;
-        shape('#ffffff', () => c.roundRect(12, 34, 30, 16, 6));
-    } else if (art === 'car') {
+    if (art === 'car') {
         shape('#d8343a', () => {
             c.moveTo(6, 70);
             c.lineTo(6, 54);
@@ -206,27 +243,6 @@ export function drawAdArt(c, art, cx, cy, size) {
         c.font = 'bold 11px "Times New Roman", Times, serif';
         c.textAlign = 'center';
         c.fillText('PLEASE REWIND', 50, 42, 62);
-    } else if (art === 'tooth') {
-        shape('#ffffff', () => {
-            c.moveTo(24, 22);
-            c.bezierCurveTo(30, 6, 44, 14, 50, 18);
-            c.bezierCurveTo(56, 14, 70, 6, 76, 22);
-            c.bezierCurveTo(82, 40, 72, 52, 70, 64);
-            c.bezierCurveTo(68, 80, 64, 92, 58, 90);
-            c.bezierCurveTo(54, 88, 54, 66, 50, 66);
-            c.bezierCurveTo(46, 66, 46, 88, 42, 90);
-            c.bezierCurveTo(36, 92, 32, 80, 30, 64);
-            c.bezierCurveTo(28, 52, 18, 40, 24, 22);
-            c.closePath();
-        });
-        c.beginPath();
-        c.arc(42, 38, 2.5, 0, Math.PI * 2);
-        c.arc(58, 38, 2.5, 0, Math.PI * 2);
-        c.fillStyle = OUTLINE;
-        c.fill();
-        c.beginPath();
-        c.arc(50, 44, 8, 0.15 * Math.PI, 0.85 * Math.PI);
-        c.stroke();
     } else if (art === 'form') {
         shape('#ffffff', () => { c.moveTo(20, 8); c.lineTo(68, 8); c.lineTo(82, 22); c.lineTo(82, 92); c.lineTo(20, 92); c.closePath(); });
         c.beginPath();
@@ -255,31 +271,105 @@ export function drawAdArt(c, art, cx, cy, size) {
         c.textAlign = 'center';
         c.fillText('Confusion', 50, 63, 32);
         disc('#c9a24a', 50, 10, 6);
-    } else if (art === 'tag') {
-        shape('#f5d36b', () => { c.moveTo(30, 14); c.lineTo(86, 14); c.lineTo(86, 70); c.lineTo(30, 70); c.lineTo(10, 42); c.closePath(); });
-        disc('#ffffff', 24, 42, 5);
+    } else if (art === 'bear') {
+        // Big Ron: a bear in a suit, aviators on
+        shape('#1f2a44', () => { c.moveTo(12, 100); c.lineTo(22, 76); c.lineTo(78, 76); c.lineTo(88, 100); c.closePath(); });
+        shape('#ffffff', () => { c.moveTo(42, 76); c.lineTo(50, 92); c.lineTo(58, 76); c.closePath(); });
+        shape('#c62828', () => { c.moveTo(47, 78); c.lineTo(53, 78); c.lineTo(55, 92); c.lineTo(50, 98); c.lineTo(45, 92); c.closePath(); });
+        disc('#7a4a26', 28, 22, 10);
+        disc('#7a4a26', 72, 22, 10);
+        disc('#7a4a26', 50, 46, 28);
+        shape('#c9945e', () => c.ellipse(50, 58, 15, 11, 0, 0, Math.PI * 2));
+        disc('#1a1a1a', 50, 52, 4);
+        c.fillStyle = '#1a1a1a';
+        c.fillRect(32, 36, 15, 9);
+        c.fillRect(53, 36, 15, 9);
+        c.fillRect(46, 38, 8, 3);
+    } else if (art === 'pup') {
+        // A pup's head, tongue out, tag on the collar
+        shape('#8a5a33', () => c.ellipse(24, 40, 12, 24, 0.35, 0, Math.PI * 2));
+        shape('#8a5a33', () => c.ellipse(76, 40, 12, 24, -0.35, 0, Math.PI * 2));
+        disc('#d9a066', 50, 50, 30);
+        shape('#f3e3c8', () => c.ellipse(50, 64, 16, 12, 0, 0, Math.PI * 2));
+        disc('#1a1a1a', 50, 56, 5);
+        disc('#1a1a1a', 39, 44, 3.5);
+        disc('#1a1a1a', 61, 44, 3.5);
+        shape('#ff7aa2', () => c.ellipse(54, 76, 5, 8, 0, 0, Math.PI * 2));
+        shape('#c62828', () => c.rect(28, 84, 44, 7));
+        disc('#ffd23f', 50, 94, 5);
+    } else if (art === 'paw') {
+        // A paw print, pink beans on cream
+        disc('#f7c6d9', 50, 64, 22);
+        disc('#f7c6d9', 22, 40, 10);
+        disc('#f7c6d9', 38, 24, 10);
+        disc('#f7c6d9', 62, 24, 10);
+        disc('#f7c6d9', 78, 40, 10);
+        c.fillStyle = '#ffffff';
+        for (const [x, y] of [[60, 34], [34, 60], [72, 66]]) { c.beginPath(); c.arc(x, y, 2, 0, Math.PI * 2); c.fill(); }
+    } else if (art === 'flannel') {
+        // A red plaid flannel shirt
+        const body = () => { c.moveTo(30, 12); c.lineTo(10, 26); c.lineTo(16, 44); c.lineTo(26, 40); c.lineTo(26, 92); c.lineTo(74, 92); c.lineTo(74, 40); c.lineTo(84, 44); c.lineTo(90, 26); c.lineTo(70, 12); c.lineTo(58, 18); c.lineTo(42, 18); c.closePath(); };
+        shape('#b3261e', body);
+        c.save();
         c.beginPath();
-        c.moveTo(19, 42);
-        c.bezierCurveTo(4, 50, 8, 80, 30, 90);
-        c.stroke();
-        c.fillStyle = OUTLINE;
-        c.font = 'bold 22px "Times New Roman", Times, serif';
-        c.textAlign = 'center';
-        c.fillText('25¢', 58, 50, 44);
-    } else if (art === 'mug') {
-        shape('#f2f2f2', () => {
-            c.moveTo(70, 40);
-            c.bezierCurveTo(92, 40, 92, 72, 70, 72);
-            c.lineTo(70, 64);
-            c.bezierCurveTo(82, 64, 82, 48, 70, 48);
-            c.closePath();
-        });
-        shape('#ffffff', () => c.roundRect(20, 30, 54, 62, 6));
-        shape('#5a3a22', () => c.ellipse(47, 32, 25, 5, 0, 0, Math.PI * 2));
+        body();
+        c.clip();
+        c.fillStyle = 'hsla(0, 0%, 0%, 0.35)';
+        for (let x = 6; x < 96; x += 16) c.fillRect(x, 0, 6, 100);
+        for (let y = 10; y < 96; y += 16) c.fillRect(0, y, 100, 6);
+        c.restore();
         c.beginPath();
-        for (const x of [36, 48, 60]) { c.moveTo(x, 22); c.bezierCurveTo(x - 6, 14, x + 6, 10, x, 2); }
-        c.strokeStyle = '#9a9a9a';
+        body();
         c.stroke();
+        c.beginPath();
+        c.moveTo(50, 20);
+        c.lineTo(50, 92);
+        c.stroke();
+        for (const y of [32, 50, 68, 84]) disc('#f3e6c8', 50, y, 2.5);
+    } else if (art === 'roller') {
+        // A paint roller mid-stroke: hunter green over mauve
+        shape('#9e6b7c', () => c.rect(8, 8, 58, 40));
+        shape('#2f5d3a', () => c.rect(8, 14, 58, 24));
+        shape('#2f5d3a', () => c.roundRect(14, 8, 52, 30, 8));
+        c.beginPath();
+        c.moveTo(66, 23);
+        c.lineTo(80, 23);
+        c.lineTo(80, 50);
+        c.lineTo(52, 54);
+        c.lineTo(52, 70);
+        c.lineWidth = 5;
+        c.stroke();
+        c.lineWidth = 3;
+        shape('#d8c38a', () => c.roundRect(45, 68, 14, 28, 5));
+    } else if (art === 'crystal') {
+        shape('#c9a24a', () => { c.moveTo(28, 92); c.lineTo(36, 76); c.lineTo(64, 76); c.lineTo(72, 92); c.closePath(); });
+        const g = c.createRadialGradient(42, 34, 4, 50, 46, 36);
+        g.addColorStop(0, '#d8fff6');
+        g.addColorStop(1, '#2aa198');
+        disc(g, 50, 46, 32);
+        c.fillStyle = 'hsla(0, 0%, 100%, 0.8)';
+        c.beginPath();
+        c.ellipse(40, 32, 8, 5, -0.5, 0, Math.PI * 2);
+        c.fill();
+    } else if (art === 'banana') {
+        // A banana with a zipper: the Re-Peeler's patient
+        const curve = () => { c.moveTo(14, 58); c.quadraticCurveTo(48, 104, 88, 26); c.quadraticCurveTo(52, 76, 14, 58); };
+        shape('#f5d33d', curve);
+        shape('#6b4a2a', () => c.rect(84, 18, 8, 10));
+        c.strokeStyle = '#8c8c8c';
+        c.lineWidth = 2.5;
+        for (let k = 1; k < 9; k++) {
+            const t = 0.12 + k * 0.085;
+            const x = (1 - t) ** 2 * 14 + 2 * (1 - t) * t * 50 + t * t * 88;
+            const y = (1 - t) ** 2 * 58 + 2 * (1 - t) * t * 90 + t * t * 26;
+            c.beginPath();
+            c.moveTo(x - 2.5, y - 3);
+            c.lineTo(x + 2.5, y + 3);
+            c.stroke();
+        }
+        c.strokeStyle = OUTLINE;
+        c.lineWidth = 3;
+        shape('#8c8c8c', () => c.roundRect(10, 54, 8, 12, 2));
     }
     c.restore();
 }
@@ -289,7 +379,7 @@ export function drawAdArt(c, art, cx, cy, size) {
  * dark outline, centred on (cx, cy), radius r. The text goes on top.
  * @param {CanvasRenderingContext2D} c
  */
-export function drawStarburst(c, cx, cy, r) {
+export function drawStarburst(c, cx, cy, r, fill = '#e8401a') {
     c.save();
     c.beginPath();
     const points = 18;
@@ -299,7 +389,7 @@ export function drawStarburst(c, cx, cy, r) {
         c.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
     }
     c.closePath();
-    c.fillStyle = '#e8401a';
+    c.fillStyle = fill;
     c.fill();
     c.lineWidth = 4;
     c.strokeStyle = OUTLINE;

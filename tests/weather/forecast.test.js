@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { DEMO_REGIONS as REGIONS } from '../../src/weather/regions.js';
 import {
     localParts, normalsFor, condition, precipType, regionForecast,
-    currentConditions, localForecastText, sunTimes, formatClock, nextMoonPhases,
+    currentConditions, localForecastText, sunTimes, formatClock, nextMoonPhases, homeRegion,
     relativeHumidity, windChill, heatIndex, temperatureAt, regionBulletin, hashSeed
 } from '../../src/weather/forecast.js';
 
@@ -200,5 +200,27 @@ describe('crawl', () => {
     it('mixes seeds into distinct values', () => {
         expect(hashSeed(1, 2, 3)).not.toBe(hashSeed(1, 2, 4));
         expect(hashSeed(1, 2, 3)).toBe(hashSeed(1, 2, 3));
+    });
+});
+
+describe('homeRegion', () => {
+    const regions = [
+        { timeZone: 'America/New_York' },
+        { timeZone: 'America/Chicago' },
+        { timeZone: 'America/Denver' },
+        { timeZone: 'America/Los_Angeles' }
+    ];
+    const t = Date.UTC(2026, 10, 11, 17);
+    it('opens on the region in the computer’s own zone', () => {
+        expect(homeRegion(regions, 'America/Denver', t)).toBe(2);
+    });
+    it('falls back to the nearest UTC offset', () => {
+        expect(homeRegion(regions, 'America/Phoenix', t)).toBe(2);          // UTC-7, like Denver in winter
+        expect(homeRegion(regions, 'America/Indiana/Indianapolis', t)).toBe(0);
+        expect(homeRegion(regions, 'Europe/London', t)).toBe(0);
+        expect(homeRegion(regions, 'Pacific/Honolulu', t)).toBe(3);
+    });
+    it('copes with a zone the browser does not know', () => {
+        expect(homeRegion(regions, 'Not/AZone', t)).toBe(0);
     });
 });

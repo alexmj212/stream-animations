@@ -562,6 +562,10 @@ export const config = {
         driftMin: 4,              // px/s rightward while holding
         driftMax: 12,
         alpha: 0.85,
+      // The map is drawn at this many frame px per map pixel, with hard
+      // one-pixel outlines, then blown up unsmoothed: the WeatherStar's
+      // single-pixel line look (AJ, 2026-11-11)
+      mapPixel: 2,
         // Streaks stay clear of the text while it shows (design review, PR
         // #27): their tails end this far right of its ink, and at least
         // minVisible px of each streak stays on show
@@ -1515,6 +1519,22 @@ export const config = {
     // Icons flip between their two frames this often (AJ, 2026-11-11: "two
     // frames of animation"): about the pace of the old character generators
     iconFrameMs: 600,
+    // A new page sweeps on top to bottom in 8 px steps, the way the
+    // character generator painted a screen (AJ, 2026-11-11: "there needs to
+    // be a sweep when the font renders"); ads cut straight in
+    sweepMs: 600,
+    sweepStepPx: 8,
+    sweepHitchMs: 180,      // every third sweep stalls this long partway down (90s jank, AJ 2026-11-11)
+    // Station ID bumper (AJ, 2026-11-11: "we need a ID bumper as well for
+    // station identification"): the last idMs of every ad break. The logo
+    // slides in, the lines type on, a shine crosses the logo.
+    id: {
+        ms: 3500,
+        slideMs: 500,
+        typeMs: 35,             // per character
+        shineMs: 450,
+        lines: ["YOU'RE WATCHING", 'YOUR LOCAL FORECAST', 'AROUND THE CLOCK ON CABLE 32']
+    },
     // Ads (AJ, 2026-11-11): the text ads live in src/weather/ads.js. Video
     // ads are URLs here (mp4/webm, CORS open), played muted in the break
     // and taking turns with the text ads

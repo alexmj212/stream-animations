@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Exo-Cast</title>
+    <link rel="stylesheet" href="./fonts/star4000.css">
     <style>
       * {
         margin: 0;
@@ -28,6 +29,7 @@
 
     <script type="module">
       import { WeatherChannel } from "./WeatherChannel.js";
+      import { homeRegion } from "./forecast.js";
       import { NwsSource, DemoSource } from "./data.js";
       import { config } from "../config/config.js";
       import { seedFromURL, registerProbe } from "../shared/motion.js";
@@ -43,7 +45,9 @@
       //   ?data=demo     generated forecasts for made-up towns, no network
       //                  (the motion harness and mocks); default live NWS
       //   ?seed=N        demo only: another set of forecasts (default 0)
-      //   ?region=N|name region to open on (index or name, e.g. midwest)
+      //   ?region=N|name region to open on (index or name, e.g. midwest);
+      //                  default the one nearest the computer's time zone
+      //   ?tz=Zone       pretend the computer is in this zone (mocks: ?tz=America/Denver)
       //   ?page=name     hold one page: current, local, extended, radar, regional, almanac, ad
       //   ?pages=a,b     run only these pages, in this order (mocks: ?pages=almanac,ad)
       //   ?ads=0         no ad breaks
@@ -68,8 +72,12 @@
         ? new DemoSource({ seed: seedFromURL() ?? 0, now })
         : new NwsSource({ cfg: cfg.data, debug });
       const regionParam = (urlParams.get('region') || '').toUpperCase().replace(/[-_+]/g, ' ');
+      // The clock shows the computer's own time, and with no ?region the
+      // loop opens on the region nearest it (AJ, 2026-11-11)
+      cfg.viewerZone = urlParams.get('tz') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
       let region = data.regions.findIndex((r) => r.name === regionParam);
-      if (region < 0) region = Math.max(0, Math.floor(Number(regionParam)) || 0) % data.regions.length;
+      if (region < 0 && regionParam) region = Math.max(0, Math.floor(Number(regionParam)) || 0) % data.regions.length;
+      if (region < 0) region = homeRegion(data.regions, cfg.viewerZone, now());
 
       const canvas = document.getElementById("canvas");
       let tv = null;
@@ -99,7 +107,10 @@
         data.ensure(region),
         new Promise((resolve) => setTimeout(resolve, cfg.data.startWaitMs))
       ]);
-      Promise.all([document.fonts.ready, firstData]).then(() => {
+      // Canvas text doesn't make the browser fetch a face: load each one
+      const faces = ['Star4000', 'Star4000 Small', 'Star4000 Large', 'Star4000 Extended', 'Star4000 Radar']
+        .map((f) => document.fonts.load(`40px "${f}"`).catch(() => null));
+      Promise.all([document.fonts.ready, firstData, ...faces]).then(() => {
         tv = new WeatherChannel(canvas, { cfg, data, now, region, page, debug });
         registerProbe('weather', () => tv.probeSamples());
         debug.mark('start', { region: data.regions[region].name, page, source: data.source });
