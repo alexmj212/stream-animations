@@ -620,6 +620,14 @@ export class WeatherChannel {
      * @returns {HTMLVideoElement|null}
      */
     page_ad(c, index) {
+        // The break ends on the ID bumper: build its parts now, while the
+        // page is built ahead, not on the bumper's first frame (QA, #181)
+        if (!this.bumper) {
+            const log = textLog;
+            textLog = null;     // the logo's text isn't on this page
+            this.bumper = this.buildBumper();
+            textLog = log;
+        }
         const videos = this.cfg.ads?.videos ?? [];
         const breakNo = Math.floor(index / this.pages.length);
         let pick = pickAd(breakNo, ADS.length, videos.length);
