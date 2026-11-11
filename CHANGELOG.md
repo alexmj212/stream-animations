@@ -4,6 +4,13 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.21.0 - 2026-11-11
+
+- Exo-Cast's weather icons are now the WeatherStar 4000 ones (fan
+  redraws by Charles Abel, Nick Smith and Malek Masoud, credited in
+  `src/weather/ws4000/CREDITS.md`), drawn at whole-pixel sizes with no
+  smoothing and animated with their own frames. ([#187])
+
 ## v2.20.0 - 2026-11-11
 
 - Every Exo-Cast page now holds for 15 seconds (`?pagems=` still
@@ -372,3 +379,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#181]: https://github.com/alexmj212/stream-animations/pull/181
 [#183]: https://github.com/alexmj212/stream-animations/pull/183
 [#185]: https://github.com/alexmj212/stream-animations/pull/185
+[#187]: https://github.com/alexmj212/stream-animations/pull/187
