@@ -25,7 +25,7 @@ const extra = args.query ? `&${args.query}` : '';
 fs.mkdirSync(out, { recursive: true });
 
 const { server, baseUrl } = await startServer();
-const base = `${baseUrl}/src/weather/index.html?data=demo&music=0&at=2026-11-10T19:00:00Z`;
+const base = `${baseUrl}/src/weather/index.html?data=demo&at=2026-11-10T19:00:00Z`;
 const { browser } = await launchBrowser();
 const page = await browser.newPage();
 await page.setViewport({ width: 1920, height: 1080 });

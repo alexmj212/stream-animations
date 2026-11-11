@@ -1521,18 +1521,6 @@ export const config = {
     ads: {
       videos: []
     },
-    // Background music (AJ, 2026-11-11: "j fusion jazz"): an original loop
-    // synthesised in src/weather/music.js, rendered once at load. The loop
-    // is normalised to a 0 dBFS peak and this gain sets its level, with no
-    // limiter: the true peak stays under the -20 dBFS music zone (Audio
-    // expert, 2026-11-11). At -21 dB that is -21 dBTP and about -36 LUFS:
-    // the loop's natural 14 dB peak-to-loudness keeps it under the break
-    // screen's Spotify (-26 to -28 LUFS); raise it in OBS if AJ wants more.
-    // npm run audio -- assets checks it
-    music: {
-      enabled: true,
-      gainDb: -21
-    },
     // The next page is drawn this long after a cut, so the cut itself is
     // one blit (Performance expert, 2026-11-10)
     prepareDelayMs: 1500,

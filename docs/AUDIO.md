@@ -40,10 +40,7 @@ showing it, but the stream and recording clip at 0 dBFS.
    `npm run audio -- meter <file>`; a file that was clipped before it was
    encoded (flat-topped waveform) is replaced, since no gain fixes that.
 5. Every sound file under `src/` is registered in `audioConfig.assets`
-   (`tools/audio/config.js`) with the gain its page applies. Sound a page
-   synthesises (Exo-Cast's music, 2026-11-11) is registered too, with a
-   `render` function that makes the same audio in Node; the check takes one
-   whole loop plus its first second again, so the seam is checked.
+   (`tools/audio/config.js`) with the gain its page applies.
    `npm run audio -- assets` checks them all and runs before every Pages
    deploy (`pages.yml`), so a new sound, or a gain change that pushes one
    into the red, never deploys. Run it locally before the PR.
