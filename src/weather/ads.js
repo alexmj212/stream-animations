@@ -23,23 +23,23 @@
 /** @type {Ad[]} */
 export const ADS = [
     {
-        name: "BIG SAL'S PRE-LOVED AUTOS",
+        name: "MELLOW'S FOREVER REALTY",
         layout: 'shout',
         colors: { a: '#d32020', b: '#ff3b2f', head: '#ffe14d', burst: '#ffe14d', burstInk: '#1a1a1a' },
-        banner: 'EVERY CAR DRIVEN BY SEVERAL GRANDMOTHERS AT ONCE!',
-        rows: [["'89 SEDAN, ONE DOOR", '$1,200'], ['CONVERTIBLE (ROOF STOLEN)', '$900']],
-        deal: ['$0', 'DOWN*'],
-        call: '555-0123 · HIGHWAY 61',
-        fine: '*Sal is legally not allowed to say "mint condition."',
+        banner: 'SEASONAL RESIDENTS WELCOME! (HI EXO)',
+        rows: [["EXO'S HOUSE, VISITED 2 MONTHS A YEAR", '$5'], ['IRON TOWN, 4 YEARS OF BUILDS', 'PRICELESS']],
+        deal: ['NO NEW', 'SERVERS!'],
+        call: '555-0128 · THE FOREVER SERVER',
+        fine: '"I\'m not making another." Exo said it. Mellow wrote it down.',
         art: 'car'
     },
     {
-        name: 'Confusion',
+        name: 'Course Six',
         layout: 'luxe',
-        line: 'For the man who walked into a room and forgot why.',
+        line: 'Notes of panic, betrayal and one more portal.',
         price: '$29.99 the ounce',
-        call: 'AT FINER DEPARTMENT STORES, PROBABLY',
-        fine: 'Side effects may include standing in doorways.',
+        call: 'NOT SOLD TO MOO. EXO PROMISED.',
+        fine: 'Exo said ten minutes. It was two and a half hours.',
         art: 'perfume'
     },
     {
@@ -81,14 +81,14 @@ export const ADS = [
         art: 'bear'
     },
     {
-        name: 'THE RE-PEELER(TM)',
+        name: 'SCUFFED ECONOMICS(TM)',
         layout: 'infomercial',
-        sub: "Peeled a banana too early? We've all been there.",
-        lead: 'Only 3 easy payments of',
-        price: '$19.99',
-        wait: ['BUT WAIT!', 'Second one FREE, for your other banana.'],
-        call: 'CALL 555-0150 NOW',
-        fine: 'Operators are standing by. One is sitting.',
+        sub: 'Chat had too much ExoCoin. One viewer said something.',
+        lead: 'Your whole daily allowance, now just',
+        price: '1 REACH',
+        wait: ['BUT WAIT!', 'There is no more. Scuffed saw to that.'],
+        call: "COMPLAINTS: SEE JEFF'S FORM",
+        fine: 'ExoCoin Reserve, chaired by Scuffed. $0.00 refunded.',
         art: 'banana'
     },
     {
@@ -115,14 +115,14 @@ export const ADS = [
         art: 'roller'
     },
     {
-        name: 'REWIND CITY VIDEO',
+        name: "JEFF'S COMPLAINT DEPT.",
         layout: 'classified',
-        bar: 'HELP WANTED',
-        body: "Must rewind. Must have opinions about movies. Must not be Doug's nephew again.",
-        wage: '$4.25/HR + ALL THE POPCORN THAT FELL',
-        contact: ['APPLY BEFORE 9, OR WHEN DOUG LEAVES', '555-0142'],
-        fine: 'Late fees are emotional, not financial.',
-        art: 'tape'
+        bar: 'NOW HIRING',
+        body: 'Seeking a reader for our Terms. The last applicant is still scrolling. Must accept that Jeff asked for this.',
+        wage: '$0.00/HR + DENTAL (SEE TERMS)',
+        contact: ['FILE A TICKET. SCROLL ALL THE WAY DOWN.', '555-0135'],
+        fine: 'Complaints about the form go in the form.',
+        art: 'form'
     },
     {
         name: 'THE DEN',
@@ -152,16 +152,16 @@ export const ADS = [
         art: 'crystal'
     },
     {
-        name: "TONY'S TAXIDERMY & TAX PREP",
+        name: "FIERY BEAR'S TAKEOVER SALON",
         layout: 'menu',
         board: 'wood',
         colors: { head: '#ffd23f', ink: '#f3e6c8', burst: '#e8401a', burstInk: '#ffffff' },
-        tagline: 'We stuff deer. We also stuff returns.',
-        items: [['Short form 1040', '$35'], ['Mounted bass, any mood', '$60'], ['Your audit, stuffed and mounted', '$150']],
-        deal: ['COMBO', '$89'],
-        call: '555-0199 · ASK FOR TONY. EITHER TONY.',
-        fine: 'Not a licensed accountant. Barely a licensed taxidermist.',
-        art: 'form'
+        tagline: 'Tough love. Soft belly. Sundays only.',
+        items: [['Beard, held to salon standards', '$40'], ['Staff meeting, someone cries', '$25'], ['Flannel, emotionally ironed', '$15']],
+        deal: ['WOOF', 'SPECIAL'],
+        call: '555-0157 · WALK-INS GET TAKEN OVER',
+        fine: 'Business plan: one watch-along request.',
+        art: 'roller'
     }
 ];
 
