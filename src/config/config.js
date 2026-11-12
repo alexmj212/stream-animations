@@ -1518,7 +1518,7 @@ export const config = {
     // notes (2026-11-10: "also a radar map screen"); the joke ad is the break
     // between regions (AJ, 2026-11-11: "interstitial ads between regions"),
     // and the station ID follows it as a page of its own (AJ, 2026-11-11)
-    pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac', 'ad', 'id'],
+    pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac', 'ad', 'sponsors', 'id'],
     // Icons flip between their two frames this often (AJ, 2026-11-11: "two
     // frames of animation"): about the pace of the old character generators
     // Since 2026-11-11 the WeatherStar icons run at their own GIF frame

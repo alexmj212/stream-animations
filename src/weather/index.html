@@ -65,6 +65,8 @@
       if (num('fps') >= 1) cfg.fps = Math.min(120, num('fps'));
       if (urlParams.get('station')) cfg.station = urlParams.get('station').slice(0, 5).toUpperCase();
       if (urlParams.get('ads') === '0') cfg.pages = cfg.pages.filter((p) => p !== 'ad');
+      if (urlParams.get('sponsorstyle')) cfg.sponsorStyle = urlParams.get('sponsorstyle');
+      if (urlParams.has('sponsors')) cfg.sponsors = urlParams.get('sponsors');
       const only = (urlParams.get('pages') || '').split(',').filter((p) => config.weather.pages.includes(p));
       if (only.length) cfg.pages = only;
       const page = config.weather.pages.includes(urlParams.get('page')) ? urlParams.get('page') : null;

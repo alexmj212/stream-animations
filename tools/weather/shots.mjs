@@ -18,8 +18,9 @@ import { config } from '../../src/config/config.js';
 import { ADS } from '../../src/weather/ads.js';
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => {
-    const [k, v] = a.replace(/^--/, '').split('=');
-    return [k, v ?? true];
+    // Split on the first '=' only, so --query=a=b keeps its value
+    const m = a.replace(/^--/, '').match(/^([^=]*)(?:=(.*))?$/);
+    return [m[1], m[2] ?? true];
 }));
 const out = args.out || 'tools/motion-results/weather-shots';
 const pages = args.pages ? String(args.pages).split(',') : config.weather.pages;

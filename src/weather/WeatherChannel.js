@@ -1,3 +1,4 @@
+import { parseSponsors, billingOrder, sponsorAmount, fitRows, DEMO_SPONSORS } from './sponsors.js';
 import { localParts, sunTimes, formatClock, nextMoonPhases, seasonTip, DAY_NAMES, MONTHS } from './forecast.js';
 import { weatherIcon, iconFrames } from './icons.js';
 import { buildCrtOverlay } from './crt.js';
@@ -103,6 +104,7 @@ const TEXT_SCALE = 1.35;
 const CAP_EM = 1421 / 2048;             // Star4000's cap height, in ems
 const ADV_EM = 973 / 2048;              // its (monospaced) advance
 const GLYPH_ROWS = PIXEL_FONT.above + PIXEL_FONT.cap + PIXEL_FONT.below;
+const UNDERSCORE = Array.from({ length: GLYPH_ROWS }, (_, y) => (y === GLYPH_ROWS - 3 || y === GLYPH_ROWS - 2 ? 0b1111111111110 : 0));
 let glyphAtlas = null;
 const glyphIndex = new Map();
 let glyphMask = null;
@@ -116,7 +118,11 @@ function buildAtlas() {
     a.fillStyle = '#ffffff';
     keys.forEach((ch, k) => {
         glyphIndex.set(ch, k);
-        GLYPHS[ch].forEach((row, y) => {
+        // The generator lost '_' below the descender rows: Twitch names
+        // need it (sponsors page, 2026-11-12), so draw it on the last row
+        // but one, as wide as the glyph's ink
+        const rows = ch === '_' && GLYPHS[ch].every((r) => r === 0) ? UNDERSCORE : GLYPHS[ch];
+        rows.forEach((row, y) => {
             for (let x = 0; x < PIXEL_FONT.cols; x++) {
                 if (row & (1 << (PIXEL_FONT.cols - 1 - x))) a.fillRect(k * PIXEL_FONT.cols + x, y, 1, 1);
             }
@@ -483,6 +489,8 @@ export class WeatherChannel {
         let video = null;
         if (page === 'ad') {
             video = this.page_ad(c, index);
+        } else if (page === 'sponsors') {
+            this.page_sponsors(c);
         } else if (page === 'id') {
             // Its own page since AJ (2026-11-11: "the station id page is
             // like less than 5, I think it should be 15 for all pages"):
@@ -511,6 +519,43 @@ export class WeatherChannel {
         const t = localParts(utcMs, region);
         const label = `${this.data.source === 'demo' ? 'DEMO DATA: ' : ''}OBSERVED ${formatClock(t.hour * 60 + t.minute)} ${t.zone}`;
         shadowText(c, label, 960, y, 32, PALE, { align: 'center' });
+    }
+
+    /**
+     * "This program is made possible by": subs and bit cheerers (AJ,
+     * 2026-11-12). Mock prototype: two layouts via cfg.sponsorStyle.
+     */
+    page_sponsors(c) {
+        const list = billingOrder(parseSponsors(this.cfg.sponsors ?? DEMO_SPONSORS));
+        if (this.cfg.sponsorStyle === 'table') {
+            shadowText(c, 'PROGRAM SPONSORS', 504, 148, 56, YELLOW, { italic: true, maxW: 740 });
+            shadowText(c, 'MADE POSSIBLE BY', 506, 194, 36, '#ffffff', { maxW: 770 });
+            shadowText(c, 'VIEWER', 350, 290, 36, PALE);
+            shadowText(c, 'SUPPORT', 1570, 290, 36, PALE, { align: 'right' });
+            const { shown, more } = fitRows(list, 9);
+            shown.forEach((s, i) => {
+                const y = 356 + i * 58;
+                shadowText(c, s.name, 350, y, 40, '#ffffff', { maxW: 820 });
+                shadowText(c, sponsorAmount(s), 1570, y, 40, s.kind === 'bits' ? GOLD : YELLOW, { align: 'right', maxW: 380 });
+            });
+            if (more) shadowText(c, `AND ${more} MORE`, 350, 356 + shown.length * 58, 40, PALE);
+            shadowText(c, 'AND BY VIEWERS LIKE YOU. THANK YOU!', 960, 884, 36, YELLOW, { align: 'center', italic: true, maxW: 1200 });
+            return;
+        }
+        // PBS-style underwriting card: two columns, names only
+        shadowText(c, 'THIS PROGRAM IS', 960, 290, 48, '#ffffff', { align: 'center' });
+        shadowText(c, 'MADE POSSIBLE BY', 960, 350, 56, YELLOW, { align: 'center', italic: true });
+        const subs = list.filter((s) => s.kind !== 'bits');
+        const bits = list.filter((s) => s.kind === 'bits');
+        const col = (title, items, cx) => {
+            shadowText(c, title, cx, 440, 40, GOLD, { align: 'center', italic: true });
+            const { shown, more } = fitRows(items, 6);
+            shown.forEach((s, i) => shadowText(c, s.name, cx, 500 + i * 52, 36, '#ffffff', { align: 'center', maxW: 600 }));
+            if (more) shadowText(c, `+ ${more} MORE`, cx, 500 + shown.length * 52, 36, PALE, { align: 'center' });
+        };
+        col('SUBSCRIBERS', subs, 640);
+        col('BIT CHEERERS', bits, 1280);
+        shadowText(c, 'AND BY VIEWERS LIKE YOU.', 960, 860, 40, YELLOW, { align: 'center', italic: true });
     }
 
     page_unavailable(c) {
