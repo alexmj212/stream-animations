@@ -4,6 +4,11 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.23.0 - 2026-11-12
+
+- Two Exo-Cast ads now use real cut-out photos of a puppy and a cat in
+  place of the clip art, both CC0 and credited in the photo credits. ([#195])
+
 ## v2.22.1 - 2026-11-11
 
 - Exo-Cast's radar no longer draws a dot for a town it can't label, so
@@ -401,3 +406,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#189]: https://github.com/alexmj212/stream-animations/pull/189
 [#191]: https://github.com/alexmj212/stream-animations/pull/191
 [#193]: https://github.com/alexmj212/stream-animations/pull/193
+[#195]: https://github.com/alexmj212/stream-animations/pull/195
