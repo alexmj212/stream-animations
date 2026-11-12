@@ -23,6 +23,7 @@ tool calls costs ten re-reads. Run the script, read its answer, move on.
 | Rebuild the WeatherStar icon strips from a ws4kp checkout | `python3 tools/weather/build_ws4000_icons.py <ws4kp>/server/images/icons` |
 | Mock frames of the weather page (each page on demo data, every ad with `--ads`) | `npm run weather:shots -- --out=<dir> [--pages=current,ad] [--ads]` |
 | What a Twitch encode (x264 veryfast CBR 720p60) does to the weather page's text, noise on vs off (PSNR + stills) | `npm run weather:encode -- [--seconds=20] [--kbps=6000] [--out=<dir>]` |
+| Cut a real photo out of its background for an ad picture (rembg; setup in the script's header) | `python tools/weather/cutout.py <photo> src/weather/photos/<name>.png` |
 | Check a scene live | `npm run dev`, then `/src/<scene>/index.html?perf=true` |
 
 In the cloud container, headless Chrome is at `/opt/pw-browsers/chromium`;
