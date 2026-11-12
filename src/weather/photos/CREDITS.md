@@ -6,7 +6,7 @@ cropped stock photos). CC0 only, no real people or brands (design review, #181).
 are real CC0 photos from Wikimedia Commons, cut out; the rest are from
 Openclipart, which is 100% CC0 1.0; each detail page's metadata states
 `creativecommons.org/publicdomain/zero/1.0/`. No credit is required; it's given anyway.
-Every file was trimmed to its alpha bounds, scaled to 480 px or less on the longest side, and saved as an optimized PNG, then quantised to 96 colours for the single-file build (crystal.png kept whole, for its soft glow; pup.png and paw.png kept whole too, because real photos band at 96 colours).
+Every file was trimmed to its alpha bounds, scaled to 480 px or less on the longest side, and saved as an optimized PNG, then quantised to 96 colours for the single-file build (crystal.png kept whole, for its soft glow; pup.png and paw.png quantised to 256 colours instead, because real photos band at 96).
 
 | File | Title | Creator | Licence | Source URL | How |
 |---|---|---|---|---|---|
