@@ -8,7 +8,11 @@
 // (adLayouts.js), consecutive breaks never repeat a format or colour family,
 // and every card stays near 45 words for the 10 s hold. Every business is
 // made up and every number is a fictional 555-01xx. Stream-safe: playful,
-// never explicit. Video ads are URLs in config.weather.ads.videos.
+// never explicit. The channel ads joke from inside the culture (AJ,
+// 2026-11-12: the bear ad should be "mocking stereotypes or poking fun of
+// that culture, I'm in it"), and Exo, AJ's name on stream, fronts the
+// renovation ad (a nod to Decorating Cents, the Sunday watch-along).
+// Video ads are URLs in config.weather.ads.videos.
 
 /**
  * @typedef {Object} Ad
@@ -49,9 +53,9 @@ export const ADS = [
         title: 'COMMUNITY BULLETIN BOARD',
         tag: 'ITEM 4 OF 31',
         heading: 'PUP SUPPLY CO. · NOW OPEN',
-        rows: [['Squeaky toy, extra squeak', '$4'], ['Name tag, "GOOD BOY"', '$6'], ["Being told you're a good boy", 'FREE']],
-        call: 'WE DO NOT SAY "WALK" OUT LOUD',
-        fine: 'Please do not chew the merchandise. Okay, one.',
+        rows: [['Neoprene hood, new-pup smell', '$60'], ['Knee pads, for the pup mosh', '$15'], ['Handler, gently used', 'ASK']],
+        call: 'RING THE BELL. WE WILL ALL BARK.',
+        fine: 'Being in headspace does not get you out of your shift.',
         art: 'pup'
     },
     {
@@ -72,12 +76,12 @@ export const ADS = [
         layout: 'spokes',
         colors: { a: '#0d1b2a', b: '#1f3d63', portrait: '#c9d6e8' },
         plate: 'BIG RON',
-        title: 'Bondsman. Bear. Hugger.',
+        title: 'Bondsman. Bear. Daddy.',
         question: 'HAVE YOU BEEN:',
-        checklist: [['Timed out', true], ['Banned for typing "first"', true], ['Actually innocent', false]],
-        fee: ['BAIL FROM $5', 'HUGS INCLUDED, NON-NEGOTIABLE'],
+        checklist: [['Timed out for typing "woof"', true], ['Sent to horny jail', true], ['Actually innocent', false]],
+        fee: ['BAIL FROM $5', 'BEAR HUG ON RELEASE, NON-NEGOTIABLE'],
         call: '555-0148 · OUT OF CHAT JAIL TONIGHT',
-        fine: 'Ron is not a licensed bondsman. Ron is a licensed hugger.',
+        fine: 'Ron is not a licensed bondsman. Ron is just very large and supportive.',
         art: 'bear'
     },
     {
@@ -96,22 +100,22 @@ export const ADS = [
         layout: 'menu',
         board: 'chalk',
         colors: { head: '#ff9ec7', ink: '#f3eefa', burst: '#ff9ec7', burstInk: '#1a1a1a' },
-        tagline: 'Fursuit dry cleaning. We know what you did at the con.',
-        items: [['Head, full refresh', '$40'], ['Tail, re-floof', '$15'], ['Paws, de-crunch', '$20']],
+        tagline: 'Fursuit dry cleaning. We have smelled what you did at the con.',
+        items: [['Head, post-con exorcism', '$40'], ['Tail, re-floof after the dance', '$15'], ['Body, energy drink extraction', '$60']],
         deal: ['SAME DAY', 'FLOOF!'],
-        call: '555-0172 · DROP-OFF AROUND BACK',
+        call: '555-0172 · DROP-OFF AROUND BACK. HOLD YOUR BREATH.',
         fine: 'Not responsible for glitter. Nobody is.',
         art: 'paw'
     },
     {
-        name: "SALLY'S 90s HOME MAKEOVER",
+        name: "EXO'S HOME RENOVATIONS",
         layout: 'shout',
         colors: { a: '#1f4d33', b: '#2f6b45', head: '#f7c6d9', outline: '#2a0f1a', burst: '#9e6b7c', burstInk: '#ffffff' },
-        banner: 'WALLPAPER BORDERS! SPONGE PAINT! WHY NOT BOTH?',
-        rows: [['GEESE BORDER, BY THE FOOT', '$3'], ['SPONGE-PAINTED ACCENT WALL', '$99'], ['GLASS BLOCK, ANYWHERE', '$45']],
-        deal: ['NOW IN', 'MAUVE!'],
-        call: '555-0193 · SHOWROOM BEHIND THE VIDEO STORE',
-        fine: "Sally's own living room is beige.",
+        banner: 'DECORATING CENTS ON A DOLLAR-STORE BUDGET!',
+        rows: [['WHOLE ROOM MADE OVER', '$0.47'], ['ONE (1) THROW PILLOW', '$900'], ['GOOD TASTE', 'N/A']],
+        deal: ['UNDER', 'BUDGET!*'],
+        call: '555-0193 · SUNDAYS, RIGHT HERE',
+        fine: '*Budget does not include pillows. Nothing includes pillows.',
         art: 'roller'
     },
     {
@@ -129,13 +133,13 @@ export const ADS = [
         layout: 'coupon',
         pattern: 'plaid',
         colors: { p1: '#8e1b1b', p2: '#1a1a1a', coupon: '#fbf6ea', name: '#5a2a12', stamp: '#8e1b1b' },
-        sub: 'Big & tall flannel outlet. Soft enough to hibernate in.',
+        sub: 'Flannel for bears who have never once chopped wood.',
         deal: 'BOGO',
-        detail: ['BUY ONE FLANNEL,', 'GET ONE FLANNEL'],
-        conditions: 'All flannels are plaid. Ask anyway.',
+        detail: ['BUY ONE FLANNEL,', 'GET ONE FOR YOUR OTTER'],
+        conditions: 'Sizes: Cub, Bear, Daddy, and "It Stretches."',
         stamp: 'WOOF!',
-        call: '555-0166 · NEXT TO THE CABIN',
-        fine: 'Beards welcome. Beards expected.',
+        call: '555-0166 · NEXT TO THE BEARD OIL BAR',
+        fine: 'No manscaping on the premises. Chasers wait outside.',
         art: 'flannel'
     },
     {
@@ -207,6 +211,22 @@ export function pickAd(cycle, textCount, videoCount) {
     const pairs = Math.min(textCount, videoCount);
     if (k < pairs * 2) return k % 2 ? { kind: 'video', index: (k - 1) / 2 } : { kind: 'text', index: k / 2 };
     return textCount > videoCount ? { kind: 'text', index: k - pairs } : { kind: 'video', index: k - pairs };
+}
+
+/**
+ * How many ad breaks came before page `index` of the endless rotation, so
+ * each break shows the next ad even when a loop has more than one break
+ * (AJ, 2026-11-12: a break every 3 pages, twice per region).
+ * @param {string[]} pages - The rotation, e.g. config.weather.pages
+ * @param {number} index - Running page index
+ * @returns {number}
+ */
+export function breakNumber(pages, index) {
+    const n = pages.length;
+    const perLoop = pages.filter((p) => p === 'ad').length;
+    const loops = Math.floor(index / n);
+    const within = pages.slice(0, ((index % n) + n) % n).filter((p) => p === 'ad').length;
+    return loops * perLoop + within;
 }
 
 const OUTLINE = '#1a1a1a';

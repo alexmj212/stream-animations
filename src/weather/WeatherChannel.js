@@ -3,7 +3,7 @@ import { weatherIcon, iconFrames } from './icons.js';
 import { buildCrtOverlay } from './crt.js';
 import { RadarLoader, placeLabels } from './radar.js';
 import { skyShort } from './data.js';
-import { ADS, pickAd } from './ads.js';
+import { ADS, pickAd, breakNumber } from './ads.js';
 import { drawAd } from './adLayouts.js';
 import { jokeAt } from './jokes.js';
 import { GLYPHS, PIXEL_FONT } from './pixelfont.js';
@@ -705,7 +705,7 @@ export class WeatherChannel {
      */
     page_ad(c, index) {
         const videos = this.cfg.ads?.videos ?? [];
-        const breakNo = Math.floor(index / this.pages.length);
+        const breakNo = breakNumber(this.pages, index);
         let pick = pickAd(breakNo, ADS.length, videos.length);
         let video = pick.kind === 'video' ? this.videoFor(videos[pick.index]) : null;
         // A video that failed to load gives its break to a text ad

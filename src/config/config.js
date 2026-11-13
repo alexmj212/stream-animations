@@ -1512,13 +1512,15 @@ export const config = {
     // set the OBS source's custom frame rate to match
     fps: 30,
     // Each page holds 15 s (AJ, 2026-11-11: "I think it should be 15 for all
-    // pages"; was 10 s); a region's eight pages take 2 min
+    // pages"; was 10 s); a region's nine pages take 2 min 15 s
     pageMs: 15000,
     // The pages in order, then the next region. Radar added on AJ's rework
     // notes (2026-11-10: "also a radar map screen"); the joke ad is the break
     // between regions (AJ, 2026-11-11: "interstitial ads between regions"),
-    // and the station ID follows it as a page of its own (AJ, 2026-11-11)
-    pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac', 'ad', 'id'],
+    // and the station ID follows it as a page of its own (AJ, 2026-11-11).
+    // A break every 3 pages, twice per region (AJ, 2026-11-12: ads "a little
+    // more frequent, but not constant or every other"); ID once per region
+    pages: ['current', 'local', 'extended', 'ad', 'radar', 'regional', 'almanac', 'ad', 'id'],
     // Icons flip between their two frames this often (AJ, 2026-11-11: "two
     // frames of animation"): about the pace of the old character generators
     // Since 2026-11-11 the WeatherStar icons run at their own GIF frame
@@ -1531,7 +1533,7 @@ export const config = {
     sweepStepPx: 8,
     sweepHitchMs: 180,      // every third sweep stalls this long partway down (90s jank, AJ 2026-11-11)
     // Station ID bumper (AJ, 2026-11-11: "we need a ID bumper as well for
-    // station identification"): the page after every ad break, held for
+    // station identification"): the page after each region's last break, held for
     // pageMs like the rest. The logo slides in, the lines type on, a shine
     // crosses the logo, then it holds.
     id: {

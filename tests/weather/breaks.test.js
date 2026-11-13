@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ADS, pickAd } from '../../src/weather/ads.js';
+import { ADS, pickAd, breakNumber } from '../../src/weather/ads.js';
 import { AD_LAYOUTS, COUPON, PICTURE_SHADOW } from '../../src/weather/adLayouts.js';
 import { JOKES, jokeAt } from '../../src/weather/jokes.js';
 
@@ -93,5 +93,14 @@ describe('coupon layout', () => {
         expect(pictureRight + 16).toBeLessThanOrEqual(textLeft);
         // and above the conditions line (its caps start ~26 px over the baseline)
         expect(COUPON.picture.y + COUPON.picture.h + PICTURE_SHADOW + 8).toBeLessThanOrEqual(COUPON.conditionsY - 26);
+    });
+});
+
+describe('breakNumber', () => {
+    it('counts every break, so two breaks a loop show two different ads', () => {
+        const pages = ['current', 'local', 'extended', 'ad', 'radar', 'regional', 'almanac', 'ad', 'id'];
+        const ads = pages.map((p, i) => [p, i]).filter(([p]) => p === 'ad').map(([, i]) => i);
+        const seen = [0, 1, 2].flatMap((loop) => ads.map((i) => breakNumber(pages, loop * pages.length + i)));
+        expect(seen).toEqual([0, 1, 2, 3, 4, 5]);
     });
 });
