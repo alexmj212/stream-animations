@@ -1,3 +1,4 @@
+import { rotateRows } from './sponsors.js';
 import { localParts, sunTimes, formatClock, nextMoonPhases, seasonTip, DAY_NAMES, MONTHS } from './forecast.js';
 import { weatherIcon, iconFrames } from './icons.js';
 import { buildCrtOverlay } from './crt.js';
@@ -103,6 +104,7 @@ const TEXT_SCALE = 1.35;
 const CAP_EM = 1421 / 2048;             // Star4000's cap height, in ems
 const ADV_EM = 973 / 2048;              // its (monospaced) advance
 const GLYPH_ROWS = PIXEL_FONT.above + PIXEL_FONT.cap + PIXEL_FONT.below;
+const UNDERSCORE = Array.from({ length: GLYPH_ROWS }, (_, y) => (y === GLYPH_ROWS - 3 || y === GLYPH_ROWS - 2 ? 0b1111111111110 : 0));
 let glyphAtlas = null;
 const glyphIndex = new Map();
 let glyphMask = null;
@@ -116,7 +118,11 @@ function buildAtlas() {
     a.fillStyle = '#ffffff';
     keys.forEach((ch, k) => {
         glyphIndex.set(ch, k);
-        GLYPHS[ch].forEach((row, y) => {
+        // The generator lost '_' below the descender rows: Twitch names
+        // need it (sponsors page, 2026-11-12), so draw it on the last row
+        // but one, as wide as the glyph's ink
+        const rows = ch === '_' && GLYPHS[ch].every((r) => r === 0) ? UNDERSCORE : GLYPHS[ch];
+        rows.forEach((row, y) => {
             for (let x = 0; x < PIXEL_FONT.cols; x++) {
                 if (row & (1 << (PIXEL_FONT.cols - 1 - x))) a.fillRect(k * PIXEL_FONT.cols + x, y, 1, 1);
             }
@@ -301,10 +307,11 @@ export class WeatherChannel {
      * @param {() => number} options.now - Wall clock, UTC ms
      * @param {number} [options.region=0] - Region to start with
      * @param {string|null} [options.page=null] - Hold one page (mocks)
+     * @param {Object|null} [options.sponsors=null] - SponsorSource (sponsors.js)
      * @param {Object} [options.debug]
      * @param {Function} [options.fetch] - For the radar tiles
      */
-    constructor(canvas, { cfg, data, now, region = 0, page = null, debug = null, fetch: fetchImpl }) {
+    constructor(canvas, { cfg, data, now, region = 0, page = null, sponsors = null, debug = null, fetch: fetchImpl }) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d', { alpha: false });
         this.cfg = cfg;
@@ -313,6 +320,10 @@ export class WeatherChannel {
         this.now = now;
         this.startRegion = region;
         this.pages = page ? [page] : cfg.pages;
+        this.holdPage = !!page;
+        this.sponsors = sponsors;
+        this.schedule = [];         // {regionIndex, page} per page index, laid out by slot()
+        this.scheduledRegions = 0;
         this.debug = debug;
         this.base = makeCanvas(W, H);
         this.overlay = buildCrtOverlay(W, H, PIC, cfg.crt);
@@ -340,13 +351,20 @@ export class WeatherChannel {
         this.drawBase();
     }
 
-    /** Which region and page a page index is. */
+    /**
+     * Which region and page a page index is. The run is laid out a region
+     * at a time, when a page of that region is first asked for (the look
+     * ahead asks a region early): a sponsors page with no names to bill is
+     * left out then (the Exo-Cast thread, 2026-11-12: skip it, never an
+     * empty list), so the break runs ad, then the station ID.
+     */
     slot(index) {
-        const n = this.pages.length;
-        return {
-            regionIndex: (this.startRegion + Math.floor(index / n)) % this.regions.length,
-            page: this.pages[index % n]
-        };
+        while (this.schedule.length <= index) {
+            const regionIndex = (this.startRegion + this.scheduledRegions++) % this.regions.length;
+            const keep = this.pages.filter((p) => p !== 'sponsors' || this.holdPage || (this.sponsors && !this.sponsors.empty));
+            for (const page of keep.length ? keep : this.pages) this.schedule.push({ regionIndex, page });
+        }
+        return this.schedule[index];
     }
 
     /** Blit the CRT overlay over one box of the frame. */
@@ -483,6 +501,8 @@ export class WeatherChannel {
         let video = null;
         if (page === 'ad') {
             video = this.page_ad(c, index);
+        } else if (page === 'sponsors') {
+            this.page_sponsors(c, index);
         } else if (page === 'id') {
             // Its own page since AJ (2026-11-11: "the station id page is
             // like less than 5, I think it should be 15 for all pages"):
@@ -511,6 +531,51 @@ export class WeatherChannel {
         const t = localParts(utcMs, region);
         const label = `${this.data.source === 'demo' ? 'DEMO DATA: ' : ''}OBSERVED ${formatClock(t.hour * 60 + t.minute)} ${t.zone}`;
         shadowText(c, label, 960, y, 32, PALE, { align: 'center' });
+    }
+
+    /**
+     * "This program is made possible by" (AJ, 2026-11-12): a PBS-style
+     * underwriting card, subscribers and bit cheerers in two columns, names
+     * only (AJ picked it over a table with amounts). A long column takes
+     * turns, so each showing bills the next names.
+     */
+    page_sponsors(c, index) {
+        const src = this.sponsors;
+        const turn = this.turnOf('sponsors', index);
+        shadowText(c, 'THIS PROGRAM IS', 960, 290, 48, '#ffffff', { align: 'center' });
+        shadowText(c, 'MADE POSSIBLE BY', 960, 350, 56, YELLOW, { align: 'center', italic: true });
+        const rows = this.cfg.sponsors.rows;
+        const col = (title, items, cx) => {
+            shadowText(c, title, cx, 440, 40, GOLD, { align: 'center', italic: true });
+            const { shown, more } = rotateRows(items, rows, turn);
+            shown.forEach((s, i) => shadowText(c, s.name, cx, 500 + i * 52, 36, '#ffffff', { align: 'center', maxW: 600 }));
+            if (more) shadowText(c, `+ ${more} MORE`, cx, 500 + shown.length * 52, 36, PALE, { align: 'center' });
+        };
+        const subs = src?.subs ?? [];
+        const bits = src?.bits ?? [];
+        // One column centred when the other is empty
+        if (subs.length && bits.length) {
+            col('SUBSCRIBERS', subs, 640);
+            col('BIT CHEERERS', bits, 1280);
+        } else if (subs.length || bits.length) {
+            col(subs.length ? 'SUBSCRIBERS' : 'BIT CHEERERS', subs.length ? subs : bits, 960);
+        }
+        shadowText(c, 'AND BY VIEWERS LIKE YOU.', 960, 860, 40, YELLOW, { align: 'center', italic: true });
+    }
+
+    /**
+     * How many pages of this kind come before this index: which break an ad
+     * is, which showing a sponsors card is. Counted on the laid-out run, so
+     * a skipped sponsors page can't make two breaks in a row pick the same
+     * ad (index / pages.length could, once regions differ in length).
+     */
+    turnOf(page, index) {
+        this.turnCache ??= new Map();
+        const c = this.turnCache.get(page) ?? { at: 0, n: 0 };
+        if (index < c.at) { c.at = 0; c.n = 0; }
+        for (; c.at < index; c.at++) if (this.slot(c.at).page === page) c.n++;
+        this.turnCache.set(page, c);
+        return c.n;
     }
 
     page_unavailable(c) {
@@ -705,7 +770,7 @@ export class WeatherChannel {
      */
     page_ad(c, index) {
         const videos = this.cfg.ads?.videos ?? [];
-        const breakNo = Math.floor(index / this.pages.length);
+        const breakNo = this.turnOf('ad', index);
         let pick = pickAd(breakNo, ADS.length, videos.length);
         let video = pick.kind === 'video' ? this.videoFor(videos[pick.index]) : null;
         // A video that failed to load gives its break to a text ad
@@ -1046,7 +1111,7 @@ export class WeatherChannel {
 
     drawClock(force = false) {
         // A break has no clock: it's a commercial, and so is the station ID
-        if (this.shown.page === 'ad' || this.shown.page === 'id') {
+        if (this.shown.page === 'ad' || this.shown.page === 'id' || this.shown.page === 'sponsors') {
             this.clockTexts = [];
             return false;
         }
@@ -1106,7 +1171,7 @@ export class WeatherChannel {
             this.ahead = null;
             if (!this.stripKey) this.buildStrip();
             const c = this.ctx;
-            const sweep = this.cfg.sweepMs > 0 && this.shown.page !== 'ad' && this.shown.page !== 'id' && this.drawnOnce;
+            const sweep = this.cfg.sweepMs > 0 && !['ad', 'id', 'sponsors'].includes(this.shown.page) && this.drawnOnce;
             this.lastCrawlX = null;
             this.lastRadarFrame = -1;
             this.lastBumper = null;
@@ -1314,6 +1379,8 @@ export class WeatherChannel {
     /** Fetch the data and radar the next pages need, well before their cuts. */
     lookAhead(index) {
         if (typeof document !== 'undefined' && document.hidden) return;
+        // Self-throttled to config.weather.sponsors.refreshMs
+        this.sponsors?.refresh();
         // A radar page on air without its loop (the first page, or a slow
         // build): build this one now; its frames cover the stand-by card
         if (this.shown.page === 'radar' && !this.radarReadyFor(this.regions[this.shown.regionIndex])) {

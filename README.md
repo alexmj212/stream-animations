@@ -125,17 +125,19 @@ moves to the next of six US regions, forever. Weather is live from the
 National Weather Service (api.weather.gov) for real cities, and the radar is
 the last hour from RainViewer over a map the page draws itself. The icons
 flip between two frames, a joke ad for a made-up local business fills the
-break between regions, and the crawl runs a joke after each region. It is
+break between regions, followed by a "made possible by" card thanking subscribers
+and bit cheerers by name, and the crawl runs a joke after each region. It is
 silent: play your own music over it.
 
-**URL**: `weather/index.html` (`data`, `seed`, `region`, `page`, `pages`, `ads`, `pagems`, `at`, `fps`, `station`)
+**URL**: `weather/index.html` (`data`, `seed`, `region`, `page`, `pages`, `ads`, `sponsors`, `pagems`, `at`, `fps`, `station`)
 
 - `data` - `nws` (live, default) or `demo` (generated forecasts for made-up towns and a made-up radar, no network: the motion harness and mocks)
 - `seed` - Demo only: another set of forecasts (default 0)
 - `region` - Region to open on, by index or name (`northeast`, `southeast`, `midwest`, `south-central`, `rockies`, `west-coast`; demo: `northern-lakes`, `atlantic-coast`, `piedmont`, `high-plains`, `desert-southwest`, `pacific-northwest`)
-- `page` - Hold one page: `current`, `local`, `extended`, `radar`, `regional`, `almanac` or `ad`
+- `page` - Hold one page: `current`, `local`, `extended`, `radar`, `regional`, `almanac`, `ad`, `sponsors` or `id`
 - `pages` - Run only these pages, in this order, e.g. `almanac,ad` (mocks)
 - `ads` - `0` leaves out the ad breaks
+- `sponsors` - A fixed sponsors list instead of reading Mix It Up, e.g. `couchgoober:sub,radarlover:bits:500` (empty: no names, so the card is left out). Live, the card reads subscribers and a `Sponsor Bits` currency from MIU's Developer API on port 8911
 - `pagems` - Milliseconds per page (default 15000, at least 2000)
 - `at` - Pretend it is this time, e.g. `2027-01-15T14:00:00Z` (mocks)
 - `fps` - Frame cap (default 30)
