@@ -4,6 +4,13 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.24.0 - 2026-11-13
+
+- Exo-Cast's breaks gain a "made possible by" sponsors card after each ad,
+  listing the channel's subscribers (and bits cheerers once Mix It Up
+  tracks them) from Mix It Up. If Mix It Up is down or has no names, the
+  card skips itself. ([#197])
+
 ## v2.23.0 - 2026-11-12
 
 - Two Exo-Cast ads now use real cut-out photos of a puppy and a cat in
@@ -407,3 +414,4 @@ release (`npm run motion:export -- stinger` renders your own).
 [#191]: https://github.com/alexmj212/stream-animations/pull/191
 [#193]: https://github.com/alexmj212/stream-animations/pull/193
 [#195]: https://github.com/alexmj212/stream-animations/pull/195
+[#197]: https://github.com/alexmj212/stream-animations/pull/197
