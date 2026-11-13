@@ -175,7 +175,9 @@ export class SponsorSource {
     }
 
     async load() {
-        const currencies = await this.getJson('currency').catch(() => []);
+        // A failed currency lookup keeps the last bits rows (QA, #197), so
+        // one MIU hiccup doesn't drop the cheerers for refreshMs
+        const currencies = await this.getJson('currency').catch(() => null);
         const want = this.cfg.bitsCurrency.toLowerCase();
         const cur = (Array.isArray(currencies) ? currencies : []).find((c) => String(c?.Name).toLowerCase() === want);
         const users = [];
@@ -186,7 +188,9 @@ export class SponsorSource {
             users.push(...batch);
             if (batch.length < size || users.length >= (page?.TotalCount ?? Infinity)) break;
         }
-        this.list = billingOrder(sponsorsFromUsers(users, cur?.ID ?? null, this.now()));
+        const fresh = sponsorsFromUsers(users, cur?.ID ?? null, this.now());
+        const bits = currencies === null ? this.bits : [];
+        this.list = billingOrder([...fresh, ...bits]);
         this.debug?.mark('sponsors', { users: users.length, subs: this.subs.length, bits: this.bits.length, currency: !!cur });
     }
 }

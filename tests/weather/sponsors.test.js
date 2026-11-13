@@ -111,6 +111,24 @@ describe('SponsorSource', () => {
         expect(src.subs.map((s) => s.name)).toEqual(['a']);
     });
 
+    it('keeps the last bits rows when only the currency lookup fails', async () => {
+        let t = 0;
+        const users = [sub('a'), { PlatformData: { Twitch: { Username: 'd' } }, CurrencyAmounts: { c1: 100 } }];
+        const ok = miu(users);
+        const fetch = vi.fn(ok);
+        const src = new SponsorSource({ cfg, now: () => t, fetch });
+        await src.refresh();
+        expect(src.bits.map((s) => s.name)).toEqual(['d']);
+        t = cfg.refreshMs;
+        fetch.mockImplementation(async (url) => {
+            if (url.endsWith('/currency')) throw new Error('blip');
+            return ok(url);
+        });
+        await src.refresh();
+        expect(src.bits.map((s) => s.name)).toEqual(['d']);
+        expect(src.subs.map((s) => s.name)).toEqual(['a']);
+    });
+
     it('never fetches with a fixed list', async () => {
         const fetch = vi.fn();
         const src = new SponsorSource({ cfg, fixed: 'x:sub,y:bits:5', now: () => 0, fetch });
@@ -154,6 +172,8 @@ describe('the sponsors page in the rotation', () => {
             if (tv.slot(i).page === 'ad') ads.push(turnOf('ad', i));
         }
         expect(ads).toEqual(ads.map((_, k) => k));
+        // page_ad numbers its break this way, not by index / pages.length (code review, #197)
+        expect(WeatherChannel.prototype.page_ad.toString()).toContain("this.turnOf('ad', index)");
     });
 
     it('still shows a held sponsors page for mocks', () => {
