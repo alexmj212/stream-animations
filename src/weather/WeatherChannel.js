@@ -541,7 +541,7 @@ export class WeatherChannel {
      */
     page_sponsors(c, index) {
         const src = this.sponsors;
-        const turn = this.pages.includes('sponsors') ? this.sponsorTurn(index) : 0;
+        const turn = this.turnOf('sponsors', index);
         shadowText(c, 'THIS PROGRAM IS', 960, 290, 48, '#ffffff', { align: 'center' });
         shadowText(c, 'MADE POSSIBLE BY', 960, 350, 56, YELLOW, { align: 'center', italic: true });
         const rows = this.cfg.sponsors.rows;
@@ -563,11 +563,19 @@ export class WeatherChannel {
         shadowText(c, 'AND BY VIEWERS LIKE YOU.', 960, 860, 40, YELLOW, { align: 'center', italic: true });
     }
 
-    /** How many sponsors pages have aired before this index. */
-    sponsorTurn(index) {
-        let n = 0;
-        for (let k = 0; k < index; k++) if (this.slot(k).page === 'sponsors') n++;
-        return n;
+    /**
+     * How many pages of this kind come before this index: which break an ad
+     * is, which showing a sponsors card is. Counted on the laid-out run, so
+     * a skipped sponsors page can't make two breaks in a row pick the same
+     * ad (index / pages.length could, once regions differ in length).
+     */
+    turnOf(page, index) {
+        this.turnCache ??= new Map();
+        const c = this.turnCache.get(page) ?? { at: 0, n: 0 };
+        if (index < c.at) { c.at = 0; c.n = 0; }
+        for (; c.at < index; c.at++) if (this.slot(c.at).page === page) c.n++;
+        this.turnCache.set(page, c);
+        return c.n;
     }
 
     page_unavailable(c) {
@@ -762,7 +770,7 @@ export class WeatherChannel {
      */
     page_ad(c, index) {
         const videos = this.cfg.ads?.videos ?? [];
-        const breakNo = Math.floor(index / this.pages.length);
+        const breakNo = this.turnOf('ad', index);
         let pick = pickAd(breakNo, ADS.length, videos.length);
         let video = pick.kind === 'video' ? this.videoFor(videos[pick.index]) : null;
         // A video that failed to load gives its break to a text ad

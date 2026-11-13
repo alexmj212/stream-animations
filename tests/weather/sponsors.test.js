@@ -142,6 +142,20 @@ describe('the sponsors page in the rotation', () => {
         expect(layout(pages, null).some((x) => x.page === 'sponsors')).toBe(false);
     });
 
+    it('numbers breaks on the laid-out run, so skipping never repeats an ad', () => {
+        let empty = false;
+        const src = { get empty() { return empty; } };
+        const tv = { pages, holdPage: false, sponsors: src, schedule: [], scheduledRegions: 0, startRegion: 0, regions: [{}, {}, {}] };
+        tv.slot = WeatherChannel.prototype.slot;
+        const turnOf = (p, i) => WeatherChannel.prototype.turnOf.call(tv, p, i);
+        const ads = [];
+        for (let i = 0; i < 40; i++) {
+            empty = i % 7 < 3;          // names come and go between regions
+            if (tv.slot(i).page === 'ad') ads.push(turnOf('ad', i));
+        }
+        expect(ads).toEqual(ads.map((_, k) => k));
+    });
+
     it('still shows a held sponsors page for mocks', () => {
         expect(layout(['sponsors'], { empty: true }, true)[0].page).toBe('sponsors');
     });
