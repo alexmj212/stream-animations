@@ -114,19 +114,22 @@ describe('SponsorSource', () => {
     it('keeps the last bits rows when only the currency lookup fails', async () => {
         let t = 0;
         const users = [sub('a'), { PlatformData: { Twitch: { Username: 'd' } }, CurrencyAmounts: { c1: 100 } }];
-        const ok = miu(users);
+        // The plain implementation, not the spy: wrapping the spy and
+        // calling it from mockImplementation would recurse (code review, #197)
+        const ok = miu(users).getMockImplementation();
         const fetch = vi.fn(ok);
         const src = new SponsorSource({ cfg, now: () => t, fetch });
         await src.refresh();
         expect(src.bits.map((s) => s.name)).toEqual(['d']);
         t = cfg.refreshMs;
+        users.push(sub('b'));       // proves the second load really ran
         fetch.mockImplementation(async (url) => {
             if (url.endsWith('/currency')) throw new Error('blip');
             return ok(url);
         });
         await src.refresh();
         expect(src.bits.map((s) => s.name)).toEqual(['d']);
-        expect(src.subs.map((s) => s.name)).toEqual(['a']);
+        expect(src.subs.map((s) => s.name)).toEqual(['a', 'b']);
     });
 
     it('never fetches with a fixed list', async () => {
