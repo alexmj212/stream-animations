@@ -213,22 +213,6 @@ export function pickAd(cycle, textCount, videoCount) {
     return textCount > videoCount ? { kind: 'text', index: k - pairs } : { kind: 'video', index: k - pairs };
 }
 
-/**
- * How many ad breaks came before page `index` of the endless rotation, so
- * each break shows the next ad even when a loop has more than one break
- * (AJ, 2026-11-12: a break every 3 pages, twice per region).
- * @param {string[]} pages - The rotation, e.g. config.weather.pages
- * @param {number} index - Running page index
- * @returns {number}
- */
-export function breakNumber(pages, index) {
-    const n = pages.length;
-    const perLoop = pages.filter((p) => p === 'ad').length;
-    const loops = Math.floor(index / n);
-    const within = pages.slice(0, ((index % n) + n) % n).filter((p) => p === 'ad').length;
-    return loops * perLoop + within;
-}
-
 const OUTLINE = '#1a1a1a';
 
 /**
