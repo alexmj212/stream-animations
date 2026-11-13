@@ -769,15 +769,16 @@ export const SCENARIOS = [
     // Exo-Cast's break (AJ, 2026-11-11): the cut from the almanac into a
     // joke ad and back out to the next region, so FLASH sees the pale card
     // come and go, and SAFE/TYPE check the ad's plain text. The crawl's
-    // first joke reaches the strip by about 9 s at 150 px/s
+    // first joke reaches the strip by about 9 s at 150 px/s. The sponsors
+    // card (2026-11-12) follows the ad, with the demo's made-up names
     name: 'weather-break',
     scene: 'weather',
-    url: '/src/weather/index.html?data=demo&pages=almanac,ad,id&pagems=3000&fps=60&at=2026-11-10T19:00:00Z',
+    url: '/src/weather/index.html?data=demo&pages=almanac,ad,sponsors,id&pagems=3000&fps=60&at=2026-11-10T19:00:00Z',
     start: 'load',
-    captureMs: 10000,
-    keyframes: [0.15, 0.45, 0.75, 0.95],
-    keyframeSpanMs: 10000,
-    markers: [3000, 6000, 9000].map((at, i) => ({ at, label: i % 2 ? 'cut' : 'ad' })),
+    captureMs: 13000,
+    keyframes: [0.12, 0.35, 0.58, 0.8, 0.97],
+    keyframeSpanMs: 13000,
+    markers: [3000, 6000, 9000, 12000].map((at, i) => ({ at, label: ['ad', 'sponsors', 'id', 'cut'][i] })),
     checks: {
       design: {
         rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],

@@ -1517,7 +1517,9 @@ export const config = {
     // The pages in order, then the next region. Radar added on AJ's rework
     // notes (2026-11-10: "also a radar map screen"); the joke ad is the break
     // between regions (AJ, 2026-11-11: "interstitial ads between regions"),
-    // and the station ID follows it as a page of its own (AJ, 2026-11-11)
+    // and the station ID follows it as a page of its own (AJ, 2026-11-11).
+    // The sponsors card follows each ad (AJ, 2026-11-12), and is left out
+    // while there are no names to bill
     pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac', 'ad', 'sponsors', 'id'],
     // Icons flip between their two frames this often (AJ, 2026-11-11: "two
     // frames of animation"): about the pace of the old character generators
@@ -1545,6 +1547,23 @@ export const config = {
     // and taking turns with the text ads
     ads: {
       videos: []
+    },
+    // "This program is made possible by" (AJ, 2026-11-12: "a 'sponsored by'
+    // screen that lists users that subscribed or sent bits"; picked the
+    // names-only card with current subs plus this month's bits). Read from
+    // Mix It Up's local Developer API like the follower bar, so no Twitch
+    // token is ever in the page or the OBS URL (Alerts expert): subscribers
+    // from GET /users, bits from a MIU currency the Bits Cheered command
+    // adds to (not for anonymous cheers) and MIU resets monthly
+    sponsors: {
+      api: 'http://localhost:8911/api/v2/',
+      bitsCurrency: 'Sponsor Bits',   // the MIU currency's name
+      refreshMs: 600000,      // a sub list changes slowly: ask MIU every 10 min at most
+      pageSize: 100,          // users per GET /users page
+      maxUsers: 5000,         // stop paging here, so a huge user list can't stall a refresh
+      timeoutMs: 8000,        // a hung MIU gives up and keeps the last list
+      startWaitMs: 3000,      // first layout waits this long for the list at most
+      rows: 6                 // names per column (Rotom's 36px floor fits 6 under the headings)
     },
     // The next page is drawn this long after a cut, so the cut itself is
     // one blit (Performance expert, 2026-11-10)

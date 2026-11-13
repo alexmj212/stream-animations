@@ -33,6 +33,7 @@
       import { startNoise } from "./noise.js";
       import { loadWsIcons } from "./icons.js";
       import { NwsSource, DemoSource } from "./data.js";
+      import { SponsorSource, DEMO_SPONSORS } from "./sponsors.js";
       import { config } from "../config/config.js";
       import { seedFromURL, registerProbe } from "../shared/motion.js";
       import { createDebug } from "../shared/debug.js";
@@ -51,7 +52,9 @@
       //                  default the one nearest the computer's time zone
       //   ?tz=Zone       pretend the computer is in this zone (mocks: ?tz=America/Denver)
       //   ?noise=0       no compression noise layer
-      //   ?page=name     hold one page: current, local, extended, radar, regional, almanac, ad, id
+      //   ?page=name     hold one page: current, local, extended, radar, regional, almanac, ad, sponsors, id
+      //   ?sponsors=a:sub,b:bits:500  a fixed sponsors list instead of Mix It Up (mocks;
+      //                  ?sponsors= alone means none); ?data=demo bills made-up names
       //   ?pages=a,b     run only these pages, in this order (mocks: ?pages=almanac,ad)
       //   ?ads=0         no ad breaks (the station ID page still runs)
       //   ?pagems=N      ms per page (default config.weather.pageMs)
@@ -65,8 +68,6 @@
       if (num('fps') >= 1) cfg.fps = Math.min(120, num('fps'));
       if (urlParams.get('station')) cfg.station = urlParams.get('station').slice(0, 5).toUpperCase();
       if (urlParams.get('ads') === '0') cfg.pages = cfg.pages.filter((p) => p !== 'ad');
-      if (urlParams.get('sponsorstyle')) cfg.sponsorStyle = urlParams.get('sponsorstyle');
-      if (urlParams.has('sponsors')) cfg.sponsors = urlParams.get('sponsors');
       const only = (urlParams.get('pages') || '').split(',').filter((p) => config.weather.pages.includes(p));
       if (only.length) cfg.pages = only;
       const page = config.weather.pages.includes(urlParams.get('page')) ? urlParams.get('page') : null;
@@ -76,6 +77,12 @@
       const data = urlParams.get('data') === 'demo'
         ? new DemoSource({ seed: seedFromURL() ?? 0, now })
         : new NwsSource({ cfg: cfg.data, debug });
+      const sponsors = new SponsorSource({
+        cfg: cfg.sponsors,
+        fixed: urlParams.has('sponsors') ? urlParams.get('sponsors') : (urlParams.get('data') === 'demo' ? DEMO_SPONSORS : null),
+        now,
+        debug
+      });
       const regionParam = (urlParams.get('region') || '').toUpperCase().replace(/[-_+]/g, ' ');
       // The clock shows the computer's own time, and with no ?region the
       // loop opens on the region nearest it (AJ, 2026-11-11)
@@ -109,14 +116,14 @@
       // Text is baked into cached canvases: wait for fonts, and for the
       // first region's data (capped, so a slow NWS still shows the page)
       const firstData = Promise.race([
-        data.ensure(region),
+        Promise.all([data.ensure(region), Promise.race([sponsors.refresh(), new Promise((r) => setTimeout(r, cfg.sponsors.startWaitMs))])]),
         new Promise((resolve) => setTimeout(resolve, cfg.data.startWaitMs))
       ]);
       // Canvas text doesn't make the browser fetch a face: load each one
       const faces = ['Star4000', 'Star4000 Small', 'Star4000 Large', 'Star4000 Extended', 'Star4000 Radar']
         .map((f) => document.fonts.load(`40px "${f}"`).catch(() => null));
       Promise.all([document.fonts.ready, firstData, loadWsIcons(), ...faces]).then(() => {
-        tv = new WeatherChannel(canvas, { cfg, data, now, region, page, debug });
+        tv = new WeatherChannel(canvas, { cfg, data, now, region, page, sponsors, debug });
         registerProbe('weather', () => tv.probeSamples());
         if (cfg.noise?.alpha > 0 && urlParams.get('noise') !== '0') startNoise(document.body, cfg.noise, 1920, cfg.crt?.cornerPx ?? 0);
         debug.mark('start', { region: data.regions[region].name, page, source: data.source });
