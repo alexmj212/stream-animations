@@ -118,7 +118,8 @@ before relying on any value here.
 **When an issue thread asks** (before a change, or when stuck):
 
 1. Read this charter's Learnings and `docs/AUDIO.md`.
-2. Answer in one message: the rules that apply, what's already known (with
+2. Answer in one message (`message_thread` takes at most 2000 characters,
+   so draft to fit; two replies hit the cap in their first week): the rules that apply, what's already known (with
    the doc section or PR), the command or skill to use, and the risk in the
    plan if there is one. Don't re-measure what the docs already record, and
    don't do the issue's work.
@@ -171,3 +172,4 @@ capture, render, A/B clips, AJ listens, apply, read back).
 | 2026-10-31 | A filter kind OBS no longer registers stays in the JSON, hidden and inert, and a gate closing looked like proof it worked. Read every change back in OBS (rule 7) | `docs/AUDIO.md`, "Applying a change in OBS"; #135 | OBS changes | active |
 | 2026-11-02 | I sent a placeholder message to the wrong thread (the vault thread instead of the Spotify issue thread) because I reused a thread id from memory. Before `message_thread`, look up the relay's session id in `list_threads` and use that thread id, and only send the final text, never a stub | This thread, Spotify monitoring plan check; same as Code review's 2026-10-29 row | messaging threads | superseded by 2026-11-02: CLAUDE.md "Find the thread before you message it" (#157) |
 | 2026-11-02 | A dock remake set every app capture's monitoring to NONE, and Spotify was moved to headphones. That left AJ unable to hear the music at stream level, and Defiant's read showed nothing capturing Spotify at all. An issue thread's plan was built on memory that no longer matched. Start every routing review from a live read (routine step 4) | Defiant read for "Hear Spotify music at stream volume" | routing and monitoring plans | active |
+| 2026-11-11 | An issue thread built synthesised J-fusion music for the weather page on my level advice. AJ heard it and dropped it ("really awful ... I would just run my own music"). New page music is a taste call. Offer AJ's own music or Spotify first, and if anything gets generated, play AJ a short sample before building the pipeline. Also, -20 dBFS is the green aim for music, not a ceiling: the hard limit is -9 dBTP, so the fader can lift a quiet bed | AJ via "Build 90s weather channel page"; #173, #175 | page music, plan reviews | active |
