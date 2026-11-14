@@ -562,6 +562,10 @@ export const config = {
         driftMin: 4,              // px/s rightward while holding
         driftMax: 12,
         alpha: 0.85,
+      // The map is drawn at this many frame px per map pixel, with hard
+      // one-pixel outlines, then blown up unsmoothed: the WeatherStar's
+      // single-pixel line look (AJ, 2026-11-11)
+      mapPixel: 2,
         // Streaks stay clear of the text while it shows (design review, PR
         // #27): their tails end this far right of its ink, and at least
         // minVisible px of each streak stays on show
@@ -1497,6 +1501,126 @@ export const config = {
     pointerRefreshMs: 4000,
     undoMax: 20,
     storageKey: 'audioRouting:v1'
+  },
+
+  // 90s weather page (src/weather): AJ's ask (2026-11-10), "an unironic
+  // 90s weather channel scene, that just endlessly rotates through weather
+  // forecasts". AJ's own look like spheal, outside the bible's palette and
+  // type; the viewer rules (SAFE-1/3, FLASH, 32px text) still hold
+  weather: {
+    // 30 is plenty for a crawl and a clock (Performance expert, 2026-11-10);
+    // set the OBS source's custom frame rate to match
+    fps: 30,
+    // Each page holds 15 s (AJ, 2026-11-11: "I think it should be 15 for all
+    // pages"; was 10 s); a region's eight pages take 2 min
+    pageMs: 15000,
+    // The pages in order, then the next region. Radar added on AJ's rework
+    // notes (2026-11-10: "also a radar map screen"); the joke ad is the break
+    // between regions (AJ, 2026-11-11: "interstitial ads between regions"),
+    // and the station ID follows it as a page of its own (AJ, 2026-11-11).
+    // The sponsors card follows each ad (AJ, 2026-11-12), and is left out
+    // while there are no names to bill
+    pages: ['current', 'local', 'extended', 'radar', 'regional', 'almanac', 'ad', 'sponsors', 'id'],
+    // Icons flip between their two frames this often (AJ, 2026-11-11: "two
+    // frames of animation"): about the pace of the old character generators
+    // Since 2026-11-11 the WeatherStar icons run at their own GIF frame
+    // times; this paces only the drawn ones (sunrise, sunset, and fallbacks)
+    iconFrameMs: 600,
+    // A new page sweeps on top to bottom in 8 px steps, the way the
+    // character generator painted a screen (AJ, 2026-11-11: "there needs to
+    // be a sweep when the font renders"); ads cut straight in
+    sweepMs: 600,
+    sweepStepPx: 8,
+    sweepHitchMs: 180,      // every third sweep stalls this long partway down (90s jank, AJ 2026-11-11)
+    // Station ID bumper (AJ, 2026-11-11: "we need a ID bumper as well for
+    // station identification"): the page after every ad break, held for
+    // pageMs like the rest. The logo slides in, the lines type on, a shine
+    // crosses the logo, then it holds.
+    id: {
+        slideMs: 500,
+        typeMs: 35,             // per character
+        shineMs: 450,
+        lines: ["YOU'RE WATCHING", 'YOUR LOCAL FORECAST', 'AROUND THE CLOCK ON CABLE 32']
+    },
+    // Ads (AJ, 2026-11-11): the text ads live in src/weather/ads.js. Video
+    // ads are URLs here (mp4/webm, CORS open), played muted in the break
+    // and taking turns with the text ads
+    ads: {
+      videos: []
+    },
+    // "This program is made possible by" (AJ, 2026-11-12: "a 'sponsored by'
+    // screen that lists users that subscribed or sent bits"; picked the
+    // names-only card with current subs plus this month's bits). Read from
+    // Mix It Up's local Developer API like the follower bar, so no Twitch
+    // token is ever in the page or the OBS URL (Alerts expert): subscribers
+    // from GET /users, bits from a MIU currency the Bits Cheered command
+    // adds to (not for anonymous cheers) and MIU resets monthly
+    sponsors: {
+      api: 'http://localhost:8911/api/v2/',
+      bitsCurrency: 'Sponsor Bits',   // the MIU currency's name
+      refreshMs: 600000,      // a sub list changes slowly: ask MIU every 10 min at most
+      pageSize: 100,          // users per GET /users page
+      maxUsers: 5000,         // stop paging here, so a huge user list can't stall a refresh
+      timeoutMs: 8000,        // a hung MIU gives up and keeps the last list
+      startWaitMs: 3000,      // first layout waits this long for the list at most
+      rows: 6                 // names per column (Rotom's 36px floor fits 6 under the headings)
+    },
+    // The next page is drawn this long after a cut, so the cut itself is
+    // one blit (Performance expert, 2026-11-10)
+    prepareDelayMs: 1500,
+    crawl: {
+      pxPerS: 150           // a calm read: a 40px line crosses 1500px in 10 s
+    },
+    // Interlacing and compression noise (AJ, 2026-11-11: "We also need some
+    // interlacing and compression noise on the screens"). The crawl's odd
+    // rows trail by interlacePx (150 px/s over a 60th of a second); noise is
+    // a CSS layer of 8 px macroblocks that jumps every noiseStepMs, so the
+    // canvas never redraws for it. AJ (2026-11-11, on alpha 0.1 at 120 ms):
+    // "The noise is way too much", so it's a third as strong and moves
+    // every 400 ms (design review ENC-3: a picture that changes 8x a second
+    // starves Twitch's bitrate; `npm run weather:encode` measured text PSNR
+    // 41 dB with the old noise against 56 dB without).
+    interlacePx: 3,
+    noise: { alpha: 0.035, blockPx: 8, stepMs: 400, seed: 7 },
+    maxTableRows: 7,        // regional table: Rotom caps it near 8 rows at 44px
+    station: 'EXO',         // the ident on the logo and in the crawl
+    brandSub: 'CAST',       // the logo's bar: EXO over CAST, "EXO-CAST" in the crawl (AJ, 2026-11-11: "the page should be called Exo-Cast")
+    // CRT look (AJ, 2026-11-10: "some filters to give it that crt
+    // aesthetic"). Drawn once into an overlay and re-blitted only over the
+    // regions that change, so it costs nothing per frame (Performance expert)
+    crt: {
+      cornerPx: 40,         // rounded tube corners at the 4:3 picture's edge
+      scanlinePx: 4,        // one dark line every 4 px: visible at 1080p, still there at 720p
+      scanlineAlpha: 0.16,  // dark enough to read as a tube, light enough for 36px text
+      vignetteAlpha: 0.45,  // edge falloff of the glass
+      sheenAlpha: 0.05,     // faint glare across the top
+      rimPx: 12             // inner shadow at the bezel
+    },
+    // Radar page: past radar frames from RainViewer (free, CORS open) over a
+    // map the page draws itself (AJ, 2026-11-10)
+    radar: {
+      frames: 6,            // RainViewer keeps ~2 h of 10-min frames; the last hour loops
+      frameMs: 500,         // per frame: a broadcast-paced loop
+      holdMs: 1500,         // the newest frame holds before the loop restarts
+      indexUrl: 'https://api.rainviewer.com/public/weather-maps.json',
+      indexTtlMs: 300000,   // the frame list updates every 10 min; 5 min keeps it fresh
+      refreshMs: 600000,    // a region's built loop is reused for 10 min
+      colorScheme: 2,       // RainViewer's universal blue; recoloured to the broadcast ramp
+      alpha: 0.85,          // radar over the map: the coastlines still show through
+      timeoutMs: 10000,     // a hung tile gives up, so a build always finishes
+      retryAfterMs: 60000,  // after a failed frame list, wait before asking again
+      legendPx: 56          // the legend and time strip along the map's bottom: towns fit above it (AJ, 2026-11-11, crop review)
+    },
+    // Live NWS data (AJ, 2026-11-10: "real weather data ... for real places")
+    data: {
+      forecastTtlMs: 1800000,   // NWS forecasts update about hourly; 30 min is fresh enough
+      observationTtlMs: 600000, // airport stations report hourly; 10 min catches specials
+      staleAfterMs: 10800000,   // an observation over 3 h old shows as missing, not current
+      timeoutMs: 10000,         // a slow NWS answer gives up and keeps the last copy
+      retryAfterMs: 60000,      // after a failure, leave that URL alone this long (no hammering a down NWS)
+      lookAheadPages: 3,        // fetch a region three pages before it airs
+      startWaitMs: 8000         // first paint waits this long for live data at most
+    }
   },
 
   // Shared configuration across all scenes

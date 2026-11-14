@@ -737,6 +737,59 @@ export const SCENARIOS = [
     }
   },
   {
+    // The 90s weather page (AJ, 2026-11-10): runs as long as a break, so it
+    // keeps the default 4 ms budget (Performance expert, 2026-11-10).
+    // pagems=3000 puts four cuts in the capture, through the radar loop
+    // (the spikes to watch; max is in the report), and fps=60 draws every
+    // stepped frame for the CPU count. at= pins the clock and data=demo
+    // keeps the run off the network (NWS and RainViewer), so the frames are
+    // the same every run
+    name: 'weather',
+    url: '/src/weather/index.html?data=demo&pagems=3000&fps=60&at=2026-11-10T19:00:00Z',
+    start: 'load',
+    captureMs: 13000,
+    keyframes: [0.1, 0.35, 0.6, 0.8, 0.97],
+    keyframeSpanMs: 13000,
+    markers: [3000, 6000, 9000, 12000].map((at) => ({ at, label: at === 9000 ? 'radar' : 'cut' })),
+    checks: {
+      // AJ's own look, but the viewer rules hold (Rotom, design review on
+      // #164): hard cuts with no flash, text inside title-safe except the
+      // crawl (it runs to the frame edge), nothing readable below y 994 (the
+      // crawl clears it by a few px), nothing under 32px
+      design: {
+        rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        safeExclude: ['crawl'],
+        minPx: 32
+      },
+      workP95Ms: 4
+    }
+  },
+  {
+    // Exo-Cast's break (AJ, 2026-11-11): the cut from the almanac into a
+    // joke ad and back out to the next region, so FLASH sees the pale card
+    // come and go, and SAFE/TYPE check the ad's plain text. The crawl's
+    // first joke reaches the strip by about 9 s at 150 px/s. The sponsors
+    // card (2026-11-12) follows the ad, with the demo's made-up names
+    name: 'weather-break',
+    scene: 'weather',
+    url: '/src/weather/index.html?data=demo&pages=almanac,ad,sponsors,id&pagems=3000&fps=60&at=2026-11-10T19:00:00Z',
+    start: 'load',
+    captureMs: 13000,
+    keyframes: [0.12, 0.35, 0.58, 0.8, 0.97],
+    keyframeSpanMs: 13000,
+    markers: [3000, 6000, 9000, 12000].map((at, i) => ({ at, label: ['ad', 'sponsors', 'id', 'cut'][i] })),
+    checks: {
+      design: {
+        rules: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        fail: ['SAFE-1', 'SAFE-3', 'TYPE-1', 'FLASH-1', 'FLASH-2'],
+        safeExclude: ['crawl'],
+        minPx: 32
+      },
+      workP95Ms: 4
+    }
+  },
+  {
     // AJ's Spheal march gag (2026-10-29): not held to the bible, but it
     // must end clear once the giant has rolled off, stop its song once
     // (the end event), and stay inside the frame budget at the peak crowd

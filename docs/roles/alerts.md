@@ -40,14 +40,17 @@ These hold for every thread that tests or changes anything in this domain.
    posted to chat). `Fullscreen Alert` and `Sidescreen Alert` post their
    headline to chat through exobot__ **unless the second argument is `|1`**.
    Any command that calls them without `|1` posts when fired (the 2026-10-28
-   export shows `Twitch Channel Resubscribed` among them), and `Twitch
+   export shows `Twitch Channel Subscribed` and `Twitch Channel Resubscribed`;
+   `Shoutout` and `Couch Color` post on their own; list them all with
+   `npm run alerts:wiring -- chat --miu=<db3>`), and `Twitch
    Channel Hype Train Started` runs `Fullscreen Alert`. So never fire an
    event command to test. Safe ways, in order:
    - render the page itself (`npm run motion`, `npm run motion:export`, or the
      Pages URL with `?text=`) — no MIU at all;
    - on Defiant: set the source's URL or visibility directly over obs-websocket;
    - call `Fullscreen Alert` / `Sidescreen Alert` directly with `text|1`.
-   `Show Toast` never posts. Check a command's chat actions before firing it.
+   `Show Toast` never posts. Run the `chat` report on a fresh db3 before
+   firing any command.
 2. **Never fire anything while AJ is live**, and never deploy then.
 3. **Changes on AJ's PC go through the Defiant thread** (MIU and OBS edits,
    test runs), via the coordinator. It backs up first (`Archive_1.json.bak-*`,
@@ -85,14 +88,26 @@ re-runs an investigation, or answers AJ about an issue. It does keep this
 charter, the alerts parts of project memory, and its skills current.
 Extreme circumstance only (CLAUDE.md): an alert posting to chat right now.
 
+## Tools
+
+- `npm run alerts:wiring -- find <term> --miu=<db3> --obs=<Archive_1.json>`
+  (`tools/alerts/wiring.js`): every MIU action and OBS source, filter,
+  transition and per-scene transition override that mentions a term.
+  Answer "what touches X" questions with it instead of grepping exports.
+  Stage the inputs from Defiant first (read-only); the 2026-10-28 export in
+  project files is a fallback and may be stale.
+
 ## Skills to build
 
 Planned (`docs/roles/README.md`); build each when an ask repeats, through
 its own PR:
 
-- `alert-test-safe`: the test ladder in Safety rule 1 as one checklist, plus
-  a check that lists every command calling `Fullscreen Alert` /
-  `Sidescreen Alert` without `|1` from a staged db3.
+- `alert-test-safe`: the test ladder in Safety rule 1 as one checklist. Its
+  chat check shipped as a script (2026-11-07 audit):
+  `npm run alerts:wiring -- chat --miu=<db3>` lists every command with a
+  Chat action and every call to it, to any depth. A call is safe only when
+  it passes `|1` and its target keeps its chat inside a conditional (`|1`
+  does nothing for Shoutout or Couch Color; code review on #163).
 - `miu-command-edit`: how to read, back up, edit and verify an MIU command
   through Defiant, with the steps-file template.
 
@@ -118,3 +133,5 @@ Format: `docs/IMPROVING.md`. Read before advising.
 | 2026-10-28 | Sources on the Aitum vertical canvas ignore Move filters and show/hide, so `(vrt)` alerts are URL-driven with guarded resets. MIU passes `$counter` unexpanded as a Run Command argument and Counter actions don't create counters, so guards use pending counters reset on MIU load | Vertical layout build, `docs/SCENES.md` | vertical alerts, MIU guards | active |
 | 2026-10-28 | Long-lived banners must not take the portrait seam lock, or every toast queues behind them | #86 | anything long-lived on the seam | active |
 | 2026-10-29 | A gag's MIU wait must cover its worst case (sprite fetch fallback + play): Spheal ~53.8 s inside a 56 s wait | #97 | gags with timed hides | active |
+| 2026-10-31 | "What touches the scene transition" needed OBS per-scene overrides too: Starting, BRB and Ending override to the Browser transition, so renaming it silently drops them. MIU's only stinger action (Couch Color's URL on "Scene Transition Source") targets an input that no longer exists | Consult for "Convert scene transition to video"; `Archive_1-20261031.json` | transition and stinger changes | active |
+| 2026-11-07 | Weekly audit: the routine rebuilt by hand twice in week one was ad-hoc Python over `Archive_1.json` plus greps of a stale MIU export. Now `npm run alerts:wiring`. Its first run found `Twitch Channel Subscribed` also calls Sidescreen Alert without `\|1` (the charter only named Resubscribed) | `tools/alerts/wiring.js` on the 2026-10-28 export | every "what touches X" or chat-risk question | active |

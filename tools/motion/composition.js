@@ -56,7 +56,13 @@ export const ELEMENTS = [
     // Camera presets (Stream Deck and scene filters): AJ's face lives here
     { id: 'camBL', label: 'Cam BL', box: [0, 462, 804, 1080], kind: 'P', face: true },
     { id: 'camBR', label: 'Cam BR', box: [1450, 657, 1906, 1055], kind: 'P', face: true },
-    { id: 'camMR', label: 'Cam MR', box: [1450, 357, 1906, 755], kind: 'P', face: true }
+    { id: 'camMR', label: 'Cam MR', box: [1450, 357, 1906, 755], kind: 'P', face: true },
+    // The 90s weather page (src/weather, #164): a full scene of its own, so
+    // its text is listed like a widget's to catch overlays landing on it.
+    // A 4:3 picture at x 240-1680 since AJ's rework notes (2026-11-10)
+    { id: 'weatherHeader', label: 'Weather header (logo, title, clock)', box: [312, 88, 1608, 216], kind: 'P', read: true },
+    { id: 'weatherPanel', label: 'Weather panel', box: [312, 224, 1608, 904], kind: 'P', read: true },
+    { id: 'weatherCrawl', label: 'Weather crawl', box: [240, 932, 1680, 994], kind: 'P', read: true }
 ];
 
 /**
@@ -73,7 +79,12 @@ export const PAIRS = [
     { name: 'bottom-right', enforce: true, title: 'Bottom-right corner: Pride badge, Lechonk, Clippy, iPhone, Life points, Cam BR', ids: ['pride', 'lechonk', 'clippy', 'iphone', 'life', 'camBR'], exclusive: [['lechonk', 'clippy', 'iphone', 'life']] },
     { name: 'toast-lane', enforce: true, title: 'Remote avatar and jail under the toast lane', ids: ['toast', 'remote', 'jail', 'goal'] },
     { name: 'cameras', title: 'Cam BL with chat, Exobot and Discord; Cam MR with the sidebar and MIU avatars', ids: ['camBL', 'chat', 'exobot', 'discord', 'camMR', 'sidebar', 'shoutout', 'resub', 'hug'] },
-    { name: 'pixel-guess', title: 'Pixel Guess with the toast and the MIU avatars', ids: ['pixelStart', 'pixelFull', 'toast', 'shoutout', 'resub'] }
+    { name: 'pixel-guess', title: 'Pixel Guess with the toast and the MIU avatars', ids: ['pixelStart', 'pixelFull', 'toast', 'shoutout', 'resub'] },
+    // Rotom (#164, 2026-11-10): the weather scene hides the goal bar, music
+    // display, remote, jail and chat; only the toast lane and the ad strip
+    // play over it (the shade is a takeover). Enforced, so a new overlay on
+    // its header or crawl fails the unit test
+    { name: 'weather', enforce: true, title: 'Weather scene with the alerts that play over it', ids: ['weatherHeader', 'weatherPanel', 'weatherCrawl', 'toast', 'hype', 'ad'] }
 ];
 
 const byId = new Map(ELEMENTS.map(e => [e.id, e]));
@@ -144,6 +155,9 @@ export const KNOWN_OVERLAPS = [
     // Accepted: AJ put the banner in the toast's own place (#86, 2026-10-28);
     // the toast sits above it in OBS and plays over it, then the banner shows again
     'hype-train: hype x toast',
+    // The same accepted toast-over-banner and quiet ad strip, on the weather scene (#164)
+    'weather: toast x hype',
+    'weather: ad SAFE-3',
     // Accepted: AJ wants the ad warning back on the bottom edge at half
     // opacity, as in OBS (#86, 2026-10-28): a quiet notice under the controls
     'ad-break: ad SAFE-3',

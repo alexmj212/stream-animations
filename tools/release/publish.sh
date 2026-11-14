@@ -19,10 +19,16 @@ latest="v$(node -p "require('./package.json').version")"
 # Release commits on main, oldest first. Recent ones only: everything before
 # v2.4.0 was tagged by hand.
 # First-parent and the (#N) suffix keep it to squash merges, never a release
-# branch's own commits.
+# branch's own commits. A title may say more after the version
+# ("chore(release): v2.15.0, weather page (#166)" went untagged until
+# 2026-11-10, when this learned to accept it).
 git fetch -q --tags origin 2>/dev/null || true
+# A version that fails to publish doesn't stop later ones (v2.18.0's refused
+# tag would otherwise hold back every release after it, 2026-11-11). The
+# loop runs in a subshell, so failures are recorded in this file.
+failed="$(mktemp)"
 git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
-  sed -nE 's/^([0-9a-f]{40}) chore\(release\): (v[0-9]+\.[0-9]+\.[0-9]+) \(#[0-9]+\)$/\1 \2/p' |
+  sed -nE 's/^([0-9a-f]{40}) chore\(release\): (v[0-9]+\.[0-9]+\.[0-9]+)([,;:] .*)? \(#[0-9]+\)$/\1 \2/p' |
   while read -r sha version; do
     if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
       continue
@@ -52,8 +58,37 @@ git log --first-parent --reverse --format='%H %s' -n 300 HEAD |
       echo "would publish $version at $sha ($flag)"
       cat "$notes"
     else
-      gh release create "$version" --target "$sha" --title "$version" \
-        --notes-file "$notes" "$flag"
+      # A 403 here usually means $sha's .github/workflows differ from every
+      # current branch and tag: GitHub won't let this token create a tag on
+      # it (v2.18.0, 2026-11-11, after #178 and #179 changed pages.yml).
+      # Someone with their own credentials creates the tag; then this skips it.
+      if ! gh release create "$version" --target "$sha" --title "$version" \
+        --notes-file "$notes" "$flag"; then
+        # Only the newest release has to exist. An older one that can't be
+        # published (v2.18.0, after v2.19.0 shipped) is a gap in the
+        # release list, not a failure: AJ (2026-11-11), "You've already
+        # published 2.19, is there a reason to publish an older version?"
+        if [ "$version" = "$latest" ]; then
+          echo "Could not publish $version at $sha. If that was a 403 and $sha's workflow files differ from main's, create tag $version on $sha by hand (docs/roles/release-management.md, Learnings 2026-11-11)." >&2
+          echo "$version" >> "$failed"
+        else
+          echo "::warning::Skipped $version: an older release; the newer one carries on." >&2
+        fi
+        continue
+      fi
       echo "Published $version at $sha"
     fi
   done
+
+# package.json's version must end up tagged. If no release commit matched it
+# (a title the pattern above missed, as #166 did), fail so the miss is red,
+# not a quiet green (code review on #171, 2026-11-10).
+if [ "${DRY_RUN:-}" != 1 ] && ! git ls-remote --exit-code --tags origin "refs/tags/$latest" >/dev/null; then
+  echo "package.json is $latest but no tag $latest exists after publishing: is its release commit titled 'chore(release): $latest (#N)'?" >&2
+  exit 1
+fi
+
+if [ -s "$failed" ]; then
+  echo "Not published: $(tr '\n' ' ' < "$failed")" >&2
+  exit 1
+fi

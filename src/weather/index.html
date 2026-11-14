@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exo-Cast</title>
+    <link rel="stylesheet" href="./fonts/star4000.css">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: #071450;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" width="1920" height="1080"></canvas>
+
+    <script type="module">
+      import { WeatherChannel } from "./WeatherChannel.js";
+      import { homeRegion } from "./forecast.js";
+      import { startNoise } from "./noise.js";
+      import { loadWsIcons } from "./icons.js";
+      import { NwsSource, DemoSource } from "./data.js";
+      import { SponsorSource, DEMO_SPONSORS } from "./sponsors.js";
+      import { config } from "../config/config.js";
+      import { seedFromURL, registerProbe } from "../shared/motion.js";
+      import { createDebug } from "../shared/debug.js";
+      const debug = createDebug('weather');
+
+      // Exo-Cast (AJ, 2026-11-10, named 2026-11-11): an unironic early-90s
+      // cable weather channel that cuts through forecast pages forever, with
+      // a joke ad between regions and jokes in the crawl. Silent: AJ plays
+      // their own music over it (2026-11-11). Full screen and opaque, so it
+      // is a scene of its own (BRB, a break). A 4:3 picture with a CRT look,
+      // live National Weather Service data for real cities and a radar loop.
+      //   ?data=demo     generated forecasts for made-up towns, no network
+      //                  (the motion harness and mocks); default live NWS
+      //   ?seed=N        demo only: another set of forecasts (default 0)
+      //   ?region=N|name region to open on (index or name, e.g. midwest);
+      //                  default the one nearest the computer's time zone
+      //   ?tz=Zone       pretend the computer is in this zone (mocks: ?tz=America/Denver)
+      //   ?noise=0       no compression noise layer
+      //   ?page=name     hold one page: current, local, extended, radar, regional, almanac, ad, sponsors, id
+      //   ?sponsors=a:sub,b:bits:500  a fixed sponsors list instead of Mix It Up (mocks;
+      //                  ?sponsors= alone means none); ?data=demo bills made-up names
+      //   ?pages=a,b     run only these pages, in this order (mocks: ?pages=almanac,ad)
+      //   ?ads=0         no ad breaks (the station ID page still runs)
+      //   ?pagems=N      ms per page (default config.weather.pageMs)
+      //   ?at=ISO        pretend it's this time (mocks: ?at=2027-01-15T08:00Z)
+      //   ?fps=N         frame cap (default config.weather.fps)
+      //   ?station=TEXT  the station ident (default EXO)
+      const urlParams = new URLSearchParams(window.location.search);
+      const cfg = { ...config.weather };
+      const num = (k) => (urlParams.has(k) ? Number(urlParams.get(k)) : NaN);
+      if (num('pagems') >= 2000) cfg.pageMs = num('pagems');
+      if (num('fps') >= 1) cfg.fps = Math.min(120, num('fps'));
+      if (urlParams.get('station')) cfg.station = urlParams.get('station').slice(0, 5).toUpperCase();
+      if (urlParams.get('ads') === '0') cfg.pages = cfg.pages.filter((p) => p !== 'ad');
+      const only = (urlParams.get('pages') || '').split(',').filter((p) => config.weather.pages.includes(p));
+      if (only.length) cfg.pages = only;
+      const page = config.weather.pages.includes(urlParams.get('page')) ? urlParams.get('page') : null;
+      const atMs = Date.parse(urlParams.get('at') || '');
+      const startWall = Date.now();
+      const now = Number.isFinite(atMs) ? () => atMs + (Date.now() - startWall) : () => Date.now();
+      const data = urlParams.get('data') === 'demo'
+        ? new DemoSource({ seed: seedFromURL() ?? 0, now })
+        : new NwsSource({ cfg: cfg.data, debug });
+      const sponsors = new SponsorSource({
+        cfg: cfg.sponsors,
+        fixed: urlParams.has('sponsors') ? urlParams.get('sponsors') : (urlParams.get('data') === 'demo' ? DEMO_SPONSORS : null),
+        now,
+        debug
+      });
+      const regionParam = (urlParams.get('region') || '').toUpperCase().replace(/[-_+]/g, ' ');
+      // The clock shows the computer's own time, and with no ?region the
+      // loop opens on the region nearest it (AJ, 2026-11-11)
+      cfg.viewerZone = urlParams.get('tz') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
+      let region = data.regions.findIndex((r) => r.name === regionParam);
+      if (region < 0 && regionParam) region = Math.max(0, Math.floor(Number(regionParam)) || 0) % data.regions.length;
+      if (region < 0) region = homeRegion(data.regions, cfg.viewerZone, now());
+
+      const canvas = document.getElementById("canvas");
+      let tv = null;
+      let startMs = null;
+      let lastDrawn = -Infinity;
+      let prepTimer = null;
+      const frameGap = 1000 / cfg.fps;
+
+      function frame(timestamp) {
+        requestAnimationFrame(frame);
+        if (startMs === null) startMs = timestamp;
+        // Cap to cfg.fps; the half-tick slack keeps 30 on a 60 Hz clock
+        if (timestamp - lastDrawn < frameGap - 4) return;
+        lastDrawn = timestamp;
+        debug.frame(timestamp);
+        const { cut } = tv.update(timestamp - startMs);
+        if (cut) {
+          // Build the next page well away from the cut, so a cut is one blit
+          clearTimeout(prepTimer);
+          prepTimer = setTimeout(() => tv.prepareNext(), cfg.prepareDelayMs);
+        }
+      }
+
+      // Text is baked into cached canvases: wait for fonts, and for the
+      // first region's data (capped, so a slow NWS still shows the page)
+      const firstData = Promise.race([
+        Promise.all([data.ensure(region), Promise.race([sponsors.refresh(), new Promise((r) => setTimeout(r, cfg.sponsors.startWaitMs))])]),
+        new Promise((resolve) => setTimeout(resolve, cfg.data.startWaitMs))
+      ]);
+      // Canvas text doesn't make the browser fetch a face: load each one
+      const faces = ['Star4000', 'Star4000 Small', 'Star4000 Large', 'Star4000 Extended', 'Star4000 Radar']
+        .map((f) => document.fonts.load(`40px "${f}"`).catch(() => null));
+      Promise.all([document.fonts.ready, firstData, loadWsIcons(), ...faces]).then(() => {
+        tv = new WeatherChannel(canvas, { cfg, data, now, region, page, sponsors, debug });
+        registerProbe('weather', () => tv.probeSamples());
+        if (cfg.noise?.alpha > 0 && urlParams.get('noise') !== '0') startNoise(document.body, cfg.noise, 1920, cfg.crt?.cornerPx ?? 0);
+        debug.mark('start', { region: data.regions[region].name, page, source: data.source });
+        requestAnimationFrame(frame);
+      });
+    </script>
+  </body>
+</html>

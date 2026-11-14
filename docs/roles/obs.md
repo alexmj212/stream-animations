@@ -55,13 +55,19 @@ a read-only status check on Defiant (`obs-ops` skill).
   docks and the MIU commands load `https://alexmj212.dev/stream-animations/…`
   (`docs/SCENES.md`, root `README.md` for URL params). A release needs no
   rebuild on Defiant, but OBS keeps a loaded page: the stinger transition
-  must be reloaded (toggle a URL param) after a stinger release.
+  must be reloaded (toggle a URL param) after a stinger release. A video
+  stinger for OBS's native Stinger transition comes from
+  `npm run motion:export -- stinger` (alpha WebM plus the measured
+  Transition Point; add `--width=1080 --height=1920` for vertical), never
+  from an OBS recording with a chroma key (2026-10-31 consult).
 - **Shared nested scenes**: *Alerts* is nested in every main scene and
   holds the alert pages, banners, notifications, followers, chat and music
   info. *Audio* holds the sound sources and is nested in the scenes where
   sound should air. The camera and music automations are empty scenes whose
   Move Action filters fire on *Activate*, so they don't refire between two
-  scenes that both nest them.
+  scenes that both nest them. BG Music (the VB Virtual Cable) also feeds
+  the music waveform and a Move, so muting it breaks visuals as well as
+  sound (2026-11-02 consult).
 - **Alerts**: the 16:9 alert sources are shown and hidden by MIU, with Move
   filters hiding them after a fixed time (7 s sidebar, 10 s shade). The
   vertical ones are URL-driven (`docs/SCENES.md`, "Vertical canvas").
@@ -137,6 +143,32 @@ shows no exit prompt, and from WSL it reaches OBS through Windows Python
 
 The stinger loads fresh on launch, so it needs no reload after a restart.
 
+## Recipe review checklist
+
+The checks I gave by hand in every recipe review in the first week (camera,
+stinger video, Spotify monitoring, vault sync; 2026-10-31 to 2026-11-02).
+Run each one against the recipe before replying:
+
+1. **Is there a repo tool for it?** `npm run obs:restart`, `npm run
+   motion:export`, `npm run gpu:summary`, the dock checks. Prefer the tool
+   over hand steps.
+2. **Can the websocket do it?** It can't create transitions, rename groups
+   or set show/hide transitions. Those need the GUI or an edit of the
+   closed collection.
+3. **Does a test hit what it means to?** Per-scene transition overrides
+   (Starting, BRB and Ending use Browser) change which transition plays.
+   A `GetSourceScreenshot` of program shows the scene, not the transition,
+   so use `SaveReplayBuffer` to capture one. Switching scenes fires their
+   Activate Move actions.
+4. **Who else uses this source?** Grep the MIU commands, the Stream Deck
+   profiles and the collection's macros for its name before muting,
+   renaming or repointing it.
+5. **Does anything pop up or stall on Defiant?** A console window or a
+   sign-in prompt can steal focus from a fullscreen game. OneDrive
+   Files On-Demand can make a media file cloud-only.
+6. **Backup, off-air check, rollback, and a restart only with AJ's OK**
+   (rules 1, 3 and 8).
+
 ## How issue threads use this expert
 
 1. Send the plan in one message: the goal, the sources and scenes involved,
@@ -177,4 +209,5 @@ for each, and the rollback (restore the named backup).
 |---|---|---|---|---|
 | 2026-10-31 | The charter's setup map is a start point, not truth: OBS changes outside the repo, so every change starts with a read-only status check | AJ, 2026-10-31 ("agnostic of past investigations or faulty setups") | every consult | active |
 | 2026-10-31 | NVIDIA Background Removal can stay enabled yet pass frames through untouched after a GPU driver reset (log: D3D11 `887A0005`, then `error -1999` mapping the source texture). Toggling the filter or changing its mode doesn't recover it; only an OBS restart does (`npm run obs:restart`). Check the log (and Windows event nvlddmkm 153) before blaming the filter, the SDK or Move | Fix camera transparency in Full view thread, #147-#149 | camera, NVIDIA filters | active |
-| 2026-10-31 | A consult relay names the sender's session, not its thread. Map it with `list_threads` and send only finished text; a stray message once went to the wrong thread | This thread, vault and camera consults | every consult | active |
+| 2026-10-31 | A consult relay names the sender's session, not its thread. Map it with `list_threads` and send only finished text; a stray message once went to the wrong thread | This thread, vault and camera consults | every consult | superseded 2026-11-02 by `CLAUDE.md`, "Find the thread before you message it" (#157) |
+| 2026-10-31 | `message_thread` takes at most 2000 characters, and two consult replies went over. Draft replies to about 1800 and put long reviews in project files | Stinger video consult | every consult | active |

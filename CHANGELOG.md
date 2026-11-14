@@ -4,6 +4,112 @@ What changed on stream, newest first. Versions follow
 `docs/roles/release-management.md`: major when OBS setup has to change,
 minor for new scenes, features or a visible style change, patch for fixes.
 
+## v2.24.0 - 2026-11-13
+
+- Exo-Cast's breaks gain a "made possible by" sponsors card after each ad,
+  listing the channel's subscribers (and bits cheerers once Mix It Up
+  tracks them) from Mix It Up. If Mix It Up is down or has no names, the
+  card skips itself. ([#197])
+
+## v2.23.0 - 2026-11-12
+
+- Two Exo-Cast ads now use real cut-out photos of a puppy and a cat in
+  place of the clip art, both CC0 and credited in the photo credits. ([#195])
+
+## v2.22.1 - 2026-11-11
+
+- Exo-Cast's radar no longer draws a dot for a town it can't label, so
+  the West Coast map loses Sacramento's stray unnamed dot. ([#193])
+
+## v2.22.0 - 2026-11-11
+
+- Exo-Cast's ads now use transparent cut-out clip art, drawn whole and
+  about twice as big with a hard drop shadow instead of cropped photos in
+  ovals. Several ads are simpler (no starbursts or fine print), and the
+  coupon ads keep their picture clear of the text. ([#191])
+
+## v2.21.1 - 2026-11-11
+
+- Exo-Cast's text has no glow any more (the drop shadow stays), and each
+  region's radar map now zooms to fit its towns, so the West Coast is no
+  longer zoomed far out and no town sits under the legend. ([#189])
+
+## v2.21.0 - 2026-11-11
+
+- Exo-Cast's weather icons are now the WeatherStar 4000 ones (fan
+  redraws by Charles Abel, Nick Smith and Malek Masoud, credited in
+  `src/weather/ws4000/CREDITS.md`), drawn at whole-pixel sizes with no
+  smoothing and animated with their own frames. ([#187])
+
+## v2.20.0 - 2026-11-11
+
+- Every Exo-Cast page now holds for 15 seconds (`?pagems=` still
+  overrides it), and the station ID is a page of its own after the ad,
+  so it plays in full instead of squeezing into the last seconds of the
+  ad. ([#185])
+
+## v2.19.1 - 2026-11-11
+
+- Exo-Cast's compression noise is lighter and slower, so it no longer
+  swamps the picture or Twitch's bitrate. Ads write "(TM)" instead of a
+  ™ sign the Star4000 type doesn't have, and a test now checks every ad
+  character exists in the type. ([#183])
+
+## v2.19.0 - 2026-11-11
+
+- Exo-Cast gets the classic look. It uses the Star4000 typefaces (a fan
+  rebuild of the WeatherStar 4000 type by Nick Smith, credited in
+  `fonts/star4000.css`), and each page paints on top to bottom with an
+  occasional stall. The radar map is pixel-drawn, the clock and the
+  opening region follow your local time zone (`?tz=` overrides it), and
+  the almanac shows sunrise and sunset icons. Each break now ends with a
+  station ID bumper. ([#181])
+- There are 12 new ads in eight 90s local-spot formats (car lot, coupon,
+  menu board, infomercial and more), with credited free-licence photos.
+  The same format never runs twice in a row. ([#181])
+- The full-picture noise is strong in this version. AJ asked for it to
+  go out and be tuned next. ([#181])
+
+## v2.18.0 - 2026-11-11
+
+- Exo-Cast's ad breaks now read like real local ads. Each of the nine
+  spots has a tagline, clip art with a starburst deal, a four-line price
+  list, a phone and address line (fictional 555 numbers) and fine
+  print. ([#175])
+- The weather page is silent again: the J-fusion music is gone, so the
+  v2.17.0 OBS audio settings for the weather source aren't needed
+  (they're harmless if already applied). ([#175])
+- Pages deploys can no longer hang for hours. The deploy job and its
+  audio level step now have timeouts, and the ffmpeg install skips the
+  step that stalled v2.17.0's deploy. ([#176])
+
+## v2.17.0 - 2026-11-11
+
+- The weather page is now Exo-Cast. Its icons animate in two frames,
+  each region closes with a parody ad for a made-up local business,
+  the crawl tells jokes, and an original J-fusion jazz loop plays at
+  -21 dB (`?music=0` turns it off, `?ads=0` drops the breaks). In OBS,
+  turn on "Control audio via OBS" for the weather source, set Audio
+  Monitoring to "Monitor and Output", and keep it off track 2 like the
+  other music (`docs/SCENES.md`). ([#173])
+
+## v2.16.0 - 2026-11-10
+
+- The weather page is now a 4:3 picture with a CRT look (scanlines,
+  rounded tube, glow), real National Weather Service forecasts and
+  observations for 42 US cities in six regions, and a radar page with
+  RainViewer's last hour on a drawn map. `?data=demo` keeps the old
+  made-up towns with no network. Region names in `?region=` changed to
+  `northeast`, `midwest` and so on. ([#169])
+
+## v2.15.0 - 2026-11-10
+
+- New 90s weather page: an early-90s cable weather channel on its own full
+  screen that cycles current conditions, local forecast, 5-day extended,
+  regional observations and an almanac for six made-up regions, forever,
+  with a live clock and a bulletin crawl. Load `weather/` as a 1920x1080
+  Browser Source at 30 fps in a scene of its own. ([#164])
+
 ## v2.14.0 - 2026-10-31
 
 - New Audio Routing dock, an OBS Custom Browser Dock that draws the audio
@@ -295,3 +401,17 @@ release (`npm run motion:export -- stinger` renders your own).
 [#126]: https://github.com/alexmj212/stream-animations/pull/126
 [#129]: https://github.com/alexmj212/stream-animations/pull/129
 [#131]: https://github.com/alexmj212/stream-animations/pull/131
+[#164]: https://github.com/alexmj212/stream-animations/pull/164
+[#169]: https://github.com/alexmj212/stream-animations/pull/169
+[#173]: https://github.com/alexmj212/stream-animations/pull/173
+[#175]: https://github.com/alexmj212/stream-animations/pull/175
+[#176]: https://github.com/alexmj212/stream-animations/pull/176
+[#181]: https://github.com/alexmj212/stream-animations/pull/181
+[#183]: https://github.com/alexmj212/stream-animations/pull/183
+[#185]: https://github.com/alexmj212/stream-animations/pull/185
+[#187]: https://github.com/alexmj212/stream-animations/pull/187
+[#189]: https://github.com/alexmj212/stream-animations/pull/189
+[#191]: https://github.com/alexmj212/stream-animations/pull/191
+[#193]: https://github.com/alexmj212/stream-animations/pull/193
+[#195]: https://github.com/alexmj212/stream-animations/pull/195
+[#197]: https://github.com/alexmj212/stream-animations/pull/197
