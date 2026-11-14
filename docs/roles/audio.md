@@ -56,7 +56,7 @@ Each has its source; `docs/AUDIO.md` has the detail.
 4. **Every page sound is registered.** A sound file under `src/` goes into
    `audioConfig.assets` with its page gain, sized with
    `npm run audio -- meter <file> --gain-db=n`; `npm run audio -- assets`
-   gates CI (PR #107). A file clipped before encoding is replaced.
+   gates every Pages deploy (`pages.yml`; PR #107). Since CI went manual (AJ, 2026-11-10), run it locally on any sound change and say so in the PR. A file clipped before encoding is replaced.
 5. **AJ hears alert and gag sounds.** A new OBS source with sound gets Audio
    Monitoring "Monitor and Output", never "Monitor Off" (AJ, 2026-10-29).
 6. **Music stays off the VOD.** Music never reaches track 2 (the VOD track)
