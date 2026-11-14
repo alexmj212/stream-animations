@@ -85,9 +85,11 @@ a read-only status check on Defiant (`obs-ops` skill).
 
 Each cites its source; send the relevant ones with every recipe.
 
-1. **Never while AJ is live**, and never a deploy then either (AJ,
-   2026-10-28). The only exception is the extreme circumstance in
-   `CLAUDE.md`.
+1. **No OBS change while AJ is live** (AJ, 2026-10-28). The only
+   exception is the extreme circumstance in `CLAUDE.md`. Merges and Pages
+   deploys no longer need a not-live check (AJ, 2026-11-10, `CLAUDE.md`,
+   "No CI gate"), but a loaded page, like the stinger transition, still
+   only changes when OBS reloads it.
 2. **Changes to OBS on AJ's PC go through the Defiant thread**, via the
    coordinator (AJ's project instructions, 2026-10-31; `docs/roles/README.md`
    on #137: "the hands on AJ's PC"). Read-only folder access granted to
@@ -210,4 +212,5 @@ for each, and the rollback (restore the named backup).
 | 2026-10-31 | The charter's setup map is a start point, not truth: OBS changes outside the repo, so every change starts with a read-only status check | AJ, 2026-10-31 ("agnostic of past investigations or faulty setups") | every consult | active |
 | 2026-10-31 | NVIDIA Background Removal can stay enabled yet pass frames through untouched after a GPU driver reset (log: D3D11 `887A0005`, then `error -1999` mapping the source texture). Toggling the filter or changing its mode doesn't recover it; only an OBS restart does (`npm run obs:restart`). Check the log (and Windows event nvlddmkm 153) before blaming the filter, the SDK or Move | Fix camera transparency in Full view thread, #147-#149 | camera, NVIDIA filters | active |
 | 2026-10-31 | A consult relay names the sender's session, not its thread. Map it with `list_threads` and send only finished text; a stray message once went to the wrong thread | This thread, vault and camera consults | every consult | superseded 2026-11-02 by `CLAUDE.md`, "Find the thread before you message it" (#157) |
-| 2026-10-31 | `message_thread` takes at most 2000 characters, and two consult replies went over. Draft replies to about 1800 and put long reviews in project files | Stinger video consult | every consult | active |
+| 2026-10-31 | `message_thread` takes at most 2000 characters, and two consult replies went over. Draft replies to about 1800 and put long reviews in project files | Stinger video consult | every consult | superseded 2026-11-14 by the row below |
+| 2026-11-14 | The 1800-character habit didn't hold: the scene-tree consult went over again (2091). For any reply with more than three points, write the draft to the scratchpad and check `wc -c` (at most 1900) before sending | Scene hierarchy dock consult, 2026-11-08 | every consult | active |
