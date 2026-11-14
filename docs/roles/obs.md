@@ -85,9 +85,11 @@ a read-only status check on Defiant (`obs-ops` skill).
 
 Each cites its source; send the relevant ones with every recipe.
 
-1. **Never while AJ is live**, and never a deploy then either (AJ,
-   2026-10-28). The only exception is the extreme circumstance in
-   `CLAUDE.md`.
+1. **No OBS change while AJ is live** (AJ, 2026-10-28). The only
+   exception is the extreme circumstance in `CLAUDE.md`. Merges and Pages
+   deploys no longer need a not-live check (AJ, 2026-11-10, `CLAUDE.md`,
+   "No CI gate"), but a loaded page, like the stinger transition, still
+   only changes when OBS reloads it.
 2. **Changes to OBS on AJ's PC go through the Defiant thread**, via the
    coordinator (AJ's project instructions, 2026-10-31; `docs/roles/README.md`
    on #137: "the hands on AJ's PC"). Read-only folder access granted to
