@@ -86,6 +86,34 @@ thread already found.
    frames report fires every 60 s, so a shorter run needs the scene's own
    `end` event snapshot (QA Learnings, 2026-10-29).
 
+**A new always-on page** (a BRB, background or dock page that may run for
+hours; the same advice went to three threads on 2026-11-08 to 11-10). Check
+the plan against this list:
+
+1. Cache everything static in offscreen canvases allocated once and reused.
+   Per frame, only blit and redraw dirty regions. Use
+   `getContext('2d', { alpha: false })` for an opaque canvas, and scroll by
+   whole pixels from px per second and delta time.
+2. Budget: the default `workP95Ms` 4 ms over at least 200 frames, never a
+   looser one. Also check **max** on the frame that does the once-per-cycle
+   work (a page change, a cut, a region change), because p95 hides it.
+   Prebuild that work in idle slices ahead of time, and yield before
+   starting it.
+3. Decode off the frame (`createImageBitmap`, `decodeAudioData`), wait for
+   `document.fonts.ready` before caching text, and keep the harness
+   offline with fixtures.
+4. Memory: bounded caches and a long `?debug=frames` pass with no growth.
+   Large fixed buffers are fine within 300 MB.
+5. In OBS: "Shutdown source when not visible" on if losing state is
+   harmless, and the browser source's custom frame rate set to the page's
+   cap. If the page reloads on every show, count its load burst on every
+   show. OBS wiring goes through the OBS expert.
+6. Measure in OBS with `gpu-check`, including the CPU step for the load or
+   cycle burst, and put browser_3D in the PR.
+7. A dock: zero timers or rAF while idle, event-driven re-reads, batched
+   requests, and the open must not move OBS's "Frames missed due to
+   rendering lag".
+
 **A risky approach** (raising a canvas or source to 60 fps, a new always-on
 WebGL or video source, an NVIDIA filter, a new output or encoder): reply
 with the expected cost from the table above and the measurement the thread
@@ -108,7 +136,8 @@ side-by-side mocks.
    the third answer is a script or skill step. Built: `gpu-check`
    (`.claude/skills/gpu-check/`, 2026-10-31), the off-air before and after
    recipe for any OBS change, with a CPU step for bursts. Hand it to issue
-   threads instead of writing the recipe out. Planned: `bench-compare`
+   threads instead of writing the recipe out. Also built: the "new always-on page"
+   checklist above (2026-11-14, after three threads asked). Planned: `bench-compare`
    (main vs branch, Frame CPU and Canvas calls in one table).
 5. Weekly, on a self-scheduled reminder: look back over this thread's
    answers for the one rebuilt most often, and turn it into a script.
@@ -136,3 +165,5 @@ side-by-side mocks.
 | 2026-10-30 | OBS's own GPU (encoders, canvases, NVIDIA filters) outweighed every browser page combined. Look at outputs and canvases before tuning pages | `docs/PERFORMANCE.md`, "OBS GPU" | OBS cost questions | active |
 | 2026-10-31 | When an NVIDIA effect or GPU feature in OBS stops working, read the OBS log and the Windows System log for a device reset ("Device Remove/Reset", event 153) before comparing settings. I pointed the camera transparency thread at a Move action change; the cause was a GPU reset at 12:15 local that the Background Removal filter never recovered from | Camera transparency issue thread, 2026-10-31 | OBS GPU questions; first step of any "stopped working" ask | active |
 | 2026-10-31 | Before `message_thread`, look up the target thread id (`list_threads`) and send the real message in that one call; never send a placeholder. I sent a stray "wrong thread placeholder" to the vault thread while hunting for an id | This thread, 2026-10-31 | messaging other threads | retired: now the team rule in `CLAUDE.md`, "Find the thread before you message it" (#157) |
+| 2026-11-10 | A once-per-cycle step hides under p95: the weather page's region-change cut was 9.8 ms with a p95 of 0.2 ms. Starting the idle radar build after a yield brought it to 0.1-0.4 ms. Check max on that frame, and yield before starting idle work | Weather page thread, #169 | always-on pages | active |
+| 2026-11-11 | With "Shutdown source when not visible" on, a page reloads on every show, so its load work (the weather music render: 2.5 s idle CPU, 54 MB peak) repeats each break. Count it per show, or ship the asset pre-rendered | Weather page thread, #173 | always-on pages in OBS | active |
